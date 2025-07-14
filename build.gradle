@@ -1,0 +1,67 @@
+buildscript {
+    repositories {
+        jcenter()
+        maven { url = "https://files.minecraftforge.net/maven" }
+        maven { url = "https://repo.spongepowered.org/maven" }
+    }
+    dependencies {
+        classpath 'net.minecraftforge.gradle:ForgeGradle:2.3-SNAPSHOT'
+    }
+}
+
+apply plugin: 'net.minecraftforge.gradle.forge'
+
+// 项目基本信息
+version = "1.0"
+group = "com.moremod"
+archivesBaseName = "Jason's more rf bauble"
+
+sourceCompatibility = targetCompatibility = '1.8'
+
+// 防止中文乱码
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
+// Forge 配置
+minecraft {
+    version = "1.12.2-14.23.5.2847"
+    runDir = "run"
+    mappings = "stable_39"
+}
+
+// 本地依赖 Jar 文件放在 libs 文件夹下
+repositories {
+    mavenCentral()
+    flatDir {
+        dirs 'libs'
+    }
+}
+
+dependencies {
+    compile name: 'Baubles-1.12-1.5.2'
+    compile name: 'RedstoneFlux-1.12-2.1.1.1-universal'
+    compile name: 'SRParasites-1.12.2v1.9.21'
+}
+
+// 处理资源文件（填充 mcmod.info）
+processResources {
+    inputs.property "version", project.version
+    inputs.property "mcversion", project.minecraft.version
+
+    from(sourceSets.main.resources.srcDirs) {
+        include 'mcmod.info'
+        expand 'version': project.version, 'mcversion': project.minecraft.version
+    }
+
+    from(sourceSets.main.resources.srcDirs) {
+        exclude 'mcmod.info'
+    }
+}
+
+// JAR 属性（如有 Mixin 可扩展此处）
+jar {
+    manifest.attributes(
+            "FMLCorePluginContainsMod": "true"
+    )
+}

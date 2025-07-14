@@ -1,0 +1,13 @@
+{
+  "mechanical_heart_tick": {
+    "subtitle": "subtitles.moremod.mechanical_heart_tick",
+    "sounds": [
+      {
+        "name": "moremod:mechanical_heart_tick",
+        "volume": 0.8,
+        "pitch": 1.0,
+        "type": "sound"
+      }
+    ]
+  }
+}

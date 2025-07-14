@@ -1,0 +1,25 @@
+#PARSE_ESCAPES
+#items
+item.energy_ring.name=虚空之握
+item.spear_bauble.name=人造-龙胆银枪
+item.cleansing_bauble.name=人造-引擎
+item.energy_barrier.name=超级能量屏障
+
+
+item.law_sword.name=妖刀-鬼哭
+item.energy_sword.name=鬼妖-村正
+item.basic_energy_barrier.name=基础能量护盾
+item.crude_energy_barrier.name=粗制能量护盾
+item.creative_battery_bauble.name=创造电池
+
+# 新增饰品
+item.battery_bauble.name=随身电池
+
+# 时间之心
+item.mechanical_heart.name=机械之心
+
+# 喷气背包系列
+item.jetpack_t1.name=钻石喷气背包
+item.jetpack_t2.name=龙皮喷气背包
+item.jetpack_t3.name=觉知喷气背包
+item.creative_jetpack.name=创造模式喷气背包
