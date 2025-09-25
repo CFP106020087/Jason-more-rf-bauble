@@ -1,0 +1,12 @@
+{
+  "enabled": true,
+  "output": {
+    "item": "moremod:abyssal_fabric",
+    "count": 4
+  },
+  "input": [
+ "moremod:shadow_fragment","moremod:unformed_fabric","moremod:shadow_fragment"
+    ,"moremod:unformed_fabric","moremod:parasitic_mass","moremod:unformed_fabric"
+    ,"moremod:shadow_fragment","moremod:unformed_fabric","moremod:shadow_fragment"
+  ]
+}

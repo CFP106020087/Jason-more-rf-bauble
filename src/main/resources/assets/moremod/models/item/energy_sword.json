@@ -1,0 +1,26 @@
+{
+    "parent": "item/handheld",
+    "textures": {
+        "layer0": "moremod:items/energy_sword"
+    },
+    "overrides": [
+        {
+            "predicate": {
+                "moremod:sword_state": 0
+            },
+            "model": "moremod:item/energy_sword_sheathed"
+        },
+        {
+            "predicate": {
+                "moremod:sword_state": 1
+            },
+            "model": "moremod:item/energy_sword_with_sheath"
+        },
+        {
+            "predicate": {
+                "moremod:sword_state": 2
+            },
+            "model": "moremod:item/energy_sword_unsheathed"
+        }
+    ]
+}

@@ -1,0 +1,16 @@
+{
+  "required": false,
+  "package": "com.moremod.mixin",
+  "refmap": "mixins.moremod.refmap.json",
+  "compatibilityLevel": "JAVA_8",
+  "target": "@env(DEFAULT)",
+  "minVersion": "0.8",
+  "mixins": [
+    "lycanites.MixinForceGoal",
+    "lycanites.MixinEntityAsmodeus_BypassShield",
+    "lycanites.MixinPullAndWhirlpool"
+  ],
+  "injectors": {
+    "maxShiftBy": 10
+  }
+}

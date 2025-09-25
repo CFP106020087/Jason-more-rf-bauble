@@ -10,37 +10,45 @@ import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 import java.util.UUID;
 
 public class MessageJetpackSneaking implements IMessage {
-    public boolean sneaking;
 
-    public MessageJetpackSneaking() {
-        // 默认构造函数，用于网络序列化
-    }
+    public boolean isSneaking;
 
-    public MessageJetpackSneaking(boolean sneaking) {
-        this.sneaking = sneaking;
+    public MessageJetpackSneaking() {}
+
+    public MessageJetpackSneaking(boolean isSneaking) {
+        this.isSneaking = isSneaking;
     }
 
     @Override
     public void fromBytes(ByteBuf buf) {
-        this.sneaking = buf.readBoolean();
+        this.isSneaking = buf.readBoolean();
     }
 
     @Override
     public void toBytes(ByteBuf buf) {
-        buf.writeBoolean(this.sneaking);
+        buf.writeBoolean(this.isSneaking);
     }
 
     public static class Handler implements IMessageHandler<MessageJetpackSneaking, IMessage> {
         @Override
         public IMessage onMessage(MessageJetpackSneaking message, MessageContext ctx) {
             EntityPlayerMP player = ctx.getServerHandler().player;
-            UUID uuid = player.getUniqueID();
 
-            // 主线程执行 - 与MessageJetpackJumping保持一致
+            if (player == null || player.world == null) {
+                System.err.println("[Jetpack] ERROR: Player or world is null!");
+                return null;
+            }
+
+            UUID uuid = player.getUniqueID();
+            boolean isSneaking = message.isSneaking;
+
+            // 在主线程安全地更新状态
             player.getServerWorld().addScheduledTask(() -> {
-                EventHandlerJetpack.jetpackSneaking.put(uuid, message.sneaking);
-                // Debug
-                //System.out.println("服务端收到Shift键包: " + message.sneaking);
+                // 更新潜行状态
+                EventHandlerJetpack.jetpackSneaking.put(uuid, isSneaking);
+
+                // 不调用 updatePlayerFlightState 以避免干扰其他飞行源
+                // 飞行状态会在 onPlayerTick 中自然更新
             });
 
             return null;

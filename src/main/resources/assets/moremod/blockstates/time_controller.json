@@ -1,0 +1,7 @@
+{
+
+  "variants": {
+    "active=false": { "model": "moremod:time_controller_off" },
+    "active=true": { "model": "moremod:time_controller_on" }
+  }
+}

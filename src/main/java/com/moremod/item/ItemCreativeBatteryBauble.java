@@ -1,5 +1,6 @@
 package com.moremod.item;
 
+import com.moremod.creativetab.moremodCreativeTab;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.player.EntityPlayer;
@@ -18,14 +19,14 @@ import javax.annotation.Nullable;
 import java.util.List;
 
 public class ItemCreativeBatteryBauble extends Item {
-    // 显示用的"假"最大能量值，实际上无限
+
     public static final int DISPLAY_MAX_ENERGY = 2147483647; // Integer.MAX_VALUE
     public static final int MAX_TRANSFER = Integer.MAX_VALUE;
 
     public ItemCreativeBatteryBauble() {
         setRegistryName("creative_battery_bauble");
         setTranslationKey("creative_battery_bauble");
-        setCreativeTab(CreativeTabs.TOOLS);
+        setCreativeTab(moremodCreativeTab.moremod_TAB);
         setMaxStackSize(1);
     }
 

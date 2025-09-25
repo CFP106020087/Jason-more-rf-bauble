@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "moremod:dimension_loom", "y": 180 },
+    "facing=south": { "model": "moremod:dimension_loom", "y": 0 },
+    "facing=west":  { "model": "moremod:dimension_loom", "y": 90 },
+    "facing=east":  { "model": "moremod:dimension_loom", "y": 270 }
+  }
+}

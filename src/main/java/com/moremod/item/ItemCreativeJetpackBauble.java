@@ -3,6 +3,7 @@ package com.moremod.item;
 
 import baubles.api.BaubleType;
 import baubles.api.IBauble;
+import com.moremod.creativetab.moremodCreativeTab;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.EntityLivingBase;
@@ -78,7 +79,7 @@ public class ItemCreativeJetpackBauble extends Item implements IBauble {
         setRegistryName(name);
         setTranslationKey(name);
         setMaxStackSize(1);
-        setCreativeTab(CreativeTabs.TRANSPORTATION);
+        setCreativeTab(moremodCreativeTab.moremod_TAB);
     }
 
     // 获取当前速度模式

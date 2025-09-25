@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "GCG",
+    "CTC",
+    "GCG"
+  ],
+  "key": {
+    "G": {
+      "item": "moremod:antikythera_gear"
+    },
+    "T": {
+      "item": "moremod:blank_template"
+    },
+    "C": {
+      "item": "minecraft:daylight_detector"
+    }
+  },
+  "result": {
+    "item": "moremod:solar_collection_panel",
+    "count": 1
+  }
+}

@@ -1,8 +1,8 @@
 package com.moremod.network;
 
 import baubles.api.BaublesApi;
-import com.moremod.item.ItemJetpackBauble;
 import com.moremod.item.ItemCreativeJetpackBauble;
+import com.moremod.item.ItemJetpackBauble;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
@@ -13,7 +13,7 @@ import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 public class MessageToggleJetpackMode implements IMessage {
 
-    private int toggleMode; // 0=hover, 1=jetpack, 2=speed
+    public int toggleMode; // 0=hover, 1=jetpack, 2=speed
 
     public MessageToggleJetpackMode() {}
 

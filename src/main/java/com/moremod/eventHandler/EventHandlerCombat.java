@@ -10,77 +10,148 @@ import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import baubles.api.BaublesApi;
+import baubles.api.cap.IBaublesItemHandler;
 
-@Mod.EventBusSubscriber
+@Mod.EventBusSubscriber(modid = "moremod")
 public class EventHandlerCombat {
 
     private static final String TAG_ATTACK_COUNT = "energyring_attack_count";
     private static final String TAG_NEXT_DAMAGE_MULTIPLIER = "energyring_next_multiplier";
 
-    @SubscribeEvent
+    @SubscribeEvent(priority = EventPriority.HIGH)
     public static void onLivingAttack(LivingAttackEvent event) {
-        if (!(event.getSource().getTrueSource() instanceof EntityPlayer)) return;
-        if((event.getEntityLiving() instanceof EntityPlayer )) return;
+        // 調試輸出 1：事件觸發
+        System.out.println("[DEBUG] LivingAttackEvent triggered");
+
+        if (event.getSource().getTrueSource() == null) {
+            System.out.println("[DEBUG] Source is null");
+            return;
+        }
+
+        if (!(event.getSource().getTrueSource() instanceof EntityPlayer)) {
+            System.out.println("[DEBUG] Source is not EntityPlayer: " + event.getSource().getTrueSource().getClass());
+            return;
+        }
+
+        if (event.getEntityLiving() instanceof EntityPlayer) {
+            System.out.println("[DEBUG] Target is EntityPlayer, skipping");
+            return;
+        }
+
         EntityPlayer player = (EntityPlayer) event.getSource().getTrueSource();
         EntityLivingBase target = event.getEntityLiving();
 
-        if (player.world.isRemote) return;
+        System.out.println("[DEBUG] Player: " + player.getName() + " attacking " + target.getName());
 
-        // 查找佩戴的能量戒指
-        ItemStack ringStack = findEquippedEnergyRing(player);
-        if (ringStack.isEmpty()) return;
+        if (player.world.isRemote) {
+            System.out.println("[DEBUG] Client side, returning");
+            return;
+        }
 
+        // 調試輸出 2：檢查Baubles
+        IBaublesItemHandler handler = BaublesApi.getBaublesHandler(player);
+        if (handler == null) {
+            System.out.println("[DEBUG] BaublesHandler is null!");
+            return;
+        }
+
+        System.out.println("[DEBUG] BaublesHandler slots: " + handler.getSlots());
+
+        // 查找並調試所有槽位
+        ItemStack ringStack = ItemStack.EMPTY;
+        for (int i = 0; i < handler.getSlots(); i++) {
+            ItemStack stack = handler.getStackInSlot(i);
+            if (!stack.isEmpty()) {
+                System.out.println("[DEBUG] Slot " + i + ": " + stack.getItem().getRegistryName());
+                if (stack.getItem() instanceof ItemEnergyRing) {
+                    System.out.println("[DEBUG] Found EnergyRing in slot " + i);
+                    ringStack = stack;
+                    break;
+                }
+            }
+        }
+
+        if (ringStack.isEmpty()) {
+            System.out.println("[DEBUG] No EnergyRing found in any slot");
+            return;
+        }
+
+        // 使用 ItemEnergyRing 的方法檢查能量
         ItemEnergyRing ring = (ItemEnergyRing) ringStack.getItem();
-        NBTTagCompound persisted = player.getEntityData().getCompoundTag(EntityPlayer.PERSISTED_NBT_TAG);
+        int currentEnergy = ring.getEnergyStored(ringStack);
+        System.out.println("[DEBUG] Ring energy: " + currentEnergy + "/" + ItemEnergyRing.MAX_ENERGY);
+
+        // 獲取並更新攻擊計數
+        NBTTagCompound playerData = player.getEntityData();
+        NBTTagCompound persisted = playerData.getCompoundTag(EntityPlayer.PERSISTED_NBT_TAG);
 
         int count = persisted.getInteger(TAG_ATTACK_COUNT) + 1;
         persisted.setInteger(TAG_ATTACK_COUNT, count);
-        player.getEntityData().setTag(EntityPlayer.PERSISTED_NBT_TAG, persisted);
+        playerData.setTag(EntityPlayer.PERSISTED_NBT_TAG, persisted);
 
-        // 检查是否达到触发条件且能量足够
-        if (count >= 5 && ring.getEnergyStored(ringStack) >= ItemEnergyRing.COST_PER_TRIGGER) {
-            // 获取倍率（若之前未成功击杀）
+        System.out.println("[DEBUG] Attack count: " + count);
+
+        // 顯示計數
+        player.sendStatusMessage(new TextComponentString(
+                TextFormatting.YELLOW + "虛空充能: " + count + "/5"), true);
+
+        // 檢查觸發條件
+        if (count >= 5) {
+            System.out.println("[DEBUG] Triggering void strike!");
+
+            // 檢查能量
+            if (currentEnergy < ItemEnergyRing.COST_PER_TRIGGER) {
+                System.out.println("[DEBUG] Not enough energy: " + currentEnergy + " < " + ItemEnergyRing.COST_PER_TRIGGER);
+                player.sendMessage(new TextComponentString(
+                        TextFormatting.RED + "[虛空之握] 能量不足！"));
+                return;
+            }
+
+            // 使用 ItemEnergyRing 的方法扣除能量
+            ring.extractEnergy(ringStack, ItemEnergyRing.COST_PER_TRIGGER, false);
+            System.out.println("[DEBUG] Energy extracted, remaining: " + ring.getEnergyStored(ringStack));
+
+            // 獲取倍率
             int multiplier = persisted.getInteger(TAG_NEXT_DAMAGE_MULTIPLIER);
             if (multiplier <= 0) multiplier = 1;
 
-            // 扣除能量
-            ring.extractEnergy(ringStack, ItemEnergyRing.COST_PER_TRIGGER, false);
+            System.out.println("[DEBUG] Damage multiplier: " + multiplier);
 
-            // 造成虚空伤害
-            float trueDamage = 250 * multiplier;
-            target.attackEntityFrom(DamageSource.OUT_OF_WORLD, trueDamage);
+            // 造成傷害
+            float trueDamage = 250.0F * multiplier;
+            System.out.println("[DEBUG] Applying damage: " + trueDamage);
 
-            // 判断是否击杀
-            if (target.getHealth() > 0.0F) {
-                persisted.setInteger(TAG_NEXT_DAMAGE_MULTIPLIER, multiplier * 2); // 下次翻倍
+            // 創建虛空傷害源
+            DamageSource voidDamage = DamageSource.OUT_OF_WORLD.setDamageBypassesArmor().setDamageIsAbsolute();
+            boolean damaged = target.attackEntityFrom(voidDamage, trueDamage);
+
+            System.out.println("[DEBUG] Damage applied: " + damaged);
+
+            // 音效
+            player.world.playSound(null, target.posX, target.posY, target.posZ,
+                    net.minecraft.init.SoundEvents.ENTITY_WITHER_BREAK_BLOCK,
+                    net.minecraft.util.SoundCategory.PLAYERS, 1.0F, 0.5F);
+
+            // 判斷擊殺
+            if (target.getHealth() <= 0.0F || target.isDead) {
+                persisted.removeTag(TAG_NEXT_DAMAGE_MULTIPLIER);
+                System.out.println("[DEBUG] Target killed, multiplier reset");
             } else {
-                persisted.removeTag(TAG_NEXT_DAMAGE_MULTIPLIER); // 重置倍率
+                persisted.setInteger(TAG_NEXT_DAMAGE_MULTIPLIER, multiplier * 2);
+                System.out.println("[DEBUG] Target survived, multiplier doubled to " + (multiplier * 2));
             }
 
-            // 重置攻击计数
+            // 重置計數
             persisted.setInteger(TAG_ATTACK_COUNT, 0);
-            player.getEntityData().setTag(EntityPlayer.PERSISTED_NBT_TAG, persisted);
+            playerData.setTag(EntityPlayer.PERSISTED_NBT_TAG, persisted);
 
-            // 显示信息
-            int remainingEnergy = ring.getEnergyStored(ringStack);
-            int triggersLeft = remainingEnergy / ItemEnergyRing.COST_PER_TRIGGER;
+            // 顯示信息
             player.sendMessage(new TextComponentString(
-                    TextFormatting.GOLD + "[虚空之握] 你感受到虚空的力量撕裂了对面！倍率: " + multiplier +
-                            "，剩余能量：" + remainingEnergy + " RF，可触发次数：" + triggersLeft
-            ));
+                    TextFormatting.GOLD + "[虛空之握] 觸發！傷害: " + trueDamage +
+                            " | 剩餘能量: " + ring.getEnergyStored(ringStack)));
         }
-    }
-
-    // 查找是否佩戴了 Energy Ring 饰品
-    private static ItemStack findEquippedEnergyRing(EntityPlayer player) {
-        for (int i = 0; i < BaublesApi.getBaublesHandler(player).getSlots(); i++) {
-            ItemStack stack = BaublesApi.getBaublesHandler(player).getStackInSlot(i);
-            if (!stack.isEmpty() && stack.getItem() instanceof ItemEnergyRing) {
-                return stack;
-            }
-        }
-        return ItemStack.EMPTY;
     }
 }

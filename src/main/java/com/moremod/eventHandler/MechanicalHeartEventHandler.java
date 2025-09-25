@@ -1,7 +1,6 @@
 package com.moremod.eventHandler;
 
 import com.moremod.item.ItemMechanicalHeart;
-import com.moremod.sounds.ModSounds;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.init.MobEffects;
@@ -92,10 +91,7 @@ public class MechanicalHeartEventHandler {
             }
 
             // 🎵 只在复活时播放您的4秒音效！
-            if (ModSounds.MECHANICAL_HEART_TICK != null) {
-                world.playSound(null, player.getPosition(), ModSounds.MECHANICAL_HEART_TICK,
-                        SoundCategory.PLAYERS, 1.0F, 1.0F);
-            }
+
 
             // 神秘粒子效果
             if (!world.isRemote) {

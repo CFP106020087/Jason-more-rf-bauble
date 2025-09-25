@@ -1,134 +1,142 @@
-package com.moremod.item;
+package com.moremod.eventHandler;
 
-import baubles.api.BaubleType;
-import baubles.api.IBauble;
-import net.minecraft.creativetab.CreativeTabs;
-import net.minecraft.entity.EntityLivingBase;
+import baubles.api.BaublesApi;
+import com.moremod.item.ItemCrudeEnergyBarrier;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.item.Item;
+import net.minecraft.init.SoundEvents;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.util.*;
-import net.minecraftforge.common.capabilities.*;
-import net.minecraftforge.energy.CapabilityEnergy;
-import net.minecraftforge.energy.IEnergyStorage;
+import net.minecraft.util.DamageSource;
+import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.TextFormatting;
+import net.minecraftforge.event.entity.living.LivingAttackEvent;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
-import javax.annotation.Nullable;
+@Mod.EventBusSubscriber(modid = "moremod")
+public class CrudeEnergyBarrierEventHandler {
 
-public class CrudeEnergyBarrierEventHandler extends Item implements IBauble {
+    // 冷却时间常量 (20秒 = 20000毫秒)
+    private static final long COOLDOWN_TIME = 20000L;
+    private static final String NBT_LAST_BLOCK_TIME = "lastBlockTime";
 
-    public static final int MAX_ENERGY = 20000;
-    public static final int COST_PER_HIT = 1000;
+    @SubscribeEvent
+    public static void onLivingAttack(LivingAttackEvent event) {
+        // 检查是否为玩家
+        if (!(event.getEntityLiving() instanceof EntityPlayer)) return;
 
-    public CrudeEnergyBarrierEventHandler() {
-        setRegistryName("crude_energy_barrier");
-        setTranslationKey("crude_energy_barrier");
-        setCreativeTab(CreativeTabs.COMBAT);
-        setMaxStackSize(1);
-    }
+        EntityPlayer player = (EntityPlayer) event.getEntityLiving();
 
-    // ✔ 注册 Forge 能量能力
-    @Override
-    public ICapabilityProvider initCapabilities(ItemStack stack, @Nullable NBTTagCompound nbt) {
-        return new EnergyStorageProvider(stack);
-    }
+        // 遍历所有饰品槽位
+        for (int i = 0; i < BaublesApi.getBaublesHandler(player).getSlots(); i++) {
+            ItemStack stack = BaublesApi.getBaublesHandler(player).getStackInSlot(i);
 
-    @Override
-    public BaubleType getBaubleType(ItemStack itemstack) {
-        return BaubleType.BODY;
-    }
+            // 检查是否为粗劣能量护盾
+            if (!stack.isEmpty() && stack.getItem() instanceof ItemCrudeEnergyBarrier) {
 
-    // ✔ 拦截伤害方法入口
-    public static boolean tryBlock(net.minecraftforge.event.entity.living.LivingAttackEvent event, ItemStack stack) {
-        IEnergyStorage energy = stack.getCapability(CapabilityEnergy.ENERGY, null);
-        if (energy != null && energy.getEnergyStored() >= COST_PER_HIT) {
-            energy.extractEnergy(COST_PER_HIT, false);
-            event.setCanceled(true); // 免疫伤害
-            return true;
-        }
-        return false;
-    }
+                // 检查是否为近战伤害
+                if (!isMeleeDamage(event.getSource())) continue;
 
-    // ✔ 能量能力提供类
-    public static class EnergyStorageProvider implements ICapabilityProvider {
+                // 检查是否有足够能量
+                int energy = ItemCrudeEnergyBarrier.getEnergyStored(stack);
+                if (energy < ItemCrudeEnergyBarrier.COST_PER_BLOCK) {
+                    // 能量不足时的提示
+                    if (!player.world.isRemote) {
+                        player.sendStatusMessage(
+                                new TextComponentString(
+                                        TextFormatting.DARK_RED + "[粗劣护盾] 能量不足！"
+                                ), true);
+                    }
+                    continue;
+                }
 
-        private final ItemStack stack;
-        private final EnergyStorageWrapper energyWrapper;
+                // 检查冷却时间
+                long currentTime = System.currentTimeMillis();
+                long lastBlockTime = getLastBlockTime(stack);
+                long cooldownRemaining = COOLDOWN_TIME - (currentTime - lastBlockTime);
 
-        public EnergyStorageProvider(ItemStack stack) {
-            this.stack = stack;
-            this.energyWrapper = new EnergyStorageWrapper(stack);
-        }
+                if (cooldownRemaining > 0) {
+                    // 冷却中的提示
+                    if (!player.world.isRemote) {
+                        int secondsRemaining = (int) Math.ceil(cooldownRemaining / 1000.0);
+                        player.sendStatusMessage(
+                                new TextComponentString(
+                                        TextFormatting.GRAY + "[粗劣护盾] " +
+                                                TextFormatting.YELLOW + "冷却中... (" + secondsRemaining + "秒)"
+                                ), true);
+                    }
+                    continue;
+                }
 
-        @Override
-        public boolean hasCapability(Capability<?> capability, @Nullable EnumFacing facing) {
-            return capability == CapabilityEnergy.ENERGY;
-        }
+                // 100% 格挡成功
+                ItemCrudeEnergyBarrier.setEnergyStored(stack, energy - ItemCrudeEnergyBarrier.COST_PER_BLOCK);
+                setLastBlockTime(stack, currentTime);
+                event.setCanceled(true);
 
-        @Nullable
-        @Override
-        public <T> T getCapability(Capability<T> capability, @Nullable EnumFacing facing) {
-            if (capability == CapabilityEnergy.ENERGY) {
-                return CapabilityEnergy.ENERGY.cast(energyWrapper);
+                if (!player.world.isRemote) {
+                    // 成功格挡的消息
+                    player.sendStatusMessage(
+                            new TextComponentString(
+                                    TextFormatting.GRAY + "[粗劣护盾] " +
+                                            TextFormatting.GREEN + "格挡成功！" +
+                                            TextFormatting.YELLOW + " (剩余：" + ItemCrudeEnergyBarrier.getEnergyStored(stack) + " RF)" +
+                                            TextFormatting.AQUA + " [冷却：20秒]"
+                            ), true);
+
+                    // 播放格挡音效
+                    player.world.playSound(null, player.posX, player.posY, player.posZ,
+                            SoundEvents.ITEM_SHIELD_BLOCK,
+                            player.getSoundCategory(), 0.3F, 1.4F);
+                }
+
+                // 找到第一个护盾后就退出循环
+                break;
             }
-            return null;
         }
     }
 
-    // ✔ 能量实际逻辑封装
-    public static class EnergyStorageWrapper implements IEnergyStorage {
-
-        private final ItemStack stack;
-
-        public EnergyStorageWrapper(ItemStack stack) {
-            this.stack = stack;
+    /**
+     * 获取上次格挡时间
+     */
+    private static long getLastBlockTime(ItemStack stack) {
+        if (!stack.hasTagCompound()) {
+            return 0L;
         }
+        NBTTagCompound nbt = stack.getTagCompound();
+        return nbt.getLong(NBT_LAST_BLOCK_TIME);
+    }
 
-        private NBTTagCompound getOrCreateTag() {
-            if (!stack.hasTagCompound()) {
-                stack.setTagCompound(new NBTTagCompound());
-            }
-            return stack.getTagCompound();
+    /**
+     * 设置上次格挡时间
+     */
+    private static void setLastBlockTime(ItemStack stack, long time) {
+        if (!stack.hasTagCompound()) {
+            stack.setTagCompound(new NBTTagCompound());
         }
+        NBTTagCompound nbt = stack.getTagCompound();
+        nbt.setLong(NBT_LAST_BLOCK_TIME, time);
+    }
 
-        @Override
-        public int receiveEnergy(int maxReceive, boolean simulate) {
-            int energy = getEnergyStored();
-            int received = Math.min(MAX_ENERGY - energy, maxReceive);
-            if (!simulate) {
-                getOrCreateTag().setInteger("Energy", energy + received);
-            }
-            return received;
-        }
+    /**
+     * 判断是否为近战伤害
+     */
+    public static boolean isMeleeDamage(DamageSource source) {
+        return source.getImmediateSource() instanceof net.minecraft.entity.Entity &&
+                !source.isProjectile() &&
+                !source.isMagicDamage() &&
+                !source.isExplosion() &&
+                !source.isFireDamage();
+    }
 
-        @Override
-        public int extractEnergy(int maxExtract, boolean simulate) {
-            int energy = getEnergyStored();
-            int extracted = Math.min(energy, maxExtract);
-            if (!simulate) {
-                getOrCreateTag().setInteger("Energy", energy - extracted);
-            }
-            return extracted;
+    /**
+     * 获取伤害类型的友好名称
+     */
+    public static String getDamageTypeName(DamageSource source) {
+        if (isMeleeDamage(source)) {
+            if (source.getTrueSource() instanceof EntityPlayer) return "玩家近战攻击";
+            if (source.getTrueSource() instanceof net.minecraft.entity.monster.IMob) return "怪物近战攻击";
+            return "近战攻击";
         }
-
-        @Override
-        public int getEnergyStored() {
-            return getOrCreateTag().getInteger("Energy");
-        }
-
-        @Override
-        public int getMaxEnergyStored() {
-            return MAX_ENERGY;
-        }
-
-        @Override
-        public boolean canExtract() {
-            return true;
-        }
-
-        @Override
-        public boolean canReceive() {
-            return true;
-        }
+        return source.damageType + "伤害";
     }
 }

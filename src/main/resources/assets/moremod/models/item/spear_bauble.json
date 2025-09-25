@@ -1,6 +1,6 @@
 {
   "parent": "item/handheld",
   "textures": {
-    "layer0": moremod:items/spear_bauble
+    "layer0": "moremod:items/spear_bauble"
   }
 }

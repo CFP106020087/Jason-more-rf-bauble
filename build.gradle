@@ -2,7 +2,7 @@ buildscript {
     repositories {
         jcenter()
         maven { url = "https://files.minecraftforge.net/maven" }
-        maven { url = "https://repo.spongepowered.org/maven" }
+        mavenCentral()
     }
     dependencies {
         classpath 'net.minecraftforge.gradle:ForgeGradle:2.3-SNAPSHOT'
@@ -11,40 +11,72 @@ buildscript {
 
 apply plugin: 'net.minecraftforge.gradle.forge'
 
-// 项目基本信息
-version = "1.0"
+version = "2.5"
 group = "com.moremod"
-archivesBaseName = "Jason's more rf bauble"
+archivesBaseName = "Jasons-more-rf-bauble"
 
 sourceCompatibility = targetCompatibility = '1.8'
-
-// 防止中文乱码
-tasks.withType(JavaCompile) {
+compileJava {
+    sourceCompatibility = targetCompatibility = '1.8'
     options.encoding = 'UTF-8'
 }
 
-// Forge 配置
 minecraft {
     version = "1.12.2-14.23.5.2847"
     runDir = "run"
     mappings = "stable_39"
+    makeObfSourceJar = false
 }
 
-// 本地依赖 Jar 文件放在 libs 文件夹下
 repositories {
     mavenCentral()
-    flatDir {
-        dirs 'libs'
+    maven { url "https://repo.spongepowered.org/repository/maven-public/" }
+    maven { url "https://cursemaven.com" }
+
+    // JEI 官方仓库
+    maven {
+        name = "Progwml6 maven"
+        url = "https://dvs1.progwml6.com/files/maven/"
     }
+    // JEI 备用仓库
+    maven {
+        name = "ModMaven"
+        url = "https://modmaven.k-4u.nl"
+    }
+    // 备用
+    maven {
+        url = "https://maven.blamejared.com"
+    }
+
+    flatDir { dirs 'libs' } // 本地 libs 目录
 }
 
 dependencies {
-    compile name: 'Baubles-1.12-1.5.2'
-    compile name: 'RedstoneFlux-1.12-2.1.1.1-universal'
-    compile name: 'SRParasites-1.12.2v1.9.21'
+    // ========== JEI 软依赖 - 正确格式！ ==========
+    // 方案A：使用 deobfProvided (推荐)
+    deobfProvided "mezz.jei:jei_1.12.2:4.16.1.1013:api"
+
+    // 方案B：如果 deobfProvided 不工作，用这个
+    // compileOnly "mezz.jei:jei_1.12.2:4.16.1.302:api"
+    // runtime "mezz.jei:jei_1.12.2:4.16.1.302"
+
+    // ========== 外部模组（仅编译期）==========
+    compileOnly name: 'Baubles-1.12-1.5.2'
+    compileOnly name: 'RedstoneFlux-1.12-2.1.1.1-universal'
+    compileOnly name: 'SRParasites-1.12.2v1.9.21'
+    compileOnly name: 'geckolib-forge-1.12.2-3.0.31'
+    compileOnly name: 'lycanitesmobs-1.12.2-2.0.8.10'
+    compileOnly name: 'CraftTweaker2-1.12-4.1.20.703'
+
+    // FermiumBooter - 本地文件
+    runtimeOnly name: '`FermiumBooter-1.2.0'
+    compileOnly name: '`FermiumBooter-1.2.0'
+
+    // Mixin
+    compileOnly 'org.spongepowered:mixin:0.8.5'
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 }
 
-// 处理资源文件（填充 mcmod.info）
 processResources {
     inputs.property "version", project.version
     inputs.property "mcversion", project.minecraft.version
@@ -53,15 +85,27 @@ processResources {
         include 'mcmod.info'
         expand 'version': project.version, 'mcversion': project.minecraft.version
     }
-
     from(sourceSets.main.resources.srcDirs) {
         exclude 'mcmod.info'
     }
 }
 
-// JAR 属性（如有 Mixin 可扩展此处）
 jar {
-    manifest.attributes(
-            "FMLCorePluginContainsMod": "true"
-    )
+    manifest {
+        attributes(
+                'FMLCorePlugin': 'com.moremod.core.moremodMixinPlugin',
+                'FMLCorePluginContainsFMLMod': 'true',
+                'ForceLoadAsMod': 'true'
+        )
+    }
+
+    // 排除其他mod的类
+    exclude 'com/charles445/**'
+    exclude 'com/dhanantry/**'
+    exclude 'com/lycanitesmobs/**'
+
+    // 确保不打包 JEI
+    exclude 'mezz/jei/**'
 }
+
+build.dependsOn jar

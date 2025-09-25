@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "GCG",
+    "CTC",
+    "GCG"
+  ],
+  "key": {
+    "G": {
+      "item": "moremod:antikythera_gear"
+    },
+    "T": {
+      "item": "moremod:blank_template"
+    },
+    "C": {
+      "item": "minecraft:totem_of_undying"
+    }
+  },
+  "result": {
+    "item": "moremod:upgrade_survival_package",
+    "count": 1
+  }
+}

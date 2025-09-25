@@ -1,5 +1,6 @@
 package com.moremod.item;
 
+import com.moremod.creativetab.moremodCreativeTab;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.player.EntityPlayer;
@@ -46,7 +47,7 @@ public class ItemMechanicalHeart extends Item {
         setRegistryName(name);
         setTranslationKey(name);
         setMaxStackSize(1);
-        setCreativeTab(CreativeTabs.COMBAT);
+        setCreativeTab(moremodCreativeTab.moremod_TAB);
     }
 
     @Override

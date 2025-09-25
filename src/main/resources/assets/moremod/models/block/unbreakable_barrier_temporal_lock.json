@@ -1,0 +1,7 @@
+{
+  "parent": "block/cube_all",
+  "textures": {
+    "all": "moremod:blocks/temporal_lock",
+    "particle": "moremod:blocks/temporal_lock"
+  }
+}

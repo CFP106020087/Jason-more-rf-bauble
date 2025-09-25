@@ -1,5 +1,6 @@
 package com.moremod.item;
 
+import com.moremod.creativetab.moremodCreativeTab;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.player.EntityPlayer;
@@ -14,6 +15,8 @@ import net.minecraft.world.World;
 import net.minecraftforge.common.capabilities.*;
 import net.minecraftforge.energy.CapabilityEnergy;
 import net.minecraftforge.energy.IEnergyStorage;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -26,7 +29,7 @@ public class ItemBatteryBauble extends Item {
     public ItemBatteryBauble() {
         setRegistryName("battery_bauble");
         setTranslationKey("battery_bauble");
-        setCreativeTab(CreativeTabs.TOOLS);
+        setCreativeTab(moremodCreativeTab.moremod_TAB);
         setMaxStackSize(1);
     }
 
@@ -58,7 +61,7 @@ public class ItemBatteryBauble extends Item {
     }
 
     @Override
-    @SuppressWarnings("deprecation")
+    @SideOnly(Side.CLIENT)
     public void addInformation(ItemStack stack, @Nullable World worldIn, List<String> tooltip, ITooltipFlag flagIn) {
         IEnergyStorage storage = getEnergyStorage(stack);
         if (storage != null) {

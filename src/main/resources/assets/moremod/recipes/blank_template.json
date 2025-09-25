@@ -1,0 +1,14 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"pattern": [
+		"DAD",
+		"ARA",
+		"DAD"
+	],
+	"key": {
+		"A": { "item": "moremod:ancient_component" },
+		"D": { "item": "moremod:mysterious_dust" },
+		"R": { "item": "moremod:rare_crystal" }
+	},
+	"result": { "item": "moremod:blank_template", "count": 2 }
+}

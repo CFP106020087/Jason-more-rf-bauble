@@ -5,6 +5,7 @@ import baubles.api.BaublesApi;
 import com.moremod.item.ItemJetpackBauble;
 import com.moremod.item.ItemCreativeJetpackBauble;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.Minecraft;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraftforge.client.event.RenderGameOverlayEvent;
@@ -70,12 +71,12 @@ public class ClientTickEvent {
                 if (stack.getItem() instanceof ItemCreativeJetpackBauble) {
                     jetpackType = TextFormatting.GOLD + "[Creative Jetpack] ";
                 } else {
-                    jetpackType = TextFormatting.YELLOW + "[Jetpack] ";
+                    jetpackType = TextFormatting.YELLOW + "喷气背包";
                 }
 
                 String hud = jetpackType +
-                        TextFormatting.YELLOW + (jetpackOn ? "ON" : "OFF") + " | " +
-                        (hoverOn ? "Hover ON" : "Hover OFF") +
+                        TextFormatting.YELLOW + (jetpackOn ? "开" : "关") + " | " +
+                        (hoverOn ? "悬浮 开" : "悬浮 关") +
                         speedInfo + TextFormatting.YELLOW + " | " +
                         energyInfo;
 

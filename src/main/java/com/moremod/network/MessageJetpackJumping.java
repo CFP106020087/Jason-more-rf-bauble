@@ -33,13 +33,22 @@ public class MessageJetpackJumping implements IMessage {
         @Override
         public IMessage onMessage(MessageJetpackJumping message, MessageContext ctx) {
             EntityPlayerMP player = ctx.getServerHandler().player;
-            UUID uuid = player.getUniqueID();
 
-            // 主线程执行
+            if (player == null || player.world == null) {
+                System.err.println("[Jetpack] ERROR: Player or world is null!");
+                return null;
+            }
+
+            UUID uuid = player.getUniqueID();
+            boolean isJumping = message.isJumping;
+
+            // 在主线程安全地更新状态
             player.getServerWorld().addScheduledTask(() -> {
-                EventHandlerJetpack.jetpackJumping.put(uuid, message.isJumping);
-                // Debug
-                //System.out.println("服务端收到跳跃包: " + message.isJumping);
+                // 更新跳跃状态
+                EventHandlerJetpack.jetpackJumping.put(uuid, isJumping);
+
+                // 不调用 updatePlayerFlightState 以避免干扰其他飞行源
+                // 飞行状态会在 onPlayerTick 中自然更新
             });
 
             return null;

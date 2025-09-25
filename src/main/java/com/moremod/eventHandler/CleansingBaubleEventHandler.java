@@ -14,7 +14,7 @@ import net.minecraftforge.fml.common.gameevent.TickEvent;
 import java.util.ArrayList;
 import java.util.List;
 
-@Mod.EventBusSubscriber
+@Mod.EventBusSubscriber(modid = "moremod")
 public class CleansingBaubleEventHandler {
 
     private static final int FLIGHT_DURATION = 40; // 持续时间 2 秒（每 tick 执行，建议短）

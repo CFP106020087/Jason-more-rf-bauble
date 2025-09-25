@@ -8,7 +8,7 @@ import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
-@Mod.EventBusSubscriber
+@Mod.EventBusSubscriber(modid = "moremod")
 public class BasicEnergyBarrierEventHandler {
 
     @SubscribeEvent
@@ -25,21 +25,24 @@ public class BasicEnergyBarrierEventHandler {
                 if (!ItemBasicEnergyBarrier.shouldBlockDamage(event.getSource())) continue;
 
                 if (barrier.getEnergyStored(stack) >= ItemBasicEnergyBarrier.COST_PER_BLOCK) {
-                    barrier.consumeEnergy(stack, ItemBasicEnergyBarrier.COST_PER_BLOCK);
-                    event.setCanceled(true);
+                    // 50% chance to activate the barrier
+                    if (player.world.rand.nextFloat() < 0.5f) {
+                        barrier.consumeEnergy(stack, ItemBasicEnergyBarrier.COST_PER_BLOCK);
+                        event.setCanceled(true);
 
-                    player.world.playSound(null, player.posX, player.posY, player.posZ,
-                            net.minecraft.init.SoundEvents.BLOCK_ANVIL_LAND,
-                            player.getSoundCategory(), 0.3F, 1.2F);
+                        player.world.playSound(null, player.posX, player.posY, player.posZ,
+                                net.minecraft.init.SoundEvents.BLOCK_ANVIL_LAND,
+                                player.getSoundCategory(), 0.3F, 1.2F);
 
-                    if (!player.world.isRemote) {
-                        player.sendStatusMessage(
-                                new net.minecraft.util.text.TextComponentString(
-                                        net.minecraft.util.text.TextFormatting.LIGHT_PURPLE +
-                                                "屏蔽了近战伤害，剩余能量：" +
-                                                ItemBasicEnergyBarrier.getEnergyStored(stack) + " RF"),
-                                true
-                        );
+                        if (!player.world.isRemote) {
+                            player.sendStatusMessage(
+                                    new net.minecraft.util.text.TextComponentString(
+                                            net.minecraft.util.text.TextFormatting.LIGHT_PURPLE +
+                                                    "屏蔽了近战伤害，剩余能量：" +
+                                                    ItemBasicEnergyBarrier.getEnergyStored(stack) + " RF"),
+                                    true
+                            );
+                        }
                     }
                 }
                 break;
