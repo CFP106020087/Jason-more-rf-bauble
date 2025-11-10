@@ -20,8 +20,14 @@ public class moremodMixinPlugin implements IFMLLoadingPlugin {
             // 然后加载其他 mod 的 mixins
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.lycanites.json");
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.parasites.json");
-            FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.champion.json");
-       System.out.println("[moremod] All mixins queued via FermiumBooter");
+           FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.champion.json");
+            FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.silent.json");
+            FermiumRegistryAPI.enqueueMixin(false, "mixins.moremod.element.json");
+            FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.dummy.json");
+            FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.bauble.json");
+            FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.enchantments.json");
+
+            System.out.println("[moremod] All mixins queued via FermiumBooter");
         } catch (Throwable e) {
             System.err.println("[moremod] FermiumBooter registration failed: " + e);
         }

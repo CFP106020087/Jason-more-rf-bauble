@@ -1,5 +1,6 @@
 package com.moremod.block;
 
+import com.moremod.creativetab.moremodCreativeTab;
 import com.moremod.tile.TileEntityTemporalAccelerator;
 import net.minecraft.block.Block;
 import net.minecraft.block.ITileEntityProvider;
@@ -29,7 +30,7 @@ public class BlockTemporalAccelerator extends Block implements ITileEntityProvid
         super(Material.IRON);
         setTranslationKey("temporal_accelerator");
         setRegistryName("temporal_accelerator");
-        setCreativeTab(CreativeTabs.REDSTONE);
+        setCreativeTab(moremodCreativeTab.moremod_TAB);
         setHardness(3.0F);
         setResistance(10.0F);
         setLightLevel(0.5F);

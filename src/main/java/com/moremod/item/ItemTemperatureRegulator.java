@@ -177,7 +177,7 @@ public class ItemTemperatureRegulator extends Item implements IBauble {
                     String tempStatus = tempEnum != null ? tempEnum.toString() + " (" + currentTempLevel + ")" :
                             getTemperatureStatusForLevel(currentTempLevel);
                     String newTempStatus = getTemperatureStatusForLevel(targetTemp);
-                    sendMessage(player, "🌡️ 温度调节: " + action +
+                    sendMessage(player, "温度调节: " + action +
                             " (" + tempStatus + " → " + newTempStatus + ")", TextFormatting.AQUA);
                 }
             }

@@ -37,7 +37,6 @@ public class EnergyPunishmentSystem {
 
     // ===== 配置参数 =====
     private static final int DOT_DAMAGE_PER_TICK  = 1;
-    private static final int XP_PENALTY_AMOUNT    = 5;
     private static final int DEGRADE_MODULE_COUNT = 2;
 
     private static final long TICK_1S  = 20;
@@ -56,7 +55,6 @@ public class EnergyPunishmentSystem {
 
     // NBT键
     private static final String K_LAST_DOT           = "Punish_LastDot";
-    private static final String K_LAST_XP            = "Punish_LastXp";
     private static final String K_LAST_DEGRADE       = "Punish_LastDegrade";
     private static final String K_LAST_DURABILITY    = "Punish_LastDur";
     private static final String K_CRITICAL_SINCE     = "Punish_CriticalSince";
@@ -193,18 +191,6 @@ public class EnergyPunishmentSystem {
             }
         }
 
-        if (status.ordinal() >= EnergyDepletionManager.EnergyStatus.EMERGENCY.ordinal()) {
-            if (checkCooldown(nbt, K_LAST_XP, time, TICK_5S) && player.experienceTotal > 0) {
-                player.addExperience(-XP_PENALTY_AMOUNT);
-                nbt.setLong(K_LAST_XP, time);
-                for (int i = 0; i < 3; i++) {
-                    player.world.spawnParticle(EnumParticleTypes.VILLAGER_ANGRY,
-                            player.posX, player.posY + 1, player.posZ,
-                            (Math.random() - 0.5) * 0.5, 0.2, (Math.random() - 0.5) * 0.5);
-                }
-            }
-        }
-
         if (status == EnergyDepletionManager.EnergyStatus.CRITICAL) {
             if (checkCooldown(nbt, K_LAST_DURABILITY, time, TICK_10S)) {
                 damageDurability(player);
@@ -221,7 +207,7 @@ public class EnergyPunishmentSystem {
     }
 
     /**
-     * 降级模块 - 支持修复系统
+     * ✅ 完整修复：降级模块 - 支持修复系统
      */
     public static void degradeRandomModules(ItemStack core, EntityPlayer player) {
         List<String> installed = getInstalledUpgrades(core);
@@ -247,20 +233,22 @@ public class EnergyPunishmentSystem {
         for (int i = 0; i < degradeCount; i++) {
             String moduleId = installed.get(i);
             String upperId = moduleId.toUpperCase();
+            String lowerId = moduleId.toLowerCase();
 
             // 获取当前的拥有等级
             int currentOwnedMax = getOwnedMax(core, moduleId);
 
             // 第一次损坏时记录原始等级
             if (!nbt.hasKey(K_ORIGINAL_MAX + upperId)) {
-                // 记录损坏前的实际等级，而不是假设值
                 nbt.setInteger(K_ORIGINAL_MAX + upperId, currentOwnedMax);
                 nbt.setInteger(K_ORIGINAL_MAX + moduleId, currentOwnedMax);
-
-                // 添加惩罚标记
-                nbt.setBoolean(K_WAS_PUNISHED + upperId, true);
-                nbt.setBoolean(K_WAS_PUNISHED + moduleId, true);
+                nbt.setInteger(K_ORIGINAL_MAX + lowerId, currentOwnedMax);
             }
+
+            // 关键修复：移到 if 外面，每次降级都写入 WasPunished
+            nbt.setBoolean(K_WAS_PUNISHED + upperId, true);
+            nbt.setBoolean(K_WAS_PUNISHED + moduleId, true);
+            nbt.setBoolean(K_WAS_PUNISHED + lowerId, true);
 
             // 降级
             int newOwnedMax = Math.max(0, currentOwnedMax - 1);
@@ -270,6 +258,13 @@ public class EnergyPunishmentSystem {
             int damageCount = nbt.getInteger(K_DAMAGE_COUNT + upperId);
             nbt.setInteger(K_DAMAGE_COUNT + upperId, damageCount + 1);
             nbt.setInteger(K_DAMAGE_COUNT + moduleId, damageCount + 1);
+            nbt.setInteger(K_DAMAGE_COUNT + lowerId, damageCount + 1);
+
+            // 累计总损坏次数（用于修复成本计算）
+            int totalDamage = nbt.getInteger("TotalDamageCount_" + upperId);
+            nbt.setInteger("TotalDamageCount_" + upperId, totalDamage + 1);
+            nbt.setInteger("TotalDamageCount_" + moduleId, totalDamage + 1);
+            nbt.setInteger("TotalDamageCount_" + lowerId, totalDamage + 1);
 
             // 调整当前等级
             int currentLevel = getCurrentLevel(core, moduleId);
@@ -278,7 +273,13 @@ public class EnergyPunishmentSystem {
             }
 
             // 获取原始最大等级用于显示
-            int originalMax = nbt.getInteger(K_ORIGINAL_MAX + upperId);
+            int originalMax = Math.max(
+                    nbt.getInteger(K_ORIGINAL_MAX + upperId),
+                    Math.max(
+                            nbt.getInteger(K_ORIGINAL_MAX + moduleId),
+                            nbt.getInteger(K_ORIGINAL_MAX + lowerId)
+                    )
+            );
 
             // 通知
             if (newOwnedMax <= 0) {
@@ -302,31 +303,45 @@ public class EnergyPunishmentSystem {
     }
 
     /**
-     * 获取物品原始最大等级（损坏前的等级）
+     * ✅ 获取历史最高等级（缺失时自动补写）
      */
     public static int getItemMaxLevel(ItemStack core, String moduleId) {
         NBTTagCompound nbt = core.getTagCompound();
         if (nbt == null) return 0;
 
-        String[] variants = {moduleId, moduleId.toUpperCase(), moduleId.toLowerCase()};
-        int max = 0;
+        String upperId = moduleId.toUpperCase();
+        String lowerId = moduleId.toLowerCase();
+        String[] variants = {upperId, moduleId, lowerId};
 
+        // 第1层：尝试读取 OriginalMax
+        int originalMax = 0;
         for (String variant : variants) {
-            // 优先使用 OriginalMax（损坏前的实际等级）
-            max = Math.max(max, nbt.getInteger(K_ORIGINAL_MAX + variant));
+            int val = nbt.getInteger(K_ORIGINAL_MAX + variant);
+            if (val > 0) {
+                originalMax = Math.max(originalMax, val);
+            }
         }
 
-        // 如果没有记录，返回当前的 OwnedMax
-        if (max <= 0) {
-            max = getOwnedMax(core, moduleId);
+        if (originalMax > 0) {
+            return originalMax;
         }
 
-        return max;
+        // 第2层：OriginalMax 不存在，检查 OwnedMax
+        int ownedMax = getOwnedMax(core, moduleId);
+        if (ownedMax == 0) {
+            return 0;
+        }
+
+        // 使用 OwnedMax 作为 fallback，并回填 OriginalMax
+        nbt.setInteger(K_ORIGINAL_MAX + upperId, ownedMax);
+        nbt.setInteger(K_ORIGINAL_MAX + moduleId, ownedMax);
+        nbt.setInteger(K_ORIGINAL_MAX + lowerId, ownedMax);
+        nbt.setBoolean("DataCorruption_" + upperId, true);
+
+        return ownedMax;
     }
 
-    /**
-     * 获取损坏次数
-     */
+    /** 获取损坏次数 */
     public static int getDamageCount(ItemStack core, String moduleId) {
         NBTTagCompound nbt = core.getTagCompound();
         if (nbt == null) return 0;
@@ -341,9 +356,7 @@ public class EnergyPunishmentSystem {
         return count;
     }
 
-    /**
-     * 修复模块（供GUI调用）
-     */
+    /** 修复模块（GUI 调用）- 移除经验成本 */
     public static boolean repairModule(ItemStack core, String moduleId, int targetLevel,
                                        EntityPlayer player, boolean consumeResources) {
         NBTTagCompound nbt = UpgradeKeys.getOrCreate(core);
@@ -368,11 +381,10 @@ public class EnergyPunishmentSystem {
             int damageCount = getDamageCount(core, moduleId);
             int levelDiff = targetLevel - currentOwnedMax;
 
-            // 计算成本
+            // 计算能量成本（移除经验成本）
             int energyCost = (levelDiff * 10000) + (damageCount * 5000);
-            int xpCost = (levelDiff * 5) + (damageCount * 2);
 
-            // 检查资源
+            // 检查能量资源
             IEnergyStorage energy = ItemMechanicalCore.getEnergyStorage(core);
             if (energy == null || energy.getEnergyStored() < energyCost) {
                 player.sendMessage(new TextComponentString(
@@ -380,15 +392,8 @@ public class EnergyPunishmentSystem {
                 return false;
             }
 
-            if (player.experienceLevel < xpCost) {
-                player.sendMessage(new TextComponentString(
-                        TextFormatting.RED + "经验不足！需要 " + xpCost + " 级"));
-                return false;
-            }
-
-            // 消耗资源
+            // 消耗能量资源
             energy.extractEnergy(energyCost, false);
-            player.addExperienceLevel(-xpCost);
         }
 
         // 执行修复
@@ -401,11 +406,10 @@ public class EnergyPunishmentSystem {
             nbt.setInteger(K_DAMAGE_COUNT + moduleId, Math.max(0, damageCount - 1));
         }
 
-        // 如果完全修复，清除部分标记但保留原始等级记录
+        // 如果完全修复，清除标记（保留 OriginalMax）
         if (targetLevel >= originalMax) {
             nbt.removeTag(K_WAS_PUNISHED + upperId);
             nbt.removeTag(K_WAS_PUNISHED + moduleId);
-            // 保留 OriginalMax 以备将来使用
         }
 
         // 恢复等级
@@ -429,38 +433,44 @@ public class EnergyPunishmentSystem {
         }
 
         NBTTagCompound nbt = UpgradeKeys.getOrCreate(core);
-        List<String> destroyed = new ArrayList<>();
         List<String> damaged = new ArrayList<>();
 
         // 处理所有模块
         for (String id : getInstalledUpgrades(core)) {
             if (isGeneratorModule(id)) {
-                // 发电模块保留
-                continue;
+                continue; // 发电模块保留
             }
-
             if (ItemMechanicalCore.isUpgradePaused(core, id)) {
-                // 暂停的模块保留
-                continue;
+                continue; // 暂停的模块保留
             }
 
-            // 活跃的非发电模块 - 降级到0但可修复
             int currentMax = getOwnedMax(core, id);
             if (currentMax > 0) {
-                // 记录原始等级（如果还没记录）
                 String upperId = id.toUpperCase();
+                String lowerId = id.toLowerCase();
+
                 if (!nbt.hasKey(K_ORIGINAL_MAX + upperId)) {
                     nbt.setInteger(K_ORIGINAL_MAX + upperId, currentMax);
                     nbt.setInteger(K_ORIGINAL_MAX + id, currentMax);
+                    nbt.setInteger(K_ORIGINAL_MAX + lowerId, currentMax);
                 }
 
                 // 标记为惩罚过
                 nbt.setBoolean(K_WAS_PUNISHED + upperId, true);
                 nbt.setBoolean(K_WAS_PUNISHED + id, true);
+                nbt.setBoolean(K_WAS_PUNISHED + lowerId, true);
 
                 // 增加损坏计数
                 int damageCount = nbt.getInteger(K_DAMAGE_COUNT + upperId);
-                nbt.setInteger(K_DAMAGE_COUNT + upperId, damageCount + currentMax); // 死亡损坏更严重
+                nbt.setInteger(K_DAMAGE_COUNT + upperId, damageCount + currentMax);
+                nbt.setInteger(K_DAMAGE_COUNT + id, damageCount + currentMax);
+                nbt.setInteger(K_DAMAGE_COUNT + lowerId, damageCount + currentMax);
+
+                // 累计总损坏次数
+                int totalDamage = nbt.getInteger("TotalDamageCount_" + upperId);
+                nbt.setInteger("TotalDamageCount_" + upperId, totalDamage + currentMax);
+                nbt.setInteger("TotalDamageCount_" + id, totalDamage + currentMax);
+                nbt.setInteger("TotalDamageCount_" + lowerId, totalDamage + currentMax);
 
                 // 降级到0
                 setLevel(core, id, 0);
@@ -487,12 +497,13 @@ public class EnergyPunishmentSystem {
             player.sendMessage(new TextComponentString(
                     TextFormatting.DARK_RED + "模块严重损坏: " + String.join(", ", damaged)));
             player.sendMessage(new TextComponentString(
-                    TextFormatting.YELLOW + "损坏的模块需要花费大量经验修复"));
+                    TextFormatting.YELLOW + "损坏的模块需要花费大量能量修复"));
         }
 
         player.sendMessage(new TextComponentString(
                 TextFormatting.GREEN + "发电模块和暂停模块未受影响"));
     }
+
     // ===== 辅助方法 =====
 
     private static void setOwnedMaxSafe(ItemStack core, String id, int level) {
@@ -657,13 +668,10 @@ public class EnergyPunishmentSystem {
                 }
             }
         } catch (Exception e) {
-            System.err.println("[EnergyPunishment] 安全死亡处理失败: " + e.getMessage());
             try {
                 float damage = player.getMaxHealth() * 100;
                 player.attackEntityFrom(DamageSource.OUT_OF_WORLD, damage);
-            } catch (Exception e2) {
-                System.err.println("[EnergyPunishment] 备用死亡方案也失败: " + e2.getMessage());
-            }
+            } catch (Exception ignored) {}
         } finally {
             player.getEntityData().removeTag(K_SPECIAL_DEATH_FLAG);
         }
@@ -737,9 +745,7 @@ public class EnergyPunishmentSystem {
                     event.getSource().setDamageIsAbsolute();
                     event.getSource().setDamageBypassesArmor();
                 }
-            } catch (Exception e) {
-                System.err.println("[EnergyPunishment] 无法修改死亡事件: " + e.getMessage());
-            }
+            } catch (Exception ignored) {}
         }
     }
 
@@ -757,11 +763,8 @@ public class EnergyPunishmentSystem {
         nbt.removeTag(K_WARNING_10S);
         nbt.removeTag(K_WARNING_5S);
         nbt.removeTag(K_LAST_DOT);
-        nbt.removeTag(K_LAST_XP);
         nbt.removeTag(K_LAST_DEGRADE);
         nbt.removeTag(K_LAST_DURABILITY);
         nbt.removeTag(K_SPECIAL_DEATH_FLAG);
-
-        System.out.println("[EnergyPunishment] 玩家复活，清除所有惩罚标记");
     }
 }

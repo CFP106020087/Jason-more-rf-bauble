@@ -48,17 +48,17 @@ public class RitualInfusionWrapper implements IRecipeWrapper {
         int y = recipeHeight - 25;
 
         // 显示时间（转换为秒）
-        String timeText = String.format("Time: %ds", recipe.getTime() / 20);
+        String timeText = String.format("时间: %ds", recipe.getTime() / 20);
         fontRenderer.drawString(timeText, 5, y, Color.GRAY.getRGB());
 
         // 显示总能量需求
         int totalEnergy = recipe.getEnergyPerPedestal() * recipe.getPedestalCount();
-        String energyText = String.format("Energy: %d RF", totalEnergy);
+        String energyText = String.format("能量: %d RF", totalEnergy);
         fontRenderer.drawString(energyText, 5, y + 10, Color.GRAY.getRGB());
 
         // 显示失败概率（如果有）
         if (recipe.getFailChance() > 0) {
-            String failText = String.format("Fail: %.0f%%", recipe.getFailChance() * 100);
+            String failText = String.format("失败: %.0f%%", recipe.getFailChance() * 100);
             fontRenderer.drawString(failText, recipeWidth - 45, y, Color.RED.getRGB());
         }
     }

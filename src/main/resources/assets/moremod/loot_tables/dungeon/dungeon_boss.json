@@ -11,10 +11,7 @@
           "functions": [
             {
               "function": "set_count",
-              "count": {
-                "min": 1,
-                "max": 2
-              }
+              "count": 1
             },
             {
               "function": "set_nbt",
@@ -27,13 +24,27 @@
     {
       "name": "boss_main",
       "rolls": {
-        "min": 8,
-        "max": 12
+        "min": 3,
+        "max": 5
       },
       "entries": [
         {
           "type": "item",
           "name": "moremod:parasitic_mass",
+          "weight": 60,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": {
+                "min": 1,
+                "max": 2
+              }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "moremod:void_echo",
           "weight": 80,
           "functions": [
             {
@@ -47,28 +58,14 @@
         },
         {
           "type": "item",
-          "name": "moremod:void_echo",
+          "name": "moremod:spectral_dust",
           "weight": 100,
           "functions": [
             {
               "function": "set_count",
               "count": {
-                "min": 3,
-                "max": 6
-              }
-            }
-          ]
-        },
-        {
-          "type": "item",
-          "name": "moremod:spectral_dust",
-          "weight": 120,
-          "functions": [
-            {
-              "function": "set_count",
-              "count": {
-                "min": 6,
-                "max": 12
+                "min": 4,
+                "max": 8
               }
             }
           ]
@@ -76,13 +73,13 @@
         {
           "type": "item",
           "name": "moremod:unformed_fiber",
-          "weight": 150,
+          "weight": 120,
           "functions": [
             {
               "function": "set_count",
               "count": {
-                "min": 8,
-                "max": 16
+                "min": 5,
+                "max": 10
               }
             }
           ]
@@ -90,13 +87,13 @@
         {
           "type": "item",
           "name": "minecraft:diamond",
-          "weight": 60,
+          "weight": 40,
           "functions": [
             {
               "function": "set_count",
               "count": {
-                "min": 3,
-                "max": 6
+                "min": 2,
+                "max": 4
               }
             }
           ]
@@ -126,7 +123,7 @@
       "conditions": [
         {
           "condition": "random_chance",
-          "chance": 0.15
+          "chance": 0.1
         }
       ]
     }

@@ -33,10 +33,16 @@ import java.util.UUID;
 public class ItemExternalCirculationSystem extends Item implements IBauble {
 
     // ===== 配置 =====
-    public static final int REQUIRED_ACTIVE_MODULES = 5;  // 需要5个激活模块才能佩戴
-    public static final float HEALTH_PER_MODULE = 1.0f;   // 每个激活模块提供1点生命值（半颗心）
-    public static final float MAX_BONUS_HEALTH = 40.0f;   // 最大额外生命值（20颗心）
+    public static int REQUIRED_ACTIVE_MODULES;
+    public static float HEALTH_PER_MODULE;
+    public static float MAX_BONUS_HEALTH;
 
+    static {
+        com.moremod.config.ItemConfig.ensureLoaded();
+        REQUIRED_ACTIVE_MODULES = com.moremod.config.ItemConfig.ExternalCirculation.requiredActiveModules;
+        HEALTH_PER_MODULE = com.moremod.config.ItemConfig.ExternalCirculation.healthPerModule;
+        MAX_BONUS_HEALTH = com.moremod.config.ItemConfig.ExternalCirculation.maxBonusHealth;
+    }
     // ===== NBT Keys =====
     private static final String NBT_CACHED_ACTIVE = "CachedActive";
     private static final String NBT_CACHED_HEALTH = "CachedHealth";
@@ -175,7 +181,7 @@ public class ItemExternalCirculationSystem extends Item implements IBauble {
         if (GuiScreen.isShiftKeyDown()) {
             tip.add("");
             tip.add(TextFormatting.GOLD + "说明:");
-            tip.add(TextFormatting.GRAY + "• 需要装备机械核心并激活至少 " + REQUIRED_ACTIVE_MODULES + " 个模块");
+            tip.add(TextFormatting.GRAY + "• 需要装备机械核心并激活至少 " + REQUIRED_ACTIVE_MODULES + " 种模块");
             tip.add(TextFormatting.GRAY + "• 每个激活模块提供 " + HEALTH_PER_MODULE + " 点生命值");
             tip.add(TextFormatting.GRAY + "• 生命值上限: +" + (int)MAX_BONUS_HEALTH + " HP (" + (int)(MAX_BONUS_HEALTH/2) + "❤)");
             tip.add(TextFormatting.GRAY + "• 强化你的生命系统，提升生存能力");
@@ -320,7 +326,7 @@ public class ItemExternalCirculationSystem extends Item implements IBauble {
                 String msg = !info.hasCore ?
                         "内循环系统需要装备机械核心！" :
                         "内循环系统需要至少 " + REQUIRED_ACTIVE_MODULES +
-                                " 个激活模块（当前：" + info.activeModules + "）";
+                                " 种激活模块（当前：" + info.activeModules + "）";
 
                 player.sendStatusMessage(new TextComponentString(
                         TextFormatting.RED + "⚠ " + msg

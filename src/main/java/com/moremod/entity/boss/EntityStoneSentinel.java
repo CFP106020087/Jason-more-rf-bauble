@@ -66,7 +66,7 @@ public class EntityStoneSentinel extends EntityMob implements IAnimatable {
     private static final int ATTACK_SUMMON = 5;
 
     // —— 难度参数 —— //
-    private static final float MAX_DAMAGE_PERCENT = 0.03F; // 单次伤害上限 3%
+    private static final float MAX_DAMAGE_PERCENT = 0.1F; // 单次伤害上限 3%
     private static final int   INVULNERABILITY_TIME = 60;  // 受击无敌 60t
 
     private static final int    NO_LOS_PUNISH_TICKS = 60;  // 无视线惩罚阈值

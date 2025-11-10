@@ -175,11 +175,10 @@ public class CoreDropProtection {
 
             if (event.getPlayer() != null) {
                 event.getPlayer().sendMessage(new TextComponentString(
-                        TextFormatting.DARK_RED + "⚠ 机械核心无法被丢弃！它已与你的生命力绑定。"
+                        TextFormatting.DARK_RED + "⚠ 机械核心彻底消失，已经无法找回。"
                 ));
             }
 
-            System.out.println("[moremod] 🛡️ 阻止了机械核心手动丢弃");
         }
     }
 

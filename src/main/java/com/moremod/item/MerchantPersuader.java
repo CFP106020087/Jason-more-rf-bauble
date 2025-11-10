@@ -30,15 +30,20 @@ import java.util.List;
 public class MerchantPersuader extends Item implements IEnergyContainerItem {
 
     // 能量配置
-    private static final int MAX_ENERGY = 1000000; // 1M RF
-    private static final int ENERGY_PER_TRADE = 1000; // 每次交易原始消耗1000 RF
-    private static final int PASSIVE_CONSUMPTION = 50; // 手持时每tick消耗50 RF（已移除）
+    private static int MAX_ENERGY;
+    private static int ENERGY_PER_TRADE;
+    private static double BASE_DISCOUNT;
+    private static double MAX_DISCOUNT;
+    private static double RANGE;
 
-    // 折扣配置
-    private static final double BASE_DISCOUNT = 0.15; // 15%基础折扣
-    private static final double MAX_DISCOUNT = 0.50; // 50%最大折扣
-    private static final double RANGE = 12.0; // 影响范围12格
-
+    static {
+        com.moremod.config.ItemConfig.ensureLoaded();
+        MAX_ENERGY = com.moremod.config.ItemConfig.MerchantPersuader.maxEnergy;
+        ENERGY_PER_TRADE = com.moremod.config.ItemConfig.MerchantPersuader.energyPerTrade;
+        BASE_DISCOUNT = com.moremod.config.ItemConfig.MerchantPersuader.baseDiscount;
+        MAX_DISCOUNT = com.moremod.config.ItemConfig.MerchantPersuader.maxDiscount;
+        RANGE = com.moremod.config.ItemConfig.MerchantPersuader.range;
+    }
     public MerchantPersuader() {
         super();
         this.setMaxStackSize(1);
@@ -232,26 +237,15 @@ public class MerchantPersuader extends Item implements IEnergyContainerItem {
             ), true);
         }
 
-        double discount = getCurrentDiscount(stack);
-        int refundCount = (int) Math.ceil(soldCount * discount);
 
-        if (refundCount > 0) {
-            // 返还折扣部分的物品
-            ItemStack refund = soldItem.copy();
-            refund.setCount(refundCount);
-
-            if (!player.inventory.addItemStackToInventory(refund)) {
-                // 背包满了就掉在地上
-                player.dropItem(refund, false);
-            }
 
             // 显示折扣信息
             player.sendStatusMessage(new TextComponentString(
-                    TextFormatting.GREEN + "商人说服器生效！返还 " + refundCount + " 个物品"), true);
+                    TextFormatting.GREEN + "商人说服器生效！ " ), true);
 
             // 特效
             spawnTradeParticles(villager);
-        }
+
     }
 
     private void spawnTradeParticles(EntityVillager villager) {
@@ -346,11 +340,10 @@ public class MerchantPersuader extends Item implements IEnergyContainerItem {
             tooltip.add("");
             tooltip.add(TextFormatting.DARK_GRAY + "工作原理:");
             tooltip.add(TextFormatting.DARK_GRAY + "• 说服村民降低价格");
-            tooltip.add(TextFormatting.DARK_GRAY + "• 交易后返还部分物品");
+
             tooltip.add(TextFormatting.DARK_GRAY + "• 能量越多折扣越高");
 
             // 折扣计算公式
-            tooltip.add("");
             tooltip.add(TextFormatting.DARK_GRAY + "折扣公式:");
             tooltip.add(TextFormatting.DARK_GRAY + "• 最低: " + (int)(BASE_DISCOUNT * 100) + "% (少量能量)");
             tooltip.add(TextFormatting.DARK_GRAY + "• 最高: " + (int)(MAX_DISCOUNT * 100) + "% (满能量)");
@@ -449,7 +442,7 @@ public class MerchantPersuader extends Item implements IEnergyContainerItem {
                             (actualTradeCost < ENERGY_PER_TRADE ? TextFormatting.GREEN + " (效率加成)" : "")
             ));
             player.sendMessage(new TextComponentString(
-                    TextFormatting.LIGHT_PURPLE + "特性：交易后返还物品，能量越高折扣越大"
+                    TextFormatting.LIGHT_PURPLE + "特性：能量越高折扣越大"
             ));
         }
 

@@ -3,6 +3,7 @@ package com.moremod.fabric.sanity;
 import com.moremod.creativetab.moremodCreativeTab;
 import com.moremod.fabric.data.UpdatedFabricPlayerData;
 import com.moremod.fabric.system.FabricWeavingSystem;
+import com.moremod.fabric.handler.FabricEventHandler; // 新增导入
 import net.minecraft.advancements.CriteriaTriggers;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.creativetab.CreativeTabs;
@@ -37,8 +38,9 @@ import javax.annotation.Nullable;
 import java.util.List;
 
 /**
- * 完整的理智藥水系統
+ * 完整的理智藥水系統 - 修復版
  * 包含物品定義、註冊和百分比傷害整合
+ * 修復了與FabricEventHandler的數據同步問題
  */
 @Mod.EventBusSubscriber(modid = "moremod")
 public class CompleteSanitySystem {
@@ -207,12 +209,27 @@ public class CompleteSanitySystem {
             return stack;
         }
 
+        /**
+         * 修復版：同時更新裝備NBT和PlayerFabricData
+         */
         private void updateSanityAndInsight(EntityPlayer player) {
+            // 获取FabricEventHandler中的PlayerFabricData
+            FabricEventHandler.PlayerFabricData playerData =
+                    FabricEventHandler.getPlayerData(player);
+
             int otherworldCount = 0;
             float totalSanityRestore = elixirTier.sanityRestore;
             float totalInsightReduce = elixirTier.insightReduce;
             boolean criticalBonus = false;
+            boolean hasUpdated = false;
 
+            // 用于存储最终显示的值
+            int finalSanity = 0;
+            int finalInsight = 0;
+            float actualSanityRestore = totalSanityRestore;
+            float actualInsightReduce = totalInsightReduce;
+
+            // 遍历所有护甲槽位
             for (ItemStack armor : player.getArmorInventoryList()) {
                 if (FabricWeavingSystem.getFabricType(armor) == UpdatedFabricPlayerData.FabricType.OTHERWORLD) {
                     otherworldCount++;
@@ -221,50 +238,94 @@ public class CompleteSanitySystem {
                     int currentSanity = fabricData.getInteger("Sanity");
                     int currentInsight = fabricData.getInteger("Insight");
 
+                    // 危急奖励判定
                     if (currentSanity < 20 || currentInsight > 80) {
                         criticalBonus = true;
                     }
 
-                    float actualSanityRestore = criticalBonus ? totalSanityRestore * 1.5f : totalSanityRestore;
-                    float actualInsightReduce = criticalBonus ? totalInsightReduce * 1.5f : totalInsightReduce;
+                    // 计算实际恢复量
+                    actualSanityRestore = criticalBonus ? totalSanityRestore * 1.5f : totalSanityRestore;
+                    actualInsightReduce = criticalBonus ? totalInsightReduce * 1.5f : totalInsightReduce;
 
                     int newSanity = Math.min(100, currentSanity + (int)actualSanityRestore);
                     int newInsight = Math.max(0, currentInsight - (int)actualInsightReduce);
 
+                    // 更新装备NBT
                     fabricData.setInteger("Sanity", newSanity);
                     fabricData.setInteger("Insight", newInsight);
 
+                    // 关键修改：同时更新PlayerFabricData
+                    playerData.sanity = newSanity;
+                    playerData.insight = newInsight;
+                    playerData.otherworldCount = otherworldCount;
+                    hasUpdated = true;
+
+                    // 保存最终值用于消息显示
+                    finalSanity = newSanity;
+                    finalInsight = newInsight;
+
+                    // 保护效果
                     if (elixirTier.protectionDuration > 0) {
                         long protectionEndTime = System.currentTimeMillis() + (elixirTier.protectionDuration * 50);
                         fabricData.setLong("ElixirProtection", protectionEndTime);
                         fabricData.setString("ProtectionLevel", elixirTier.name);
                     }
 
+                    // 纯净药水清除负面效果
                     if (elixirTier == ElixirTier.PURE) {
                         fabricData.setInteger("AbyssGazeStacks", 0);
                         fabricData.setInteger("ForbiddenKnowledge",
                                 Math.max(0, fabricData.getInteger("ForbiddenKnowledge") - 1));
+
+                        // 同步到PlayerFabricData
+                        playerData.abyssGazeStacks = 0;
+                        playerData.forbiddenKnowledge = Math.max(0, playerData.forbiddenKnowledge - 1);
                     }
 
+                    // 保存更新后的NBT到装备
                     NBTTagCompound armorTag = armor.getTagCompound();
                     if (armorTag != null) {
                         armorTag.setTag("WovenFabric", fabricData);
                     }
-
-                    player.sendStatusMessage(new TextComponentString(
-                            String.format("%s§r 飲用！§a+%d理智 §5-%d靈視 %s",
-                                    elixirTier.displayName,
-                                    (int)actualSanityRestore,
-                                    (int)actualInsightReduce,
-                                    criticalBonus ? "§e§l危急獎勵！" : "")), false);
-
-                    player.sendStatusMessage(new TextComponentString(
-                            String.format("§7當前：理智%d/100 靈視%d/100", newSanity, newInsight)), true);
                 }
+            }
+
+            // 在循环外发送一次消息
+            if (hasUpdated) {
+                // 发送饮用消息
+                player.sendStatusMessage(new TextComponentString(
+                        String.format("%s§r 飲用！§a+%d理智 §5-%d靈視 %s",
+                                elixirTier.displayName,
+                                (int)actualSanityRestore,
+                                (int)actualInsightReduce,
+                                criticalBonus ? "§e§l危急獎勵！" : "")), false);
+
+                // 发送当前状态
+                player.sendStatusMessage(new TextComponentString(
+                        String.format("§7當前：理智%d/100 靈視%d/100", finalSanity, finalInsight)), true);
+
+                // 如果有多件异界织印装备，提示更新了所有装备
+                if (otherworldCount > 1) {
+                    player.sendStatusMessage(new TextComponentString(
+                            String.format("§7已更新所有 %d 件異界織印裝備", otherworldCount)), true);
+                }
+
+                // 立即同步更新后的数据，确保不会被覆盖
+                FabricEventHandler.syncAllFabricDataToArmor(player, playerData);
+            } else {
+                // 如果没有找到任何异界织印装备（理论上不会发生，因为之前已经检查过）
+                player.sendStatusMessage(new TextComponentString("§c未找到異界織印裝備"), true);
             }
         }
 
+        /**
+         * 修復版：更新PlayerFabricData中的保護狀態
+         */
         private void applyProtectionEffects(EntityPlayer player) {
+            // 獲取PlayerFabricData以更新保護狀態
+            FabricEventHandler.PlayerFabricData playerData =
+                    FabricEventHandler.getPlayerData(player);
+
             switch(elixirTier) {
                 case BASIC:
                     player.addPotionEffect(new PotionEffect(MobEffects.RESISTANCE, elixirTier.protectionDuration, 0));
@@ -282,9 +343,9 @@ public class CompleteSanitySystem {
                     player.addPotionEffect(new PotionEffect(MobEffects.REGENERATION, 600, 1));
                     player.addPotionEffect(new PotionEffect(MobEffects.ABSORPTION, 1200, 1));
 
-                    NBTTagCompound playerData = player.getEntityData();
-                    playerData.setBoolean("AbyssalImmunity", true);
-                    playerData.setLong("ImmunityEndTime", System.currentTimeMillis() + elixirTier.protectionDuration * 50);
+                    NBTTagCompound playerNBT = player.getEntityData();
+                    playerNBT.setBoolean("AbyssalImmunity", true);
+                    playerNBT.setLong("ImmunityEndTime", System.currentTimeMillis() + elixirTier.protectionDuration * 50);
 
                     player.sendStatusMessage(new TextComponentString("§d§l獲得120秒完全心靈守護！"), false);
                     player.sendStatusMessage(new TextComponentString("§d免疫虛空侵蝕、理智崩潰和深淵凝視"), true);
@@ -297,6 +358,9 @@ public class CompleteSanitySystem {
                     player.sendStatusMessage(new TextComponentString("§c緊急治療！恢復50%生命值"), true);
                     break;
             }
+
+            // 立即同步保護狀態
+            FabricEventHandler.syncAllFabricDataToArmor(player, playerData);
         }
 
         private void applySpecialEffects(EntityPlayer player, World world) {
@@ -391,7 +455,7 @@ public class CompleteSanitySystem {
             return elixirTier == ElixirTier.PURE || elixirTier == ElixirTier.EMERGENCY;
         }
 
-
+        @Override
         @SideOnly(Side.CLIENT)
         public void addInformation(ItemStack stack, @Nullable World worldIn, List<String> tooltip, ITooltipFlag flagIn) {
             tooltip.add(elixirTier.displayName);

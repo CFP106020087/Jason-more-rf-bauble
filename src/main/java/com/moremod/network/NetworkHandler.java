@@ -1,50 +1,63 @@
 package com.moremod.network;
-
+import com.moremod.network.PacketMechanicalCoreUpdate;
+import com.moremod.network.PacketOpenGui;
 import net.minecraftforge.fml.common.network.NetworkRegistry;
 import net.minecraftforge.fml.common.network.simpleimpl.SimpleNetworkWrapper;
 import net.minecraftforge.fml.relauncher.Side;
 
-/**
- * 网络处理器注册 - 完整版
- */
-public class NetworkHandler {
+public final class NetworkHandler {
 
-    public static final SimpleNetworkWrapper INSTANCE = NetworkRegistry.INSTANCE.newSimpleChannel("moremod");
+    public static final String CHANNEL_NAME = "moremod";
+    public static final SimpleNetworkWrapper CHANNEL = NetworkRegistry.INSTANCE.newSimpleChannel(CHANNEL_NAME);
 
-    private static int packetId = 0;
+    @Deprecated
+    public static final SimpleNetworkWrapper INSTANCE = CHANNEL;
 
-    /**
-     * 初始化网络处理器
-     * 在你的主模组类的 preInit 中调用这个方法
-     */
+    private static int ID = 0;
+    private static int nextId() { return ID++; }
+
     public static void init() {
-        System.out.println("[moremod] 初始化网络处理器...");
+        System.out.println("[moremod] 初始化網路處理器...");
 
-        // 注册机械核心更新数据包
-        INSTANCE.registerMessage(
+        // 原有封包
+        CHANNEL.registerMessage(
                 PacketMechanicalCoreUpdate.Handler.class,
                 PacketMechanicalCoreUpdate.class,
-                packetId++,
-                Side.SERVER
+                nextId(), Side.SERVER
         );
 
-        // 注册GUI开关数据包
-        INSTANCE.registerMessage(
+        CHANNEL.registerMessage(
                 PacketOpenGui.Handler.class,
                 PacketOpenGui.class,
-                packetId++,
-                Side.SERVER
+                nextId(), Side.SERVER
         );
 
-
-        // 注册升级选择数据包
-        INSTANCE.registerMessage(
+        CHANNEL.registerMessage(
                 PacketUpgradeSelection.Handler.class,
                 PacketUpgradeSelection.class,
-                packetId++,
-                Side.SERVER
+                nextId(), Side.SERVER
         );
 
-        System.out.println("[moremod] 网络处理器初始化完成，注册了 " + packetId + " 个数据包");
+        // 🏪🏪🏪 新增：村民交易機數據包 🏪🏪🏪
+
+        // 交易索引切換（左右箭頭）
+        CHANNEL.registerMessage(
+                MessageChangeTradeIndex.Handler.class,
+                MessageChangeTradeIndex.class,
+                nextId(), Side.SERVER
+        );
+        System.out.println("[moremod] ✅ 已註冊 MessageChangeTradeIndex（交易切換）");
+
+        // 執行交易（按鈕）
+        CHANNEL.registerMessage(
+                MessageExecuteTrade.Handler.class,
+                MessageExecuteTrade.class,
+                nextId(), Side.SERVER
+        );
+        System.out.println("[moremod] ✅ 已註冊 MessageExecuteTrade（執行交易）");
+
+        System.out.println("[moremod] 網路處理器初始化完成，已註冊 " + ID + " 個封包");
     }
+
+    private NetworkHandler() {}
 }

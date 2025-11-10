@@ -23,28 +23,26 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * 统一升级处理器（累进消耗版）
- * - 右键道具 => 安装/升级
- * - 升级到n级需要n个道具
- * - 支持"惩罚锁"解锁（使用相应模块自动清锁）
- * - 统一键名/写法，避免大小写重复键
- * - 升级后强制同步佩戴槽，GUI基本立即刷新
+ * 统一升级处理器（分级模块版）
+ * ✅ 修复：确保所有升级路径都记录 OriginalMax
  */
 public class SmartUpgradeHandler {
 
+    // ✅ 添加常量
+    private static final String K_ORIGINAL_MAX = "OriginalMax_";
+    private static final String K_OWNED_MAX = "OwnedMax_";
+
     @SubscribeEvent(priority = EventPriority.HIGH)
     public void onPlayerRightClick(PlayerInteractEvent.RightClickItem event) {
-        if (event.getWorld().isRemote) return; // 服务端处理
+        if (event.getWorld().isRemote) return;
 
         EntityPlayer player = event.getEntityPlayer();
         ItemStack heldItem = event.getItemStack();
 
         if (!(heldItem.getItem() instanceof ItemUpgradeComponent)) return;
 
-        // 阻止升级组件自己的 onItemRightClick 逻辑，统一走本处理器
         event.setCanceled(true);
 
-        // 找到装备的机械核心
         ItemStack coreStack = ItemMechanicalCore.findEquippedMechanicalCore(player);
         if (!ItemMechanicalCore.isMechanicalCore(coreStack)) {
             player.sendMessage(new TextComponentString(
@@ -55,105 +53,253 @@ public class SmartUpgradeHandler {
 
         ItemUpgradeComponent upgradeItem = (ItemUpgradeComponent) heldItem.getItem();
 
-        // 计算需要的道具数量
-        int requiredAmount = calculateRequiredAmount(coreStack, upgradeItem);
-        if (requiredAmount <= 0) {
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.RED + "该升级已达到最大等级！"
-            ));
+        UpgradeValidation validation = validateUpgrade(coreStack, upgradeItem);
+        if (!validation.canUpgrade) {
+            player.sendMessage(new TextComponentString(TextFormatting.RED + validation.message));
             return;
         }
 
-        // 检查道具数量（创造模式跳过）
-        if (!player.isCreative() && heldItem.getCount() < requiredAmount) {
-            String upgradeName = getUpgradeDisplayName(upgradeItem);
-            int currentLevel = getCurrentUpgradeLevel(coreStack, upgradeItem);
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.YELLOW + "升级 " + upgradeName +
-                            " 到 Lv." + (currentLevel + 1) + " 需要 " + requiredAmount +
-                            " 个道具，你只有 " + heldItem.getCount() + " 个！"
-            ));
-            return;
-        }
-
-        boolean ok = performUpgrade(player, coreStack, heldItem, upgradeItem, requiredAmount);
+        boolean ok = performUpgrade(player, coreStack, heldItem, upgradeItem, validation);
         if (ok) {
-            if (!player.isCreative()) heldItem.shrink(requiredAmount); // 消耗所需数量
+            if (!player.isCreative()) heldItem.shrink(1);
             playUpgradeEffects(player);
-            // 强制同步佩戴槽，推动客户端立刻拿到最新 NBT（GUI 可立即反映）
             forceSyncCore(player);
         }
     }
 
-    /** 计算升级所需的道具数量 */
-    private int calculateRequiredAmount(ItemStack coreStack, ItemUpgradeComponent upgradeItem) {
+    // ================= ✅ 核心：记录 OriginalMax =================
+
+    /**
+     * ✅ 记录/更新 OriginalMax（历史最高值）
+     *
+     * 规则：
+     * 1. 如果 OriginalMax 不存在，设置为 newLevel
+     * 2. 如果 OriginalMax < newLevel，更新为 newLevel
+     * 3. 永不降低 OriginalMax
+     */
+    private void recordOriginalMax(ItemStack coreStack, String upgradeId, int newLevel) {
+        NBTTagCompound nbt = UpgradeKeys.getOrCreate(coreStack);
+
+        String upperId = upgradeId.toUpperCase();
+        String lowerId = upgradeId.toLowerCase();
+        String[] variants = {upgradeId, upperId, lowerId};
+
+        // 获取当前的 OriginalMax
+        int currentOriginalMax = 0;
+        for (String variant : variants) {
+            int val = nbt.getInteger(K_ORIGINAL_MAX + variant);
+            currentOriginalMax = Math.max(currentOriginalMax, val);
+        }
+
+        // ✅ 只在新等级更高时更新
+        if (newLevel > currentOriginalMax) {
+            System.out.println("[RecordOriginalMax] 更新历史最高值: " + upgradeId);
+            System.out.println("  旧值: " + currentOriginalMax);
+            System.out.println("  新值: " + newLevel);
+
+            // 写入所有三个变体
+            nbt.setInteger(K_ORIGINAL_MAX + upgradeId, newLevel);
+            nbt.setInteger(K_ORIGINAL_MAX + upperId, newLevel);
+            nbt.setInteger(K_ORIGINAL_MAX + lowerId, newLevel);
+        } else if (currentOriginalMax > 0) {
+            System.out.println("[RecordOriginalMax] 保持历史最高值: " + upgradeId + " = " + currentOriginalMax);
+        } else {
+            // 第一次记录
+            System.out.println("[RecordOriginalMax] 首次记录: " + upgradeId + " = " + newLevel);
+            nbt.setInteger(K_ORIGINAL_MAX + upgradeId, newLevel);
+            nbt.setInteger(K_ORIGINAL_MAX + upperId, newLevel);
+            nbt.setInteger(K_ORIGINAL_MAX + lowerId, newLevel);
+        }
+
+        // ✅ 验证写入成功
+        int verify = nbt.getInteger(K_ORIGINAL_MAX + upperId);
+        if (verify < newLevel) {
+            System.err.println("[RecordOriginalMax] ⚠️ 警告：写入验证失败！");
+            System.err.println("  预期: " + newLevel);
+            System.err.println("  实际: " + verify);
+        }
+    }
+
+    // ================= 升级验证 =================
+
+    private static class UpgradeValidation {
+        boolean canUpgrade;
+        String message;
+        int requiredLevel;
+        int currentLevel;
+        int moduleLevel;
+        String upgradeType;
+
+        UpgradeValidation(boolean can, String msg) {
+            this.canUpgrade = can;
+            this.message = msg;
+        }
+    }
+
+    private UpgradeValidation validateUpgrade(ItemStack coreStack, ItemUpgradeComponent upgradeItem) {
         String rawId = upgradeItem.getUpgradeType();
         String cid = UpgradeKeys.foldAlias(rawId);
         String registryName = upgradeItem.getRegistryName() != null ?
                 upgradeItem.getRegistryName().toString() : "";
 
-        // 特殊处理：飞行模块（分级套件）
+        int moduleLevel = getModuleLevel(upgradeItem, registryName);
+
         if (registryName.contains("flight_module")) {
-            int current = getFlightLevel(coreStack);
-            if (registryName.contains("basic") && current == 0) return 1;
-            if (registryName.contains("advanced") && current == 1) return 2;
-            if (registryName.contains("ultimate") && current == 2) return 3;
-            return 0; // 已达最大或不满足前置条件
+            return validateFlightModule(coreStack, registryName, moduleLevel);
         }
 
-        // 特殊处理：防水模块（分级套件）
         if (registryName.contains("waterproof_module") || UpgradeKeys.isWaterproof(cid)) {
-            int current = getWaterproofLevel(coreStack);
-            if (registryName.contains("basic") && current == 0) return 1;
-            if (registryName.contains("advanced") && current == 1) return 2;
-            if (registryName.contains("deep_sea") && current == 2) return 3;
-            return 0; // 已达最大或不满足前置条件
+            return validateWaterproofModule(coreStack, registryName, moduleLevel);
         }
 
-        // 特殊处理：组合套装（每次消耗固定数量）
         if (rawId.contains("PACKAGE") || registryName.contains("_package") ||
                 registryName.contains("omnipotent_package")) {
-            // 套装类型检查是否可以应用
-            if (canApplyPackage(coreStack, rawId, registryName)) {
-                return 1; // 套装固定消耗1个
-            }
-            return 0;
+            return validatePackage(coreStack, rawId, registryName);
         }
 
-        // 常规升级：下一级需要的道具数 = 下一级的等级数
         int currentLevel = lvOf(coreStack, cid);
         int maxLevel = maxOf(coreStack, cid);
 
-        if (currentLevel >= maxLevel) return 0;
-        return currentLevel + 1; // 升到n级需要n个道具
-    }
-
-    /** 获取升级的显示名称 */
-    private String getUpgradeDisplayName(ItemUpgradeComponent upgradeItem) {
-        String rawId = upgradeItem.getUpgradeType();
-        String cid = UpgradeKeys.foldAlias(rawId);
-        return getDisplayName(cid);
-    }
-
-    /** 获取当前升级等级 */
-    private int getCurrentUpgradeLevel(ItemStack coreStack, ItemUpgradeComponent upgradeItem) {
-        String rawId = upgradeItem.getUpgradeType();
-        String cid = UpgradeKeys.foldAlias(rawId);
-        String registryName = upgradeItem.getRegistryName() != null ?
-                upgradeItem.getRegistryName().toString() : "";
-
-        if (registryName.contains("flight_module")) {
-            return getFlightLevel(coreStack);
-        }
-        if (registryName.contains("waterproof_module") || UpgradeKeys.isWaterproof(cid)) {
-            return getWaterproofLevel(coreStack);
+        if (currentLevel >= maxLevel) {
+            return new UpgradeValidation(false, getDisplayName(cid) + " 已达到最大等级！");
         }
 
-        return lvOf(coreStack, cid);
+        int requiredLevel = currentLevel + 1;
+        if (moduleLevel != requiredLevel) {
+            return new UpgradeValidation(false,
+                    String.format("升级到 Lv.%d 需要 %d 级模块，当前模块为 %d 级！",
+                            requiredLevel, requiredLevel, moduleLevel));
+        }
+
+        UpgradeValidation result = new UpgradeValidation(true, "");
+        result.requiredLevel = requiredLevel;
+        result.currentLevel = currentLevel;
+        result.moduleLevel = moduleLevel;
+        result.upgradeType = cid;
+        return result;
     }
 
-    /** 检查套装是否可以应用 */
-    private boolean canApplyPackage(ItemStack core, String rawType, String registryName) {
+    private int getModuleLevel(ItemUpgradeComponent item, String registryName) {
+        ItemStack stack = new ItemStack(item);
+        if (stack.hasTagCompound()) {
+            NBTTagCompound nbt = stack.getTagCompound();
+            if (nbt.hasKey("ModuleLevel")) {
+                return nbt.getInteger("ModuleLevel");
+            }
+            if (nbt.hasKey("Level")) {
+                return nbt.getInteger("Level");
+            }
+        }
+
+        if (registryName.contains("_lv") || registryName.contains("_level")) {
+            String[] parts = registryName.split("_");
+            for (String part : parts) {
+                if (part.startsWith("lv") || part.startsWith("level")) {
+                    String numStr = part.replaceAll("[^0-9]", "");
+                    try {
+                        return Integer.parseInt(numStr);
+                    } catch (NumberFormatException ignored) {}
+                }
+            }
+        }
+
+        if (registryName.contains("basic") || registryName.contains("tier1")) return 1;
+        if (registryName.contains("advanced") || registryName.contains("tier2")) return 2;
+        if (registryName.contains("ultimate") || registryName.contains("tier3")) return 3;
+        if (registryName.contains("legendary") || registryName.contains("tier4")) return 4;
+        if (registryName.contains("mythic") || registryName.contains("tier5")) return 5;
+
+        int upVal = item.getUpgradeValue();
+        if (upVal > 0 && upVal <= 10) {
+            return upVal;
+        }
+
+        return 1;
+    }
+
+    private UpgradeValidation validateFlightModule(ItemStack coreStack, String registryName, int moduleLevel) {
+        int current = getFlightLevel(coreStack);
+
+        if (registryName.contains("basic") || moduleLevel == 1) {
+            if (current >= 1) {
+                return new UpgradeValidation(false, "已安装飞行模块！");
+            }
+            UpgradeValidation result = new UpgradeValidation(true, "");
+            result.requiredLevel = 1;
+            result.currentLevel = current;
+            result.moduleLevel = 1;
+            return result;
+        }
+
+        if (registryName.contains("advanced") || moduleLevel == 2) {
+            if (current != 1) {
+                return new UpgradeValidation(false,
+                        current == 0 ? "需要先安装基础飞行模块！" : "已安装更高级的飞行模块！");
+            }
+            UpgradeValidation result = new UpgradeValidation(true, "");
+            result.requiredLevel = 2;
+            result.currentLevel = current;
+            result.moduleLevel = 2;
+            return result;
+        }
+
+        if (registryName.contains("ultimate") || moduleLevel == 3) {
+            if (current != 2) {
+                return new UpgradeValidation(false,
+                        current < 2 ? "需要先安装高级飞行模块！" : "已达到最高等级！");
+            }
+            UpgradeValidation result = new UpgradeValidation(true, "");
+            result.requiredLevel = 3;
+            result.currentLevel = current;
+            result.moduleLevel = 3;
+            return result;
+        }
+
+        return new UpgradeValidation(false, "未知的飞行模块等级！");
+    }
+
+    private UpgradeValidation validateWaterproofModule(ItemStack coreStack, String registryName, int moduleLevel) {
+        int current = getWaterproofLevel(coreStack);
+
+        if (registryName.contains("basic") || moduleLevel == 1) {
+            if (current >= 1) {
+                return new UpgradeValidation(false, "已安装防水模块！");
+            }
+            UpgradeValidation result = new UpgradeValidation(true, "");
+            result.requiredLevel = 1;
+            result.currentLevel = current;
+            result.moduleLevel = 1;
+            return result;
+        }
+
+        if (registryName.contains("advanced") || moduleLevel == 2) {
+            if (current != 1) {
+                return new UpgradeValidation(false,
+                        current == 0 ? "需要先安装基础防水模块！" : "已安装更高级的防水模块！");
+            }
+            UpgradeValidation result = new UpgradeValidation(true, "");
+            result.requiredLevel = 2;
+            result.currentLevel = current;
+            result.moduleLevel = 2;
+            return result;
+        }
+
+        if (registryName.contains("deep_sea") || moduleLevel == 3) {
+            if (current != 2) {
+                return new UpgradeValidation(false,
+                        current < 2 ? "需要先安装高级防水模块！" : "已达到最高等级！");
+            }
+            UpgradeValidation result = new UpgradeValidation(true, "");
+            result.requiredLevel = 3;
+            result.currentLevel = current;
+            result.moduleLevel = 3;
+            return result;
+        }
+
+        return new UpgradeValidation(false, "未知的防水模块等级！");
+    }
+
+    private UpgradeValidation validatePackage(ItemStack core, String rawType, String registryName) {
         boolean isSurvival = rawType.equalsIgnoreCase("SURVIVAL_PACKAGE") ||
                 registryName.contains("survival_enhancement_package");
         boolean isCombat = rawType.equalsIgnoreCase("COMBAT_PACKAGE") ||
@@ -161,69 +307,66 @@ public class SmartUpgradeHandler {
         boolean isOmni = rawType.equalsIgnoreCase("OMNIPOTENT_PACKAGE") ||
                 registryName.contains("omnipotent_package");
 
-        if (!isSurvival && !isCombat && !isOmni) return false;
+        if (!isSurvival && !isCombat && !isOmni) {
+            return new UpgradeValidation(false, "未知的套装类型！");
+        }
 
         String[] targetList = isSurvival ? new String[]{"YELLOW_SHIELD", "HEALTH_REGEN", "HUNGER_THIRST"} :
                 (isCombat ? new String[]{"DAMAGE_BOOST", "ATTACK_SPEED", "RANGE_EXTENSION"} :
                         new String[]{"ENERGY_CAPACITY", "ENERGY_EFFICIENCY", "ARMOR_ENHANCEMENT"});
 
-        // 检查是否任一模块已满
         for (String u : targetList) {
             int cur = lvOf(core, u);
             int max = maxOf(core, u);
-            if (cur >= max) return false;
+            if (cur >= max) {
+                return new UpgradeValidation(false,
+                        getDisplayName(u) + " 已达最大等级，无法应用套装！");
+            }
         }
-        return true;
+
+        UpgradeValidation result = new UpgradeValidation(true, "");
+        result.upgradeType = rawType;
+        return result;
     }
 
-    /** 执行升级（总入口） */
+    // ================= 升级执行 =================
+
     private boolean performUpgrade(EntityPlayer player, ItemStack coreStack,
                                    ItemStack upgradeStack, ItemUpgradeComponent upgradeItem,
-                                   int consumeAmount) {
-        // 原始字符串
+                                   UpgradeValidation validation) {
         String rawId = upgradeItem.getUpgradeType();
-        // 规范ID（全大写统一）
         String cid = UpgradeKeys.foldAlias(rawId);
-
-        int upgradeValue = upgradeItem.getUpgradeValue();
         String registryName = upgradeItem.getRegistryName() != null ? upgradeItem.getRegistryName().toString() : "";
 
-        // 1) 特殊：飞行模块（分级套件）
         if (registryName.contains("flight_module")) {
-            return handleFlightModule(player, coreStack, registryName, consumeAmount);
+            return handleFlightModule(player, coreStack, registryName, validation.moduleLevel);
         }
 
-        // 2) 特殊：防水模块（分级套件）
         if (registryName.contains("waterproof_module") || UpgradeKeys.isWaterproof(cid)) {
-            return handleWaterproofModule(player, coreStack, registryName, cid, upgradeValue, consumeAmount);
+            return handleWaterproofModule(player, coreStack, registryName, cid, validation.moduleLevel);
         }
 
-        // 3) 特殊：组合套装（含 OMNIPOTENT_PACKAGE）
         if (rawId.equalsIgnoreCase("SURVIVAL_PACKAGE")
                 || rawId.equalsIgnoreCase("COMBAT_PACKAGE")
                 || rawId.equalsIgnoreCase("OMNIPOTENT_PACKAGE")
                 || registryName.contains("_package")
                 || registryName.contains("omnipotent_package")
                 || registryName.contains("omnipotent_package_chip")) {
-            return handlePackageUpgrade(player, coreStack, rawId, registryName, consumeAmount);
+            return handlePackageUpgrade(player, coreStack, rawId, registryName);
         }
 
-        // 4) 常规：基础 or 扩展升级
         if (isBasicUpgrade(cid)) {
-            return handleBasicUpgrade(player, coreStack, cid, upgradeValue, consumeAmount);
+            return handleBasicUpgrade(player, coreStack, cid, validation.moduleLevel);
         } else {
-            return handleExtendedUpgrade(player, coreStack, cid, upgradeValue, consumeAmount);
+            return handleExtendedUpgrade(player, coreStack, cid, validation.moduleLevel);
         }
     }
 
-    // =======================
-    // 基础/扩展 升级处理
-    // =======================
-
-    /** 基础升级（枚举存在） */
+    /**
+     * ✅ 基础升级处理
+     */
     private boolean handleBasicUpgrade(EntityPlayer player, ItemStack coreStack,
-                                       String cid, int upVal, int consumeAmount) {
-        // 惩罚锁：允许"使用对应模块"直接解锁
+                                       String cid, int moduleLevel) {
         unlockIfLocked(player, coreStack, cid);
 
         ItemMechanicalCore.UpgradeType enumType = null;
@@ -244,21 +387,23 @@ public class SmartUpgradeHandler {
             return false;
         }
 
-        int newLv = cur + 1; // 每次只升1级
+        int newLv = moduleLevel;
 
-        // 写回到旧系统（枚举）
+        // ✅ 关键：先记录 OriginalMax
+        recordOriginalMax(coreStack, cid, newLv);
+        recordOriginalMax(coreStack, enumType.getKey(), newLv);
+        recordOriginalMax(coreStack, enumType.name(), newLv);
+
         ItemMechanicalCore.setUpgradeLevel(coreStack, enumType, newLv);
-        // 写回扩展系统（保证可见）
         ItemMechanicalCoreExtended.setUpgradeLevel(coreStack, enumType.getKey(), newLv);
         ItemMechanicalCoreExtended.setUpgradeLevel(coreStack, enumType.name(), newLv);
-        // 规范键
         UpgradeKeys.setLevel(coreStack, cid, newLv);
         UpgradeKeys.markOwnedActive(coreStack, cid, newLv);
 
         player.sendMessage(new TextComponentString(
                 TextFormatting.GREEN + "✓ " + enumType.getColor() + enumType.getDisplayName() +
                         TextFormatting.WHITE + " 升级至 Lv." + newLv +
-                        TextFormatting.GRAY + " (消耗 " + consumeAmount + " 个道具)"
+                        TextFormatting.GRAY + " (使用 " + moduleLevel + " 级模块)"
         ));
         if (newLv == max) {
             player.sendMessage(new TextComponentString(TextFormatting.GOLD + "⭐ " + enumType.getDisplayName() + " 已达到最大等级！"));
@@ -266,10 +411,11 @@ public class SmartUpgradeHandler {
         return true;
     }
 
-    /** 扩展升级（ItemMechanicalCoreExtended） */
+    /**
+     * ✅ 扩展升级处理
+     */
     private boolean handleExtendedUpgrade(EntityPlayer player, ItemStack coreStack,
-                                          String cid, int upVal, int consumeAmount) {
-        // 惩罚锁：允许"使用对应模块"直接解锁
+                                          String cid, int moduleLevel) {
         unlockIfLocked(player, coreStack, cid);
 
         ItemMechanicalCoreExtended.UpgradeInfo info =
@@ -288,7 +434,11 @@ public class SmartUpgradeHandler {
             return false;
         }
 
-        int newLv = cur + 1; // 每次只升1级
+        int newLv = moduleLevel;
+
+        // ✅ 关键：先记录 OriginalMax
+        recordOriginalMax(coreStack, cid, newLv);
+
         ItemMechanicalCoreExtended.setUpgradeLevel(coreStack, cid, newLv);
         UpgradeKeys.setLevel(coreStack, cid, newLv);
         UpgradeKeys.markOwnedActive(coreStack, cid, newLv);
@@ -296,7 +446,7 @@ public class SmartUpgradeHandler {
         player.sendMessage(new TextComponentString(
                 TextFormatting.GREEN + "✓ " + info.color + info.displayName +
                         TextFormatting.WHITE + " 升级至 Lv." + newLv +
-                        TextFormatting.GRAY + " (消耗 " + consumeAmount + " 个道具)"
+                        TextFormatting.GRAY + " (使用 " + moduleLevel + " 级模块)"
         ));
         if (newLv == max) {
             player.sendMessage(new TextComponentString(TextFormatting.GOLD + "⭐ " + info.displayName + " 已达到最大等级！"));
@@ -304,106 +454,28 @@ public class SmartUpgradeHandler {
         return true;
     }
 
-    /** 是否为基础升级（匹配旧枚举或其 key） */
-    private boolean isBasicUpgrade(String cid) {
-        for (ItemMechanicalCore.UpgradeType t : ItemMechanicalCore.UpgradeType.values()) {
-            if (t.getKey().equalsIgnoreCase(cid) || t.name().equalsIgnoreCase(cid)) return true;
-        }
-        return false;
-    }
-
-    // =======================
-    // 防水 模块（分级）
-    // =======================
-    private boolean handleWaterproofModule(EntityPlayer player, ItemStack coreStack,
-                                           String registryName, String cid, int upVal, int consumeAmount) {
-        // 统一成 WATERPROOF_MODULE
-        cid = "WATERPROOF_MODULE";
-        unlockIfLocked(player, coreStack, cid);
-
-        int cur = getWaterproofLevel(coreStack);
-        int target;
-        if (registryName.contains("waterproof_module_basic") || cid.contains("BASIC")) {
-            if (cur > 0) return msg(player, TextFormatting.RED + "已安装防水模块！", false);
-            target = 1;
-        } else if (registryName.contains("waterproof_module_advanced") || cid.contains("ADVANCED")) {
-            if (cur != 1) return msg(player, TextFormatting.RED + (cur == 0 ? "需要先安装基础防水模块！" : "已安装更高级的防水模块！"), false);
-            target = 2;
-        } else if (registryName.contains("waterproof_module_deep_sea") || cid.contains("DEEP_SEA")) {
-            if (cur != 2) return msg(player, TextFormatting.RED + (cur < 2 ? "需要先安装高级防水模块！" : "已达到最高等级！"), false);
-            target = 3;
-        } else {
-            target = Math.min(cur + Math.max(1, upVal), 3);
-            if (target == cur) return msg(player, TextFormatting.RED + "防水模块已达到最大等级！", false);
-        }
-
-        setWaterproofLevel(coreStack, target);
-        switch (target) {
-            case 1:
-                msg(player, TextFormatting.AQUA + "💧 基础防水涂层已应用！" +
-                        TextFormatting.GRAY + " (消耗 " + consumeAmount + " 个道具)", true);
-                msg(player, TextFormatting.GRAY + "核心现在可以安全接触水体", true);
-                break;
-            case 2:
-                msg(player, TextFormatting.BLUE + "💧 高级防水系统已安装！" +
-                        TextFormatting.GRAY + " (消耗 " + consumeAmount + " 个道具)", true);
-                msg(player, TextFormatting.GRAY + "获得水下呼吸能力", true);
-                break;
-            case 3:
-                msg(player, TextFormatting.DARK_AQUA + "🌊 深海适应模块已激活！" +
-                        TextFormatting.GRAY + " (消耗 " + consumeAmount + " 个道具)", true);
-                msg(player, TextFormatting.GRAY + "完整的水下作业能力已解锁", true);
-                break;
-        }
-        return true;
-    }
-
-    private int getWaterproofLevel(ItemStack core) {
-        int lv = Math.max(lvOf(core, "WATERPROOF_MODULE"), lvOf(core, "WATERPROOF"));
-        return lv;
-    }
-    private void setWaterproofLevel(ItemStack core, int lv) {
-        // 同步到扩展 & 规范键
-        ItemMechanicalCoreExtended.setUpgradeLevel(core, "WATERPROOF_MODULE", lv);
-        UpgradeKeys.setLevel(core, "WATERPROOF_MODULE", lv);
-        UpgradeKeys.markOwnedActive(core, "WATERPROOF_MODULE", lv);
-        // 兼容另一个别名也写一份扩展层
-        ItemMechanicalCoreExtended.setUpgradeLevel(core, "WATERPROOF", lv);
-
-        NBTTagCompound nbt = UpgradeKeys.getOrCreate(core);
-        nbt.setBoolean("hasWaterproofModule", lv > 0);
-        nbt.setInteger("waterproofLevel", lv);
-    }
-
-    // =======================
-    // 飞行 模块（分级）
-    // =======================
-    private boolean handleFlightModule(EntityPlayer player, ItemStack coreStack, String registryName, int consumeAmount) {
+    /**
+     * ✅ 飞行模块处理
+     */
+    private boolean handleFlightModule(EntityPlayer player, ItemStack coreStack, String registryName, int moduleLevel) {
         String cid = "FLIGHT_MODULE";
         unlockIfLocked(player, coreStack, cid);
 
         int cur = getFlightLevel(coreStack);
-        int target;
-        if (registryName.contains("flight_module_basic")) {
-            if (cur > 0) return msg(player, TextFormatting.RED + "已安装飞行模块！", false);
-            target = 1;
-        } else if (registryName.contains("flight_module_advanced")) {
-            if (cur != 1) return msg(player, TextFormatting.RED + (cur == 0 ? "需要先安装基础飞行模块！" : "已安装更高级的飞行模块！"), false);
-            target = 2;
-        } else if (registryName.contains("flight_module_ultimate")) {
-            if (cur != 2) return msg(player, TextFormatting.RED + (cur < 2 ? "需要先安装高级飞行模块！" : "已达到最高等级！"), false);
-            target = 3;
-        } else {
-            return false;
+        int target = moduleLevel;
+
+        if (target <= cur) {
+            return msg(player, TextFormatting.RED + "已安装相同或更高级的飞行模块！", false);
         }
 
-        // 写回所有系统 + 规范键
+        // ✅ 先记录 OriginalMax
+        recordOriginalMax(coreStack, cid, target);
+
         ItemMechanicalCore.setUpgradeLevel(coreStack, ItemMechanicalCore.UpgradeType.FLIGHT_MODULE, target);
         ItemMechanicalCoreExtended.setUpgradeLevel(coreStack, "FLIGHT_MODULE", target);
         UpgradeKeys.setLevel(coreStack, "FLIGHT_MODULE", target);
         UpgradeKeys.markOwnedActive(coreStack, "FLIGHT_MODULE", target);
 
-        // 初始化飞行控制参数
         NBTTagCompound nbt = UpgradeKeys.getOrCreate(coreStack);
         nbt.setBoolean("FlightModuleEnabled", true);
         if (target >= 2 && !nbt.hasKey("FlightHoverMode")) nbt.setBoolean("FlightHoverMode", false);
@@ -412,37 +484,68 @@ public class SmartUpgradeHandler {
         switch (target) {
             case 1:
                 msg(player, TextFormatting.LIGHT_PURPLE + "✦ 飞行系统已激活！" +
-                        TextFormatting.GRAY + " (消耗 " + consumeAmount + " 个道具)", true);
+                        TextFormatting.GRAY + " (使用 1 级模块)", true);
                 msg(player, TextFormatting.GRAY + "按住空格上升，Shift下降", true);
                 break;
             case 2:
                 msg(player, TextFormatting.GOLD + "✦ 飞行系统升级！悬停模式已解锁！" +
-                        TextFormatting.GRAY + " (消耗 " + consumeAmount + " 个道具)", true);
+                        TextFormatting.GRAY + " (使用 2 级模块)", true);
                 msg(player, TextFormatting.GRAY + "按H键切换悬停模式", true);
                 break;
             case 3:
                 msg(player, TextFormatting.DARK_PURPLE + "✦✦ 终极飞行系统已启动！速度模式已解锁！" +
-                        TextFormatting.GRAY + " (消耗 " + consumeAmount + " 个道具)", true);
+                        TextFormatting.GRAY + " (使用 3 级模块)", true);
                 msg(player, TextFormatting.GRAY + "按G键切换速度模式", true);
                 break;
         }
         return true;
     }
 
-    private int getFlightLevel(ItemStack core) {
-        int lv = 0;
-        // 旧系统
-        lv = Math.max(lv, ItemMechanicalCore.getUpgradeLevel(core, ItemMechanicalCore.UpgradeType.FLIGHT_MODULE));
-        // 新系统
-        lv = Math.max(lv, ItemMechanicalCoreExtended.getUpgradeLevel(core, "FLIGHT_MODULE"));
-        return lv;
+    /**
+     * ✅ 防水模块处理
+     */
+    private boolean handleWaterproofModule(EntityPlayer player, ItemStack coreStack,
+                                           String registryName, String cid, int moduleLevel) {
+        cid = "WATERPROOF_MODULE";
+        unlockIfLocked(player, coreStack, cid);
+
+        int cur = getWaterproofLevel(coreStack);
+        int target = moduleLevel;
+
+        if (target <= cur) {
+            return msg(player, TextFormatting.RED + "已安装相同或更高级的防水模块！", false);
+        }
+
+        // ✅ 先记录 OriginalMax
+        recordOriginalMax(coreStack, cid, target);
+        recordOriginalMax(coreStack, "WATERPROOF", target);
+
+        setWaterproofLevel(coreStack, target);
+        switch (target) {
+            case 1:
+                msg(player, TextFormatting.AQUA + "💧 基础防水涂层已应用！" +
+                        TextFormatting.GRAY + " (使用 1 级模块)", true);
+                msg(player, TextFormatting.GRAY + "核心现在可以安全接触水体", true);
+                break;
+            case 2:
+                msg(player, TextFormatting.BLUE + "💧 高级防水系统已安装！" +
+                        TextFormatting.GRAY + " (使用 2 级模块)", true);
+                msg(player, TextFormatting.GRAY + "获得水下呼吸能力", true);
+                break;
+            case 3:
+                msg(player, TextFormatting.DARK_AQUA + "🌊 深海适应模块已激活！" +
+                        TextFormatting.GRAY + " (使用 3 级模块)", true);
+                msg(player, TextFormatting.GRAY + "完整的水下作业能力已解锁", true);
+                break;
+        }
+        return true;
     }
 
-    // =======================
-    // 组合套装（含 OMNIPOTENT_PACKAGE）
-    // =======================
+    /**
+     * ✅ 套装升级处理
+     */
     private boolean handlePackageUpgrade(EntityPlayer player, ItemStack core,
-                                         String rawType, String registryName, int consumeAmount) {
+                                         String rawType, String registryName) {
         boolean isSurvival = rawType.equalsIgnoreCase("SURVIVAL_PACKAGE") || registryName.contains("survival_enhancement_package");
         boolean isCombat   = rawType.equalsIgnoreCase("COMBAT_PACKAGE")   || registryName.contains("combat_enhancement_package");
         boolean isOmni     = rawType.equalsIgnoreCase("OMNIPOTENT_PACKAGE")
@@ -450,20 +553,16 @@ public class SmartUpgradeHandler {
                 || registryName.contains("omnipotent_package_chip");
 
         if (!isSurvival && !isCombat && !isOmni) {
-            // registryName.contains("_package") 情况下，但没识别出具体类型
             return msg(player, TextFormatting.RED + "未知的套装类型: " + rawType, false);
         }
 
-        // 定义套装的模块清单
         String[] survivalUps = {"YELLOW_SHIELD", "HEALTH_REGEN", "HUNGER_THIRST"};
         String[] combatUps   = {"DAMAGE_BOOST", "ATTACK_SPEED", "RANGE_EXTENSION"};
-        // 全能强化芯片：一次 +1 到三个基础项（与你物品描述一致）
         String[] omniUps     = {"ENERGY_CAPACITY", "ENERGY_EFFICIENCY", "ARMOR_ENHANCEMENT"};
 
         Map<String, Integer> before = new HashMap<>();
         String[] targetList = isSurvival ? survivalUps : (isCombat ? combatUps : omniUps);
 
-        // 统一预检查：任一模块已满 => 整套无法应用
         for (String u : targetList) {
             unlockIfLocked(player, core, u);
             int cur = lvOf(core, u);
@@ -476,25 +575,26 @@ public class SmartUpgradeHandler {
 
         // 应用：全部 +1 级
         for (String u : targetList) {
-            applyUpgrade(core, u, before.get(u) + 1);
+            int newLevel = before.get(u) + 1;
+
+            // ✅ 先记录 OriginalMax
+            recordOriginalMax(core, u, newLevel);
+
+            applyUpgrade(core, u, newLevel);
         }
 
-        // 提示与效果
         if (isSurvival) {
-            msg(player, TextFormatting.GREEN + "✦ 生存强化套装已应用！" +
-                    TextFormatting.GRAY + " (消耗 " + consumeAmount + " 个道具)", true);
+            msg(player, TextFormatting.GREEN + "✦ 生存强化套装已应用！", true);
             msg(player, TextFormatting.YELLOW + "黄条护盾 Lv." + (before.get("YELLOW_SHIELD") + 1), true);
             msg(player, TextFormatting.RED + "生命恢复 Lv." + (before.get("HEALTH_REGEN") + 1), true);
             msg(player, TextFormatting.GREEN + "饥饿管理 Lv." + (before.get("HUNGER_THIRST") + 1), true);
         } else if (isCombat) {
-            msg(player, TextFormatting.RED + "✦ 战斗强化套装已应用！" +
-                    TextFormatting.GRAY + " (消耗 " + consumeAmount + " 个道具)", true);
+            msg(player, TextFormatting.RED + "✦ 战斗强化套装已应用！", true);
             msg(player, TextFormatting.DARK_RED + "伤害提升 Lv." + (before.get("DAMAGE_BOOST") + 1), true);
             msg(player, TextFormatting.YELLOW + "攻击速度 Lv." + (before.get("ATTACK_SPEED") + 1), true);
             msg(player, TextFormatting.BLUE + "范围拓展 Lv." + (before.get("RANGE_EXTENSION") + 1), true);
-        } else { // isOmni
-            msg(player, TextFormatting.LIGHT_PURPLE + "✦ 全能强化芯片已应用！" +
-                    TextFormatting.GRAY + " (消耗 " + consumeAmount + " 个道具)", true);
+        } else {
+            msg(player, TextFormatting.LIGHT_PURPLE + "✦ 全能强化芯片已应用！", true);
             msg(player, TextFormatting.GOLD + "能量容量 Lv." + (before.get("ENERGY_CAPACITY") + 1), true);
             msg(player, TextFormatting.GREEN + "能量效率 Lv." + (before.get("ENERGY_EFFICIENCY") + 1), true);
             msg(player, TextFormatting.BLUE + "护甲强化 Lv." + (before.get("ARMOR_ENHANCEMENT") + 1), true);
@@ -504,18 +604,14 @@ public class SmartUpgradeHandler {
         return true;
     }
 
-    // =======================
-    // 通用小工具
-    // =======================
+    // ================= 工具方法 =================
 
-    /** 如果该升级被"锁"，先解锁（使用对应模块=维修行为） */
     private void unlockIfLocked(EntityPlayer player, ItemStack core, String id) {
         if (UpgradeKeys.unlock(core, id)) {
             msg(player, TextFormatting.AQUA + "已修复损坏模块，允许重新安装。", true);
         }
     }
 
-    /** 获取当前等级（兼容各系统 & 规范键） */
     private int lvOf(ItemStack core, String id) {
         int lv = 0;
         lv = Math.max(lv, ItemMechanicalCoreExtended.getUpgradeLevel(core, id));
@@ -528,22 +624,17 @@ public class SmartUpgradeHandler {
         return lv;
     }
 
-    /** 设置等级（同时写回扩展/旧系统/规范键，清除暂停/记录拥有） */
     private void applyUpgrade(ItemStack core, String id, int level) {
         String cid = UpgradeKeys.foldAlias(id);
-        // 扩展系统
         ItemMechanicalCoreExtended.setUpgradeLevel(core, cid, level);
-        // 旧系统（若有枚举）
         try {
             ItemMechanicalCore.UpgradeType t = ItemMechanicalCore.UpgradeType.valueOf(cid);
             ItemMechanicalCore.setUpgradeLevel(core, t, level);
         } catch (Throwable ignored) {}
-        // 规范键
         UpgradeKeys.setLevel(core, cid, level);
         UpgradeKeys.markOwnedActive(core, cid, level);
     }
 
-    /** 获取最大等级（尽量从定义拿；拿不到给默认） */
     private int maxOf(ItemStack core, String id) {
         ItemMechanicalCoreExtended.UpgradeInfo info = ItemMechanicalCoreExtended.getUpgradeInfo(id);
         if (info == null) info = ItemMechanicalCoreExtended.getUpgradeInfo(id.toUpperCase(Locale.ROOT));
@@ -557,7 +648,6 @@ public class SmartUpgradeHandler {
         return 3;
     }
 
-    /** 旧系统最大等级（与你GUI里保持一致） */
     private int getMaxLevel(ItemMechanicalCore.UpgradeType type) {
         switch (type) {
             case ENERGY_CAPACITY: return 10;
@@ -574,12 +664,10 @@ public class SmartUpgradeHandler {
         }
     }
 
-    /** 友好名称（用于提示） */
     private String getDisplayName(String id) {
         ItemMechanicalCoreExtended.UpgradeInfo info = ItemMechanicalCoreExtended.getUpgradeInfo(id);
         if (info != null) return info.displayName;
 
-        // 尝试从基础升级获取
         for (ItemMechanicalCore.UpgradeType t : ItemMechanicalCore.UpgradeType.values()) {
             if (t.getKey().equalsIgnoreCase(id) || t.name().equalsIgnoreCase(id)) {
                 return t.getDisplayName();
@@ -589,10 +677,36 @@ public class SmartUpgradeHandler {
         return UpgradeKeys.canon(id).replace("_", " ");
     }
 
-    /** 特殊提示（护盾/伤害/速度/防水 等） */
+    private boolean isBasicUpgrade(String cid) {
+        for (ItemMechanicalCore.UpgradeType t : ItemMechanicalCore.UpgradeType.values()) {
+            if (t.getKey().equalsIgnoreCase(cid) || t.name().equalsIgnoreCase(cid)) return true;
+        }
+        return false;
+    }
 
+    private int getWaterproofLevel(ItemStack core) {
+        int lv = Math.max(lvOf(core, "WATERPROOF_MODULE"), lvOf(core, "WATERPROOF"));
+        return lv;
+    }
 
-    /** 升级动画/音效 */
+    private void setWaterproofLevel(ItemStack core, int lv) {
+        ItemMechanicalCoreExtended.setUpgradeLevel(core, "WATERPROOF_MODULE", lv);
+        UpgradeKeys.setLevel(core, "WATERPROOF_MODULE", lv);
+        UpgradeKeys.markOwnedActive(core, "WATERPROOF_MODULE", lv);
+        ItemMechanicalCoreExtended.setUpgradeLevel(core, "WATERPROOF", lv);
+
+        NBTTagCompound nbt = UpgradeKeys.getOrCreate(core);
+        nbt.setBoolean("hasWaterproofModule", lv > 0);
+        nbt.setInteger("waterproofLevel", lv);
+    }
+
+    private int getFlightLevel(ItemStack core) {
+        int lv = 0;
+        lv = Math.max(lv, ItemMechanicalCore.getUpgradeLevel(core, ItemMechanicalCore.UpgradeType.FLIGHT_MODULE));
+        lv = Math.max(lv, ItemMechanicalCoreExtended.getUpgradeLevel(core, "FLIGHT_MODULE"));
+        return lv;
+    }
+
     private void playUpgradeEffects(EntityPlayer player) {
         player.world.playSound(null, player.posX, player.posY, player.posZ,
                 SoundEvents.BLOCK_ENCHANTMENT_TABLE_USE, SoundCategory.PLAYERS, 1.0F, 1.0F);
@@ -608,7 +722,6 @@ public class SmartUpgradeHandler {
         }
     }
 
-    /** 套装的更强特效 */
     private void playPackageUpgradeEffects(EntityPlayer player) {
         player.world.playSound(null, player.posX, player.posY, player.posZ,
                 SoundEvents.BLOCK_END_PORTAL_SPAWN, SoundCategory.PLAYERS, 0.5F, 1.5F);
@@ -623,7 +736,6 @@ public class SmartUpgradeHandler {
         }
     }
 
-    /** 立刻把"机械核心"这个饰品槽强制写回一次，以触发服务端→客户端同步（1.12最稳的立刷办法） */
     private void forceSyncCore(EntityPlayer player) {
         try {
             IBaublesItemHandler h = BaublesApi.getBaublesHandler(player);
@@ -641,7 +753,6 @@ public class SmartUpgradeHandler {
         player.openContainer.detectAndSendChanges();
     }
 
-    /** 简化消息 */
     private boolean msg(EntityPlayer p, String s, boolean ret) {
         p.sendMessage(new TextComponentString(s));
         return ret;

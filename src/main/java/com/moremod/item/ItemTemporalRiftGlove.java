@@ -33,11 +33,18 @@ import java.util.List;
 public class ItemTemporalRiftGlove extends Item implements IBauble {
 
     // ===== 配置 =====
-    public static final int REQUIRED_ACTIVE_MODULES = 6;      // 需要6个激活模块才能佩戴
-    public static final int MODULES_PER_REDUCTION = 5;        // 每5个模块
-    public static final int IFRAME_REDUCTION_PER_TIER = 2;    // 减少2帧
-    public static final int MAX_IFRAME_REDUCTION = 16;        // 最大减少16帧（几乎无无敌帧）
+    public static int REQUIRED_ACTIVE_MODULES;
+    public static int MODULES_PER_REDUCTION;
+    public static int IFRAME_REDUCTION_PER_TIER;
+    public static int MAX_IFRAME_REDUCTION;
 
+    static {
+        com.moremod.config.ItemConfig.ensureLoaded();
+        REQUIRED_ACTIVE_MODULES = com.moremod.config.ItemConfig.TemporalRiftGlove.requiredActiveModules;
+        MODULES_PER_REDUCTION = com.moremod.config.ItemConfig.TemporalRiftGlove.modulesPerReduction;
+        IFRAME_REDUCTION_PER_TIER = com.moremod.config.ItemConfig.TemporalRiftGlove.iframeReductionPerTier;
+        MAX_IFRAME_REDUCTION = com.moremod.config.ItemConfig.TemporalRiftGlove.maxIframeReduction;
+    }
     // ===== NBT Keys =====
     private static final String NBT_CACHED_ACTIVE = "CachedActive";
     private static final String NBT_CACHED_REDUCTION = "CachedReduction";
@@ -221,7 +228,7 @@ public class ItemTemporalRiftGlove extends Item implements IBauble {
         if (GuiScreen.isShiftKeyDown()) {
             tip.add("");
             tip.add(TextFormatting.GOLD + "说明:");
-            tip.add(TextFormatting.GRAY + "• 需要装备机械核心并激活至少 " + REQUIRED_ACTIVE_MODULES + " 个模块");
+            tip.add(TextFormatting.GRAY + "• 需要装备机械核心并激活至少 " + REQUIRED_ACTIVE_MODULES + " 种模块");
             tip.add(TextFormatting.GRAY + "• 每 " + MODULES_PER_REDUCTION + " 个激活模块减少 " +
                     IFRAME_REDUCTION_PER_TIER + " 点无敌帧");
             tip.add(TextFormatting.GRAY + "• 最大削减: " + MAX_IFRAME_REDUCTION + " tick");

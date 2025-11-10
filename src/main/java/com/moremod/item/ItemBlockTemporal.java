@@ -1,6 +1,7 @@
 package com.moremod.item;
 
 import com.moremod.block.BlockTemporalAccelerator;
+import com.moremod.creativetab.moremodCreativeTab;
 import com.moremod.init.ModBlocks;
 import net.minecraft.block.Block;
 import net.minecraft.client.util.ITooltipFlag;
@@ -25,8 +26,10 @@ public class ItemBlockTemporal extends ItemBlock {
     // 方案1: 无参构造函数 - 内部创建方块
     public ItemBlockTemporal() {
         super(createOrGetBlock());
-        setRegistryName( "time_block");
-        setTranslationKey("time_block");
+        setRegistryName( "temporal_accelerator");
+        setTranslationKey("temporal_accelerator");
+        setCreativeTab(moremodCreativeTab.moremod_TAB);
+
     }
 
     // 辅助方法：创建或获取方块实例

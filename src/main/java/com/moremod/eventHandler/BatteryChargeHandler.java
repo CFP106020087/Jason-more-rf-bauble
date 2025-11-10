@@ -18,16 +18,22 @@ import net.minecraftforge.fml.common.gameevent.TickEvent;
 /**
  * 电池/核心 充放电&被动效果总线
  *
- * 修复版本：
+ * ✨ 完整版本：
  * - 电池必须有电才能给其他物品充电
  * - 创造电池除外（无限能量）
  * - 避免与 ItemMechanicalCore 的充电逻辑冲突
+ * - ✨ 新增：核心优先充电机制（可配置阈值）
+ * - ✨ 集成：新电池系统完整支持
  */
 @Mod.EventBusSubscriber(modid = "moremod")
 public class BatteryChargeHandler {
 
     private static final boolean DEBUG = false;
     private static final int BASE_TRANSFER_RATE = 5000;
+
+    // ✨ 核心优先充电配置
+    private static final float CORE_PRIORITY_THRESHOLD = 0.80f; // 核心低于80%时优先充电
+    private static final boolean ENABLE_CORE_PRIORITY = true;   // 是否启用核心优先
 
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
@@ -41,6 +47,44 @@ public class BatteryChargeHandler {
         // 1) 找到装备的核心和佩戴的电池
         ItemStack coreStack = findMechanicalCore(player);
         ItemStack wornBattery = findWornBattery(player);
+
+        // ✨ 新增：核心优先检查
+        if (ENABLE_CORE_PRIORITY && !coreStack.isEmpty()) {
+            IEnergyStorage coreEnergy = coreStack.getCapability(CapabilityEnergy.ENERGY, null);
+            if (coreEnergy != null) {
+                float corePercent = (float) coreEnergy.getEnergyStored() / Math.max(1, coreEnergy.getMaxEnergyStored());
+
+                // 核心电量低于阈值时，优先给核心充电
+                if (corePercent < CORE_PRIORITY_THRESHOLD) {
+                    if (DEBUG) {
+                        System.out.println(String.format(
+                                "[BatteryHandler] 核心优先模式 (%.1f%% < %.1f%%)：暂停给其他物品充电",
+                                corePercent * 100, CORE_PRIORITY_THRESHOLD * 100
+                        ));
+                    }
+
+                    // 只更新核心效率，不给其他物品充电
+                    updateCoreEfficiencyFromBattery(coreStack, wornBattery);
+
+                    // 处理特殊功能（需要有电）
+                    if (!wornBattery.isEmpty() && wornBattery.getItem() instanceof ItemBatteryBase) {
+                        handleBatterySpecialAbilities(player, wornBattery, coreStack);
+                    }
+
+                    // 被动加成
+                    if (!wornBattery.isEmpty() && player.world.getTotalWorldTime() % 40 == 0) {
+                        IEnergyStorage wornEnergy = wornBattery.getCapability(CapabilityEnergy.ENERGY, null);
+                        boolean hasEnergy = (wornEnergy != null && wornEnergy.getEnergyStored() > 0) ||
+                                (wornBattery.getItem() instanceof ItemCreativeBatteryBauble);
+                        if (hasEnergy && !coreStack.isEmpty()) {
+                            applyBatteryBonusEffects(coreStack, wornBattery, player);
+                        }
+                    }
+
+                    return; // 跳过给其他物品充电，让 ItemMechanicalCore 独占电池
+                }
+            }
+        }
 
         // 2) 更新核心的电池效率系数（佩戴就有效，不需要有电）
         updateCoreEfficiencyFromBattery(coreStack, wornBattery);
@@ -61,6 +105,21 @@ public class BatteryChargeHandler {
         // 创造电池特殊处理
         if (isCreativeBattery) {
             handleCreativeBattery(player, coreStack, primaryBattery);
+
+            // 特殊功能和加成
+            if (!wornBattery.isEmpty() && wornBattery.getItem() instanceof ItemBatteryBase) {
+                handleBatterySpecialAbilities(player, wornBattery, coreStack);
+            }
+
+            if (!wornBattery.isEmpty() && player.world.getTotalWorldTime() % 40 == 0) {
+                IEnergyStorage wornEnergy = wornBattery.getCapability(CapabilityEnergy.ENERGY, null);
+                boolean hasEnergy = (wornEnergy != null && wornEnergy.getEnergyStored() > 0) ||
+                        (wornBattery.getItem() instanceof ItemCreativeBatteryBauble);
+                if (hasEnergy && !coreStack.isEmpty()) {
+                    applyBatteryBonusEffects(coreStack, wornBattery, player);
+                }
+            }
+
             return;
         }
 
@@ -131,29 +190,7 @@ public class BatteryChargeHandler {
 
         // 6) 特殊功能（需要佩戴电池且有电）
         if (!wornBattery.isEmpty() && wornBattery.getItem() instanceof ItemBatteryBase) {
-            IEnergyStorage wornEnergy = wornBattery.getCapability(CapabilityEnergy.ENERGY, null);
-            boolean hasEnergy = (wornEnergy != null && wornEnergy.getEnergyStored() > 0) ||
-                    (wornBattery.getItem() instanceof ItemCreativeBatteryBauble);
-
-            if (hasEnergy) {
-                ItemBatteryBase bat = (ItemBatteryBase) wornBattery.getItem();
-                int tier = bat.getTier();
-
-                // 精英及以上：无线充电其他电池
-                if (tier >= 3 && batteryStorage.getEnergyStored() > 10000) {
-                    wirelessChargeOtherBatteries(player, batteryStorage, primaryBattery);
-                }
-
-                // 终极及以上：环境能量收集
-                if (tier >= 4) {
-                    collectEnvironmentalEnergy(player, batteryStorage);
-                }
-
-                // 量子：量子链路
-                if (tier >= 5) {
-                    quantumEnergyLink(player, primaryBattery, batteryStorage);
-                }
-            }
+            handleBatterySpecialAbilities(player, wornBattery, coreStack);
         }
 
         // 7) 被动加成（需要佩戴且有电）
@@ -177,10 +214,39 @@ public class BatteryChargeHandler {
     }
 
     /**
+     * ✨ 新增：处理电池的特殊能力（统一方法）
+     */
+    private static void handleBatterySpecialAbilities(EntityPlayer player, ItemStack wornBattery, ItemStack coreStack) {
+        IEnergyStorage wornEnergy = wornBattery.getCapability(CapabilityEnergy.ENERGY, null);
+
+        // 检查电池是否有电
+        boolean hasEnergy = (wornEnergy != null && wornEnergy.getEnergyStored() > 0) ||
+                (wornBattery.getItem() instanceof ItemCreativeBatteryBauble);
+
+        if (!hasEnergy) return; // 必须有电！
+
+        int tier = ((ItemBatteryBase) wornBattery.getItem()).getTier();
+
+        // 精英及以上：无线充电其他电池
+        if (tier >= 3 && wornEnergy.getEnergyStored() > 10000) {
+            wirelessChargeOtherBatteries(player, wornEnergy, wornBattery);
+        }
+
+        // 终极及以上：环境能量收集
+        if (tier >= 4) {
+            collectEnvironmentalEnergy(player, wornEnergy);
+        }
+
+        // 量子：量子链路
+        if (tier >= 5) {
+            quantumEnergyLink(player, wornBattery, wornEnergy);
+        }
+    }
+
+    /**
      * 处理创造电池的特殊逻辑
      */
     private static void handleCreativeBattery(EntityPlayer player, ItemStack coreStack, ItemStack battery) {
-        // 创造电池给其他物品充电（不包括机械核心，让核心自己处理）
         int creativeRate = 100000; // 创造电池超高速率
 
         // 充电其他物品
@@ -205,7 +271,7 @@ public class BatteryChargeHandler {
     }
 
     /**
-     * 找到最佳的带电电池（必须有电或是创造电池）
+     * ✨ 更新：支持新电池系统的最佳电池查找
      */
     private static ItemStack findBestChargedBattery(EntityPlayer player) {
         ItemStack bestBattery = ItemStack.EMPTY;
@@ -295,19 +361,15 @@ public class BatteryChargeHandler {
         IEnergyStorage targetStorage = target.getCapability(CapabilityEnergy.ENERGY, null);
         if (targetStorage == null || !targetStorage.canReceive()) return 0;
 
-        // 计算可传输量
         int available = batteryStorage.getEnergyStored();
         int needed = targetStorage.getMaxEnergyStored() - targetStorage.getEnergyStored();
         int toTransfer = Math.min(Math.min(maxTransfer, available), needed);
 
         if (toTransfer > 0) {
-            // 先模拟提取
             int canExtract = batteryStorage.extractEnergy(toTransfer, true);
             if (canExtract > 0) {
-                // 尝试给目标充电
                 int accepted = targetStorage.receiveEnergy(canExtract, false);
                 if (accepted > 0) {
-                    // 实际从电池提取
                     batteryStorage.extractEnergy(accepted, false);
                     return accepted;
                 }
@@ -316,8 +378,9 @@ public class BatteryChargeHandler {
         return 0;
     }
 
-    // ===== 辅助方法保持不变 =====
-
+    /**
+     * ✨ 更新：找到佩戴的电池（支持新系统）
+     */
     private static ItemStack findWornBattery(EntityPlayer player) {
         try {
             IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(player);
@@ -329,7 +392,7 @@ public class BatteryChargeHandler {
                     if (s.isEmpty()) continue;
 
                     if (s.getItem() instanceof ItemCreativeBatteryBauble) {
-                        return s; // 创造电池优先
+                        return s;
                     } else if (s.getItem() instanceof ItemBatteryBase) {
                         int t = ((ItemBatteryBase) s.getItem()).getTier();
                         if (t > highest) {
@@ -347,6 +410,9 @@ public class BatteryChargeHandler {
         return ItemStack.EMPTY;
     }
 
+    /**
+     * ✨ 更新：支持新电池系统的能耗优化
+     */
     private static void updateCoreEfficiencyFromBattery(ItemStack coreStack, ItemStack wornBattery) {
         if (coreStack.isEmpty()) return;
         if (!coreStack.hasTagCompound()) coreStack.setTagCompound(new NBTTagCompound());
@@ -359,28 +425,34 @@ public class BatteryChargeHandler {
             } else if (wornBattery.getItem() instanceof ItemBatteryBase) {
                 int tier = ((ItemBatteryBase) wornBattery.getItem()).getTier();
                 switch (tier) {
-                    case 2: eff = 0.90f; break;
-                    case 3: eff = 0.80f; break;
-                    case 4: eff = 0.70f; break;
-                    case 5: eff = 0.50f; break;
+                    case 1: eff = 0.95f; break;  // 基础：5%
+                    case 2: eff = 0.90f; break;  // 高级：10%
+                    case 3: eff = 0.80f; break;  // 精英：20%
+                    case 4: eff = 0.70f; break;  // 终极：30%
+                    case 5: eff = 0.50f; break;  // 量子：50%
                     default: eff = 1.0f;
                 }
+            } else if (wornBattery.getItem() instanceof ItemBatteryBauble) {
+                eff = 0.95f; // 旧电池：5%
             }
         }
         nbt.setFloat("BatteryEfficiency", eff);
     }
 
+    /**
+     * ✨ 更新：支持新电池系统的充电速率
+     */
     private static int getChargeRate(ItemStack battery) {
         if (battery.getItem() instanceof ItemCreativeBatteryBauble) {
-            return 100000; // 创造电池超高速率
+            return 100000;
         }
         if (battery.getItem() instanceof ItemBatteryBase) {
             switch (((ItemBatteryBase) battery.getItem()).getTier()) {
-                case 1: return 1000;
-                case 2: return 5000;
-                case 3: return 10000;
-                case 4: return 50000;
-                case 5: return 100000;
+                case 1: return 1000;    // 基础
+                case 2: return 5000;    // 高级
+                case 3: return 10000;   // 精英
+                case 4: return 50000;   // 终极
+                case 5: return 100000;  // 量子
             }
         }
         return BASE_TRANSFER_RATE;
@@ -388,7 +460,6 @@ public class BatteryChargeHandler {
 
     private static void applyBatteryBonusEffects(ItemStack coreStack, ItemStack wornBattery, EntityPlayer player) {
         if (wornBattery.getItem() instanceof ItemCreativeBatteryBauble) {
-            // 创造电池最强效果
             player.addExhaustion(-1.0f);
             player.heal(0.5f);
             IEnergyStorage coreEnergy = coreStack.getCapability(CapabilityEnergy.ENERGY, null);
@@ -475,7 +546,7 @@ public class BatteryChargeHandler {
                 && !(target.getItem() instanceof ItemBatteryBauble)
                 && !(target.getItem() instanceof ItemBatteryBase)
                 && !(target.getItem() instanceof ItemCreativeBatteryBauble)
-                && !(target.getItem() instanceof ItemMechanicalCore); // 不给核心充电
+                && !(target.getItem() instanceof ItemMechanicalCore);
     }
 
     private static void syncBaublesInventory(EntityPlayer player) {

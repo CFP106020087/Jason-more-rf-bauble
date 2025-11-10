@@ -1,5 +1,6 @@
 package com.moremod.block;
 
+import com.moremod.creativetab.moremodCreativeTab;
 import com.moremod.tile.TileEntityPedestal;
 import net.minecraft.block.BlockContainer;
 import net.minecraft.block.material.Material;
@@ -25,6 +26,7 @@ public class BlockPedestal extends BlockContainer {
         super(Material.ROCK);
         setHardness(2.0F);
         setResistance(6.0F);
+        setCreativeTab(moremodCreativeTab.moremod_TAB);
 
     }
 

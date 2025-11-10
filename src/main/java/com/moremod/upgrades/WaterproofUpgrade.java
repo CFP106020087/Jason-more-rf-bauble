@@ -4,6 +4,7 @@ import com.moremod.item.ItemMechanicalCore;
 import com.moremod.potion.ModPotions;
 
 import net.minecraft.block.material.Material;
+import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.item.EntityBoat;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
@@ -25,45 +26,65 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * 防水模块升级效果（雨天免疫 + 搭船豁免 + 仅浸没触发）
+ * 智能防水模块升级系统
+ *
+ * 等级1 - 日常防水：
+ *   - 免疫浅水（水深<40%身高）
+ *   - 免疫短暂水接触（<2秒）
+ *   - 免疫高速通过水体
+ *
+ * 等级2 - 深度防水：
+ *   - 包含等级1所有功能
+ *   - 免疫中等深度水体（水深<70%身高）
+ *   - 水下呼吸时间延长50%
+ *   - 游泳速度+30%
+ *
+ * 等级3 - 潜水适应：
+ *   - 完全防水
+ *   - 水下呼吸
+ *   - 水下夜视
+ *   - 水下速度+100%
+ *   - 水下挖掘速度+100%
  */
 public class WaterproofUpgrade {
 
     // 防水模块的最大等级
     public static final int MAX_LEVEL = 3;
 
-    // 支持的防水键名（兼容多写法）
+    // 支持的防水键名
     private static final String[] WATERPROOF_IDS = { "waterproof_module" };
 
-    // 玩家状态
-    private static final Map<UUID, Boolean> wasInWater = new HashMap<>();
+    // 玩家状态追踪
+    private static final Map<UUID, WaterState> lastWaterState = new HashMap<>();
     private static final Map<UUID, Long> lastWarningTime = new HashMap<>();
     private static final Map<UUID, Integer> malfunctionLevel = new HashMap<>();
     private static final Map<UUID, Long> lastEffectTime = new HashMap<>();
-    private static final Map<UUID, Long> lastDebugTime = new HashMap<>();
+    private static final Map<UUID, Long> lastStatusTime = new HashMap<>();
+
+    // 新增：水接触计时器和速度追踪
+    private static final Map<UUID, Integer> waterContactTime = new HashMap<>();
+    private static final Map<UUID, Double> lastPlayerSpeed = new HashMap<>();
 
     // 常量配置
-    private static final long WARNING_COOLDOWN = 5000;    // ms
-    private static final int  MALFUNCTION_DURATION = 200; // tick
-    private static final int  WATER_DAMAGE_ENERGY = 100;  // FE per tick when unprotected in water
+    private static final long WARNING_COOLDOWN = 5000;      // 警告冷却时间(ms)
+    private static final int  MALFUNCTION_DURATION = 200;   // 故障持续时间(tick)
+    private static final int  WATER_DAMAGE_ENERGY = 50;     // 基础能量损耗
+
+    // 智能检测阈值
+    private static final int  BRIEF_CONTACT_THRESHOLD = 40;  // 2秒 = 短暂接触
+    private static final double SPEED_IMMUNITY_THRESHOLD = 0.15; // 速度豁免阈值
+    private static final float SHALLOW_WATER_DEPTH = 0.4f;   // 浅水深度（40%身高）
+    private static final float MEDIUM_WATER_DEPTH = 0.7f;    // 中等深度（70%身高）
+
     private static final boolean DEBUG_MODE = false;
 
-    // ========== 可选：从配置读取（没有配置也有合理默认） ==========
-    private static boolean cfgIgnoreRain() {
-        try {
-            // 如果你有类似 com.moremod.config.MalfunctionConfig.environment.ignoreRain
-            return com.moremod.config.MalfunctionConfig.environment.ignoreRain;
-        } catch (Throwable t) {
-            return true; // 默认雨天免疫
-        }
-    }
-    private static boolean cfgAllowBoats() {
-        try {
-            // 如果你有类似 com.moremod.config.MalfunctionConfig.environment.allowBoats
-            return com.moremod.config.MalfunctionConfig.environment.allowBoats;
-        } catch (Throwable t) {
-            return true; // 默认允许坐船豁免
-        }
+    // 水体接触状态
+    private enum WaterState {
+        NONE,       // 无水接触
+        SHALLOW,    // 浅水（<40%身高）
+        MEDIUM,     // 中等深度（40-70%身高）
+        DEEP,       // 深水（70-100%身高）
+        SUBMERGED   // 完全浸没（>100%身高）
     }
 
     /**
@@ -74,165 +95,530 @@ public class WaterproofUpgrade {
 
         UUID playerId = player.getUniqueID();
 
-        // 檢測是否在淋雨（新增）
-        boolean inRain = isPlayerInRain(player);
-        boolean submerged = isPlayerSubmerged(player);
-        boolean wasInWaterBefore = wasInWater.getOrDefault(playerId, false);
+        // 检测当前水体状态
+        WaterState currentState = detectWaterState(player);
+        WaterState previousState = lastWaterState.getOrDefault(playerId, WaterState.NONE);
 
+        // 获取有效防水等级
         int effectiveLevel = getEffectiveWaterproofLevel(coreStack);
 
-        if (effectiveLevel <= 0) {
-            // 無防水保護
-            if (submerged) {
-                // 水中 = 完整故障
-                handleWaterDamage(player, coreStack, wasInWaterBefore);
-            } else if (inRain) {
-                // 淋雨 = 輕微故障（新增）
-                handleRainDamage(player, coreStack);
+        // 智能判断是否需要故障
+        boolean shouldMalfunction = shouldCauseMalfunction(player, currentState, effectiveLevel);
+
+        if (shouldMalfunction) {
+            // 处理故障
+            handleWaterMalfunction(player, coreStack, currentState, previousState);
+        } else {
+            // 无故障或有保护
+            if (currentState != WaterState.NONE) {
+                // 在水中但有保护
+                handleWaterProtection(player, currentState, effectiveLevel);
+
+                // 根据等级提供增益
+                applyWaterBenefits(player, currentState, effectiveLevel);
             } else {
-                // 離開水體/雨天
-                if (wasInWaterBefore) {
+                // 离开水体
+                if (previousState != WaterState.NONE) {
                     handleLeavingWater(player);
                 }
-                handleLeavingRain(player); // 新增
-            }
-        } else {
-            // 有防水保護
-            if (submerged) {
-                // 原有的水下保護邏輯...
-            } else if (inRain) {
-                // 防水模塊保護淋雨（新增）
-                handleRainProtection(player, effectiveLevel);
             }
 
-            // 清除所有故障效果
-            if (player.isPotionActive(ModPotions.MALFUNCTION)) {
-                player.removePotionEffect(ModPotions.MALFUNCTION);
-            }
-            if (player.isPotionActive(ModPotions.MINOR_MALFUNCTION)) {
-                player.removePotionEffect(ModPotions.MINOR_MALFUNCTION);
-            }
+            // 清除故障效果
+            clearMalfunctionEffects(player);
         }
 
-        wasInWater.put(playerId, submerged || inRain);
+        // 更新状态
+        lastWaterState.put(playerId, currentState);
     }
 
     /**
-     * 檢測玩家是否在淋雨
+     * 智能检测玩家当前的水体接触状态
      */
-    private static boolean isPlayerInRain(EntityPlayer player) {
-        // 不在室內 + 世界在下雨 + 能看到天空
-        if (!player.world.isRaining()) {
+    private static WaterState detectWaterState(EntityPlayer player) {
+        // 坐船时豁免
+        if (player.isRiding() && player.getRidingEntity() instanceof EntityBoat) {
+            return WaterState.NONE;
+        }
+
+        // 计算实际水深
+        double waterDepth = getActualWaterDepth(player);
+
+        if (waterDepth <= 0) {
+            return WaterState.NONE;
+        } else if (waterDepth < SHALLOW_WATER_DEPTH) {
+            return WaterState.SHALLOW;
+        } else if (waterDepth < MEDIUM_WATER_DEPTH) {
+            return WaterState.MEDIUM;
+        } else if (waterDepth < 1.0) {
+            return WaterState.DEEP;
+        } else {
+            return WaterState.SUBMERGED;
+        }
+    }
+
+    /**
+     * 获取玩家实际浸水深度（0-1+，相对于玩家身高）
+     */
+    private static double getActualWaterDepth(EntityPlayer player) {
+        // 检查玩家脚部位置
+        BlockPos feetPos = new BlockPos(player.posX, player.posY, player.posZ);
+
+        // 如果不在水中，返回0
+        if (!player.isInWater() && player.world.getBlockState(feetPos).getMaterial() != Material.WATER) {
+            return 0;
+        }
+
+        // 向上搜索找到水面
+        double playerY = player.posY;
+        for (int y = 0; y <= 3; y++) {
+            BlockPos checkPos = feetPos.up(y);
+            IBlockState state = player.world.getBlockState(checkPos);
+
+            if (state.getMaterial() != Material.WATER) {
+                // 找到水面，计算相对高度
+                double waterSurface = checkPos.getY() - 0.125;
+                double submergedHeight = waterSurface - playerY;
+                return Math.max(0, submergedHeight / player.height);
+            }
+        }
+
+        // 完全在水下
+        return 1.5;
+    }
+
+    /**
+     * 判断玩家是否在游泳（1.12.2兼容版本）
+     */
+    private static boolean isPlayerSwimming(EntityPlayer player) {
+        // 在1.12.2中，通过以下条件判断游泳：
+        // 1. 玩家在水中
+        // 2. 玩家有水平移动
+        // 3. 玩家不在地面上
+        if (!player.isInWater()) {
             return false;
         }
 
-        // 檢查頭頂是否能看到天空
-        BlockPos pos = player.getPosition();
-        return player.world.canSeeSky(pos.up()) &&
-                player.world.getPrecipitationHeight(pos).getY() <= pos.getY() + 1;
+        // 检查是否有水平移动
+        double horizontalSpeed = Math.sqrt(player.motionX * player.motionX + player.motionZ * player.motionZ);
+
+        // 检查是否不在地面（在游泳而不是涉水）
+        boolean notOnGround = !player.onGround;
+
+        // 检查玩家是否被水淹没超过一半
+        BlockPos waistPos = new BlockPos(player.posX, player.posY + 0.8, player.posZ);
+        boolean deepEnough = player.world.getBlockState(waistPos).getMaterial() == Material.WATER;
+
+        return horizontalSpeed > 0.01 && (notOnGround || deepEnough);
     }
 
     /**
-     * 處理淋雨傷害（新方法）
+     * 智能判断是否应该造成故障
      */
-    private static void handleRainDamage(EntityPlayer player, ItemStack coreStack) {
+    private static boolean shouldCauseMalfunction(EntityPlayer player, WaterState state, int level) {
+        if (state == WaterState.NONE) return false;
+
+        UUID playerId = player.getUniqueID();
+
+        // 更新水接触时间
+        updateWaterContactTime(player, state != WaterState.NONE);
+
+        // 检查速度豁免
+        if (hasSpeedImmunity(player)) {
+            return false; // 高速移动时豁免
+        }
+
+        // 检查短暂接触豁免
+        int contactTime = waterContactTime.getOrDefault(playerId, 0);
+        if (contactTime < BRIEF_CONTACT_THRESHOLD) {
+            return false; // 短暂接触豁免
+        }
+
+        // 游泳或潜行时的特殊处理
+        if (player.isSneaking() || isPlayerSwimming(player)) {
+            // 给予额外1级防护
+            level++;
+        }
+
+        // 根据防水等级判断
+        switch (level) {
+            case 0:
+                // 无防水：任何持续水接触都故障
+                return true;
+
+            case 1:
+                // LV1：免疫浅水
+                return state.ordinal() > WaterState.SHALLOW.ordinal();
+
+            case 2:
+                // LV2：免疫中等深度
+                return state.ordinal() > WaterState.MEDIUM.ordinal();
+
+            case 3:
+            case 4: // 潜行/游泳加成
+                // LV3：完全防水
+                return false;
+
+            default:
+                return true;
+        }
+    }
+
+    /**
+     * 更新水接触时间
+     */
+    private static void updateWaterContactTime(EntityPlayer player, boolean inWater) {
+        UUID playerId = player.getUniqueID();
+
+        if (inWater) {
+            int time = waterContactTime.getOrDefault(playerId, 0) + 1;
+            waterContactTime.put(playerId, time);
+        } else {
+            // 离开水后快速重置
+            int time = waterContactTime.getOrDefault(playerId, 0);
+            if (time > 0) {
+                waterContactTime.put(playerId, Math.max(0, time - 5));
+            }
+        }
+    }
+
+    /**
+     * 检查是否有速度豁免
+     */
+    private static boolean hasSpeedImmunity(EntityPlayer player) {
+        UUID playerId = player.getUniqueID();
+
+        // 计算当前速度
+        double currentSpeed = Math.sqrt(player.motionX * player.motionX + player.motionZ * player.motionZ);
+        double lastSpeed = lastPlayerSpeed.getOrDefault(playerId, 0.0);
+
+        // 更新速度记录
+        lastPlayerSpeed.put(playerId, currentSpeed);
+
+        // 平均速度超过阈值时豁免
+        double avgSpeed = (currentSpeed + lastSpeed) / 2;
+        return avgSpeed > SPEED_IMMUNITY_THRESHOLD;
+    }
+
+    /**
+     * 处理水体造成的故障
+     */
+    private static void handleWaterMalfunction(EntityPlayer player, ItemStack coreStack,
+                                               WaterState currentState, WaterState previousState) {
         UUID playerId = player.getUniqueID();
         long now = System.currentTimeMillis();
 
-        // 首次淋雨警告
-        Long lastRainWarn = lastRainWarning.get(playerId);
-        if (lastRainWarn == null || now - lastRainWarn > 30000) { // 30秒冷卻
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.YELLOW + "⚠ 警告：雨水滲入機械核心外殼！"
-            ));
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.GRAY + "提示：防水模塊可防止雨水損害"
-            ));
-            lastRainWarning.put(playerId, now);
+        // 首次进入故障状态
+        if (previousState == WaterState.NONE || !shouldCauseMalfunction(player, previousState, getEffectiveWaterproofLevel(coreStack))) {
+            sendMalfunctionWarning(player, currentState);
+            malfunctionLevel.put(playerId, 0);
+            player.world.playSound(null, player.getPosition(),
+                    SoundEvents.BLOCK_NOTE_PLING, SoundCategory.PLAYERS, 1.0F, 0.5F);
         }
 
-        // 施加輕微故障效果
-        int level = 0;
-
-        // 雷雨時效果加重
-        if (player.world.isThundering()) {
-            level = 1;
-            if (now - lastRainWarn > 60000) {
-                player.sendStatusMessage(new TextComponentString(
-                        TextFormatting.GOLD + "⚡ 雷暴天氣導致干擾增強！"
-                ), true);
-            }
+        // 消耗能量（根据水深调整）
+        IEnergyStorage energy = coreStack.getCapability(CapabilityEnergy.ENERGY, null);
+        if (energy != null) {
+            int damage = calculateEnergyDamage(currentState);
+            energy.extractEnergy(damage, false);
         }
 
-        // 應用輕微故障
+        // 应用故障效果
+        int malfLvl = calculateMalfunctionLevel(player, currentState);
+        malfunctionLevel.put(playerId, malfLvl);
+
+        // 施加故障效果
         player.addPotionEffect(new PotionEffect(
-                ModPotions.MINOR_MALFUNCTION,
-                100,  // 5秒持續
-                level,
+                ModPotions.MALFUNCTION,
+                MALFUNCTION_DURATION,
+                malfLvl,
                 false,
                 true
         ));
 
-        // 少量能量流失
-        IEnergyStorage energy = coreStack.getCapability(CapabilityEnergy.ENERGY, null);
-        if (energy != null) {
-            energy.extractEnergy(5, false); // 每tick 10 FE（比水中少很多）
+        // 定期警告
+        Long lastWarn = lastWarningTime.get(playerId);
+        if (lastWarn == null || now - lastWarn > WARNING_COOLDOWN) {
+            sendPeriodicWarning(player, currentState, malfLvl);
+            lastWarningTime.put(playerId, now);
+        }
+
+        // 严重故障时可能短路
+        if (malfLvl >= 2 && energy != null && player.world.rand.nextInt(300) == 0) {
+            int drain = energy.getEnergyStored() / 2;
+            energy.extractEnergy(drain, false);
+            player.sendMessage(new TextComponentString(
+                    TextFormatting.DARK_RED + "⚠ 严重故障：能量系统部分短路！损失 " + drain + " FE"
+            ));
         }
     }
 
     /**
-     * 處理雨天防護（新方法）
+     * 计算能量损耗
      */
-    private static void handleRainProtection(EntityPlayer player, int level) {
-        // 首次進入雨中的提示
-        Long lastProtect = lastRainProtection.get(player.getUniqueID());
+    private static int calculateEnergyDamage(WaterState state) {
+        switch (state) {
+            case SHALLOW:
+                return WATER_DAMAGE_ENERGY / 2;      // 25 FE/tick
+            case MEDIUM:
+                return WATER_DAMAGE_ENERGY;          // 50 FE/tick
+            case DEEP:
+                return WATER_DAMAGE_ENERGY * 2;      // 100 FE/tick
+            case SUBMERGED:
+                return WATER_DAMAGE_ENERGY * 3;      // 150 FE/tick
+            default:
+                return 0;
+        }
+    }
+
+    /**
+     * 计算故障等级
+     */
+    private static int calculateMalfunctionLevel(EntityPlayer player, WaterState state) {
+        UUID playerId = player.getUniqueID();
+        int contactTime = waterContactTime.getOrDefault(playerId, 0);
+
+        // 基础故障等级
+        int baseLevel = 0;
+        switch (state) {
+            case SHALLOW:
+                baseLevel = 0;
+                break;
+            case MEDIUM:
+                baseLevel = 1;
+                break;
+            case DEEP:
+            case SUBMERGED:
+                baseLevel = 2;
+                break;
+        }
+
+        // 长时间接触增加故障等级
+        if (contactTime > 200) { // 10秒
+            baseLevel = Math.min(baseLevel + 1, 2);
+        }
+
+        return baseLevel;
+    }
+
+    /**
+     * 处理有防水保护时的状态
+     */
+    private static void handleWaterProtection(EntityPlayer player, WaterState state, int level) {
+        UUID playerId = player.getUniqueID();
         long now = System.currentTimeMillis();
+        Long lastStatus = lastStatusTime.get(playerId);
 
-        if (lastProtect == null || now - lastProtect > 60000) {
-            player.sendStatusMessage(new TextComponentString(
-                    TextFormatting.GREEN + "✓ 防水塗層阻擋雨水侵蝕"
-            ), true);
-            lastRainProtection.put(player.getUniqueID(), now);
-
-            // 消耗少量能量維持防護
-            ItemMechanicalCore.consumeEnergy(
-                    ItemMechanicalCore.getCoreFromPlayer(player),
-                    1, // 極少能量消耗
-                    true
-            );
+        if (lastStatus == null || now - lastStatus > 10000) {
+            String message = getProtectionMessage(state, level);
+            if (!message.isEmpty()) {
+                player.sendStatusMessage(new TextComponentString(message), true);
+                lastStatusTime.put(playerId, now);
+            }
         }
     }
 
     /**
-     * 離開雨天時的處理（新方法）
+     * 应用水中增益效果（根据等级）
      */
-    private static void handleLeavingRain(EntityPlayer player) {
-        // 移除輕微故障效果
-        if (player.isPotionActive(ModPotions.MINOR_MALFUNCTION)) {
-            int remaining = player.getActivePotionEffect(ModPotions.MINOR_MALFUNCTION).getDuration();
-            if (remaining > 60) {
-                // 縮短到3秒
-                player.removePotionEffect(ModPotions.MINOR_MALFUNCTION);
-                player.addPotionEffect(new PotionEffect(
-                        ModPotions.MINOR_MALFUNCTION,
-                        60,
-                        0,
-                        false,
-                        true
-                ));
-            }
+    private static void applyWaterBenefits(EntityPlayer player, WaterState state, int level) {
+        if (state == WaterState.NONE) return;
 
-            player.sendStatusMessage(new TextComponentString(
-                    TextFormatting.YELLOW + "系統乾燥中..."
-            ), true);
+        switch (level) {
+            case 1:
+                // LV1：基础防水，无特殊增益
+                break;
+
+            case 2:
+                // LV2：中级防水
+                if (state.ordinal() >= WaterState.MEDIUM.ordinal()) {
+                    // 延长氧气条
+                    if (player.getAir() < 150) {
+                        player.setAir(player.getAir() + 1);
+                    }
+                    // 游泳速度提升
+                    player.addPotionEffect(new PotionEffect(
+                            MobEffects.SPEED, 100, 0, true, false
+                    ));
+                }
+                break;
+
+            case 3:
+                // LV3：完全防水 + 深海适应
+                // 水下呼吸
+                player.addPotionEffect(new PotionEffect(
+                        MobEffects.WATER_BREATHING, 100, 0, true, false
+                ));
+
+                if (state.ordinal() >= WaterState.DEEP.ordinal()) {
+                    // 深水增益
+                    // 夜视
+                    player.addPotionEffect(new PotionEffect(
+                            MobEffects.NIGHT_VISION, 220, 0, true, false
+                    ));
+                    // 急迫（挖掘速度）
+                    player.addPotionEffect(new PotionEffect(
+                            MobEffects.HASTE, 100, 1, true, false
+                    ));
+                    // 速度II
+                    player.addPotionEffect(new PotionEffect(
+                            MobEffects.SPEED, 100, 1, true, false
+                    ));
+                    // 力量（游泳推进）
+                    player.addPotionEffect(new PotionEffect(
+                            MobEffects.STRENGTH, 100, 0, true, false
+                    ));
+                }
+                break;
         }
     }
 
-    // 添加新的狀態追蹤
-    private static final Map<UUID, Long> lastRainWarning = new HashMap<>();
-    private static final Map<UUID, Long> lastRainProtection = new HashMap<>();
+    /**
+     * 离开水体时的处理
+     */
+    private static void handleLeavingWater(EntityPlayer player) {
+        UUID playerId = player.getUniqueID();
 
-    // ===================== 有效等级判定 =====================
+        // 故障效果逐渐消退
+        PotionEffect malfunction = player.getActivePotionEffect(ModPotions.MALFUNCTION);
+        if (malfunction != null && malfunction.getDuration() > 60) {
+            player.removePotionEffect(ModPotions.MALFUNCTION);
+            player.addPotionEffect(new PotionEffect(
+                    ModPotions.MALFUNCTION,
+                    60,
+                    Math.max(0, malfunction.getAmplifier() - 1),
+                    false,
+                    true
+            ));
+        }
+
+        // 显示恢复消息
+        int contactTime = waterContactTime.getOrDefault(playerId, 0);
+        if (contactTime > BRIEF_CONTACT_THRESHOLD) {
+            player.sendStatusMessage(new TextComponentString(
+                    TextFormatting.YELLOW + "⚡ 系统恢复中..."
+            ), true);
+        }
+
+        // 清理状态
+        malfunctionLevel.remove(playerId);
+        lastEffectTime.remove(playerId);
+    }
+
+    /**
+     * 清除故障效果
+     */
+    private static void clearMalfunctionEffects(EntityPlayer player) {
+        if (player.isPotionActive(ModPotions.MALFUNCTION)) {
+            player.removePotionEffect(ModPotions.MALFUNCTION);
+        }
+    }
+
+    /**
+     * 获取保护状态消息
+     */
+    private static String getProtectionMessage(WaterState state, int level) {
+        switch (level) {
+            case 1:
+                if (state == WaterState.SHALLOW) {
+                    return TextFormatting.AQUA + "✓ 基础防水涂层运作中";
+                }
+                break;
+            case 2:
+                if (state == WaterState.SHALLOW || state == WaterState.MEDIUM) {
+                    return TextFormatting.BLUE + "✓ 深度防水系统激活";
+                }
+                break;
+            case 3:
+                return TextFormatting.DARK_AQUA + "✓ 潜水适应模式 - 完全防护";
+        }
+        return "";
+    }
+
+    /**
+     * 发送故障警告
+     */
+    private static void sendMalfunctionWarning(EntityPlayer player, WaterState state) {
+        String message;
+        TextFormatting color;
+
+        switch (state) {
+            case SHALLOW:
+                message = "⚠ 警告：检测到水体渗入！";
+                color = TextFormatting.YELLOW;
+                break;
+            case MEDIUM:
+                message = "⚠ 警告：水位上升，系统压力增大！";
+                color = TextFormatting.GOLD;
+                break;
+            case DEEP:
+                message = "⚠ 危险：深水压力，核心进水！";
+                color = TextFormatting.RED;
+                break;
+            case SUBMERGED:
+                message = "☠ 严重：完全浸没，系统故障！";
+                color = TextFormatting.DARK_RED;
+                break;
+            default:
+                return;
+        }
+
+        player.sendMessage(new TextComponentString(color + message));
+
+        // 提示升级
+        int currentLevel = getEffectiveWaterproofLevel(ItemMechanicalCore.getCoreFromPlayer(player));
+        if (currentLevel < MAX_LEVEL) {
+            String hint = getUpgradeHint(state, currentLevel);
+            if (!hint.isEmpty()) {
+                player.sendMessage(new TextComponentString(TextFormatting.GRAY + hint));
+            }
+        }
+    }
+
+    /**
+     * 获取升级提示
+     */
+    private static String getUpgradeHint(WaterState state, int currentLevel) {
+        switch (currentLevel) {
+            case 0:
+                return "提示：安装防水模块LV1可防止浅水损害";
+            case 1:
+                if (state.ordinal() > WaterState.SHALLOW.ordinal()) {
+                    return "提示：升级至LV2可在更深的水中活动";
+                }
+                break;
+            case 2:
+                if (state.ordinal() > WaterState.MEDIUM.ordinal()) {
+                    return "提示：升级至LV3获得完全防水和水下能力";
+                }
+                break;
+        }
+        return "";
+    }
+
+    /**
+     * 发送周期性警告
+     */
+    private static void sendPeriodicWarning(EntityPlayer player, WaterState state, int malfunctionLevel) {
+        String msg;
+        TextFormatting color;
+
+        if (malfunctionLevel >= 2) {
+            msg = "☠ 核心严重进水！立即脱离水体！";
+            color = TextFormatting.DARK_RED;
+        } else if (malfunctionLevel >= 1) {
+            msg = "⚠ 系统故障加剧，多个子系统失效！";
+            color = TextFormatting.GOLD;
+        } else {
+            msg = "⚡ 检测到异常，开始出现轻微故障";
+            color = TextFormatting.YELLOW;
+        }
+
+        player.sendStatusMessage(new TextComponentString(color + msg), true);
+        player.world.playSound(null, player.getPosition(),
+                SoundEvents.BLOCK_REDSTONE_TORCH_BURNOUT, SoundCategory.PLAYERS, 1.0F, 0.5F);
+    }
+
+    // ===================== 等级管理 =====================
 
     public static int getEffectiveWaterproofLevel(ItemStack coreStack) {
         if (isWaterproofDisabled(coreStack)) return 0;
@@ -240,7 +626,6 @@ public class WaterproofUpgrade {
         int level = getWaterproofLevel(coreStack);
         if (level <= 0) return 0;
 
-        // 能量/暂停状态由统一接口判定
         for (String id : WATERPROOF_IDS) {
             if (ItemMechanicalCore.isUpgradeActive(coreStack, id)) {
                 return level;
@@ -271,7 +656,7 @@ public class WaterproofUpgrade {
             level = Math.max(level, nbt.getInteger("upgrade_" + id.toLowerCase()));
             level = Math.max(level, nbt.getInteger("upgrade_" + id.toUpperCase()));
         }
-        level = Math.max(level, nbt.getInteger("waterproofLevel")); // 兼容旧键
+        level = Math.max(level, nbt.getInteger("waterproofLevel"));
 
         return Math.min(level, MAX_LEVEL);
     }
@@ -288,7 +673,7 @@ public class WaterproofUpgrade {
             nbt.setInteger("upgrade_" + id.toUpperCase(), level);
             nbt.setBoolean("HasUpgrade_" + id, level > 0);
         }
-        nbt.setInteger("waterproofLevel", level); // 兼容
+        nbt.setInteger("waterproofLevel", level);
         nbt.setBoolean("hasWaterproofModule", level > 0);
     }
 
@@ -304,186 +689,13 @@ public class WaterproofUpgrade {
         if (DEBUG_MODE) System.out.println("[WaterproofUpgrade] disabled=" + disabled);
     }
 
-    // ===================== “进水”判定（新版） =====================
-
-    /**
-     * 仅在“真正浸没”时返回 true：
-     * - 眼睛所在格是水，或
-     * - 实体与水材质相交（isInsideOfMaterial）
-     * 特别规则：
-     * - 坐船时（EntityBoat）直接豁免
-     * - 雨天/雷雨不算进水
-     */
-    private static boolean isPlayerSubmerged(EntityPlayer player) {
-        // 坐船豁免
-        if (cfgAllowBoats() && player.isRiding() && player.getRidingEntity() instanceof EntityBoat) {
-            return false;
-        }
-
-        // 雨天免疫
-        if (cfgIgnoreRain() && player.world.isRaining()) {
-            // 以前这里会在雷暴时也算进水，现全部忽略
-            // 只要不是“眼睛进水”，就不判定
-        }
-
-        // 眼睛所处方块
-        BlockPos eye = new BlockPos(player.posX, player.posY + player.getEyeHeight(), player.posZ);
-        if (player.world.getBlockState(eye).getMaterial() == Material.WATER) {
-            return true;
-        }
-
-        // 实体判定（包围盒与水材质重叠）
-        if (player.isInsideOfMaterial(Material.WATER)) {
-            return true;
-        }
-
-        // 脚下浅水不算（降低“过度敏感”）
-        // 原实现会检查 player.isInWater() 或脚下是水，这里不采用
-
-        return false;
-    }
-
-    // ===================== 无防水时的水体影响 =====================
-
-    private static void handleWaterDamage(EntityPlayer player, ItemStack coreStack, boolean wasInWaterBefore) {
-        UUID playerId = player.getUniqueID();
-        long now = System.currentTimeMillis();
-
-        if (!wasInWaterBefore) {
-            int originalLevel = getWaterproofLevel(coreStack);
-            if (originalLevel > 0) {
-                player.sendMessage(new TextComponentString(
-                        TextFormatting.YELLOW + "⚠ 警告：防水模块已暂停或禁用！"
-                ));
-            }
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.RED + "⚠ 检测到水体侵入！机械核心开始故障！"
-            ));
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.YELLOW + "提示：启用防水模块（等级>0且未禁用）可避免水体损害"
-            ));
-
-            malfunctionLevel.put(playerId, 0);
-            player.world.playSound(null, player.getPosition(),
-                    SoundEvents.BLOCK_NOTE_PLING, SoundCategory.PLAYERS, 1.0F, 0.5F);
-        }
-
-        IEnergyStorage energy = coreStack.getCapability(CapabilityEnergy.ENERGY, null);
-        if (energy != null) {
-            energy.extractEnergy(WATER_DAMAGE_ENERGY, false);
-        }
-
-        int curLv = malfunctionLevel.getOrDefault(playerId, 0);
-        Long lastEff = lastEffectTime.get(playerId);
-        if (lastEff == null || now - lastEff > 5000) { // 每5秒升级一次，封顶2
-            if (curLv < 2) {
-                curLv++;
-                malfunctionLevel.put(playerId, curLv);
-            }
-            lastEffectTime.put(playerId, now);
-        }
-
-        applyMalfunctionEffect(player, curLv);
-
-        Long lastWarn = lastWarningTime.get(playerId);
-        if (lastWarn == null || now - lastWarn > WARNING_COOLDOWN) {
-            sendWaterDamageWarning(player, curLv);
-            lastWarningTime.put(playerId, now);
-        }
-
-        if (curLv >= 2 && energy != null && player.world.rand.nextInt(200) == 0) {
-            energy.extractEnergy(energy.getEnergyStored(), false);
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.DARK_RED + "☠ 致命错误：能量系统短路！"
-            ));
-        }
-    }
-
-    private static void handleLeavingWater(EntityPlayer player) {
-        UUID playerId = player.getUniqueID();
-
-        player.sendStatusMessage(new TextComponentString(
-                TextFormatting.YELLOW + "正在进行系统自检..."
-        ), true);
-
-        PotionEffect current = player.getActivePotionEffect(ModPotions.MALFUNCTION);
-        if (current != null) {
-            int remaining = Math.max(100, current.getDuration());
-            PotionEffect extended = new PotionEffect(
-                    ModPotions.MALFUNCTION,
-                    remaining,
-                    Math.max(0, current.getAmplifier() - 1),
-                    false,
-                    true
-            );
-            player.addPotionEffect(extended);
-        }
-
-        malfunctionLevel.remove(playerId);
-        lastEffectTime.remove(playerId);
-    }
-
-    private static void applyMalfunctionEffect(EntityPlayer player, int level) {
-        player.addPotionEffect(new PotionEffect(
-                ModPotions.MALFUNCTION, MALFUNCTION_DURATION, level, false, true
-        ));
-    }
-
-    // ===================== 水下增益 =====================
-
-    private static void applyUnderwaterBenefits(EntityPlayer player, int level) {
-        switch (level) {
-            case 1:
-                // 基础：仅防故障，无额外增益
-                break;
-            case 2:
-                // 水下呼吸
-                player.addPotionEffect(new PotionEffect(MobEffects.WATER_BREATHING, 100, 0, true, false));
-                break;
-            case 3:
-                player.addPotionEffect(new PotionEffect(MobEffects.WATER_BREATHING, 100, 0, true, false));
-                player.addPotionEffect(new PotionEffect(MobEffects.NIGHT_VISION, 220, 0, true, false));
-                // 只有真正浸没时给挖掘/速度
-                if (isPlayerSubmerged(player)) {
-                    player.addPotionEffect(new PotionEffect(MobEffects.HASTE, 100, 1, true, false));
-                    player.addPotionEffect(new PotionEffect(MobEffects.SPEED, 100, 1, true, false));
-                }
-                break;
-        }
-    }
-
-    private static void showWaterproofStatus(EntityPlayer player, int level) {
-        String status; TextFormatting color;
-        switch (level) {
-            case 1: status = "防水涂层正常工作"; color = TextFormatting.AQUA; break;
-            case 2: status = "高级防水系统已激活"; color = TextFormatting.BLUE; break;
-            case 3: status = "深海适应模式已启动"; color = TextFormatting.DARK_AQUA; break;
-            default: return;
-        }
-        player.sendStatusMessage(new TextComponentString(color + "💧 " + status), true);
-        player.world.playSound(null, player.getPosition(),
-                SoundEvents.ENTITY_PLAYER_SPLASH, SoundCategory.PLAYERS, 0.5F, 1.0F);
-    }
-
-    private static void sendWaterDamageWarning(EntityPlayer player, int level) {
-        String msg; TextFormatting color;
-        switch (level) {
-            case 0: msg = "⚡ 检测到水体，系统开始出现故障"; color = TextFormatting.YELLOW; break;
-            case 1: msg = "⚠ 水体侵入严重，多个子系统故障！"; color = TextFormatting.GOLD; break;
-            default: msg = "☠ 核心严重进水！立即离开水体！"; color = TextFormatting.DARK_RED; break;
-        }
-        player.sendStatusMessage(new TextComponentString(color + msg), true);
-        player.world.playSound(null, player.getPosition(),
-                SoundEvents.BLOCK_REDSTONE_TORCH_BURNOUT, SoundCategory.PLAYERS, 1.0F, 0.5F);
-    }
-
     // ===================== GUI/信息 =====================
 
     public static ItemStack getUpgradeMaterial(int targetLevel) {
         switch (targetLevel) {
-            case 1: return new ItemStack(Items.SLIME_BALL, 4);
-            case 2: return new ItemStack(Items.PRISMARINE_SHARD, 8);
-            case 3: return new ItemStack(Blocks.PRISMARINE, 4);
+            case 1: return new ItemStack(Items.SLIME_BALL, 4);           // 史莱姆球
+            case 2: return new ItemStack(Items.PRISMARINE_SHARD, 8);     // 海晶碎片
+            case 3: return new ItemStack(Blocks.PRISMARINE, 4);          // 海晶石块
             default: return ItemStack.EMPTY;
         }
     }
@@ -495,7 +707,7 @@ public class WaterproofUpgrade {
 
         StringBuilder sb = new StringBuilder();
         if (level == 0) {
-            sb.append(TextFormatting.GRAY).append("未安装 - 接触水体会导致故障");
+            sb.append(TextFormatting.GRAY).append("未安装 - 任何持续水接触都会故障");
         } else {
             sb.append(TextFormatting.WHITE).append("等级 ").append(level).append("/").append(MAX_LEVEL);
             if (disabled) sb.append(TextFormatting.RED).append(" [已禁用]");
@@ -503,9 +715,28 @@ public class WaterproofUpgrade {
             else sb.append(TextFormatting.GREEN).append(" [激活]");
             sb.append("\n");
             switch (level) {
-                case 1: sb.append(TextFormatting.AQUA).append("基础防水 - 防止水体损害"); break;
-                case 2: sb.append(TextFormatting.BLUE).append("高级防水 - 水下呼吸"); break;
-                case 3: sb.append(TextFormatting.DARK_AQUA).append("深海适应 - 完整水下能力"); break;
+                case 1:
+                    sb.append(TextFormatting.AQUA).append("日常防水");
+                    sb.append("\n").append(TextFormatting.GREEN).append("  ✓ 免疫浅水(<40%深度)");
+                    sb.append("\n").append(TextFormatting.GREEN).append("  ✓ 免疫短暂接触(<2秒)");
+                    sb.append("\n").append(TextFormatting.GREEN).append("  ✓ 快速通过豁免");
+                    sb.append("\n").append(TextFormatting.GRAY).append("  ✗ 不防中深水");
+                    break;
+                case 2:
+                    sb.append(TextFormatting.BLUE).append("深度防水");
+                    sb.append("\n").append(TextFormatting.GREEN).append("  ✓ 免疫中等深度(<70%)");
+                    sb.append("\n").append(TextFormatting.GREEN).append("  ✓ 氧气条延长50%");
+                    sb.append("\n").append(TextFormatting.GREEN).append("  ✓ 游泳速度+30%");
+                    sb.append("\n").append(TextFormatting.GRAY).append("  ✗ 不防完全浸没");
+                    break;
+                case 3:
+                    sb.append(TextFormatting.DARK_AQUA).append("潜水适应");
+                    sb.append("\n").append(TextFormatting.GREEN).append("  ✓ 完全防水");
+                    sb.append("\n").append(TextFormatting.GREEN).append("  ✓ 水下呼吸");
+                    sb.append("\n").append(TextFormatting.GREEN).append("  ✓ 水下夜视");
+                    sb.append("\n").append(TextFormatting.GREEN).append("  ✓ 水下速度+100%");
+                    sb.append("\n").append(TextFormatting.GREEN).append("  ✓ 水下挖掘+100%");
+                    break;
             }
         }
         return sb.toString();
@@ -513,20 +744,22 @@ public class WaterproofUpgrade {
 
     public static String getUpgradeDescription(int level) {
         switch (level) {
-            case 0: return TextFormatting.GRAY + "未安装 - 接触水体会导致故障";
-            case 1: return TextFormatting.AQUA + "基础防水 - 防止水体损害";
-            case 2: return TextFormatting.BLUE + "高级防水 - 水下呼吸";
-            case 3: return TextFormatting.DARK_AQUA + "深海适应 - 完整水下能力";
+            case 0: return TextFormatting.GRAY + "未安装 - 任何持续水接触都会故障";
+            case 1: return TextFormatting.AQUA + "日常防水 - 浅水保护+智能豁免";
+            case 2: return TextFormatting.BLUE + "深度防水 - 中等深度+游泳增强";
+            case 3: return TextFormatting.DARK_AQUA + "潜水适应 - 完全防水+水下超能力";
             default: return "";
         }
     }
 
     public static void cleanupPlayer(EntityPlayer player) {
         UUID id = player.getUniqueID();
-        wasInWater.remove(id);
+        lastWaterState.remove(id);
         lastWarningTime.remove(id);
         malfunctionLevel.remove(id);
         lastEffectTime.remove(id);
-        lastDebugTime.remove(id);
+        lastStatusTime.remove(id);
+        waterContactTime.remove(id);
+        lastPlayerSpeed.remove(id);
     }
 }

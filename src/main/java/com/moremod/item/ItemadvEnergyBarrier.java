@@ -1,8 +1,11 @@
 package com.moremod.item;
 
 import baubles.api.BaubleType;
+import baubles.api.BaublesApi;
 import baubles.api.IBauble;
+import baubles.api.cap.IBaublesItemHandler;
 import com.moremod.creativetab.moremodCreativeTab;
+import com.moremod.shields.integrated.IntegratedShieldSystem;
 import com.moremod.upgrades.EnergyEfficiencyManager;  // 添加import
 import net.minecraft.client.Minecraft;  // 添加import（用于tooltip）
 import net.minecraft.client.util.ITooltipFlag;
@@ -47,6 +50,44 @@ public class ItemadvEnergyBarrier extends Item implements IBauble {
 
     @Override
     public boolean canEquip(ItemStack itemstack, EntityLivingBase player) {
+        // 检查是否是玩家
+        if (!(player instanceof EntityPlayer)) {
+            return false;
+        }
+
+        EntityPlayer entityPlayer = (EntityPlayer) player;
+
+        // 检查是否已装备机械核心
+        try {
+            IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(entityPlayer);
+            if (baubles != null) {
+                boolean hasMechanicalCore = false;
+
+                // 遍历所有饰品栏位
+                for (int i = 0; i < baubles.getSlots(); i++) {
+                    ItemStack bauble = baubles.getStackInSlot(i);
+                    if (!bauble.isEmpty() && bauble.getItem() instanceof ItemMechanicalCore) {
+                        hasMechanicalCore = true;
+                        break;
+                    }
+                }
+
+                if (!hasMechanicalCore) {
+                    // 如果没有装备机械核心，发送提示消息
+                    if (!entityPlayer.world.isRemote) {
+                        entityPlayer.sendStatusMessage(
+                                new TextComponentString(
+                                        TextFormatting.RED + "✗ 需要先装备机械核心才能使用高级能量护盾！"
+                                ), true);
+                    }
+                    return false;
+                }
+            }
+        } catch (Exception e) {
+            // 如果出现异常，默认不允许装备
+            return false;
+        }
+
         // 允许装备在任何饰品槽位
         return true;
     }
@@ -71,7 +112,7 @@ public class ItemadvEnergyBarrier extends Item implements IBauble {
             ((EntityPlayer) player).sendStatusMessage(
                     new TextComponentString(
                             TextFormatting.BLUE + "[高级护盾] " +
-                                    TextFormatting.GREEN + "已激活！100%格挡近战攻击"
+                                    TextFormatting.GREEN + "已激活！短冷却100%格挡攻击"
                     ), true);
         }
     }
@@ -119,14 +160,20 @@ public class ItemadvEnergyBarrier extends Item implements IBauble {
     }
 
     @Override
-    @SideOnly(Side.CLIENT)  // 添加客户端注解
+    @SideOnly(Side.CLIENT)
     public void addInformation(ItemStack stack, @Nullable World worldIn, List<String> tooltip, ITooltipFlag flagIn) {
         int energy = getEnergyStored(stack);
 
+        // 获取实际消耗
+        EntityPlayer player = Minecraft.getMinecraft().player;
+        int actualCost = player != null ?
+                EnergyEfficiencyManager.calculateActualCost(player, COST_PER_BLOCK) : COST_PER_BLOCK;
+
         // 基础信息
         tooltip.add(TextFormatting.YELLOW + "能量：" + energy + " / " + MAX_ENERGY + " RF");
+        tooltip.add(TextFormatting.GREEN + "激活时：免疫任意伤害");
+        tooltip.add(TextFormatting.GREEN + "激活冷却：5秒（最短）");
         tooltip.add(TextFormatting.GREEN + "⚡ 支持机械核心能量效率加成");
-        tooltip.add(TextFormatting.BLUE + "100% 概率格挡近战攻击");
         tooltip.add(TextFormatting.GREEN + "可放置在任意饰品槽位");
 
         tooltip.add("");
@@ -138,18 +185,26 @@ public class ItemadvEnergyBarrier extends Item implements IBauble {
 
         tooltip.add("");
 
-        // 工艺描述 - 修改：显示实际消耗
-        EntityPlayer player = Minecraft.getMinecraft().player;
-        int actualCost = player != null ?
-                EnergyEfficiencyManager.calculateActualCost(player, COST_PER_BLOCK) : COST_PER_BLOCK;
-
-        tooltip.add(TextFormatting.YELLOW + "工艺特色：");
-        tooltip.add(TextFormatting.GRAY + "  • 采用先进的人造场技术");
-        tooltip.add(TextFormatting.GRAY + "  • 集成式能量管理系统");
-        tooltip.add(TextFormatting.GRAY + "  • 模块化的防护矩阵设计");
-        tooltip.add(TextFormatting.GRAY + "  • 100% 格挡成功率保证");
+        // 工艺特色
+        tooltip.add(TextFormatting.YELLOW + "防护机制：");
+        tooltip.add(TextFormatting.GRAY + "  • 激活时完全免疫所有伤害");
+        tooltip.add(TextFormatting.GRAY + "  • 金色粒子螺旋防护场");
+        tooltip.add(TextFormatting.GRAY + "  • 10%伤害转化为黄心");
+        tooltip.add(TextFormatting.GREEN + "  • 冷却时间：5秒（最短）");
+        tooltip.add(TextFormatting.GOLD + "  • 连续格挡减少冷却时间");
         tooltip.add(TextFormatting.GRAY + "  • 消耗：" + actualCost + " RF/次" +
                 (actualCost < COST_PER_BLOCK ? TextFormatting.GREEN + " (已优化)" : ""));
+
+        tooltip.add("");
+
+        // 智能防护系统
+        tooltip.add(TextFormatting.LIGHT_PURPLE + "冷却期间被动：");
+        tooltip.add(TextFormatting.GOLD + "  • 90%概率无视头部伤害");
+        tooltip.add(TextFormatting.GOLD + "  • 80%概率无视身体伤害");
+        tooltip.add(TextFormatting.GOLD + "  • 触发时伤害减免90%");
+        tooltip.add(TextFormatting.GOLD + "  • 致命伤害转化黄心");
+        tooltip.add(TextFormatting.GOLD + "  • 完全免疫所有视觉干扰");
+        tooltip.add(TextFormatting.GOLD + "  • 最强被动防护");
 
         tooltip.add("");
 
@@ -163,7 +218,7 @@ public class ItemadvEnergyBarrier extends Item implements IBauble {
 
         // 使用指南
         tooltip.add(TextFormatting.AQUA + "使用指南：");
-        tooltip.add(TextFormatting.GRAY + "  • 专业级近战防护解决方案");
+        tooltip.add(TextFormatting.GRAY + "  • 专业级全方位防护方案");
         tooltip.add(TextFormatting.GRAY + "  • 需要高功率充电设备支持");
         tooltip.add(TextFormatting.GRAY + "  • 建议配合远程防护装备");
 
@@ -185,110 +240,20 @@ public class ItemadvEnergyBarrier extends Item implements IBauble {
 
         tooltip.add("");
 
-        // 局限性说明
-        tooltip.add(TextFormatting.GOLD + "技术局限：");
-        tooltip.add(TextFormatting.RED + "  • 仅能防护近战类型攻击");
-        tooltip.add(TextFormatting.RED + "  • 无法抵御魔法和爆炸伤害");
-        tooltip.add(TextFormatting.RED + "  • 依赖外部能源补给系统");
+        // 技术参数
+        tooltip.add(TextFormatting.GOLD + "技术参数：");
+        tooltip.add(TextFormatting.GREEN + "  • 低能耗高效率设计");
+        tooltip.add(TextFormatting.GREEN + "  • 智能被动防护系统");
+        tooltip.add(TextFormatting.GREEN + "  • 全伤害类型免疫");
+        tooltip.add(TextFormatting.YELLOW + "  • 依赖外部能源补给系统");
 
         tooltip.add("");
 
         // 底部签名
-        tooltip.add(TextFormatting.DARK_GRAY + "━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        tooltip.add(TextFormatting.DARK_GRAY + "━━━━━━━━━━━━━━━━━━━━━━━━━━━");
         tooltip.add(TextFormatting.ITALIC + "" + TextFormatting.LIGHT_PURPLE + "\"凡人智慧的巅峰造物\"");
-        tooltip.add(TextFormatting.DARK_GRAY + "━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        tooltip.add(TextFormatting.DARK_GRAY + "━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     }
-
-    // 格式化能量显示
-    private String formatEnergy(int energy) {
-        if (energy >= 1000000) {
-            return String.format("%.1fM", energy / 1000000.0);
-        } else if (energy >= 1000) {
-            return String.format("%.1fK", energy / 1000.0);
-        } else {
-            return String.valueOf(energy);
-        }
-    }
-
-    // 修改：显示护盾状态信息时也显示实际消耗
-    @Override
-    public ActionResult<ItemStack> onItemRightClick(World world, EntityPlayer player, EnumHand hand) {
-        ItemStack stack = player.getHeldItem(hand);
-
-        if (!world.isRemote) {
-            int energy = getEnergyStored(stack);
-            double energyPercent = (double) energy / MAX_ENERGY * 100;
-
-            // 计算实际消耗
-            int actualCost = EnergyEfficiencyManager.calculateActualCost(player, COST_PER_BLOCK);
-
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.BLUE + "=== 高级能量护盾状态 ==="
-            ));
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.YELLOW + "当前能量：" + energy + "/" + MAX_ENERGY + " RF (" +
-                            String.format("%.1f", energyPercent) + "%)"
-            ));
-
-            if (energy < actualCost) {
-                player.sendMessage(new TextComponentString(
-                        TextFormatting.RED + "⚠ 能量不足！无法提供保护！"
-                ));
-                player.sendMessage(new TextComponentString(
-                        TextFormatting.DARK_RED + "需要至少 " + actualCost + " RF 才能格挡一次攻击" +
-                                (actualCost < COST_PER_BLOCK ? TextFormatting.GREEN + " (已优化)" : "")
-                ));
-            } else {
-                int blocksLeft = energy / actualCost;
-                player.sendMessage(new TextComponentString(
-                        TextFormatting.GREEN + "✓ 护盾活跃中，可格挡 " + blocksLeft + " 次攻击"
-                ));
-                player.sendMessage(new TextComponentString(
-                        TextFormatting.LIGHT_PURPLE + "✓ 格挡概率：100%"
-                ));
-
-                // 显示效率信息
-                if (actualCost < COST_PER_BLOCK) {
-                    int saved = COST_PER_BLOCK - actualCost;
-                    int percentage = (int)((saved / (float)COST_PER_BLOCK) * 100);
-                    player.sendMessage(new TextComponentString(
-                            TextFormatting.AQUA + "⚡ 能量效率：节省 " + percentage + "% (" + saved + " RF/次)"
-                    ));
-                }
-
-                // 根据剩余能量给出提醒
-                if (energyPercent < 15) {
-                    player.sendMessage(new TextComponentString(
-                            TextFormatting.RED + "⚠ 能量严重不足，建议立即充电！"
-                    ));
-                } else if (energyPercent < 30) {
-                    player.sendMessage(new TextComponentString(
-                            TextFormatting.YELLOW + "⚠ 能量偏低，建议及时充电"
-                    ));
-                } else if (energyPercent >= 85) {
-                    player.sendMessage(new TextComponentString(
-                            TextFormatting.DARK_GREEN + "✓ 能量充足，护盾运行良好"
-                    ));
-                }
-            }
-
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.GRAY + "护盾类型：" + TextFormatting.AQUA + "完全近战护盾 (100%)"
-            ));
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.DARK_GRAY + "保护范围：仅近战攻击（100% 格挡概率）"
-            ));
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.GREEN + "装备方式：可放置在任意饰品槽位"
-            ));
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.DARK_PURPLE + "注意：无法防护投射物、魔法、爆炸等远程伤害"
-            ));
-        }
-
-        return new ActionResult<>(EnumActionResult.SUCCESS, stack);
-    }
-
     @Override
     public ICapabilityProvider initCapabilities(ItemStack stack, @Nullable NBTTagCompound nbt) {
         return new CapabilityProviderAdvEnergyBarrier(stack);

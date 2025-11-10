@@ -28,7 +28,6 @@ public class PortalManager extends WorldSavedData {
 
     // 靜態實例引用
     private static PortalManager instance;
-    private static boolean debugMode = true; // 開啟調試模式
 
     public PortalManager() {
         super(DATA_NAME);
@@ -43,7 +42,6 @@ public class PortalManager extends WorldSavedData {
      */
     public static void clearInstance() {
         instance = null;
-        System.out.println("[PortalManager] 清除實例緩存");
     }
 
     /**
@@ -57,7 +55,6 @@ public class PortalManager extends WorldSavedData {
         // 獲取主世界
         WorldServer overworld = DimensionManager.getWorld(0);
         if (overworld == null) {
-            System.err.println("[PortalManager] 錯誤：無法獲取主世界！");
             return null;
         }
 
@@ -83,9 +80,6 @@ public class PortalManager extends WorldSavedData {
         if (manager == null) {
             manager = new PortalManager();
             storage.setData(DATA_NAME, manager);
-            System.out.println("[PortalManager] 創建新的數據存儲");
-        } else {
-            System.out.println("[PortalManager] 加載現有數據，共 " + manager.portalLinks.size() + " 個鏈接");
         }
 
         instance = manager;
@@ -114,7 +108,6 @@ public class PortalManager extends WorldSavedData {
 
             return new LocationData(dim, new BlockPos(x, y, z));
         } catch (Exception e) {
-            System.err.println("[PortalManager] 解析鍵值失敗: " + key);
             return null;
         }
     }
@@ -135,9 +128,6 @@ public class PortalManager extends WorldSavedData {
 
         // 強制保存（確保數據寫入）
         forceSave();
-
-        System.out.println("[PortalManager] 添加鏈接: " + keyFrom + " <-> " + keyTo);
-        System.out.println("[PortalManager] 當前總鏈接數: " + portalLinks.size());
     }
 
     /**
@@ -152,8 +142,6 @@ public class PortalManager extends WorldSavedData {
 
         this.markDirty();
         forceSave();
-
-        System.out.println("[PortalManager] 添加跨維度鏈接: " + keyFrom + " <-> " + keyTo);
     }
 
     /**
@@ -165,8 +153,6 @@ public class PortalManager extends WorldSavedData {
         String destKey = portalLinks.get(key);
 
         if (destKey == null) {
-            System.out.println("[PortalManager] 未找到鏈接: " + key);
-            System.out.println("[PortalManager] 當前所有鏈接: " + portalLinks.keySet());
             return null;
         }
 
@@ -187,8 +173,6 @@ public class PortalManager extends WorldSavedData {
 
             this.markDirty();
             forceSave();
-
-            System.out.println("[PortalManager] 移除鏈接: " + key);
         }
     }
 
@@ -223,7 +207,6 @@ public class PortalManager extends WorldSavedData {
         if (overworld != null) {
             MapStorage storage = overworld.getPerWorldStorage();
             storage.saveAllData();
-            System.out.println("[PortalManager] 強制保存數據");
         }
     }
 
@@ -231,8 +214,6 @@ public class PortalManager extends WorldSavedData {
 
     @Override
     public void readFromNBT(NBTTagCompound nbt) {
-        System.out.println("[PortalManager] 開始從NBT讀取數據...");
-
         portalLinks.clear();
 
         // 讀取所有鏈接
@@ -250,17 +231,11 @@ public class PortalManager extends WorldSavedData {
                     portalLinks.put(to, from);
                 }
             }
-
-            System.out.println("[PortalManager] 成功讀取 " + list.tagCount() + " 對鏈接，總映射數: " + portalLinks.size());
-        } else {
-            System.out.println("[PortalManager] NBT中沒有找到Links數據");
         }
     }
 
     @Override
     public NBTTagCompound writeToNBT(NBTTagCompound nbt) {
-        System.out.println("[PortalManager] 開始保存到NBT...");
-
         NBTTagList list = new NBTTagList();
         Set<String> processed = new HashSet<>();
 
@@ -280,8 +255,6 @@ public class PortalManager extends WorldSavedData {
         }
 
         nbt.setTag("Links", list);
-        System.out.println("[PortalManager] 保存了 " + processed.size() + " 對鏈接");
-
         return nbt;
     }
 
@@ -332,7 +305,6 @@ public class PortalManager extends WorldSavedData {
             PortalManager manager = getInstance();
             if (manager != null) {
                 manager.markDirty();
-                System.out.println("[PortalManager] 世界保存事件 - 標記數據為dirty");
             }
         }
     }
@@ -344,7 +316,6 @@ public class PortalManager extends WorldSavedData {
     public static void onWorldLoad(WorldEvent.Load event) {
         if (!event.getWorld().isRemote && event.getWorld().provider.getDimension() == 0) {
             PortalManager manager = getInstance(event.getWorld());
-            System.out.println("[PortalManager] 世界載入事件 - 初始化管理器");
         }
     }
 
@@ -357,7 +328,6 @@ public class PortalManager extends WorldSavedData {
             if (instance != null) {
                 instance.markDirty();
                 instance.forceSave();
-                System.out.println("[PortalManager] 世界卸載 - 保存數據");
             }
             instance = null;
         }

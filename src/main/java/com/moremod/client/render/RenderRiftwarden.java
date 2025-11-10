@@ -5,7 +5,10 @@ import com.moremod.entity.boss.EntityRiftwarden;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.entity.RenderManager;
 import net.minecraft.util.math.MathHelper;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 import software.bernie.geckolib3.renderers.geo.GeoEntityRenderer;
+@SideOnly(Side.CLIENT)
 
 public class RenderRiftwarden extends GeoEntityRenderer<EntityRiftwarden> {
 

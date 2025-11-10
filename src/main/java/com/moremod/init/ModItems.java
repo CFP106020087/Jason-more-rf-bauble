@@ -1,6 +1,24 @@
 package com.moremod.init;
 
 import com.moremod.item.ItemMaterial;
+// 🏪 添加村民胶囊导入
+import com.moremod.item.ItemVillagerCapsule;
+// 🌌 添加虚空背包链接导入
+import com.moremod.item.ItemVoidBackpackLink;
+// ⚡ 添加资源磁化戒指导入
+import com.moremod.item.ItemResourceMagnetRing;
+// 🧭 添加探险者罗盘导入
+import com.moremod.item.ItemExplorerCompass;
+// ⭕ 因果闕帶（智能沉默）
+import com.moremod.item.ItemCausalGateband;
+// 🧠 添加行為分析晶片導入
+import com.moremod.item.ItemBehaviorAnalysisChip;
+// 🗡️ 添加澄月剑导入
+import com.moremod.item.ItemSwordChengYue;
+// 💎 添加宝石系统导入
+import com.moremod.item.ItemGem;
+import com.moremod.item.ItemIdentifyScroll;
+
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.item.EnumRarity;
 import net.minecraft.item.Item;
@@ -42,6 +60,23 @@ public final class ModItems {
     public static Item ABYSSAL_FABRIC;          // 深渊布料
     public static Item VOID_SPINDLE;            // 虚空纺锤
 
+    // 🏪 自动交易机相关物品
+    public static Item VILLAGER_CAPSULE;        // 村民胶囊
+
+    // 🌌⚡ 机械核心饰品系列
+    public static Item VOID_BACKPACK_LINK;      // 虚空背包链接
+    public static Item RESOURCE_MAGNET_RING;    // 资源磁化戒指
+    public static Item EXPLORER_COMPASS;        // 🧭 探险者罗盘
+    public static Item CAUSAL_GATEBAND;         // ⭕ 因果闕帶（智能沉默）
+    public static Item BEHAVIOR_ANALYSIS_CHIP;  // 🧠 行為分析晶片
+
+    // 🗡️ 武器系列
+    public static ItemSwordChengYue SWORD_CHENGYUE;  // 澄月 - 成长性终极武器
+
+    // 💎 宝石系统
+    public static ItemGem GEM;                      // 宝石（支持品质颜色）
+    public static Item IDENTIFY_SCROLL;             // 鉴定卷轴
+
     @SubscribeEvent
     public static void onRegisterItems(RegistryEvent.Register<Item> e) {
         // 稀有度：COMMON/UNCOMMON/RARE；glows=true 表示自发光描边
@@ -73,6 +108,40 @@ public final class ModItems {
         CHRONO_FABRIC            = reg(e, new ItemMaterial("chrono_fabric",          EnumRarity.RARE,     true,  "item.moremod.chrono_fabric.desc"));
         ABYSSAL_FABRIC           = reg(e, new ItemMaterial("abyssal_fabric",         EnumRarity.RARE,     true,  "item.moremod.abyssal_fabric.desc"));
         VOID_SPINDLE             = reg(e, new ItemMaterial("void_spindle",           EnumRarity.RARE,     true,  "item.moremod.void_spindle.desc"));
+
+        // 🏪 注册村民胶囊
+        VILLAGER_CAPSULE = reg(e, new ItemVillagerCapsule());
+        System.out.println("[MoreMod] 村民胶囊已注册");
+
+        // 🌌⚡ 注册机械核心饰品
+        VOID_BACKPACK_LINK = reg(e, new ItemVoidBackpackLink());
+        System.out.println("[MoreMod] 虚空背包链接已注册");
+
+        RESOURCE_MAGNET_RING = reg(e, new ItemResourceMagnetRing());
+        System.out.println("[MoreMod] 资源磁化戒指已注册");
+
+        // 🧭 注册探险者罗盘
+        EXPLORER_COMPASS = reg(e, new ItemExplorerCompass());
+        System.out.println("[MoreMod] 探险者罗盘已注册");
+
+        // ⭕ 注册因果闕帶（智能沉默）
+        CAUSAL_GATEBAND = reg(e, new ItemCausalGateband());
+        System.out.println("[MoreMod] 因果闕帶已注册");
+
+        // 🧠 註冊行為分析晶片
+        BEHAVIOR_ANALYSIS_CHIP = reg(e, new ItemBehaviorAnalysisChip());
+        System.out.println("[MoreMod] 行為分析晶片已註冊");
+
+        // 🗡️ 注册澄月剑
+        SWORD_CHENGYUE = (ItemSwordChengYue) reg(e, new ItemSwordChengYue());
+        System.out.println("[MoreMod] ✨ 澄月剑已注册");
+
+        // 💎 注册宝石系统
+        GEM = (ItemGem) reg(e, new ItemGem());
+        System.out.println("[MoreMod] 💎 宝石已注册");
+
+        IDENTIFY_SCROLL = reg(e, new ItemIdentifyScroll());
+        System.out.println("[MoreMod] 📜 鉴定卷轴已注册");
     }
 
     private static Item reg(RegistryEvent.Register<Item> e, Item item) {
@@ -110,6 +179,40 @@ public final class ModItems {
         bindModel(CHRONO_FABRIC,           "chrono_fabric");
         bindModel(ABYSSAL_FABRIC,          "abyssal_fabric");
         bindModel(VOID_SPINDLE,            "void_spindle");
+
+        // 🏪 绑定村民胶囊模型
+        bindModel(VILLAGER_CAPSULE, "villager_capsule");
+        System.out.println("[MoreMod] 村民胶囊模型已注册");
+
+        // 🌌⚡ 绑定机械核心饰品模型
+        bindModel(VOID_BACKPACK_LINK, "void_backpack_link");
+        System.out.println("[MoreMod] 虚空背包链接模型已注册");
+
+        bindModel(RESOURCE_MAGNET_RING, "resource_magnet_ring");
+        System.out.println("[MoreMod] 资源磁化戒指模型已注册");
+
+        // 🧭 绑定探险者罗盘模型
+        bindModel(EXPLORER_COMPASS, "explorer_compass");
+        System.out.println("[MoreMod] 探险者罗盘模型已注册");
+
+        // ⭕ 绑定因果闕帶模型
+        bindModel(CAUSAL_GATEBAND, "causal_gateband");
+        System.out.println("[MoreMod] 因果闕帶模型已注册");
+
+        // 🧠 綁定行為分析晶片模型
+        bindModel(BEHAVIOR_ANALYSIS_CHIP, "behavior_analysis_chip");
+        System.out.println("[MoreMod] 行為分析晶片模型已註冊");
+
+        // 🗡️ 绑定澄月剑模型
+        bindModel(SWORD_CHENGYUE, "sword_chengyue");
+        System.out.println("[MoreMod] ✨ 澄月剑模型已注册");
+
+        // 💎 绑定宝石系统模型
+        bindModel(GEM, "gem");
+        System.out.println("[MoreMod] 💎 宝石模型已注册");
+
+        bindModel(IDENTIFY_SCROLL, "identify_scroll");
+        System.out.println("[MoreMod] 📜 鉴定卷轴模型已注册");
     }
 
     private static void bindModel(Item item, String path) {

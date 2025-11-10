@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "active=false": { "model": "moremod:trading_station" },
+    "active=true": { "model": "moremod:trading_station_on" }
+  }
+}

@@ -6,6 +6,7 @@ import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.util.EnumHand;
 import net.minecraftforge.fml.common.registry.ForgeRegistries;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -20,6 +21,7 @@ import static com.dhanantry.scapeandrunparasites.SRPMain.network;
 public class GuiSageBook extends GuiScreen {
 
     private EntityPlayer player;
+    private EnumHand hand;
     private List<Enchantment> allEnchantments;
     private List<Enchantment> selectedEnchantments = new ArrayList<>();
     private int guiLeft, guiTop;
@@ -28,8 +30,9 @@ public class GuiSageBook extends GuiScreen {
     private int page = 0;
     private static final int ITEMS_PER_PAGE = 6;
 
-    public GuiSageBook(EntityPlayer player) {
+    public GuiSageBook(EntityPlayer player, EnumHand hand) {
         this.player = player;
+        this.hand = hand;
         this.allEnchantments = new ArrayList<>();
         for (Enchantment ench : ForgeRegistries.ENCHANTMENTS.getValuesCollection()) {
             if (ench != null) {
@@ -49,8 +52,6 @@ public class GuiSageBook extends GuiScreen {
     private void refreshButtons() {
         this.buttonList.clear();
 
-        // 标题区域占用30像素
-        // 附魔按钮区域
         int startIndex = page * ITEMS_PER_PAGE;
         int endIndex = Math.min(startIndex + ITEMS_PER_PAGE, allEnchantments.size());
 
@@ -69,7 +70,6 @@ public class GuiSageBook extends GuiScreen {
             ));
         }
 
-        // 翻页按钮
         int maxPage = (allEnchantments.size() - 1) / ITEMS_PER_PAGE;
         if (page > 0) {
             this.buttonList.add(new GuiButton(1000, guiLeft + 20, guiTop + 190, 30, 20, "<"));
@@ -78,7 +78,6 @@ public class GuiSageBook extends GuiScreen {
             this.buttonList.add(new GuiButton(1001, guiLeft + xSize - 50, guiTop + 190, 30, 20, ">"));
         }
 
-        // 确认按钮
         GuiButton confirm = new GuiButton(
                 2000,
                 guiLeft + xSize/2 - 40,
@@ -94,7 +93,6 @@ public class GuiSageBook extends GuiScreen {
     @Override
     protected void actionPerformed(GuiButton button) throws IOException {
         if (button.id >= 0 && button.id < allEnchantments.size()) {
-            // 选择/取消附魔
             Enchantment ench = allEnchantments.get(button.id);
             if (selectedEnchantments.contains(ench)) {
                 selectedEnchantments.remove(ench);
@@ -103,39 +101,33 @@ public class GuiSageBook extends GuiScreen {
             }
             refreshButtons();
         } else if (button.id == 1000) {
-            // 上一页
             page--;
             refreshButtons();
         } else if (button.id == 1001) {
-            // 下一页
             page++;
             refreshButtons();
         } else if (button.id == 2000 && selectedEnchantments.size() == 3) {
-            // 确认
+            // 发送数据包，包含手的信息
             List<Integer> ids = new ArrayList<>();
             for (Enchantment ench : selectedEnchantments) {
                 ids.add(Enchantment.getEnchantmentID(ench));
             }
-            network.sendToServer(new PacketCreateEnchantedBook(ids));
+            network.sendToServer(new PacketCreateEnchantedBook(ids, hand == EnumHand.MAIN_HAND));
             this.mc.displayGuiScreen(null);
         }
     }
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
-        // 背景
         drawDefaultBackground();
         drawRect(guiLeft, guiTop, guiLeft + xSize, guiTop + ySize, 0xE0101010);
 
-        // 标题
         drawCenteredString(fontRenderer, "贤者之书", guiLeft + xSize/2, guiTop + 8, 0xFFFFFF);
 
-        // 进度
         String progress = "选择进度: " + selectedEnchantments.size() + "/3";
         drawCenteredString(fontRenderer, progress, guiLeft + xSize/2, guiTop + 20,
                 selectedEnchantments.size() == 3 ? 0x55FF55 : 0xAAAAAA);
 
-        // 页码
         int maxPage = (allEnchantments.size() - 1) / ITEMS_PER_PAGE;
         if (maxPage > 0) {
             String pageText = (page + 1) + "/" + (maxPage + 1);

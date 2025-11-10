@@ -1,16 +1,36 @@
 package com.moremod.client.gui;
 
+import com.moremod.item.ItemSageBook;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.Container;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.EnumHand;
 
 public class ContainerSageBook extends Container {
 
-    public ContainerSageBook(EntityPlayer player) {
-        // 不需要添加slot，因为这只是一个选择界面
+    private final EntityPlayer player;
+    private final EnumHand hand;
+    private final ItemStack sageBookStack;
+
+    public ContainerSageBook(EntityPlayer player, EnumHand hand) {
+        this.player = player;
+        this.hand = hand;
+        this.sageBookStack = player.getHeldItem(hand);
     }
 
     @Override
     public boolean canInteractWith(EntityPlayer player) {
-        return true;
+        // 确保玩家仍然持有贤者之书
+        ItemStack currentStack = player.getHeldItem(hand);
+        return !currentStack.isEmpty() && currentStack.getItem() instanceof ItemSageBook;
+    }
+
+    @Override
+    public void onContainerClosed(EntityPlayer player) {
+        super.onContainerClosed(player);
+    }
+
+    public EnumHand getHand() {
+        return hand;
     }
 }

@@ -1,5 +1,6 @@
 package com.moremod.block;
 
+import com.moremod.creativetab.moremodCreativeTab;
 import com.moremod.moremod;
 import com.moremod.tile.TileEntityDimensionLoom;
 import com.moremod.client.gui.GuiHandler;
@@ -27,7 +28,7 @@ public class BlockDimensionLoom extends Block implements ITileEntityProvider {
         super(Material.ROCK);
         this.setTranslationKey("dimension_loom");
         this.setRegistryName("dimension_loom");
-        this.setCreativeTab(CreativeTabs.DECORATIONS);
+        setCreativeTab(moremodCreativeTab.moremod_TAB);
         this.setHardness(3.5F);
         this.setResistance(17.5F);
         this.setDefaultState(this.blockState.getBaseState().withProperty(FACING, EnumFacing.NORTH));

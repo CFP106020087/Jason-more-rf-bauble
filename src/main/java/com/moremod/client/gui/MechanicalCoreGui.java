@@ -30,6 +30,10 @@ import org.lwjgl.input.Mouse;
 import java.io.IOException;
 import java.util.*;
 
+/**
+ * 机械核心控制面板 GUI - 完整修复版
+ * ✅ 修复：itemMaxLevel 设为 final，防止被覆盖
+ */
 @SideOnly(Side.CLIENT)
 public class MechanicalCoreGui extends GuiScreen {
 
@@ -66,62 +70,7 @@ public class MechanicalCoreGui extends GuiScreen {
             "solar_generator", "kinetic_generator", "thermal_generator", "void_energy", "combat_charger"
     ));
 
-    public enum UpgradeStatus {
-        ACTIVE,
-        PAUSED,
-        DEGRADED,
-        DAMAGED,
-        PENALIZED,
-        NOT_OWNED
-    }
-
-    public static class UpgradeEntry {
-        public final String id;
-        public final String displayName;
-        public final TextFormatting color;
-        public final int maxLevel;
-        public final ItemMechanicalCoreExtended.UpgradeCategory category;
-        public int currentLevel;
-        public int ownedMaxLevel;
-        public int itemMaxLevel;
-        public int damageCount;
-        public boolean isPaused;
-        public boolean canRunWithEnergy;
-        public UpgradeStatus status;
-        public boolean wasPunished;
-
-        public UpgradeEntry(String id, String displayName, TextFormatting color, int maxLevel,
-                            ItemMechanicalCoreExtended.UpgradeCategory category,
-                            int currentLevel, int ownedMaxLevel,
-                            boolean canRunWithEnergy) {
-            this.id = id;
-            this.displayName = displayName;
-            this.color = color;
-            this.maxLevel = maxLevel;
-            this.category = category;
-            this.currentLevel = currentLevel;
-            this.ownedMaxLevel = ownedMaxLevel;
-            this.itemMaxLevel = maxLevel;
-            this.damageCount = 0;
-            this.isPaused = (currentLevel == 0 && ownedMaxLevel > 0);
-            this.canRunWithEnergy = canRunWithEnergy;
-            this.status = UpgradeStatus.ACTIVE;
-            this.wasPunished = false;
-        }
-
-        public boolean canRepair() {
-            return status == UpgradeStatus.DAMAGED && wasPunished;
-        }
-    }
-
-    public MechanicalCoreGui(EntityPlayer player) {
-        this.player = player;
-        initializeUpgradeData();
-    }
-
-    private ItemStack getCurrentCoreStack() {
-        return ItemMechanicalCore.findEquippedMechanicalCore(player);
-    }
+    // ===== 工具方法 =====
 
     private static String up(String s){ return s==null? "" : s.toUpperCase(); }
     private static String lo(String s){ return s==null? "" : s.toLowerCase(); }
@@ -137,32 +86,164 @@ public class MechanicalCoreGui extends GuiScreen {
         return GENERATOR_MODULES.contains(id) || GENERATOR_MODULES.contains(up(id));
     }
 
+    /**
+     * ✅ 新增：从 NBT 读取 OriginalMax，尝试所有变体
+     */
+    private int readOriginalMaxFromNBT(NBTTagCompound nbt, String id) {
+        if (nbt == null) return 0;
+
+        // 读取所有变体的最大值
+        int originalMax = Math.max(
+                nbt.getInteger("OriginalMax_" + id),
+                Math.max(
+                        nbt.getInteger("OriginalMax_" + up(id)),
+                        nbt.getInteger("OriginalMax_" + lo(id))
+                )
+        );
+
+        // 防水模块特殊处理
+        if (originalMax <= 0 && isWaterproofUpgrade(id)) {
+            for (String wid : WATERPROOF_IDS) {
+                originalMax = Math.max(originalMax,
+                        Math.max(
+                                nbt.getInteger("OriginalMax_" + wid),
+                                Math.max(
+                                        nbt.getInteger("OriginalMax_" + up(wid)),
+                                        nbt.getInteger("OriginalMax_" + lo(wid))
+                                )
+                        )
+                );
+            }
+        }
+
+        return originalMax;
+    }
+
+    /**
+     * ✅ 新增：获取模块的默认最大等级
+     */
+    private int getDefaultMaxLevel(String id) {
+        // 基础升级类型
+        try {
+            ItemMechanicalCore.UpgradeType type = ItemMechanicalCore.UpgradeType.valueOf(up(id));
+            return getMaxLevel(type);
+        } catch (Exception ignored) {}
+
+        // 扩展升级类型
+        try {
+            ItemMechanicalCoreExtended.UpgradeInfo info = ItemMechanicalCoreExtended.getUpgradeInfo(id);
+            if (info != null && info.maxLevel > 0) {
+                return info.maxLevel;
+            }
+        } catch (Exception ignored) {}
+
+        // 默认值
+        return 3;
+    }// ===== 升级状态枚举 =====
+
+    public enum UpgradeStatus {
+        ACTIVE,
+        PAUSED,
+        DEGRADED,
+        DAMAGED,
+        PENALIZED,
+        NOT_OWNED
+    }
+
+    // ===== ✅ 修复：UpgradeEntry 类 =====
+
+    public static class UpgradeEntry {
+        public final String id;
+        public final String displayName;
+        public final TextFormatting color;
+        public final int maxLevel;
+        public final ItemMechanicalCoreExtended.UpgradeCategory category;
+
+        // ✅ 关键修改：itemMaxLevel 改为 final（初始化后不可修改）
+        public final int itemMaxLevel;
+
+        public int currentLevel;
+        public int ownedMaxLevel;
+        public int damageCount;
+        public boolean isPaused;
+        public boolean canRunWithEnergy;
+        public UpgradeStatus status;
+        public boolean wasPunished;
+
+        // ✅ 修改构造函数，添加 itemMaxLevel 参数
+        public UpgradeEntry(String id, String displayName, TextFormatting color, int maxLevel,
+                            ItemMechanicalCoreExtended.UpgradeCategory category,
+                            int currentLevel, int ownedMaxLevel,
+                            boolean canRunWithEnergy,
+                            int itemMaxLevel) {  // ← 新增参数
+            this.id = id;
+            this.displayName = displayName;
+            this.color = color;
+            this.maxLevel = maxLevel;
+            this.category = category;
+            this.currentLevel = currentLevel;
+            this.ownedMaxLevel = ownedMaxLevel;
+            this.canRunWithEnergy = canRunWithEnergy;
+            this.itemMaxLevel = itemMaxLevel;  // ← 初始化后不可修改
+            this.damageCount = 0;
+            this.isPaused = (currentLevel == 0 && ownedMaxLevel > 0);
+            this.status = UpgradeStatus.ACTIVE;
+            this.wasPunished = false;
+        }
+
+        public boolean canRepair() {
+            return status == UpgradeStatus.DAMAGED && wasPunished;
+        }
+    }
+
+    // ===== 构造函数 =====
+
+    public MechanicalCoreGui(EntityPlayer player) {
+        this.player = player;
+        initializeUpgradeData();
+    }
+
+    private ItemStack getCurrentCoreStack() {
+        return ItemMechanicalCore.findEquippedMechanicalCore(player);
+    }
+
+    // ===== ✅ 修复：状态判断逻辑 =====
+
     private UpgradeStatus getUpgradeStatus(NBTTagCompound nbt, String id) {
         if (nbt == null) return UpgradeStatus.NOT_OWNED;
 
         int currentLevel = getUpgradeLevelAcross(getCurrentCoreStack(), id);
         int ownedMax = getOwnedMaxFromNBT(nbt, id);
-        int itemMax = EnergyPunishmentSystem.getItemMaxLevel(getCurrentCoreStack(), id);
+
+        // ✅ 修复：使用正确的方法读取 itemMax
+        int itemMax = readOriginalMaxFromNBT(nbt, id);
+
+        // 兜底：如果读取失败，使用 ownedMax
+        if (itemMax <= 0) {
+            itemMax = ownedMax > 0 ? ownedMax : getDefaultMaxLevel(id);
+        }
 
         ItemStack core = getCurrentCoreStack();
         if (!core.isEmpty() && ItemMechanicalCore.isPenalized(core, id)) {
             return UpgradeStatus.PENALIZED;
         }
 
+        // ✅ 优先检查是否被惩罚过（DAMAGED 优先级最高）
+        boolean wasPunished = nbt.getBoolean("WasPunished_" + id) ||
+                nbt.getBoolean("WasPunished_" + up(id)) ||
+                nbt.getBoolean("WasPunished_" + lo(id));
+
+        if (wasPunished && ownedMax < itemMax) {
+            return UpgradeStatus.DAMAGED;
+        }
+
+        // 然后检查暂停状态
         boolean isPaused = nbt.getBoolean("IsPaused_" + id) ||
                 nbt.getBoolean("IsPaused_" + up(id)) ||
                 nbt.getBoolean("IsPaused_" + lo(id));
 
         if (isPaused && currentLevel == 0) {
             return UpgradeStatus.PAUSED;
-        }
-
-        boolean wasPunished = nbt.getBoolean("WasPunished_" + id) ||
-                nbt.getBoolean("WasPunished_" + up(id)) ||
-                nbt.getBoolean("WasPunished_" + lo(id));
-
-        if (wasPunished && itemMax > 0 && ownedMax < itemMax) {
-            return UpgradeStatus.DAMAGED;
         }
 
         if (ownedMax > 0 && currentLevel < ownedMax) {
@@ -216,7 +297,7 @@ public class MechanicalCoreGui extends GuiScreen {
         } catch (Throwable ignored) {}
 
         return lv;
-    }
+    }// ===== ✅ 修复：初始化升级数据 =====
 
     private void initializeUpgradeData() {
         upgradeEntries.clear();
@@ -228,6 +309,7 @@ public class MechanicalCoreGui extends GuiScreen {
 
         NBTTagCompound nbt = coreStack.hasTagCompound() ? coreStack.getTagCompound() : new NBTTagCompound();
 
+        // ===== 加载基础升级 =====
         for (ItemMechanicalCore.UpgradeType type : ItemMechanicalCore.UpgradeType.values()) {
             String id = type.getKey();
 
@@ -261,18 +343,47 @@ public class MechanicalCoreGui extends GuiScreen {
                 coreStack.setTagCompound(nbt);
             }
 
+            // ✅ 关键修复：在创建 Entry 前先读取 itemMaxLevel
+// ✅ 关键修复：在创建 Entry 前先读取 itemMaxLevel
+            int itemMaxLevel = readOriginalMaxFromNBT(nbt, id);
+
+            if (itemMaxLevel > 0) {
+                System.out.println("[GUI-Init] ✓ 读取 OriginalMax: " + id + " = " + itemMaxLevel);
+            } else {
+                // ✅ 修复：优先使用配置默认值，而不是 ownedMaxLevel
+                itemMaxLevel = getMaxLevel(type);  // ← 先用配置值
+                System.out.println("[GUI-Init] 使用配置默认值: " + id + " = " + itemMaxLevel);
+
+                // ✅ 如果配置值也无效，才用 ownedMaxLevel（最后的兜底）
+                if (itemMaxLevel <= 0 && ownedMaxLevel > 0) {
+                    itemMaxLevel = ownedMaxLevel;
+                    System.out.println("[GUI-Init] 最终兜底使用 OwnedMax: " + id + " = " + itemMaxLevel);
+                }
+
+                // ✅ 立即写入 OriginalMax
+                if (itemMaxLevel > 0) {
+                    nbt.setInteger("OriginalMax_" + id, itemMaxLevel);
+                    nbt.setInteger("OriginalMax_" + up(id), itemMaxLevel);
+                    nbt.setInteger("OriginalMax_" + lo(id), itemMaxLevel);
+                    coreStack.setTagCompound(nbt);
+                    System.out.println("[GUI-Init] 补救记录 OriginalMax: " + id + " = " + itemMaxLevel);
+                }
+            }
+
+// ✅ 传入正确的 itemMaxLevel
             UpgradeEntry entry = new UpgradeEntry(id,
                     type.getDisplayName(),
                     type.getColor(),
                     getMaxLevel(type),
                     ItemMechanicalCoreExtended.UpgradeCategory.BASIC,
                     level, ownedMaxLevel,
-                    checkCanRunWithEnergy(id));
+                    checkCanRunWithEnergy(id),
+                    itemMaxLevel);  // ← 现在是正确的值了
 
-            entry.itemMaxLevel = EnergyPunishmentSystem.getItemMaxLevel(coreStack, id);
             entry.damageCount = EnergyPunishmentSystem.getDamageCount(coreStack, id);
             entry.wasPunished = nbt.getBoolean("WasPunished_" + id) ||
                     nbt.getBoolean("WasPunished_" + up(id));
+
             entry.status = status;
             entry.isPaused = (status == UpgradeStatus.PAUSED);
 
@@ -281,6 +392,7 @@ public class MechanicalCoreGui extends GuiScreen {
             processedUpgrades.add(up(id));
         }
 
+        // ===== 加载扩展升级 =====
         try {
             Map<String, ItemMechanicalCoreExtended.UpgradeInfo> all = ItemMechanicalCoreExtended.getAllUpgrades();
             for (Map.Entry<String, ItemMechanicalCoreExtended.UpgradeInfo> en : all.entrySet()) {
@@ -316,18 +428,47 @@ public class MechanicalCoreGui extends GuiScreen {
                     coreStack.setTagCompound(nbt);
                 }
 
+                // ✅ 关键修复：在创建 Entry 前先读取 itemMaxLevel
+// ✅ 关键修复：在创建 Entry 前先读取 itemMaxLevel
+                int itemMaxLevel = readOriginalMaxFromNBT(nbt, id);
+
+                if (itemMaxLevel > 0) {
+                    System.out.println("[GUI-Init] ✓ 读取 OriginalMax: " + id + " = " + itemMaxLevel);
+                } else {
+                    // ✅ 修复：优先使用配置默认值
+                    itemMaxLevel = info.maxLevel;  // ← 先用配置值
+                    System.out.println("[GUI-Init] 使用配置默认值: " + id + " = " + itemMaxLevel);
+
+                    // ✅ 如果配置值也无效，才用 ownedMaxLevel
+                    if (itemMaxLevel <= 0 && ownedMaxLevel > 0) {
+                        itemMaxLevel = ownedMaxLevel;
+                        System.out.println("[GUI-Init] 最终兜底使用 OwnedMax: " + id + " = " + itemMaxLevel);
+                    }
+
+                    // ✅ 立即写入
+                    if (itemMaxLevel > 0) {
+                        nbt.setInteger("OriginalMax_" + id, itemMaxLevel);
+                        nbt.setInteger("OriginalMax_" + up(id), itemMaxLevel);
+                        nbt.setInteger("OriginalMax_" + lo(id), itemMaxLevel);
+                        coreStack.setTagCompound(nbt);
+                        System.out.println("[GUI-Init] 补救记录 OriginalMax: " + id + " = " + itemMaxLevel);
+                    }
+                }
+
+// ✅ 传入正确的 itemMaxLevel
                 UpgradeEntry entry = new UpgradeEntry(id,
                         info.displayName,
                         info.color,
                         info.maxLevel,
                         info.category,
                         level, ownedMaxLevel,
-                        checkCanRunWithEnergy(id));
+                        checkCanRunWithEnergy(id),
+                        itemMaxLevel);  // ← 现在是正确的值了
 
-                entry.itemMaxLevel = EnergyPunishmentSystem.getItemMaxLevel(coreStack, id);
                 entry.damageCount = EnergyPunishmentSystem.getDamageCount(coreStack, id);
                 entry.wasPunished = nbt.getBoolean("WasPunished_" + id) ||
                         nbt.getBoolean("WasPunished_" + up(id));
+
                 entry.status = status;
                 entry.isPaused = (status == UpgradeStatus.PAUSED);
 
@@ -337,6 +478,7 @@ public class MechanicalCoreGui extends GuiScreen {
             }
         } catch (Throwable ignored) {}
 
+        // 排序
         availableUpgrades.sort((a,b)->{
             UpgradeEntry A = upgradeEntries.get(a), B = upgradeEntries.get(b);
             if (A == null || B == null) return 0;
@@ -357,7 +499,7 @@ public class MechanicalCoreGui extends GuiScreen {
         return Math.max(nbt.getInteger("LastLevel_" + id),
                 Math.max(nbt.getInteger("LastLevel_" + up(id)),
                         nbt.getInteger("LastLevel_" + lo(id))));
-    }
+    }// ===== ✅ 修复：更新升级状态（不再修改 itemMaxLevel） =====
 
     private void updateUpgradeStates() {
         long now = System.currentTimeMillis();
@@ -389,7 +531,9 @@ public class MechanicalCoreGui extends GuiScreen {
                     coreStack.setTagCompound(nbt);
                 }
 
-                e.itemMaxLevel = EnergyPunishmentSystem.getItemMaxLevel(coreStack, id);
+                // ✅ 关键修复：完全不修改 e.itemMaxLevel
+                // itemMaxLevel 是 final 的，无法修改，只在初始化时设置
+
                 e.damageCount = EnergyPunishmentSystem.getDamageCount(coreStack, id);
                 e.wasPunished = nbt.getBoolean("WasPunished_" + id) ||
                         nbt.getBoolean("WasPunished_" + up(id));
@@ -397,6 +541,8 @@ public class MechanicalCoreGui extends GuiScreen {
             } catch (Throwable ignored) {}
         }
     }
+
+    // ===== GUI 初始化 =====
 
     @Override
     public void initGui() {
@@ -406,10 +552,7 @@ public class MechanicalCoreGui extends GuiScreen {
 
         this.buttonList.clear();
 
-        // 关闭按钮
         this.buttonList.add(new GuiButton(BUTTON_CLOSE, guiLeft + GUI_WIDTH - 25, guiTop + 5, 20, 20, "×"));
-
-        // 批量控制按钮 - 放在能量条下方
         this.buttonList.add(new GuiButton(BUTTON_PAUSE_ALL, guiLeft + 10, guiTop + 42, 100, 14, "⏸ 暂停非发电模块"));
         this.buttonList.add(new GuiButton(BUTTON_RESUME_ALL, guiLeft + 115, guiTop + 42, 100, 14, "▶ 恢复全部模块"));
     }
@@ -583,11 +726,11 @@ public class MechanicalCoreGui extends GuiScreen {
         boolean canIncrease = false;
 
         if (entry.status == UpgradeStatus.PAUSED && entry.ownedMaxLevel > 0) {
-            canIncrease = true;  // 可以恢复
+            canIncrease = true;
         } else if (entry.status == UpgradeStatus.DAMAGED && entry.wasPunished) {
             canIncrease = entry.ownedMaxLevel < entry.itemMaxLevel;
         } else if (entry.currentLevel < entry.ownedMaxLevel) {
-            canIncrease = true;  // 可以升级
+            canIncrease = true;
         }
 
         drawRect(plusX, btnY, plusX + sz, btnY + sz,
@@ -604,7 +747,7 @@ public class MechanicalCoreGui extends GuiScreen {
         int sliderH = Math.max(10, h * UPGRADES_PER_PAGE / availableUpgrades.size());
         int sy = y + (int)((h - sliderH) * ratio);
         drawRect(x + 1, sy, x + 9, sy + sliderH, 0xFFAAAAAA);
-    }
+    }// ===== Tooltip 绘制 =====
 
     private void drawTooltips(int mouseX, int mouseY) {
         // 批量按钮提示
@@ -674,11 +817,17 @@ public class MechanicalCoreGui extends GuiScreen {
                     if (player.experienceLevel >= xpCost) {
                         tip.add(TextFormatting.GREEN + "当前经验: " + player.experienceLevel + " 级 ✓");
                     } else {
-                        tip.add(TextFormatting.RED + "当前经验: " + player.experienceLevel + " 级 (不足)");
+                        tip.add(TextFormatting.RED + "当前经验: " + player.experienceLevel + " 级 (还需 " +
+                                (xpCost - player.experienceLevel) + " 级)");
                     }
 
                     if (e.damageCount > 0) {
                         tip.add(TextFormatting.DARK_RED + "累计损坏: " + e.damageCount + " 次");
+                    }
+
+                    if (e.currentLevel > 0) {
+                        tip.add("");
+                        tip.add(TextFormatting.GRAY + "提示: 可以先降到 Lv.0 再修复");
                     }
                 } else {
                     tip.add(TextFormatting.GREEN + "✓ 已完全修复");
@@ -723,7 +872,6 @@ public class MechanicalCoreGui extends GuiScreen {
                 break;
         }
 
-        // 如果是发电模块，添加特殊提示
         if (isGeneratorModule(e.id)) {
             tip.add("");
             tip.add(TextFormatting.AQUA + "⚡ 发电模块 - 不会被批量暂停");
@@ -731,6 +879,8 @@ public class MechanicalCoreGui extends GuiScreen {
 
         this.drawHoveringText(tip, mouseX, mouseY);
     }
+
+    // ===== 鼠标点击处理 =====
 
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
@@ -790,7 +940,6 @@ public class MechanicalCoreGui extends GuiScreen {
         }
     }
 
-    // 批量暂停非发电模块
     private void pauseAllNonGeneratorModules() {
         ItemStack core = getCurrentCoreStack();
         if (!ItemMechanicalCore.isMechanicalCore(core)) return;
@@ -805,13 +954,9 @@ public class MechanicalCoreGui extends GuiScreen {
             UpgradeEntry entry = upgradeEntries.get(id);
             if (entry == null) continue;
 
-            // 跳过发电模块
             if (isGeneratorModule(id)) continue;
-
-            // 跳过已经暂停的
             if (entry.currentLevel == 0) continue;
 
-            // 暂停模块
             int oldLevel = entry.currentLevel;
             entry.currentLevel = 0;
             entry.status = UpgradeStatus.PAUSED;
@@ -832,7 +977,6 @@ public class MechanicalCoreGui extends GuiScreen {
                     TextFormatting.YELLOW + "⏸ 已暂停 " + pausedCount + " 个非发电模块"
             ), true);
 
-            // 详细列表（如果不太多）
             if (pausedCount <= 5) {
                 player.sendMessage(new TextComponentString(
                         TextFormatting.GRAY + "暂停: " + String.join(", ", pausedNames)
@@ -844,11 +988,9 @@ public class MechanicalCoreGui extends GuiScreen {
             ), true);
         }
 
-        // 刷新UI
         updateUpgradeStates();
     }
 
-    // 批量恢复所有模块
     private void resumeAllModules() {
         ItemStack core = getCurrentCoreStack();
         if (!ItemMechanicalCore.isMechanicalCore(core)) return;
@@ -863,21 +1005,17 @@ public class MechanicalCoreGui extends GuiScreen {
             UpgradeEntry entry = upgradeEntries.get(id);
             if (entry == null) continue;
 
-            // 只恢复暂停的模块
             if (entry.status != UpgradeStatus.PAUSED) continue;
-            if (entry.currentLevel > 0) continue;  // 已经在运行
+            if (entry.currentLevel > 0) continue;
 
-            // 获取之前的等级
             int lastLevel = getLastLevelFromNBT(nbt, id);
             if (lastLevel <= 0 && entry.ownedMaxLevel > 0) {
                 lastLevel = entry.ownedMaxLevel;
             }
             if (lastLevel <= 0) continue;
 
-            // 确保不超过拥有的最大等级
             lastLevel = Math.min(lastLevel, entry.ownedMaxLevel);
 
-            // 恢复模块
             setLevelEverywhere(core, id, lastLevel);
             writePauseMeta(core, id, lastLevel, false);
 
@@ -898,7 +1036,6 @@ public class MechanicalCoreGui extends GuiScreen {
                     TextFormatting.GREEN + "▶ 已恢复 " + resumedCount + " 个模块"
             ), true);
 
-            // 详细列表（如果不太多）
             if (resumedCount <= 5) {
                 player.sendMessage(new TextComponentString(
                         TextFormatting.GRAY + "恢复: " + String.join(", ", resumedNames)
@@ -910,11 +1047,12 @@ public class MechanicalCoreGui extends GuiScreen {
             ), true);
         }
 
-        // 刷新UI
         updateUpgradeStates();
     }
 
-    // 修复模块
+    /**
+     * ✅ 修复：使用 REPAIR_UPGRADE 动作，所有修改在服务器端
+     */
     private void tryRepair(UpgradeEntry entry) {
         ItemStack core = getCurrentCoreStack();
         if (!ItemMechanicalCore.isMechanicalCore(core)) return;
@@ -929,109 +1067,84 @@ public class MechanicalCoreGui extends GuiScreen {
         int targetLevel = Math.min(entry.ownedMaxLevel + 1, entry.itemMaxLevel);
         int xpCost = calculateRepairCost(entry, targetLevel);
 
-        if (!consumePlayerExperience(player, xpCost)) {
+        // 客户端只验证经验是否足够（提前反馈）
+        if (!player.capabilities.isCreativeMode && player.experienceLevel < xpCost) {
             player.sendStatusMessage(new TextComponentString(
                     TextFormatting.RED + "经验不足！需要 " + xpCost + " 级"
             ), true);
             return;
         }
 
-        NBTTagCompound nbt = core.getTagCompound();
-        if (nbt == null) {
-            nbt = new NBTTagCompound();
-            core.setTagCompound(nbt);
+        // 发送修复请求到服务器
+        try {
+            NetworkHandler.INSTANCE.sendToServer(new PacketMechanicalCoreUpdate(
+                    PacketMechanicalCoreUpdate.Action.REPAIR_UPGRADE,
+                    entry.id,
+                    xpCost,
+                    true
+            ));
+            System.out.println("[GUI-Repair] 发送修复请求: " + entry.id + ", 成本: " + xpCost);
+        } catch (Throwable e) {
+            System.err.println("[GUI-Repair] 发送修复请求失败: " + e.getMessage());
+            player.sendStatusMessage(new TextComponentString(
+                    TextFormatting.RED + "修复请求发送失败"
+            ), true);
+            return;
         }
 
-        nbt.setInteger("OwnedMax_" + entry.id, targetLevel);
-        nbt.setInteger("OwnedMax_" + up(entry.id), targetLevel);
-
-        int damageCount = nbt.getInteger("DamageCount_" + entry.id);
-        if (damageCount > 0) {
-            nbt.setInteger("DamageCount_" + entry.id, Math.max(0, damageCount - 1));
-            nbt.setInteger("DamageCount_" + up(entry.id), Math.max(0, damageCount - 1));
-        }
-
-        if (targetLevel >= entry.itemMaxLevel) {
-            nbt.removeTag("WasPunished_" + entry.id);
-            nbt.removeTag("WasPunished_" + up(entry.id));
-        }
-
-        setLevelEverywhere(core, entry.id, targetLevel);
-
-        entry.ownedMaxLevel = targetLevel;
-        entry.currentLevel = targetLevel;
-        if (entry.damageCount > 0) entry.damageCount--;
-
+        // 播放音效（乐观更新）
         player.playSound(SoundEvents.BLOCK_ANVIL_USE, 1.0f, 1.0f);
 
+        // 显示等待提示
         if (targetLevel >= entry.itemMaxLevel) {
             player.sendStatusMessage(new TextComponentString(
-                    TextFormatting.GREEN + "✓ 模块完全修复！" + entry.displayName + " 已恢复到 Lv." + targetLevel
+                    TextFormatting.GREEN + "⚒ 正在修复..." + entry.displayName
             ), true);
         } else {
             int repairsLeft = entry.itemMaxLevel - targetLevel;
             player.sendStatusMessage(new TextComponentString(
-                    TextFormatting.YELLOW + "⚒ 模块部分修复：" + entry.displayName + " Lv." + targetLevel +
-                            TextFormatting.GRAY + " (还需修复 " + repairsLeft + " 次)"
+                    TextFormatting.YELLOW + "⚒ 正在修复..." + entry.displayName +
+                            TextFormatting.GRAY + " (还需 " + repairsLeft + " 次)"
             ), true);
         }
 
-        sendSetLevel(entry.id, targetLevel);
+        // 标记为等待更新
         pendingUpdates.put(entry.id, System.currentTimeMillis());
     }
 
-    // 安全消耗经验
-    private boolean consumePlayerExperience(EntityPlayer player, int levels) {
-        if (player.capabilities.isCreativeMode) return true;
-        if (player.experienceLevel < levels) return false;
-
-        int totalBefore = player.experienceTotal;
-
-        int xpToRemove = 0;
-        for (int i = 0; i < levels; i++) {
-            xpToRemove += getExperienceForLevel(player.experienceLevel - i);
-        }
-
-        player.experienceLevel -= levels;
-        player.experienceTotal = Math.max(0, totalBefore - xpToRemove);
-
-        player.experience = 0.0f;
-        if (player.experienceLevel > 0) {
-            int xpForCurrentLevel = getTotalExperienceForLevel(player.experienceLevel);
-            int xpForNextLevel = getTotalExperienceForLevel(player.experienceLevel + 1);
-            int currentLevelProgress = player.experienceTotal - xpForCurrentLevel;
-            int levelDifference = xpForNextLevel - xpForCurrentLevel;
-
-            if (levelDifference > 0) {
-                player.experience = (float)currentLevelProgress / (float)levelDifference;
-            }
-        }
-
-        return true;
-    }
-
-    private int getExperienceForLevel(int level) {
-        if (level >= 30) return 112 + (level - 30) * 9;
-        if (level >= 15) return 37 + (level - 15) * 5;
-        return 7 + level * 2;
-    }
-
-    private int getTotalExperienceForLevel(int level) {
-        if (level >= 30) {
-            return 1395 + (level - 30) * (level - 29) * 9 / 2;
-        } else if (level >= 15) {
-            return 315 + (level - 15) * (level - 14) * 5 / 2;
-        } else if (level > 0) {
-            return 7 * level + level * (level - 1);
-        }
-        return 0;
-    }
-
+    /**
+     * 修复成本计算（使用 TotalDamageCount）
+     */
     private int calculateRepairCost(UpgradeEntry entry, int targetLevel) {
-        int levelDiff = targetLevel - entry.ownedMaxLevel;
-        int baseCost = levelDiff * 5;
-        int penaltyCost = entry.damageCount * 3;
-        return baseCost + penaltyCost;
+        ItemStack core = getCurrentCoreStack();
+        NBTTagCompound nbt = core.getTagCompound();
+        if (nbt == null) return 1;
+
+        // 使用 TotalDamageCount（累计总损坏次数）
+        int totalDamageCount = Math.max(
+                nbt.getInteger("TotalDamageCount_" + entry.id),
+                Math.max(
+                        nbt.getInteger("TotalDamageCount_" + up(entry.id)),
+                        nbt.getInteger("TotalDamageCount_" + lo(entry.id))
+                )
+        );
+
+        // 如果没有 TotalDamageCount，使用当前的 DamageCount
+        if (totalDamageCount <= 0) {
+            totalDamageCount = entry.damageCount;
+        }
+
+        // 至少为1
+        if (totalDamageCount <= 0) {
+            totalDamageCount = 1;
+        }
+
+        // 成本公式：7.5 * (总损坏次数)^0.42
+        double cost = 7.5 * Math.pow(totalDamageCount, 0.42);
+        int totalCost = (int) Math.ceil(cost);
+
+        // 限制在1-30级之间
+        return Math.max(1, Math.min(30, totalCost));
     }
 
     private int calculateRepairCost(UpgradeEntry entry) {
@@ -1057,8 +1170,9 @@ public class MechanicalCoreGui extends GuiScreen {
             int maxOffset = Math.max(0, availableUpgrades.size() - UPGRADES_PER_PAGE);
             scrollOffset = Math.max(0, Math.min(scrollOffset + dir, maxOffset));
         }
-    }
-
+    }/**
+     * ✅ 修复：降级逻辑 - 损坏模块降到0时保持DAMAGED状态
+     */
     private void adjustUpgradeLevel(String upgradeId, int delta) {
         UpgradeEntry entry = upgradeEntries.get(upgradeId);
         if (entry == null) return;
@@ -1167,13 +1281,36 @@ public class MechanicalCoreGui extends GuiScreen {
 
             setLevelEverywhere(core, upgradeId, newLevel);
 
+            // ✅ 修复：损坏模块降到0时保持DAMAGED状态
             if (old > 0 && newLevel == 0) {
-                writePauseMeta(core, upgradeId, old, true);
-                entry.status = UpgradeStatus.PAUSED;
-                entry.isPaused = true;
+                if (entry.status == UpgradeStatus.DAMAGED && entry.wasPunished) {
+                    // 损坏的模块：只更新等级，保持DAMAGED状态
+                    entry.currentLevel = 0;
+                    entry.status = UpgradeStatus.DAMAGED;
+                    entry.isPaused = false;
+
+                    // 记录 LastLevel，方便修复后恢复
+                    nbt.setInteger("LastLevel_" + upgradeId, old);
+                    nbt.setInteger("LastLevel_" + up(upgradeId), old);
+                    nbt.setInteger("LastLevel_" + lo(upgradeId), old);
+
+                    // 确保 OriginalMax 已记录
+                    String upperId = up(upgradeId);
+                    if (!nbt.hasKey("OriginalMax_" + upperId)) {
+                        int originalMax = entry.itemMaxLevel > 0 ? entry.itemMaxLevel : old;
+                        nbt.setInteger("OriginalMax_" + upperId, originalMax);
+                        nbt.setInteger("OriginalMax_" + upgradeId, originalMax);
+                    }
+                } else {
+                    // 正常模块：设置为暂停状态
+                    writePauseMeta(core, upgradeId, old, true);
+                    entry.status = UpgradeStatus.PAUSED;
+                    entry.isPaused = true;
+                }
             } else {
                 writePauseMeta(core, upgradeId, newLevel, false);
 
+                // 正确判断状态
                 if (ItemMechanicalCore.isPenalized(core, upgradeId)) {
                     entry.status = UpgradeStatus.PENALIZED;
                 } else if (entry.wasPunished && entry.ownedMaxLevel < entry.itemMaxLevel) {
@@ -1191,9 +1328,16 @@ public class MechanicalCoreGui extends GuiScreen {
 
             if (newLevel == 0 && old > 0) {
                 this.mc.player.playSound(SoundEvents.BLOCK_NOTE_BASS, 0.7F, 0.8F);
-                player.sendStatusMessage(new TextComponentString(
-                        TextFormatting.YELLOW + "⏸ " + entry.displayName + " 已暂停 (点击+恢复)"
-                ), true);
+
+                if (entry.status == UpgradeStatus.DAMAGED) {
+                    player.sendStatusMessage(new TextComponentString(
+                            TextFormatting.RED + "⚒ " + entry.displayName + " 已降至 Lv.0 (点击+修复)"
+                    ), true);
+                } else {
+                    player.sendStatusMessage(new TextComponentString(
+                            TextFormatting.YELLOW + "⏸ " + entry.displayName + " 已暂停 (点击+恢复)"
+                    ), true);
+                }
             } else {
                 this.mc.player.playSound(SoundEvents.UI_BUTTON_CLICK, 0.5F, 1.0F);
                 if (old > newLevel) {
@@ -1210,6 +1354,8 @@ public class MechanicalCoreGui extends GuiScreen {
             pendingUpdates.put(upgradeId, System.currentTimeMillis());
         }
     }
+
+    // ===== 辅助方法 =====
 
     private void setLevelEverywhere(ItemStack core, String upgradeId, int newLevel) {
         if (core == null || core.isEmpty()) return;
@@ -1361,13 +1507,6 @@ public class MechanicalCoreGui extends GuiScreen {
         return u.equals("HEALTH_REGEN") || u.equals("REGENERATION")
                 || u.equals("FIRE_EXTINGUISH") || u.equals("THORNS")
                 || isWaterproofUpgrade(u);
-    }
-
-    private int barColor(float p) {
-        if (p > 0.6f) return 0xFF44FF44;
-        if (p > 0.3f) return 0xFFFFFF44;
-        if (p > 0.1f) return 0xFFFF8844;
-        return 0xFFFF4444;
     }
 
     private String fmt(int e){

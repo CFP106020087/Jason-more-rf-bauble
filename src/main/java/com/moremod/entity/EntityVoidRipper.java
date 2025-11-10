@@ -25,10 +25,15 @@ import net.minecraft.util.SoundEvent;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.RayTraceResult;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
+import net.minecraftforge.event.entity.living.LivingAttackEvent;
+import net.minecraftforge.event.entity.living.LivingDamageEvent;
+import net.minecraftforge.event.entity.living.LivingHealEvent;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.common.eventhandler.EventPriority;
+import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import software.bernie.geckolib3.core.IAnimatable;
 import software.bernie.geckolib3.core.PlayState;
 import software.bernie.geckolib3.core.builder.AnimationBuilder;
@@ -44,8 +49,8 @@ import static com.moremod.moremod.MODID;
 public class EntityVoidRipper extends EntityMob implements IAnimatable {
 
     private AnimationFactory factory = new AnimationFactory(this);
-    // ===== Animation name constants (Laser 分段) =====
-    // ===== Animation name constants (Laser 分段) =====
+
+    // ===== Animation name constants =====
     private static final String ANIM_IDLE                  = "animation.void_ripper.idle";
     private static final String ANIM_WALK                  = "animation.void_ripper.walk";
     private static final String ANIM_RUN                   = "animation.void_ripper.run";
@@ -54,18 +59,19 @@ public class EntityVoidRipper extends EntityMob implements IAnimatable {
     private static final String ANIM_SLASH                 = "animation.void_ripper.attack_slash";
     private static final String ANIM_VOID_BURST            = "animation.void_ripper.attack_void_burst_enhanced";
     private static final String ANIM_GRAB_EXT              = "animation.void_ripper.attack_grab_extended";
-    // 镭射分为：预警 → 蓄力 → 发射
     private static final String ANIM_LASER_WARNING         = "animation.void_ripper.laser_warning";
     private static final String ANIM_LASER_CHARGING        = "animation.void_ripper.laser_charging";
     private static final String ANIM_LASER_FIRE            = "animation.void_ripper.laser_fire";
-
     private static final String ANIM_BERSERK_COMBO         = "animation.void_ripper.berserk_combo";
     private static final String ANIM_BERSERK_RUNNING_COMBO = "animation.void_ripper.berserk_running_combo";
     private static final String ANIM_DUAL_SLAM             = "animation.void_ripper.dual_slam";
     private static final String ANIM_LEFT_HAND             = "animation.void_ripper.attack_left_hand";
-@Override
-protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "entities/void_ripper");
-}
+
+    @Override
+    protected ResourceLocation getLootTable() {
+        return new ResourceLocation(MODID, "entities/void_ripper");
+    }
+
     // 数据同步参数
     private static final DataParameter<Integer> ATTACK_STATE = EntityDataManager.createKey(EntityVoidRipper.class, DataSerializers.VARINT);
     private static final DataParameter<Boolean> IS_CHARGING = EntityDataManager.createKey(EntityVoidRipper.class, DataSerializers.BOOLEAN);
@@ -105,6 +111,20 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
     private static final float LASER_DAMAGE_PER_TICK = 2.0F;
     private static final float LASER_RANGE = 120.0F;
 
+    // ========== Gate 限伤系统 ==========
+    private static final String CHUNK_ID = MODID + ".void_ripper_chunk";
+    public static final DamageSource RIPPER_CHUNK = new DamageSource(CHUNK_ID)
+            .setDamageIsAbsolute()
+            .setDamageBypassesArmor();
+
+    private int invulTicks = 0;
+    private boolean pendingChunk = false;
+    private boolean applyingChunk = false;
+    private float frozenHealth = -1F;
+    private float frozenAbsorb = -1F;
+    private int gateOpenFxCooldown = 0;
+    private static final int INVUL_TICKS_BASE = 40;
+
     // 虚空爆发增强参数
     private static final float VOID_BURST_RADIUS = 15.0F;
     private static final int VOID_BURST_CHARGE_TIME = 150;
@@ -126,16 +146,11 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
     private static final int RUNNING_COMBO_MAX_TIME = 200;
     private float runningComboSpeed = 0.6F;
 
-    // 左手攻击参数（优化后）
+    // 左手攻击参数
     private int leftHandCooldown = 0;
     private static final int LEFT_HAND_COOLDOWN_TIME = 10;
     private static final int LEFT_HAND_ANIMATION_TIME = 24;
     private int leftHandCombo = 0;
-
-    // 限伤机制
-    private static final float MAX_DAMAGE_PERCENT = 0.1F;
-    private static final int INVULNERABILITY_TIME = 40;
-    private int invulnerabilityTimer = 0;
 
     // 冷却和计时器
     private int attackCooldown = 0;
@@ -229,23 +244,11 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
     public void onLivingUpdate() {
         super.onLivingUpdate();
 
+        // Gate 系统处理（最优先）
+        handleInvulnerability();
+
         // 检测是否卡住
         checkIfStuck();
-
-        // 更新无敌时间
-        if (invulnerabilityTimer > 0) {
-            invulnerabilityTimer--;
-            if (world.isRemote && invulnerabilityTimer % 4 == 0) {
-                for (int i = 0; i < 3; i++) {
-                    world.spawnParticle(EnumParticleTypes.SPELL_WITCH,
-                            posX + (rand.nextDouble() - 0.5) * width,
-                            posY + rand.nextDouble() * height,
-                            posZ + (rand.nextDouble() - 0.5) * width,
-                            0, 0.1, 0);
-                }
-            }
-        }
-
 
         // 更新各种状态
         updateVoidBurstEnhanced();
@@ -300,30 +303,204 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
         }
     }
 
+    // ========== Gate 系统核心方法 ==========
+
+    private void handleInvulnerability() {
+        if (this.invulTicks > 0) {
+            this.invulTicks--;
+
+            // 死亡检查：允许死亡
+            if (this.getHealth() <= 0F) {
+                this.invulTicks = 0;
+                this.pendingChunk = false;
+                this.frozenHealth = -1F;
+                this.frozenAbsorb = -1F;
+                return;
+            }
+
+            // 冻结血量
+            if (!this.applyingChunk) {
+                if (this.frozenHealth >= 0F && this.getHealth() != this.frozenHealth) {
+                    this.setHealth(this.frozenHealth);
+                }
+                if (this.frozenAbsorb >= 0F && this.getAbsorptionAmount() != this.frozenAbsorb) {
+                    this.setAbsorptionAmount(this.frozenAbsorb);
+                }
+            }
+
+            // 无敌粒子效果
+            if (this.ticksExisted % 5 == 0 && world instanceof WorldServer) {
+                spawnRing(EnumParticleTypes.REDSTONE, 16, 1.5D);
+            }
+
+            // 无敌结束
+            if (this.invulTicks == 0) {
+                if (this.pendingChunk && this.getHealth() > 0F) {
+                    float dmg = getChunkSize();
+                    this.applyingChunk = true;
+                    try {
+                        super.attackEntityFrom(RIPPER_CHUNK, dmg);
+                        playSound(SoundEvents.BLOCK_ANVIL_LAND, 0.7F, 1.0F);
+                        spawnRing(EnumParticleTypes.CRIT_MAGIC, 32, 2.0D);
+                    } finally {
+                        this.applyingChunk = false;
+                    }
+                }
+                this.pendingChunk = false;
+                this.frozenHealth = -1F;
+                this.frozenAbsorb = -1F;
+            }
+        }
+
+        if (gateOpenFxCooldown > 0) gateOpenFxCooldown--;
+    }
+
+    public float getChunkSize() {
+        return 30.0F;
+    }
+
+    public boolean isGateInvulnerable() {
+        return invulTicks > 0;
+    }
+
+    public void openGateAndFreeze(boolean scheduleChunk) {
+        int base = isBerserk ? INVUL_TICKS_BASE - 10 : INVUL_TICKS_BASE;
+        this.invulTicks = Math.max(this.invulTicks, Math.max(20, base));
+
+        this.frozenHealth = this.getHealth();
+        this.frozenAbsorb = this.getAbsorptionAmount();
+        this.pendingChunk = scheduleChunk;
+
+        if (gateOpenFxCooldown <= 0) {
+            playSound(SoundEvents.ITEM_SHIELD_BLOCK, 0.9F, 0.9F);
+            spawnRing(EnumParticleTypes.PORTAL, 32, 2.0D);
+            gateOpenFxCooldown = 5;
+        }
+    }
+
+    public boolean isTrustedDamageSource(DamageSource src) {
+        if (src == null) return false;
+        return CHUNK_ID.equals(src.getDamageType());
+    }
+
+    private void spawnRing(EnumParticleTypes type, int count, double radius) {
+        if (!(world instanceof WorldServer)) return;
+        WorldServer ws = (WorldServer) world;
+        double cx = this.posX;
+        double cy = this.posY + this.height * 0.5D;
+        double cz = this.posZ;
+        for (int i = 0; i < count; i++) {
+            double ang = (Math.PI * 2 * i) / count;
+            double dx = cx + Math.cos(ang) * radius;
+            double dz = cz + Math.sin(ang) * radius;
+            ws.spawnParticle(type, dx, cy, dz, 1, 0, 0, 0, 0.0D);
+        }
+    }
+
+    @Override
+    public boolean attackEntityFrom(DamageSource source, float amount) {
+        // 信任伤害源直接通过
+        if (isTrustedDamageSource(source)) {
+            return super.attackEntityFrom(source, amount);
+        }
+
+        // Gate 无敌检查
+        if (this.isGateInvulnerable()) {
+            if (world instanceof WorldServer && gateOpenFxCooldown <= 0) {
+                WorldServer ws = (WorldServer) world;
+                ws.spawnParticle(EnumParticleTypes.SPELL_WITCH,
+                        posX, posY + height * 0.5, posZ,
+                        10, 0.5, 0.5, 0.5, 0.1);
+                playSound(SoundEvents.ITEM_SHIELD_BLOCK, 1.0F, 1.5F);
+                gateOpenFxCooldown = 3;
+            }
+            return false;
+        }
+
+        return super.attackEntityFrom(source, amount);
+    }
+
+    @Override
+    protected void damageEntity(DamageSource damageSrc, float damageAmount) {
+        // 信任伤害源直接通过
+        if (isTrustedDamageSource(damageSrc)) {
+            super.damageEntity(damageSrc, damageAmount);
+            return;
+        }
+
+        // Gate 无敌期间不处理
+        if (this.isGateInvulnerable()) {
+            return;
+        }
+
+        // 固定伤害：每次 20 血
+        float actualDamage = 20.0F;
+
+        // 判断是否需要累积大额伤害
+        boolean scheduleChunk = damageAmount >= getChunkSize();
+
+        // 开启 Gate 并冻结血量
+        openGateAndFreeze(scheduleChunk);
+
+        // 立即应用固定伤害
+        if (!this.applyingChunk) {
+            this.applyingChunk = true;
+            try {
+                super.damageEntity(damageSrc, actualDamage);
+            } finally {
+                this.applyingChunk = false;
+            }
+        }
+
+        // 给玩家反馈
+        if (damageSrc.getTrueSource() instanceof EntityPlayer) {
+            EntityPlayer player = (EntityPlayer) damageSrc.getTrueSource();
+            float healthPercent = (this.getHealth() / this.getMaxHealth()) * 100;
+            player.sendStatusMessage(new net.minecraft.util.text.TextComponentString(
+                    String.format("§5虚空撕裂者 §7| §e%.0f%%", healthPercent)
+            ), true);
+        }
+
+        // 特效
+        if (world instanceof WorldServer) {
+            WorldServer ws = (WorldServer) world;
+            ws.spawnParticle(EnumParticleTypes.DRAGON_BREATH,
+                    posX, posY + height * 0.5, posZ,
+                    20, 0.5, 0.5, 0.5, 0.1);
+
+            if (scheduleChunk) {
+                ws.spawnParticle(EnumParticleTypes.CRIT_MAGIC,
+                        posX, posY + height * 0.5, posZ,
+                        30, 1, 1, 1, 0.2);
+
+                if (damageSrc.getTrueSource() instanceof EntityPlayer) {
+                    EntityPlayer player = (EntityPlayer) damageSrc.getTrueSource();
+                    player.sendMessage(new net.minecraft.util.text.TextComponentString(
+                            "§6§l强力一击！将在无敌结束后造成额外伤害！"));
+                }
+            }
+        }
+    }
+
     // 新增防卡住检测
     private void checkIfStuck() {
         BlockPos currentPos = new BlockPos(this);
 
-        // 检测是否长时间在同一位置
         if (currentPos.equals(lastPos)) {
             stuckTimer++;
-            if (stuckTimer > 60) { // 3秒没移动
-                // 尝试跳跃
+            if (stuckTimer > 60) {
                 if (onGround) {
                     motionY = 0.0D;
                 }
 
-                // 随机移动
                 if (stuckTimer > 100) {
                     double angle = rand.nextDouble() * Math.PI * 2;
                     motionX = Math.cos(angle) * 0.3;
                     motionZ = Math.sin(angle) * 0.3;
 
-                    // 重置卡住计时器
                     if (stuckTimer > 120) {
                         stuckTimer = 0;
 
-                        // 如果有目标，尝试传送到目标附近
                         EntityLivingBase target = getAttackTarget();
                         if (target != null && rand.nextInt(3) == 0) {
                             attemptTeleportNearTarget(target);
@@ -336,12 +513,10 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
             lastPos = currentPos;
         }
 
-        // 检测是否长时间没有目标
         if (getAttackTarget() == null) {
             noTargetTimer++;
-            if (noTargetTimer > 200) { // 10秒没目标
+            if (noTargetTimer > 200) {
                 noTargetTimer = 0;
-                // 主动寻找目标
                 List<EntityPlayer> players = world.getEntitiesWithinAABB(EntityPlayer.class,
                         getEntityBoundingBox().grow(40.0D));
                 if (!players.isEmpty()) {
@@ -353,7 +528,6 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
         }
     }
 
-    // 尝试传送到目标附近
     private void attemptTeleportNearTarget(EntityLivingBase target) {
         double angle = rand.nextDouble() * Math.PI * 2;
         double distance = 3.0D + rand.nextDouble() * 3.0D;
@@ -361,13 +535,11 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
         double tpY = target.posY;
         double tpZ = target.posZ + Math.sin(angle) * distance;
 
-        // 查找安全的传送位置
         BlockPos tpPos = new BlockPos(tpX, tpY, tpZ);
         if (world.isAirBlock(tpPos) && world.isAirBlock(tpPos.up())) {
             this.setPositionAndUpdate(tpX, tpY, tpZ);
             playSound(SoundEvents.ENTITY_ENDERMEN_TELEPORT, 1.0F, 1.0F);
 
-            // 传送特效
             if (world instanceof WorldServer) {
                 WorldServer ws = (WorldServer) world;
                 for (int i = 0; i < 50; i++) {
@@ -381,66 +553,6 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
         }
     }
 
-    @Override
-    public boolean attackEntityFrom(DamageSource source, float amount) {
-        // 早期無敵檢查（避免不必要的處理）
-        if (invulnerabilityTimer > 0) {
-            // 無敵時的特效
-            if (world instanceof WorldServer) {
-                WorldServer ws = (WorldServer) world;
-                ws.spawnParticle(EnumParticleTypes.SPELL_WITCH,
-                        posX, posY + height * 0.5, posZ,
-                        10, 0.5, 0.5, 0.5, 0.1);
-            }
-            playSound(SoundEvents.ITEM_SHIELD_BLOCK, 1.0F, 1.5F);
-            return false;
-        }
-
-        // 交給父類處理，限傷會在 damageEntity 中執行
-        return super.attackEntityFrom(source, amount);
-    }
-    @Override
-    protected void damageEntity(DamageSource damageSrc, float damageAmount) {
-        // 無敵時間內完全免疫
-        if (invulnerabilityTimer > 0) {
-            return;
-        }
-
-        // 限傷機制 - 這是真正的最終防線
-        float maxDamage = this.getMaxHealth() * MAX_DAMAGE_PERCENT;
-        if (damageAmount > maxDamage) {
-            damageAmount = maxDamage;
-
-            // 限傷觸發特效
-            if (world instanceof WorldServer) {
-                WorldServer ws = (WorldServer) world;
-                for (int i = 0; i < 20; i++) {
-                    double angle = (Math.PI * 2) * i / 20;
-                    double px = posX + Math.cos(angle) * 2;
-                    double pz = posZ + Math.sin(angle) * 2;
-                    ws.spawnParticle(EnumParticleTypes.PORTAL,
-                            px, posY + height * 0.5, pz,
-                            1, 0, 0.5, 0, 0.1);
-                }
-            }
-            playSound(SoundEvents.ENTITY_ENDERMEN_TELEPORT, 1.5F, 0.5F);
-        }
-
-        // 調用父類實際扣血
-        super.damageEntity(damageSrc, damageAmount);
-
-        // 扣血後設置無敵時間
-        if (damageAmount > 0) {
-            invulnerabilityTimer = INVULNERABILITY_TIME;
-
-            if (world instanceof WorldServer) {
-                WorldServer ws = (WorldServer) world;
-                ws.spawnParticle(EnumParticleTypes.DRAGON_BREATH,
-                        posX, posY + height * 0.5, posZ,
-                        30, 1, 1, 1, 0.2);
-            }
-        }
-    }
     // 增强版虚空爆发
     private void updateVoidBurstEnhanced() {
         if (getAttackState() == STATE_VOID_BURST) {
@@ -841,23 +953,21 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
         if (getAttackState() == STATE_LEFT_HAND) {
             EntityLivingBase target = this.getAttackTarget();
 
-            // 多次判定，提高攻击频率
             int attackFrame = LEFT_HAND_ANIMATION_TIME - 9;
             boolean shouldHit = animationTick == attackFrame ||
                     animationTick == attackFrame - 2 ||
                     animationTick == attackFrame + 2;
 
             if (target != null && shouldHit) {
-                if (this.getDistanceSq(target) < 12.0D) { // 增加攻击范围
+                if (this.getDistanceSq(target) < 12.0D) {
                     float damage = (float)getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).getAttributeValue();
-                    damage *= (1.1F + leftHandCombo * 0.1F); // 连击增伤
+                    damage *= (1.1F + leftHandCombo * 0.1F);
 
                     target.attackEntityFrom(DamageSource.causeMobDamage(this), damage);
 
                     target.addPotionEffect(new PotionEffect(MobEffects.WEAKNESS, 80, 1));
                     target.addPotionEffect(new PotionEffect(MobEffects.WITHER, 60, 0));
 
-                    // 增强的击退效果
                     double angle = Math.atan2(target.posZ - this.posZ, target.posX - this.posX);
                     angle += Math.PI / 4;
                     target.motionX = Math.cos(angle) * (1.2 + leftHandCombo * 0.2);
@@ -973,7 +1083,7 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
         setAttackState(STATE_LASER);
         animationTick = 240;
 
-        setIsCharging(true); // <—— 新增：进入激光序列时视为充能中（供粒子/VFX）
+        setIsCharging(true);
         playSound(SoundEvents.BLOCK_NOTE_PLING, 1.5F, 0.5F);
     }
 
@@ -986,16 +1096,32 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
             return;
         }
 
-        // —— 完全静止 ——                                    // <<<
-        this.motionX = 0;                                   // <<<
-        this.motionY = 0;                                   // <<<
-        this.motionZ = 0;                                   // <<<
-        this.isAirBorne = false;                            // <<<
-        this.fallDistance = 0;                              // <<<
-        this.getNavigator().clearPath();                    // <<<
-        this.getMoveHelper().setMoveTo(this.posX, this.posY, this.posZ, 0.0D); // <<<
+        this.motionX = 0;
+        this.motionY = 0;
+        this.motionZ = 0;
+        this.isAirBorne = false;
+        this.fallDistance = 0;
+        this.getNavigator().clearPath();
+        this.getMoveHelper().setMoveTo(this.posX, this.posY, this.posZ, 0.0D);
 
         this.getLookHelper().setLookPositionWithEntity(target, 30.0F, 30.0F);
+
+        // 强化警告提示
+        if (target instanceof EntityPlayer) {
+            EntityPlayer player = (EntityPlayer) target;
+
+            if (laserTimer % 20 == 0) {
+                int secondsLeft = laserTimer / 20;
+                player.sendMessage(new net.minecraft.util.text.TextComponentString(
+                        "§c§l⚠ 激光锁定！" + secondsLeft + " 秒后发射！§r §e使用盾牌格挡！"));
+            }
+
+            if (laserTimer == 20 || laserTimer == 10) {
+                playSound(SoundEvents.BLOCK_NOTE_PLING, 3.0F, 2.0F);
+                player.sendMessage(new net.minecraft.util.text.TextComponentString(
+                        "§4§l§n危险！激光即将发射！举起盾牌！"));
+            }
+        }
 
         if (world instanceof WorldServer) {
             WorldServer ws = (WorldServer) world;
@@ -1030,7 +1156,6 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
         }
     }
 
-
     private void updateLaserCharging() {
         laserTimer--;
 
@@ -1040,14 +1165,13 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
             return;
         }
 
-        // —— 完全静止 ——                                    // <<<
-        this.motionX = 0;                                   // <<<
-        this.motionY = 0;                                   // <<<
-        this.motionZ = 0;                                   // <<<
-        this.isAirBorne = false;                            // <<<
-        this.fallDistance = 0;                              // <<<
-        this.getNavigator().clearPath();                    // <<<
-        this.getMoveHelper().setMoveTo(this.posX, this.posY, this.posZ, 0.0D); // <<<
+        this.motionX = 0;
+        this.motionY = 0;
+        this.motionZ = 0;
+        this.isAirBorne = false;
+        this.fallDistance = 0;
+        this.getNavigator().clearPath();
+        this.getMoveHelper().setMoveTo(this.posX, this.posY, this.posZ, 0.0D);
 
         this.getLookHelper().setLookPositionWithEntity(target, 10.0F, 10.0F);
 
@@ -1105,19 +1229,15 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
             return;
         }
 
-        // 發射時完全靜止
         this.motionX = 0;
         this.motionY = 0;
         this.motionZ = 0;
 
-        // 緩慢跟踪目標
         this.getLookHelper().setLookPositionWithEntity(target, 5.0F, 5.0F);
 
-        // 計算激光發射位置
         Vec3d laserPos = getLaserEmissionPoint();
         Vec3d targetPos = new Vec3d(target.posX, target.posY + target.height * 0.5D, target.posZ);
 
-        // 在開始發射時創建藍色激光束實體
         if (laserTimer == LASER_FIRE_TIME - 1 && !world.isRemote) {
             EntityLaserBeam beam = new EntityLaserBeam(
                     world,
@@ -1126,7 +1246,7 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
                     LASER_FIRE_TIME,
                     0.7F,
                     LASER_DAMAGE_PER_TICK,
-                    0x0099FF  // 藍色
+                    0x0099FF
             );
             Vec3d emissionPoint = getLaserEmissionPoint();
             beam.setPosition(emissionPoint.x, emissionPoint.y, emissionPoint.z);
@@ -1136,12 +1256,10 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
             playSound(SoundEvents.ENTITY_ENDERDRAGON_GROWL, 1.5F, 0.5F);
         }
 
-        // 激光射線檢測
         Vec3d direction = targetPos.subtract(laserPos).normalize();
         double laserLength = Math.min(LASER_RANGE, laserPos.distanceTo(targetPos));
         Vec3d endPos = laserPos.add(direction.x * laserLength, direction.y * laserLength, direction.z * laserLength);
 
-        // 激光粒子視覺效果
         if (world instanceof WorldServer) {
             WorldServer ws = (WorldServer) world;
             int segments = (int)(laserLength * 4);
@@ -1152,26 +1270,17 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
                 double py = laserPos.y + (endPos.y - laserPos.y) * progress;
                 double pz = laserPos.z + (endPos.z - laserPos.z) * progress;
 
-                // 主激光束 - 藍色粒子
-
-                // 外圈能量 - 白色閃光
-
-
-                // 每10個段落檢查並破壞方塊
                 if (i % 10 == 0 && !world.isRemote && laserTimer % 10 == 0) {
                     BlockPos blockPos = new BlockPos(px, py, pz);
                     IBlockState blockState = world.getBlockState(blockPos);
 
-                    // 檢查方塊是否可以破壞
                     if (!blockState.getBlock().isAir(blockState, world, blockPos)) {
                         float hardness = blockState.getBlockHardness(world, blockPos);
 
-                        // 硬度小於5且有30%機率破壞
                         if (hardness >= 0 && hardness < 5.0F && rand.nextFloat() < 0.3F) {
                             world.destroyBlock(blockPos, true);
                             playSound(SoundEvents.ENTITY_GENERIC_EXPLODE, 0.5F, 1.5F);
 
-                            // 方塊破壞粒子
                             ws.spawnParticle(EnumParticleTypes.BLOCK_CRACK,
                                     px, py, pz,
                                     20, 0.2D, 0.2D, 0.2D, 0.1D,
@@ -1181,22 +1290,143 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
                 }
             }
 
-            // 擊中點爆炸效果
             ws.spawnParticle(EnumParticleTypes.EXPLOSION_NORMAL,
                     endPos.x, endPos.y, endPos.z,
                     5, 0.5D, 0.5D, 0.5D, 0.1D);
         }
 
-        // 傷害判定
+        // ========== 激光即死判定（可用盾牌格挡）==========
         if (!world.isRemote && laserTimer % 2 == 0) {
             if (target.getDistance(this) <= LASER_RANGE && canEntityBeSeen(target)) {
-                target.attackEntityFrom(DamageSource.causeMobDamage(this).setDamageIsAbsolute().setDamageBypassesArmor(),
-                        LASER_DAMAGE_PER_TICK);
 
-                target.setFire(3);
-                if (target instanceof EntityLivingBase) {
-                    ((EntityLivingBase) target).addPotionEffect(new PotionEffect(MobEffects.WEAKNESS, 60, 1));
-                    ((EntityLivingBase) target).addPotionEffect(new PotionEffect(MobEffects.SLOWNESS, 60, 1));
+                if (target instanceof EntityPlayer) {
+                    EntityPlayer player = (EntityPlayer) target;
+
+                    // 检测是否在格挡
+                    if (player.isActiveItemStackBlocking()) {
+                        // ========== 成功格挡 ==========
+
+                        // 1. 消耗盾牌耐久
+                        net.minecraft.item.ItemStack shield = player.getActiveItemStack();
+                        if (!shield.isEmpty()) {
+                            shield.damageItem(5, player);
+
+                            if (shield.getItemDamage() >= shield.getMaxDamage()) {
+                                player.sendMessage(new net.minecraft.util.text.TextComponentString(
+                                        "§c§l✦ 你的盾牌被激光击碎了！ ✦"));
+                                playSound(SoundEvents.ITEM_SHIELD_BREAK, 1.5F, 1.0F);
+                            }
+                        }
+
+                        // 2. 击退效果
+                        Vec3d laserDir = target.getPositionVector().subtract(this.getPositionVector()).normalize();
+                        double knockbackStrength = 0.6;
+                        player.motionX = laserDir.x * knockbackStrength;
+                        player.motionY = 0.4;
+                        player.motionZ = laserDir.z * knockbackStrength;
+                        player.velocityChanged = true;
+
+                        // 3. 造成少量穿透伤害
+                        player.attackEntityFrom(DamageSource.causeMobDamage(this), 5.0F);
+
+                        // 4. 格挡音效和粒子
+                        playSound(SoundEvents.ITEM_SHIELD_BLOCK, 2.0F, 0.8F);
+                        playSound(SoundEvents.ENTITY_GENERIC_EXPLODE, 0.5F, 2.0F);
+
+                        if (world instanceof WorldServer) {
+                            WorldServer ws = (WorldServer) world;
+
+                            // 格挡火花效果
+                            for (int i = 0; i < 30; i++) {
+                                double angle = rand.nextDouble() * Math.PI * 2;
+                                double speed = 0.3 + rand.nextDouble() * 0.3;
+                                ws.spawnParticle(EnumParticleTypes.FIREWORKS_SPARK,
+                                        player.posX,
+                                        player.posY + player.height * 0.5,
+                                        player.posZ,
+                                        1,
+                                        Math.cos(angle) * speed,
+                                        rand.nextDouble() * 0.3,
+                                        Math.sin(angle) * speed,
+                                        0.1);
+                            }
+
+                            // 护盾光环
+                            for (int i = 0; i < 16; i++) {
+                                double angle = (Math.PI * 2 * i) / 16;
+                                double px = player.posX + Math.cos(angle) * 1.5;
+                                double pz = player.posZ + Math.sin(angle) * 1.5;
+                                ws.spawnParticle(EnumParticleTypes.SPELL_WITCH,
+                                        px, player.posY + 1, pz,
+                                        1, 0, 0.2, 0.0, 0);
+                            }
+                        }
+
+                        // 5. 格挡成功提示
+                        if (laserTimer % 20 == 0) {
+                            player.sendMessage(new net.minecraft.util.text.TextComponentString(
+                                    "§e§l格挡成功！盾牌正在承受极大压力！"));
+                        }
+
+                    } else {
+                        // ========== 没有格挡 = 即死 ==========
+
+                        player.setHealth(0.0F);
+
+                        // 死亡特效
+                        if (world instanceof WorldServer) {
+                            WorldServer ws = (WorldServer) world;
+
+                            // 死亡爆炸粒子
+                            for (int i = 0; i < 100; i++) {
+                                double angle = rand.nextDouble() * Math.PI * 2;
+                                double pitch = rand.nextDouble() * Math.PI;
+                                double speed = 0.5 + rand.nextDouble() * 0.5;
+
+                                ws.spawnParticle(EnumParticleTypes.DRAGON_BREATH,
+                                        player.posX,
+                                        player.posY + player.height * 0.5,
+                                        player.posZ,
+                                        1,
+                                        Math.cos(angle) * Math.sin(pitch) * speed,
+                                        Math.cos(pitch) * speed,
+                                        Math.sin(angle) * Math.sin(pitch) * speed,
+                                        0.2);
+                            }
+
+                            // 黑色爆炸环
+                            for (int ring = 0; ring < 3; ring++) {
+                                double radius = (ring + 1) * 1.5;
+                                for (int i = 0; i < 32; i++) {
+                                    double angle = (Math.PI * 2 * i) / 32;
+                                    ws.spawnParticle(EnumParticleTypes.SMOKE_LARGE,
+                                            player.posX + Math.cos(angle) * radius,
+                                            player.posY + 0.1,
+                                            player.posZ + Math.sin(angle) * radius,
+                                            1, 0, 0.5, 0, 0.1);
+                                }
+                            }
+                        }
+
+                        // 即死音效
+                        playSound(SoundEvents.ENTITY_LIGHTNING_THUNDER, 2.0F, 0.5F);
+                        playSound(SoundEvents.ENTITY_GENERIC_EXPLODE, 2.0F, 0.5F);
+
+                        // 死亡消息
+                        player.sendMessage(new net.minecraft.util.text.TextComponentString(
+                                "§4§l✦ 你被虚空激光彻底撕裂了！ ✦"));
+
+                        // 取消激光
+                        cancelLaser();
+                        laserCooldown = 200;
+                    }
+
+                } else {
+                    // 非玩家目标：正常伤害
+                    target.attackEntityFrom(
+                            DamageSource.causeMobDamage(this).setDamageIsAbsolute().setDamageBypassesArmor(),
+                            LASER_DAMAGE_PER_TICK * 3.0F);
+                    target.setFire(3);
                 }
             }
 
@@ -1207,7 +1437,8 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
 
             for (EntityLivingBase entity : nearbyEntities) {
                 if (entity != this && entity != target) {
-                    entity.attackEntityFrom(DamageSource.causeMobDamage(this), LASER_DAMAGE_PER_TICK * 0.5F);
+                    entity.attackEntityFrom(DamageSource.causeMobDamage(this), LASER_DAMAGE_PER_TICK * 2.0F);
+                    entity.setFire(2);
                 }
             }
         }
@@ -1217,29 +1448,10 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
         }
 
         if (laserTimer <= 0) {
-            setIsCharging(false); // <—— 确保发射完毕也关闭
+            setIsCharging(false);
             cancelLaser();
             laserCooldown = 200;
         }
-
-    }
-
-    private double getDistanceToLine(Vec3d lineStart, Vec3d lineEnd, Vec3d point) {
-        Vec3d line = lineEnd.subtract(lineStart);
-        Vec3d toPoint = point.subtract(lineStart);
-
-        double lineLength = line.length();
-        if (lineLength < 0.001D) {
-            return point.distanceTo(lineStart);
-        }
-
-        Vec3d lineNorm = line.normalize();
-        double projectedLength = toPoint.dotProduct(lineNorm);
-
-        projectedLength = MathHelper.clamp(projectedLength, 0, lineLength);
-
-        Vec3d projectedPoint = lineStart.add(lineNorm.scale(projectedLength));
-        return point.distanceTo(projectedPoint);
     }
 
     private Vec3d getLaserEmissionPoint() {
@@ -1271,12 +1483,11 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
         setLaserState(LASER_IDLE);
         setLaserTargetId(-1);
         laserTimer = 0;
-        setIsCharging(false); // <—— 新增
+        setIsCharging(false);
         if (getAttackState() == STATE_LASER) {
             setAttackState(STATE_IDLE);
         }
     }
-
 
     private void updateMovementState() {
         EntityLivingBase target = this.getAttackTarget();
@@ -1337,16 +1548,16 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
         }
     }
 
-    // 优化的AI任务类
+    // AI任务类（保持不变，这里省略以节省篇幅）
+    // ... [所有 AI 类的代码保持原样] ...
 
-    // 防卡住AI
     class AIAntiStuck extends EntityAIBase {
         private int checkTimer = 0;
 
         @Override
         public boolean shouldExecute() {
             checkTimer++;
-            if (checkTimer < 40) return false; // 每2秒检查一次
+            if (checkTimer < 40) return false;
             checkTimer = 0;
 
             return stuckTimer > 60 || (!EntityVoidRipper.this.getNavigator().noPath() &&
@@ -1356,7 +1567,6 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
 
         @Override
         public void startExecuting() {
-            // 尝试清除路径并重新寻路
             EntityVoidRipper.this.getNavigator().clearPath();
 
             EntityLivingBase target = EntityVoidRipper.this.getAttackTarget();
@@ -1482,7 +1692,6 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
             hasHit = false;
             animationTick = RUNNING_COMBO_MAX_TIME;
 
-            // 立即轉向目標
             EntityVoidRipper.this.faceEntity(target, 30.0F, 30.0F);
 
             playSound(SoundEvents.ENTITY_ENDERDRAGON_GROWL, 1.5F, 1.5F);
@@ -1498,29 +1707,23 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
             runningComboTimer++;
             chargeTimer++;
 
-            // 持續面向目標
             double dx = target.posX - EntityVoidRipper.this.posX;
             double dz = target.posZ - EntityVoidRipper.this.posZ;
             float targetYaw = (float)(Math.atan2(dz, dx) * 180.0D / Math.PI) - 90.0F;
 
-            // 平滑轉向
             float yawDiff = MathHelper.wrapDegrees(targetYaw - EntityVoidRipper.this.rotationYaw);
             EntityVoidRipper.this.rotationYaw += yawDiff * 0.3F;
             EntityVoidRipper.this.rotationYawHead = EntityVoidRipper.this.rotationYaw;
             EntityVoidRipper.this.renderYawOffset = EntityVoidRipper.this.rotationYaw;
 
-            // 設置移動速度
             double dist = Math.sqrt(dx * dx + dz * dz);
             if (dist > 0) {
-                // 逐漸加速
                 float speed = Math.min(0.6F, 0.3F + chargeTimer * 0.01F);
                 EntityVoidRipper.this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(0.3D + speed);
 
-                // 向目標移動
                 EntityVoidRipper.this.motionX = (dx / dist) * speed;
                 EntityVoidRipper.this.motionZ = (dz / dist) * speed;
 
-                // 近距離攻擊判定
                 if (dist < 3.0 && runningComboTimer % 8 == 0) {
                     boolean useLeftHand = (runningComboTimer / 8) % 2 == 0;
 
@@ -1529,7 +1732,6 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
 
                     target.attackEntityFrom(DamageSource.causeMobDamage(EntityVoidRipper.this), damage);
 
-                    // 適度擊退
                     target.motionX = (dx / dist) * 0.4;
                     target.motionY = 0.2;
                     target.motionZ = (dz / dist) * 0.4;
@@ -1546,7 +1748,6 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
                 }
             }
 
-            // 特效
             if (world instanceof WorldServer && runningComboTimer % 3 == 0) {
                 WorldServer ws = (WorldServer) world;
                 for (int i = 0; i < 3; i++) {
@@ -1558,7 +1759,6 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
                 }
             }
 
-            // 結束條件
             if (runningComboTimer >= RUNNING_COMBO_MAX_TIME || target.getDistance(EntityVoidRipper.this) > 10.0
                     || (hasHit && target.getDistance(EntityVoidRipper.this) < 2.0)) {
                 isRunningCombo = false;
@@ -1601,7 +1801,6 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
             animationTick = 60;
             attackTimer = 0;
 
-            // 立即面向目標
             EntityVoidRipper.this.faceEntity(target, 30.0F, 30.0F);
         }
 
@@ -1609,16 +1808,13 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
         public void updateTask() {
             if (target == null || !target.isEntityAlive()) return;
 
-            // 持續面向目標，確保正面攻擊
             EntityVoidRipper.this.getLookHelper().setLookPositionWithEntity(target, 30.0F, 30.0F);
 
-            // 計算面向角度差
             double dx = target.posX - EntityVoidRipper.this.posX;
             double dz = target.posZ - EntityVoidRipper.this.posZ;
             float targetYaw = (float)(Math.atan2(dz, dx) * 180.0D / Math.PI) - 90.0F;
             float yawDiff = Math.abs(MathHelper.wrapDegrees(EntityVoidRipper.this.rotationYaw - targetYaw));
 
-            // 如果角度差太大，先轉身
             if (yawDiff > 45.0F) {
                 EntityVoidRipper.this.rotationYaw = targetYaw;
                 EntityVoidRipper.this.rotationYawHead = targetYaw;
@@ -1628,15 +1824,13 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
 
             attackTimer++;
 
-            // 每10tick攻擊一次，共5次連擊
             if (attackTimer % 10 == 0 && comboStage < 5) {
                 if (EntityVoidRipper.this.getDistanceSq(target) < 9.0D) {
                     float damage = (float)getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).getAttributeValue();
-                    damage *= (1.0F + comboStage * 0.15F); // 遞增傷害
+                    damage *= (1.0F + comboStage * 0.15F);
 
                     target.attackEntityFrom(DamageSource.causeMobDamage(EntityVoidRipper.this), damage);
 
-                    // 適度擊退
                     double knockback = 0.2D + comboStage * 0.1D;
                     target.motionX = (dx / Math.sqrt(dx * dx + dz * dz)) * knockback;
                     target.motionY = 0.1D + comboStage * 0.05D;
@@ -1669,7 +1863,6 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
         }
     }
 
-    // 优化的左手快速攻击AI
     class AILeftHandRapidAttack extends EntityAIBase {
         private EntityLivingBase target;
         private int attackTimer = 0;
@@ -1679,9 +1872,8 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
             if (leftHandCooldown > 0 || getAttackState() != STATE_IDLE) return false;
 
             target = EntityVoidRipper.this.getAttackTarget();
-            // 大幅提高触发频率
             return target != null && EntityVoidRipper.this.getDistanceSq(target) < 12.0D
-                    && rand.nextInt(5) == 0; // 从20改为5，大幅提高触发概率
+                    && rand.nextInt(5) == 0;
         }
 
         @Override
@@ -1699,11 +1891,9 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
         public void updateTask() {
             attackTimer++;
 
-            // 连续快速攻击
-            if (attackTimer % 4 == 0 && target != null) { // 每4tick攻击一次
+            if (attackTimer % 4 == 0 && target != null) {
                 EntityVoidRipper.this.getLookHelper().setLookPositionWithEntity(target, 30.0F, 30.0F);
 
-                // 尝试靠近目标
                 if (EntityVoidRipper.this.getDistanceSq(target) > 9.0D) {
                     EntityVoidRipper.this.getMoveHelper().setMoveTo(
                             target.posX, target.posY, target.posZ, 1.5D);
@@ -1989,12 +2179,9 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
 
     // GeckoLib动画控制
     @Override
-
     public void registerControllers(AnimationData data) {
-        // 注意：第三个参数是“transition length（过渡帧数）”，v3 用 AnimationEvent 谓词
         data.addAnimationController(new AnimationController<>(this, "controller", 0, this::predicate));
     }
-
 
     @SuppressWarnings("unchecked")
     private <E extends IAnimatable> PlayState predicate(AnimationEvent<E> event) {
@@ -2032,14 +2219,13 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
                     event.getController().setAnimation(
                             new AnimationBuilder().addAnimation(ANIM_LASER_CHARGING, false)
                     );
-                } else { // LASER_FIRING
+                } else {
                     event.getController().setAnimation(
                             new AnimationBuilder().addAnimation(ANIM_LASER_FIRE, false)
                     );
                 }
                 return PlayState.CONTINUE;
             }
-
 
             case STATE_BERSERK_COMBO: {
                 event.getController().setAnimation(
@@ -2070,7 +2256,6 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
             }
 
             default: {
-                // 非攻击状态：根据是否狂暴 & 是否移动选择待机/行走/奔跑
                 if (getIsBerserk()) {
                     if (event.isMoving()) {
                         event.getController().setAnimation(
@@ -2101,12 +2286,10 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
         }
     }
 
-
     @Override
     public AnimationFactory getFactory() {
         return this.factory;
     }
-
 
     @Override
     protected SoundEvent getAmbientSound() {
@@ -2149,7 +2332,6 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
         compound.setInteger("LaserCooldown", laserCooldown);
         compound.setInteger("AttackHand", getAttackHand());
         compound.setInteger("DualSlamCooldown", dualSlamCooldown);
-        compound.setInteger("InvulnerabilityTimer", invulnerabilityTimer);
         compound.setInteger("AttackCooldown", attackCooldown);
         compound.setInteger("SpecialAttackCooldown", specialAttackCooldown);
         compound.setInteger("VoidBurstCharge", voidBurstCharge);
@@ -2166,6 +2348,12 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
         compound.setInteger("LeftHandCombo", leftHandCombo);
         compound.setInteger("StuckTimer", stuckTimer);
         compound.setInteger("NoTargetTimer", noTargetTimer);
+
+        // Gate 系统
+        compound.setInteger("GateInvul", invulTicks);
+        compound.setBoolean("GatePendingChunk", pendingChunk);
+        compound.setFloat("GateFrozenHealth", frozenHealth);
+        compound.setFloat("GateFrozenAbsorb", frozenAbsorb);
     }
 
     @Override
@@ -2183,7 +2371,6 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
         laserCooldown = compound.getInteger("LaserCooldown");
         setAttackHand(compound.getInteger("AttackHand"));
         dualSlamCooldown = compound.getInteger("DualSlamCooldown");
-        invulnerabilityTimer = compound.getInteger("InvulnerabilityTimer");
         attackCooldown = compound.getInteger("AttackCooldown");
         specialAttackCooldown = compound.getInteger("SpecialAttackCooldown");
         voidBurstCharge = compound.getInteger("VoidBurstCharge");
@@ -2200,6 +2387,12 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
         leftHandCombo = compound.getInteger("LeftHandCombo");
         stuckTimer = compound.getInteger("StuckTimer");
         noTargetTimer = compound.getInteger("NoTargetTimer");
+
+        // Gate 系统
+        this.invulTicks = compound.getInteger("GateInvul");
+        this.pendingChunk = compound.getBoolean("GatePendingChunk");
+        this.frozenHealth = compound.getFloat("GateFrozenHealth");
+        this.frozenAbsorb = compound.getFloat("GateFrozenAbsorb");
 
         if (isBerserk) {
             setIsBerserk(true);
@@ -2309,7 +2502,6 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
     @Override
     protected void dropLoot(boolean wasRecentlyHit, int lootingModifier, DamageSource source) {
         super.dropLoot(wasRecentlyHit, lootingModifier, source);
-        // 可以在这里添加自定义掉落物
     }
 
     public float getCoreRotation() {
@@ -2317,10 +2509,55 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
     }
 
     public int getInvulnerabilityTimer() {
-        return invulnerabilityTimer;
+        return invulTicks;
     }
 
     public boolean isInvulnerable() {
-        return invulnerabilityTimer > 0;
+        return invulTicks > 0;
+    }
+
+    // ========== 事件处理器 ==========
+
+    @Mod.EventBusSubscriber(modid = MODID)
+    public static class EventHooks {
+        @SubscribeEvent(priority = EventPriority.HIGHEST)
+        public static void onAttackPre(LivingAttackEvent e) {
+            if (!(e.getEntityLiving() instanceof EntityVoidRipper)) return;
+            EntityVoidRipper ripper = (EntityVoidRipper) e.getEntityLiving();
+
+            if (ripper.isTrustedDamageSource(e.getSource())) {
+                return;
+            }
+
+            if (ripper.isGateInvulnerable()) {
+                e.setCanceled(true);
+            }
+        }
+
+        @SubscribeEvent(priority = EventPriority.HIGHEST)
+        public static void onHeal(LivingHealEvent e) {
+            if (!(e.getEntityLiving() instanceof EntityVoidRipper)) return;
+            EntityVoidRipper ripper = (EntityVoidRipper) e.getEntityLiving();
+
+            if (ripper.isGateInvulnerable()) {
+                e.setCanceled(true);
+                e.setAmount(0F);
+            }
+        }
+
+        @SubscribeEvent(priority = EventPriority.LOWEST, receiveCanceled = true)
+        public static void onFinalDamage(LivingDamageEvent e) {
+            if (!(e.getEntityLiving() instanceof EntityVoidRipper)) return;
+            EntityVoidRipper ripper = (EntityVoidRipper) e.getEntityLiving();
+
+            if (ripper.isTrustedDamageSource(e.getSource())) {
+                return;
+            }
+
+            if (ripper.isGateInvulnerable()) {
+                e.setCanceled(true);
+                e.setAmount(0F);
+            }
+        }
     }
 }

@@ -4,11 +4,15 @@ import com.moremod.client.model.ModelWeepingAngel;
 import com.moremod.entity.EntityWeepingAngel;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.entity.RenderManager;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 import software.bernie.geckolib3.renderers.geo.GeoEntityRenderer;
 
 /**
  * GeckoLib渲染器
  */
+@SideOnly(Side.CLIENT)
+
 public class RenderWeepingAngel extends GeoEntityRenderer<EntityWeepingAngel> {
 
     public RenderWeepingAngel(RenderManager renderManager) {

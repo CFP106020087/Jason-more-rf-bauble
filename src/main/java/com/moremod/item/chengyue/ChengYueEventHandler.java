@@ -1,0 +1,257 @@
+package com.moremod.item.chengyue;
+
+import com.moremod.capability.ChengYueCapability;
+import com.moremod.item.ItemSwordChengYue;
+import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.DamageSource;
+import net.minecraftforge.event.entity.living.LivingDamageEvent;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.minecraftforge.fml.common.eventhandler.EventPriority;
+import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.gameevent.TickEvent;
+
+/**
+ * 澄月 - 完整事件处理
+ */
+public class ChengYueEventHandler {
+    
+    @SubscribeEvent(priority = EventPriority.NORMAL)
+    public void onLivingDeath(LivingDeathEvent event) {
+        EntityLivingBase killed = event.getEntityLiving();
+        DamageSource source = event.getSource();
+        
+        if (!(source.getTrueSource() instanceof EntityPlayer)) {
+            return;
+        }
+        
+        EntityPlayer killer = (EntityPlayer) source.getTrueSource();
+        ItemStack mainHand = killer.getHeldItemMainhand();
+        
+        if (mainHand.isEmpty() || !(mainHand.getItem() instanceof ItemSwordChengYue)) {
+            return;
+        }
+        
+        if (killer.world.isRemote) {
+            return;
+        }
+        
+        ChengYueNBT.init(mainHand);
+        long killCount = ChengYueNBT.getKillCount(mainHand);
+        ChengYueNBT.setKillCount(mainHand, killCount + 1);
+        
+        boolean isBoss = killed.getMaxHealth() >= 100.0f;
+        if (isBoss) {
+            int bossKills = ChengYueNBT.getBossKills(mainHand);
+            ChengYueNBT.setBossKills(mainHand, bossKills + 1);
+        }
+        
+        long expGain = isBoss ? 500 : 50;
+        ChengYueLevel.addExp(mainHand, killer, expGain);
+        
+        if (ChengYueLunarPower.isUnlocked(mainHand)) {
+            ChengYueCapability cap = killer.getCapability(ChengYueCapability.CAPABILITY, null);
+            if (cap != null) {
+                ChengYueLunarPower.onKill(cap, isBoss);
+            }
+        }
+    }
+    
+    @SubscribeEvent(priority = EventPriority.HIGH)
+    public void onPlayerHurt(LivingHurtEvent event) {
+        if (!(event.getEntityLiving() instanceof EntityPlayer)) {
+            return;
+        }
+        
+        EntityPlayer player = (EntityPlayer) event.getEntityLiving();
+        ItemStack mainHand = player.getHeldItemMainhand();
+        
+        if (mainHand.isEmpty() || !(mainHand.getItem() instanceof ItemSwordChengYue)) {
+            return;
+        }
+        
+        if (player.world.isRemote) {
+            return;
+        }
+        
+        float damage = event.getAmount();
+        DamageSource source = event.getSource();
+        
+        if (ChengYueSurvival.tryDodge(player, mainHand, source)) {
+            event.setCanceled(true);
+            return;
+        }
+        
+        damage = ChengYueSurvival.applyDamageReduction(damage, mainHand, player.world);
+        ChengYueSurvival.tryActivateAegis(player, mainHand, damage, source);
+        damage = ChengYueSurvival.applyAegisReduction(player, mainHand, damage, source);
+        
+        event.setAmount(damage);
+    }
+    
+    @SubscribeEvent(priority = EventPriority.NORMAL)
+    public void onEntityHurt(LivingHurtEvent event) {
+        DamageSource source = event.getSource();
+        
+        if (ChengYueSweep.ChengYueSweepDamage.isSweepDamage(source)) {
+            return;
+        }
+        
+        if (!(source.getTrueSource() instanceof EntityPlayer)) {
+            return;
+        }
+        
+        EntityPlayer attacker = (EntityPlayer) source.getTrueSource();
+        ItemStack mainHand = attacker.getHeldItemMainhand();
+        
+        if (mainHand.isEmpty() || !(mainHand.getItem() instanceof ItemSwordChengYue)) {
+            return;
+        }
+        
+        if (attacker.world.isRemote) {
+            return;
+        }
+        
+        EntityLivingBase target = event.getEntityLiving();
+        float damage = event.getAmount();
+        
+        ChengYueMoonAffliction.applyAffliction(target, attacker, mainHand);
+        
+        float afflictionMult = ChengYueMoonAffliction.getDamageMultiplier(target);
+        damage *= afflictionMult;
+        
+        ChengYueCapability cap = attacker.getCapability(ChengYueCapability.CAPABILITY, null);
+        if (cap != null) {
+            int combo = cap.getCombo();
+            if (combo > 0) {
+                float comboMult = ChengYueCombo.getComboMultiplier(combo);
+                damage *= comboMult;
+            }
+        }
+        
+        if (ChengYueFormManager.isUnlocked(mainHand) && cap != null) {
+            int formIndex = cap.getCurrentForm();
+            ChengYueMoonForm form = ChengYueMoonForm.values()[formIndex];
+            damage *= form.getDamageMultiplier();
+        }
+        
+        float moonMult = ChengYueMoonMemory.getDamageMultiplierWithMemory(mainHand, attacker.world);
+        damage *= moonMult;
+        
+        event.setAmount(damage);
+        
+        if (cap != null) {
+            cap.addCombo();
+            cap.setLastHitTime(attacker.world.getTotalWorldTime());
+            
+            if (ChengYueLunarPower.isUnlocked(mainHand)) {
+                ChengYueLunarPower.onHit(cap);
+            }
+        }
+    }
+    
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public void onEntityDamage(LivingDamageEvent event) {
+        DamageSource source = event.getSource();
+        
+        if (ChengYueSweep.ChengYueSweepDamage.isSweepDamage(source)) {
+            return;
+        }
+        
+        if (!(source.getTrueSource() instanceof EntityPlayer)) {
+            return;
+        }
+        
+        EntityPlayer attacker = (EntityPlayer) source.getTrueSource();
+        ItemStack mainHand = attacker.getHeldItemMainhand();
+        
+        if (mainHand.isEmpty() || !(mainHand.getItem() instanceof ItemSwordChengYue)) {
+            return;
+        }
+        
+        if (attacker.world.isRemote) {
+            return;
+        }
+        
+        EntityLivingBase target = event.getEntityLiving();
+        float finalDamage = event.getAmount();
+        
+        int level = ChengYueNBT.getLevel(mainHand);
+        ChengYueSweep.performSweepAttack(
+            attacker, 
+            target, 
+            finalDamage,
+            mainHand,
+            level
+        );
+        
+        ChengYueSurvival.applyLifeSteal(attacker, mainHand, finalDamage);
+    }
+    
+    @SubscribeEvent
+    public void onPlayerTick(TickEvent.PlayerTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) {
+            return;
+        }
+        
+        EntityPlayer player = event.player;
+        if (player.world.isRemote) {
+            return;
+        }
+        
+        ItemStack mainHand = player.getHeldItemMainhand();
+        
+        if (mainHand.isEmpty() || !(mainHand.getItem() instanceof ItemSwordChengYue)) {
+            return;
+        }
+        
+        ChengYueCapability cap = player.getCapability(ChengYueCapability.CAPABILITY, null);
+        if (cap == null) {
+            return;
+        }
+        
+        if (player.ticksExisted % 5 == 0) {
+            int combo = cap.getCombo();
+            if (combo > 0) {
+                long lastHit = cap.getLastHitTime();
+                long currentTime = player.world.getTotalWorldTime();
+                long timeout = 60;
+                
+                if (ChengYueMoonPhase.getCurrentPhase(player.world) == 5) {
+                    timeout += 40;
+                }
+                
+                if (currentTime - lastHit > timeout) {
+                    cap.resetCombo();
+                }
+            }
+        }
+        
+        if (player.ticksExisted % 20 == 0) {
+            if (ChengYueLunarPower.isUnlocked(mainHand)) {
+                ChengYueLunarPower.tickRegen(mainHand, cap, player);
+            }
+            
+            if (player.ticksExisted % 200 == 0) {
+                boolean updated = ChengYueMoonMemory.checkAndUpdateMemory(mainHand, player.world);
+                
+                if (updated) {
+                    ChengYueMoonMemory.notifyMemoryUpdate(player, mainHand, player.world);
+                    
+                    if (ChengYueFormManager.isUnlocked(mainHand)) {
+                        ChengYueFormManager.updateAutoForm(mainHand, player, player.world);
+                    }
+                }
+            }
+        }
+        
+        if (player.ticksExisted % 5 == 0) {
+            long currentTime = player.world.getTotalWorldTime();
+            if (ChengYueSurvival.isAegisActive(mainHand, currentTime)) {
+                ChengYueSurvival.spawnAegisParticles(player);
+            }
+        }
+    }
+}

@@ -22,13 +22,21 @@ public final class BaublesSyncUtil {
             for (int i = 0; i < h.getSlots(); i++) {
                 setChanged.invoke(h, i, true);
             }
+            System.out.println("[BaublesSyncUtil] 使用 setChanged 方法同步");
             return;
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) {
+            System.out.println("[BaublesSyncUtil] setChanged 方法不可用，使用兜底方案");
+        }
 
-        // 兜底：把同一个栈再 set 回去，触发变更监听 -> 同步
+        // ✅ 修复：使用 copy() 创建新引用，强制触发变更检测
         for (int i = 0; i < h.getSlots(); i++) {
             ItemStack cur = h.getStackInSlot(i);
-            h.setStackInSlot(i, cur);
+            if (!cur.isEmpty()) {
+                // 关键修复：先清空，再设置副本
+                h.setStackInSlot(i, ItemStack.EMPTY);
+                h.setStackInSlot(i, cur.copy());  // ← 使用 copy()
+                System.out.println("[BaublesSyncUtil] 同步槽位 " + i + ": " + cur.getDisplayName());
+            }
         }
     }
 
@@ -40,10 +48,18 @@ public final class BaublesSyncUtil {
         try {
             Method setChanged = h.getClass().getMethod("setChanged", int.class, boolean.class);
             setChanged.invoke(h, slot, true);
+            System.out.println("[BaublesSyncUtil] 使用 setChanged 同步槽位 " + slot);
             return;
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) {
+            System.out.println("[BaublesSyncUtil] setChanged 方法不可用，使用兜底方案");
+        }
 
+        // ✅ 修复：同样使用 copy()
         ItemStack cur = h.getStackInSlot(slot);
-        h.setStackInSlot(slot, cur);
+        if (!cur.isEmpty()) {
+            h.setStackInSlot(slot, ItemStack.EMPTY);
+            h.setStackInSlot(slot, cur.copy());
+            System.out.println("[BaublesSyncUtil] 同步槽位 " + slot + ": " + cur.getDisplayName());
+        }
     }
 }

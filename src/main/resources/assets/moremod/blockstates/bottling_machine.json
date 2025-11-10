@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "active=false": { "model": "moremod:bottling_machine" },
+    "active=true":  { "model": "moremod:bottling_machine_lit" }
+  }
+}

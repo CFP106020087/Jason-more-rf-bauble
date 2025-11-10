@@ -2,7 +2,9 @@
 package com.moremod.item;
 
 import baubles.api.BaubleType;
+import baubles.api.BaublesApi;
 import baubles.api.IBauble;
+import baubles.api.cap.IBaublesItemHandler;
 import com.moremod.creativetab.moremodCreativeTab;
 import com.moremod.upgrades.EnergyEfficiencyManager;  // 添加导入
 import net.minecraft.client.Minecraft;
@@ -178,9 +180,48 @@ public class ItemJetpackBauble extends Item implements IBauble {
 
     @Override
     public boolean canEquip(ItemStack itemstack, EntityLivingBase player) {
+        // 检查是否是玩家
+        if (!(player instanceof EntityPlayer)) {
+            return false;
+        }
+
+        EntityPlayer entityPlayer = (EntityPlayer) player;
+
+        // ✨ 修改：所有等级的喷气背包都需要机械核心
+        try {
+            IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(entityPlayer);
+            if (baubles != null) {
+                boolean hasMechanicalCore = false;
+
+                // 遍历所有饰品栏位
+                for (int i = 0; i < baubles.getSlots(); i++) {
+                    ItemStack bauble = baubles.getStackInSlot(i);
+                    if (!bauble.isEmpty() && bauble.getItem() instanceof ItemMechanicalCore) {
+                        hasMechanicalCore = true;
+                        break;
+                    }
+                }
+
+                if (!hasMechanicalCore) {
+                    // 如果没有装备机械核心，发送提示消息
+                    if (!entityPlayer.world.isRemote) {
+                        String tierName = tier == 1 ? "基础" : tier == 2 ? "高级" : "终极";
+                        entityPlayer.sendStatusMessage(
+                                new TextComponentString(
+                                        TextFormatting.RED + "✗ " + tierName + "喷气背包需要先装备机械核心！"
+                                ), true);
+                    }
+                    return false;
+                }
+            }
+        } catch (Exception e) {
+            // 如果出现异常，默认不允许装备
+            return false;
+        }
+
+        // 已装备机械核心，允许装备
         return true;
     }
-
     @Override
     public boolean canUnequip(ItemStack itemstack, EntityLivingBase player) {
         return true;

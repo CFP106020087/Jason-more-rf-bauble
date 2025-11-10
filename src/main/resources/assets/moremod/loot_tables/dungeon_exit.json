@@ -31,33 +31,19 @@
       "name": "exit_rewards",
       "rolls": {
         "min": 6,
-        "max": 8
+        "max": 9
       },
       "entries": [
         {
           "type": "item",
           "name": "moremod:unformed_fiber",
-          "weight": 120,
+          "weight": 150,
           "functions": [
             {
               "function": "set_count",
               "count": {
-                "min": 8,
-                "max": 15
-              }
-            }
-          ]
-        },
-        {
-          "type": "item",
-          "name": "moremod:spectre_dust",
-          "weight": 100,
-          "functions": [
-            {
-              "function": "set_count",
-              "count": {
-                "min": 5,
-                "max": 10
+                "min": 10,
+                "max": 18
               }
             }
           ]
@@ -65,13 +51,13 @@
         {
           "type": "item",
           "name": "moremod:void_echo",
-          "weight": 70,
+          "weight": 90,
           "functions": [
             {
               "function": "set_count",
               "count": {
-                "min": 3,
-                "max": 5
+                "min": 4,
+                "max": 7
               }
             },
             {
@@ -83,21 +69,7 @@
         {
           "type": "item",
           "name": "moremod:parasitic_mass",
-          "weight": 35,
-          "functions": [
-            {
-              "function": "set_count",
-              "count": {
-                "min": 1,
-                "max": 3
-              }
-            }
-          ]
-        },
-        {
-          "type": "item",
-          "name": "minecraft:diamond",
-          "weight": 50,
+          "weight": 45,
           "functions": [
             {
               "function": "set_count",
@@ -110,14 +82,28 @@
         },
         {
           "type": "item",
-          "name": "minecraft:emerald",
+          "name": "minecraft:diamond",
           "weight": 60,
           "functions": [
             {
               "function": "set_count",
               "count": {
-                "min": 3,
-                "max": 7
+                "min": 2,
+                "max": 5
+              }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "minecraft:emerald",
+          "weight": 70,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": {
+                "min": 4,
+                "max": 9
               }
             }
           ]
@@ -125,13 +111,27 @@
         {
           "type": "item",
           "name": "minecraft:experience_bottle",
-          "weight": 80,
+          "weight": 100,
           "functions": [
             {
               "function": "set_count",
               "count": {
-                "min": 5,
-                "max": 12
+                "min": 7,
+                "max": 15
+              }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "minecraft:golden_apple",
+          "weight": 30,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": {
+                "min": 1,
+                "max": 2
               }
             }
           ]

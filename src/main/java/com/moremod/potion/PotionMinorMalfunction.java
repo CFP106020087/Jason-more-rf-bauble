@@ -129,7 +129,6 @@ public class PotionMinorMalfunction extends Potion {
             sendMinorMalfunctionMessage(player, amplifier);
         }
     }
-
     /**
      * 發送輕微故障訊息
      */
@@ -359,11 +358,11 @@ public class PotionMinorMalfunction extends Potion {
 
         if (scale < 1.0f) {
             // 縮小的圖標（閃爍效果）
-            int offset = (int)((1.0f - scale) * 9);
+            int offset = (int) ((1.0f - scale) * 9);
             Gui.drawModalRectWithCustomSizedTexture(
                     x + 3 + offset, y + 3 + offset,
                     iconU, iconV,
-                    (int)(18 * scale), (int)(18 * scale),
+                    (int) (18 * scale), (int) (18 * scale),
                     256, 256
             );
         } else {

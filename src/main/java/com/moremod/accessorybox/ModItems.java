@@ -13,14 +13,18 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 @Mod.EventBusSubscriber(modid = "moremod")
 public class ModItems {
 
-    // 物品实例
-    public static final Item ACCESSORY_BOX = new ItemAccessoryBox();
+    // 三个等级的物品实例，使用同一个类但不同的tier参数
+    public static final Item ACCESSORY_BOX_T1 = new ItemAccessoryBox(1);
+    public static final Item ACCESSORY_BOX_T2 = new ItemAccessoryBox(2);
+    public static final Item ACCESSORY_BOX_T3 = new ItemAccessoryBox(3);
 
     // 物品注册
     @SubscribeEvent
     public static void registerItems(RegistryEvent.Register<Item> event) {
         event.getRegistry().registerAll(
-                ACCESSORY_BOX
+                ACCESSORY_BOX_T1,
+                ACCESSORY_BOX_T2,
+                ACCESSORY_BOX_T3
         );
     }
 
@@ -28,7 +32,9 @@ public class ModItems {
     @SubscribeEvent
     @SideOnly(Side.CLIENT)
     public static void registerModels(ModelRegistryEvent event) {
-        registerModel(ACCESSORY_BOX, 0);
+        registerModel(ACCESSORY_BOX_T1, 0);
+        registerModel(ACCESSORY_BOX_T2, 0);
+        registerModel(ACCESSORY_BOX_T3, 0);
     }
 
     @SideOnly(Side.CLIENT)

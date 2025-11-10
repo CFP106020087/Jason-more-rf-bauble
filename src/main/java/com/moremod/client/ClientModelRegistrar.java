@@ -61,7 +61,7 @@ public final class ClientModelRegistrar {
         reg(RegisterItem.MECHANICAL_CORE);
 
         try {
-            for (com.moremod.item.upgrades.ItemUpgradeComponent up : com.moremod.item.UpgradeItems.getAllUpgrades()) {
+            for (ItemUpgradeComponent up : com.moremod.item.UpgradeItems.getAllUpgrades()) {
                 reg(up);
             }
         } catch (Exception ex) {

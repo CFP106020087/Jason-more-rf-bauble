@@ -71,7 +71,7 @@ public class ClientTickEvent {
                 if (stack.getItem() instanceof ItemCreativeJetpackBauble) {
                     jetpackType = TextFormatting.GOLD + "[Creative Jetpack] ";
                 } else {
-                    jetpackType = TextFormatting.YELLOW + "喷气背包";
+                    jetpackType = TextFormatting.YELLOW + "喷气背包 ";
                 }
 
                 String hud = jetpackType +

@@ -173,7 +173,7 @@ public class TemperatureControlEffect {
 
             if (needsRegulation && level <= 2 && player.world.rand.nextInt(5) == 0) {
                 String mode = SIMPLE_DIFFICULTY_LOADED ? "[API备用]" : "[生物群系]";
-                sendMessage(player, "🌡️ " + mode + " 温度调节: " + action, TextFormatting.AQUA);
+                sendMessage(player,   mode + " 温度调节: " + action, TextFormatting.AQUA);
             }
 
             return needsRegulation;

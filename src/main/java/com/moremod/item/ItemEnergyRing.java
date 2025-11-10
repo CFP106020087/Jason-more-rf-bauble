@@ -94,9 +94,47 @@ public class ItemEnergyRing extends Item implements IBauble, IEnergyContainerIte
 
     @Override
     public boolean canEquip(ItemStack itemstack, EntityLivingBase player) {
+        // 检查是否是玩家
+        if (!(player instanceof EntityPlayer)) {
+            return false;
+        }
+
+        EntityPlayer entityPlayer = (EntityPlayer) player;
+
+        // ✨ 新增：虚空征服者之环需要先装备机械核心
+        try {
+            IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(entityPlayer);
+            if (baubles != null) {
+                boolean hasMechanicalCore = false;
+
+                // 遍历所有饰品栏位
+                for (int i = 0; i < baubles.getSlots(); i++) {
+                    ItemStack bauble = baubles.getStackInSlot(i);
+                    if (!bauble.isEmpty() && bauble.getItem() instanceof ItemMechanicalCore) {
+                        hasMechanicalCore = true;
+                        break;
+                    }
+                }
+
+                if (!hasMechanicalCore) {
+                    // 如果没有装备机械核心，发送提示消息
+                    if (!entityPlayer.world.isRemote) {
+                        entityPlayer.sendStatusMessage(
+                                new TextComponentString(
+                                        TextFormatting.RED + "✗ 虚空征服者之环需要先装备机械核心！"
+                                ), true);
+                    }
+                    return false;
+                }
+            }
+        } catch (Exception e) {
+            // 如果出现异常，默认不允许装备
+            return false;
+        }
+
+        // 已装备机械核心，允许装备
         return true;
     }
-
     @Override
     public boolean canUnequip(ItemStack itemstack, EntityLivingBase player) {
         return true;

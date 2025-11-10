@@ -11,6 +11,8 @@ import net.minecraft.item.ItemStack;
 
 import java.util.List;
 
+import static com.moremod.integration.jei.MoreModJEIPlugin.RITUAL_INFUSION_UID;
+
 public class RitualInfusionCategory implements IRecipeCategory<RitualInfusionWrapper> {
 
     private final IDrawable background;
@@ -35,12 +37,12 @@ public class RitualInfusionCategory implements IRecipeCategory<RitualInfusionWra
     public RitualInfusionCategory(IGuiHelper guiHelper) {
         this.background = guiHelper.createBlankDrawable(GUI_WIDTH, GUI_HEIGHT);
         this.icon = guiHelper.createDrawableIngredient(new ItemStack(moremod.RITUAL_CORE_BLOCK));
-        this.title = I18n.format("jei.moremod.ritual_infusion");
+        this.title = I18n.format("能量注魔");
     }
 
     @Override
     public String getUid() {
-        return RitualInfusionJEIPlugin.RITUAL_INFUSION_UID;
+        return MoreModJEIPlugin.RITUAL_INFUSION_UID;
     }
 
     @Override
@@ -96,7 +98,7 @@ public class RitualInfusionCategory implements IRecipeCategory<RitualInfusionWra
     @Override
     public void drawExtras(Minecraft minecraft) {
         // 绘制标题
-        String ritualText = "Ritual Infusion";
+        String ritualText = "能量注魔";
         minecraft.fontRenderer.drawString(ritualText,
                 (GUI_WIDTH - minecraft.fontRenderer.getStringWidth(ritualText)) / 2, 5, 0x404040);
 

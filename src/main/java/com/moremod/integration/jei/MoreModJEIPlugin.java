@@ -139,8 +139,14 @@ public class MoreModJEIPlugin implements IModPlugin {
             registry.addIngredientInfo(
                     new ItemStack(ModBlocks.dimensionLoom),
                     ItemStack.class,
-                    "The Dimension Loom weaves items across dimensional boundaries.",
-                    "Place items in a 3x3 pattern to create powerful artifacts."
+                    "维度织机，可编织维度的碎片。\n" +
+                            "将物品按 3x3 排列以制作道具。"
+            );
+            registry.addIngredientInfo(
+                    new ItemStack(moremod.RITUAL_CORE_BLOCK),
+                    ItemStack.class,
+                    "注能核心\n" +
+                            "在周围放上注能台，提供注能台能量，以为核心道具注入其他物品。"
             );
         }
 

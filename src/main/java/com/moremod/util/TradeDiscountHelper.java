@@ -1,15 +1,13 @@
 package com.moremod.util;
 
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.village.MerchantRecipe;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * 管理交易折扣的辅助类
+ * 修改版本: 不再给交易产出物品添加 NBT,改用 Map 存储折扣信息
  */
 public class TradeDiscountHelper {
 
@@ -18,6 +16,9 @@ public class TradeDiscountHelper {
 
     // 存储玩家折扣信息
     private static final Map<String, PlayerDiscountInfo> playerDiscounts = new HashMap<>();
+
+    // ✅ 新增: 存储已应用折扣的配方信息
+    private static final Map<MerchantRecipe, DiscountInfo> discountedRecipes = new HashMap<>();
 
     /**
      * 存储配方的原始价格
@@ -45,6 +46,19 @@ public class TradeDiscountHelper {
         public PlayerDiscountInfo(double rate, int energy) {
             this.discountRate = rate;
             this.energy = energy;
+            this.timestamp = System.currentTimeMillis();
+        }
+    }
+
+    /**
+     * ✅ 新增: 存储折扣信息
+     */
+    private static class DiscountInfo {
+        public final double discountRate;
+        public final long timestamp;
+
+        public DiscountInfo(double rate) {
+            this.discountRate = rate;
             this.timestamp = System.currentTimeMillis();
         }
     }
@@ -80,8 +94,8 @@ public class TradeDiscountHelper {
                 recipe.getSecondItemToBuy().setCount(discountedPrice2);
             }
 
-            // 在NBT中标记已应用折扣
-            markAsDiscounted(recipe, discountRate);
+            // ✅ 改为在 Map 中标记,而不是修改产出物品的 NBT
+            discountedRecipes.put(recipe, new DiscountInfo(discountRate));
         }
     }
 
@@ -97,8 +111,8 @@ public class TradeDiscountHelper {
                 recipe.getSecondItemToBuy().setCount(original.secondItemPrice);
             }
 
-            // 清除NBT标记
-            clearDiscountMark(recipe);
+            // ✅ 从 Map 中移除折扣标记,而不是清除物品 NBT
+            discountedRecipes.remove(recipe);
         }
     }
 
@@ -106,7 +120,16 @@ public class TradeDiscountHelper {
      * 检查配方是否有折扣
      */
     public static boolean hasDiscount(MerchantRecipe recipe) {
-        return originalPrices.containsKey(recipe) && isMarkedAsDiscounted(recipe);
+        // ✅ 从 Map 中检查,而不是检查物品 NBT
+        return discountedRecipes.containsKey(recipe);
+    }
+
+    /**
+     * ✅ 新增: 获取配方的折扣率
+     */
+    public static double getDiscountRate(MerchantRecipe recipe) {
+        DiscountInfo info = discountedRecipes.get(recipe);
+        return info != null ? info.discountRate : 0.0;
     }
 
     /**
@@ -155,44 +178,23 @@ public class TradeDiscountHelper {
         // 清理过期的玩家折扣信息
         playerDiscounts.entrySet().removeIf(entry ->
                 currentTime - entry.getValue().timestamp > expirationTime);
+
+        // ✅ 清理过期的折扣标记
+        discountedRecipes.entrySet().removeIf(entry ->
+                currentTime - entry.getValue().timestamp > expirationTime);
     }
 
     /**
-     * 在NBT中标记配方已应用折扣
+     * ✅ 新增: 清除所有折扣数据（用于调试或重置）
      */
-    private static void markAsDiscounted(MerchantRecipe recipe, double discountRate) {
-        ItemStack item = recipe.getItemToSell();
-        if (!item.isEmpty()) {
-            NBTTagCompound nbt = item.getTagCompound();
-            if (nbt == null) {
-                nbt = new NBTTagCompound();
-                item.setTagCompound(nbt);
-            }
-            nbt.setBoolean("Persuader_Discounted", true);
-            nbt.setDouble("Persuader_DiscountRate", discountRate);
-        }
+    public static void clearAll() {
+        originalPrices.clear();
+        playerDiscounts.clear();
+        discountedRecipes.clear();
     }
 
-    /**
-     * 清除NBT中的折扣标记
-     */
-    private static void clearDiscountMark(MerchantRecipe recipe) {
-        ItemStack item = recipe.getItemToSell();
-        if (!item.isEmpty() && item.hasTagCompound()) {
-            NBTTagCompound nbt = item.getTagCompound();
-            nbt.removeTag("Persuader_Discounted");
-            nbt.removeTag("Persuader_DiscountRate");
-        }
-    }
-
-    /**
-     * 检查配方是否被标记为已折扣
-     */
-    private static boolean isMarkedAsDiscounted(MerchantRecipe recipe) {
-        ItemStack item = recipe.getItemToSell();
-        if (!item.isEmpty() && item.hasTagCompound()) {
-            return item.getTagCompound().getBoolean("Persuader_Discounted");
-        }
-        return false;
-    }
+    // ❌ 已删除的方法（不再需要）:
+    // - markAsDiscounted() - 不再给物品添加 NBT
+    // - clearDiscountMark() - 不再清除物品 NBT
+    // - isMarkedAsDiscounted() - 不再检查物品 NBT
 }

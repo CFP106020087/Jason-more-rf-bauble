@@ -374,9 +374,9 @@ public class CombatUpgradeManager {
 
             if (!targetUUID.equals(markedTarget)) return 0;
 
-            // 检查追击是否过期（10秒）
+            // 检查追击是否过期（1秒）
             long lastPursuit = player.getEntityData().getLong(NBT_LAST_PURSUIT);
-            if (player.world.getTotalWorldTime() - lastPursuit > 200) {
+            if (player.world.getTotalWorldTime() - lastPursuit > 20) {  // 改为20 ticks (1秒)
                 // 追击过期，清除标记
                 player.getEntityData().removeTag(NBT_PURSUIT_TARGET);
                 player.getEntityData().setInteger(NBT_PURSUIT_STACKS, 0);
@@ -474,9 +474,9 @@ public class CombatUpgradeManager {
             RangeExtensionSystem.showReachIndicator(player, rangeLevel);
         }
 
-        // 清理过期的追击标记
+        // 清理过期的追击标记（1秒）
         long lastPursuit = player.getEntityData().getLong(PursuitSystem.NBT_LAST_PURSUIT);
-        if (player.world.getTotalWorldTime() - lastPursuit > 200) {
+        if (player.world.getTotalWorldTime() - lastPursuit > 20) {  // 改为20 ticks (1秒)
             player.getEntityData().removeTag(PursuitSystem.NBT_PURSUIT_TARGET);
             player.getEntityData().setInteger(PursuitSystem.NBT_PURSUIT_STACKS, 0);
         }

@@ -4,19 +4,19 @@
       "name": "starter_supplies",
       "rolls": {
         "min": 3,
-        "max": 4
+        "max": 5
       },
       "entries": [
         {
           "type": "item",
           "name": "moremod:unformed_fiber",
-          "weight": 200,
+          "weight": 250,
           "functions": [
             {
               "function": "set_count",
               "count": {
-                "min": 5,
-                "max": 10
+                "min": 6,
+                "max": 12
               }
             },
             {
@@ -27,8 +27,36 @@
         },
         {
           "type": "item",
-          "name": "moremod:spectre_dust",
-          "weight": 100,
+          "name": "minecraft:bread",
+          "weight": 180,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": {
+                "min": 4,
+                "max": 7
+              }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "minecraft:torch",
+          "weight": 150,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": {
+                "min": 12,
+                "max": 24
+              }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "minecraft:apple",
+          "weight": 120,
           "functions": [
             {
               "function": "set_count",
@@ -41,36 +69,8 @@
         },
         {
           "type": "item",
-          "name": "minecraft:bread",
-          "weight": 150,
-          "functions": [
-            {
-              "function": "set_count",
-              "count": {
-                "min": 3,
-                "max": 5
-              }
-            }
-          ]
-        },
-        {
-          "type": "item",
-          "name": "minecraft:torch",
-          "weight": 120,
-          "functions": [
-            {
-              "function": "set_count",
-              "count": {
-                "min": 8,
-                "max": 16
-              }
-            }
-          ]
-        },
-        {
-          "type": "item",
           "name": "minecraft:wooden_sword",
-          "weight": 50,
+          "weight": 60,
           "functions": [
             {
               "function": "set_count",
@@ -81,6 +81,17 @@
         {
           "type": "item",
           "name": "minecraft:leather_helmet",
+          "weight": 50,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "minecraft:leather_chestplate",
           "weight": 40,
           "functions": [
             {

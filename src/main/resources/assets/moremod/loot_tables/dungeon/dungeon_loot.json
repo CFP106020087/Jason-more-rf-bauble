@@ -3,8 +3,8 @@
     {
       "name": "main_loot",
       "rolls": {
-        "min": 3,
-        "max": 5
+        "min": 2,
+        "max": 3
       },
       "entries": [
         {
@@ -15,8 +15,8 @@
             {
               "function": "set_count",
               "count": {
-                "min": 3,
-                "max": 7
+                "min": 2,
+                "max": 4
               }
             }
           ]
@@ -24,59 +24,6 @@
         {
           "type": "item",
           "name": "moremod:spectral_dust",
-          "weight": 120,
-          "functions": [
-            {
-              "function": "set_count",
-              "count": {
-                "min": 2,
-                "max": 5
-              }
-            }
-          ]
-        },
-        {
-          "type": "item",
-          "name": "moremod:void_echo",
-          "weight": 60,
-          "functions": [
-            {
-              "function": "set_count",
-              "count": {
-                "min": 1,
-                "max": 3
-              }
-            }
-          ]
-        },
-        {
-          "type": "item",
-          "name": "moremod:parasitic_mass",
-          "weight": 25,
-          "functions": [
-            {
-              "function": "set_count",
-              "count": {
-                "min": 1,
-                "max": 2
-              }
-            }
-          ]
-        },
-        {
-          "type": "item",
-          "name": "moremod:corrupted_nucleus",
-          "weight": 8,
-          "functions": [
-            {
-              "function": "set_count",
-              "count": 1
-            }
-          ]
-        },
-        {
-          "type": "item",
-          "name": "minecraft:iron_ingot",
           "weight": 100,
           "functions": [
             {
@@ -90,8 +37,41 @@
         },
         {
           "type": "item",
-          "name": "minecraft:gold_ingot",
-          "weight": 60,
+          "name": "moremod:void_echo",
+          "weight": 40,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "moremod:parasitic_mass",
+          "weight": 15,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "moremod:corrupted_nucleus",
+          "weight": 5,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "minecraft:iron_ingot",
+          "weight": 80,
           "functions": [
             {
               "function": "set_count",
@@ -104,7 +84,29 @@
         },
         {
           "type": "item",
+          "name": "minecraft:gold_ingot",
+          "weight": 40,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "type": "item",
           "name": "minecraft:diamond",
+          "weight": 10,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "minecraft:emerald",
           "weight": 20,
           "functions": [
             {
@@ -118,28 +120,14 @@
         },
         {
           "type": "item",
-          "name": "minecraft:emerald",
-          "weight": 30,
+          "name": "minecraft:bread",
+          "weight": 60,
           "functions": [
             {
               "function": "set_count",
               "count": {
                 "min": 1,
-                "max": 3
-              }
-            }
-          ]
-        },
-        {
-          "type": "item",
-          "name": "minecraft:bread",
-          "weight": 80,
-          "functions": [
-            {
-              "function": "set_count",
-              "count": {
-                "min": 2,
-                "max": 4
+                "max": 2
               }
             }
           ]
@@ -147,13 +135,13 @@
         {
           "type": "item",
           "name": "minecraft:coal",
-          "weight": 90,
+          "weight": 70,
           "functions": [
             {
               "function": "set_count",
               "count": {
-                "min": 3,
-                "max": 8
+                "min": 2,
+                "max": 4
               }
             }
           ]
@@ -177,7 +165,7 @@
         },
         {
           "type": "empty",
-          "weight": 199
+          "weight": 499
         }
       ]
     }

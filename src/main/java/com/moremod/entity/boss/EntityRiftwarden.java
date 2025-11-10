@@ -414,7 +414,7 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
             if (phase >= 2) {
                 event.getController().setAnimation(new AnimationBuilder().addAnimation(ANIM_IDLE_BALL, true));
             } else {
-                event.getController().setAnimation(new AnimationBuilder().addAnimation(ANIM_IDLE, true));
+                event.getController().setAnimation(new AnimationBuilder().addAnimation(ANIM_IDLE_BALL, true));
             }
         }
 

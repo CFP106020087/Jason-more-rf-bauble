@@ -13,7 +13,7 @@ import net.minecraftforge.event.RegistryEvent;
 import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
-
+import com.moremod.item.UpgradeItems;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
@@ -25,13 +25,10 @@ import net.minecraftforge.oredict.OreDictionary;
 @Mod.EventBusSubscriber(modid = "moremod")
 public class RegisterItem {
 
-
-
-
     // —— 仅保留常量，避免在 <clinit> 期间做任何 new 操作 ——
     private static final boolean SIMPLE_DIFFICULTY_LOADED = Loader.isModLoaded("simpledifficulty");
     public static Item SAGEBOOK;
-        // —— 所有物品字段改为"延迟实例化"，初始化为 null ——
+    // —— 所有物品字段改为"延迟实例化"，初始化为 null ——
     public static Item LIGHTING_BOLT;
     public static Item TIME_BLOCK;
     public static Item IMMORTAL_AMULET;
@@ -89,32 +86,135 @@ public class RegisterItem {
     public static Item JETPACK_T3;
     public static Item CREATIVE_JETPACK;
 
-    // ===== 添加扩展升级组件的静态字段 =====
+    // ===== 基础升级组件（分级版本） =====
+    // 能量容量（10级）
+    public static Item ENERGY_CAPACITY_LV1;
+    public static Item ENERGY_CAPACITY_LV2;
+    public static Item ENERGY_CAPACITY_LV3;
+    public static Item ENERGY_CAPACITY_LV4;
+    public static Item ENERGY_CAPACITY_LV5;
+    public static Item ENERGY_CAPACITY_LV6;
+    public static Item ENERGY_CAPACITY_LV7;
+    public static Item ENERGY_CAPACITY_LV8;
+    public static Item ENERGY_CAPACITY_LV9;
+    public static Item ENERGY_CAPACITY_LV10;
+
+    // 能量效率（5级）
+    public static Item ENERGY_EFFICIENCY_LV1;
+    public static Item ENERGY_EFFICIENCY_LV2;
+    public static Item ENERGY_EFFICIENCY_LV3;
+    public static Item ENERGY_EFFICIENCY_LV4;
+    public static Item ENERGY_EFFICIENCY_LV5;
+
+    // 护甲强化（5级）
+    public static Item ARMOR_ENHANCEMENT_LV1;
+    public static Item ARMOR_ENHANCEMENT_LV2;
+    public static Item ARMOR_ENHANCEMENT_LV3;
+    public static Item ARMOR_ENHANCEMENT_LV4;
+    public static Item ARMOR_ENHANCEMENT_LV5;
+
+    // 速度提升（3级）
+    public static Item SPEED_BOOST_LV1;
+    public static Item SPEED_BOOST_LV2;
+    public static Item SPEED_BOOST_LV3;
+
+    // 飞行模块（3个独立等级）
+    public static Item FLIGHT_MODULE_BASIC;
+    public static Item FLIGHT_MODULE_ADVANCED;
+    public static Item FLIGHT_MODULE_ULTIMATE;
+
+    // 温度调节（5级）
+    public static Item TEMPERATURE_CONTROL_LV1;
+    public static Item TEMPERATURE_CONTROL_LV2;
+    public static Item TEMPERATURE_CONTROL_LV3;
+    public static Item TEMPERATURE_CONTROL_LV4;
+    public static Item TEMPERATURE_CONTROL_LV5;
+
+    // 特殊套装
+    public static Item OMNIPOTENT_PACKAGE;
+
+    // ===== 扩展升级组件（分级版本） =====
     // 生存类升级
-    public static Item YELLOW_SHIELD_MODULE;
-    public static Item NANO_REPAIR_SYSTEM;
-    public static Item METABOLIC_REGULATOR;
-    public static Item REACTIVE_ARMOR;
-    public static Item FIRE_SUPPRESSION;
+    public static Item YELLOW_SHIELD_LV1;
+    public static Item YELLOW_SHIELD_LV2;
+    public static Item YELLOW_SHIELD_LV3;
+
+    public static Item HEALTH_REGEN_LV1;
+    public static Item HEALTH_REGEN_LV2;
+    public static Item HEALTH_REGEN_LV3;
+
+    public static Item HUNGER_THIRST_LV1;
+    public static Item HUNGER_THIRST_LV2;
+    public static Item HUNGER_THIRST_LV3;
+
+    public static Item THORNS_LV1;
+    public static Item THORNS_LV2;
+    public static Item THORNS_LV3;
+
+    public static Item FIRE_EXTINGUISH_LV1;
+    public static Item FIRE_EXTINGUISH_LV2;
+    public static Item FIRE_EXTINGUISH_LV3;
+
+    public static Item HOLY_WATER;
 
     // 辅助类升级
-    public static Item WATERPROOF_MODULE;
-    public static Item ORE_SCANNER;
-    public static Item SERVO_MOTORS;
-    public static Item OPTICAL_CAMOUFLAGE;
-    public static Item EXP_COLLECTOR;
+    public static Item WATERPROOF_MODULE_BASIC;
+    public static Item WATERPROOF_MODULE_ADVANCED;
+    public static Item WATERPROOF_MODULE_DEEP_SEA;
+
+    public static Item ORE_VISION_LV1;
+    public static Item ORE_VISION_LV2;
+    public static Item ORE_VISION_LV3;
+
+    public static Item MOVEMENT_SPEED_LV1;
+    public static Item MOVEMENT_SPEED_LV2;
+    public static Item MOVEMENT_SPEED_LV3;
+
+    public static Item STEALTH_LV1;
+    public static Item STEALTH_LV2;
+    public static Item STEALTH_LV3;
+
+    public static Item EXP_AMPLIFIER_LV1;
+    public static Item EXP_AMPLIFIER_LV2;
+    public static Item EXP_AMPLIFIER_LV3;
+
     public static Item DIMENSIONALANCOR;
+
     // 战斗类升级
-    public static Item STRENGTH_AMPLIFIER;
-    public static Item REFLEX_ENHANCER;
-    public static Item SWEEP_MODULE;
-    public static Item PURSUIT_SYSTEM;
+    public static Item DAMAGE_BOOST_LV1;
+    public static Item DAMAGE_BOOST_LV2;
+    public static Item DAMAGE_BOOST_LV3;
+    public static Item DAMAGE_BOOST_LV4;
+    public static Item DAMAGE_BOOST_LV5;
+
+    public static Item ATTACK_SPEED_LV1;
+    public static Item ATTACK_SPEED_LV2;
+    public static Item ATTACK_SPEED_LV3;
+
+    public static Item RANGE_EXTENSION_LV1;
+    public static Item RANGE_EXTENSION_LV2;
+    public static Item RANGE_EXTENSION_LV3;
+
+    public static Item PURSUIT_LV1;
+    public static Item PURSUIT_LV2;
+    public static Item PURSUIT_LV3;
 
     // 能源类升级
-    public static Item KINETIC_DYNAMO;
-    public static Item SOLAR_PANEL;
-    public static Item VOID_RESONATOR;
-    public static Item COMBAT_HARVESTER;
+    public static Item KINETIC_GENERATOR_LV1;
+    public static Item KINETIC_GENERATOR_LV2;
+    public static Item KINETIC_GENERATOR_LV3;
+
+    public static Item SOLAR_GENERATOR_LV1;
+    public static Item SOLAR_GENERATOR_LV2;
+    public static Item SOLAR_GENERATOR_LV3;
+
+    public static Item VOID_ENERGY_LV1;
+    public static Item VOID_ENERGY_LV2;
+    public static Item VOID_ENERGY_LV3;
+
+    public static Item COMBAT_CHARGER_LV1;
+    public static Item COMBAT_CHARGER_LV2;
+    public static Item COMBAT_CHARGER_LV3;
 
     // 特殊套装
     public static Item SURVIVAL_PACKAGE;
@@ -142,9 +242,9 @@ public class RegisterItem {
     @SubscribeEvent
     public static void registerItems(RegistryEvent.Register<Item> event) {
         // —— 在这里（而不是类初始化）再去实例化所有物品 ——
+        HOLY_WATER        = newSafe(ItemHolyWater::new, "holy_water");
         SAGEBOOK          = newSafe(ItemSageBook::new, "sage_book");
         LIGHTING_BOLT          = newSafe(ItemArcGaze::new, "arc_gaze");
-        TIME_BLOCK             = newSafe(ItemBlockTemporal::new ,"time_block");
         IMMORTAL_AMULET        = newSafe(ImmortalAmulet::new, "immortal_amulet");
         RIFTGUN                = newSafe(ItemRiftLaser::new, "itemRiftLaser");
         SPACETIME_SHARD        = newSafe(ItemSpacetimeShard::new, "space_time_shard");
@@ -186,6 +286,7 @@ public class RegisterItem {
         ENCHANT_RING_T2 = newSafe(() -> new EnchantmentBoostBauble("enchant_ring_t2", 3), "enchant_ring_t2");
         ENCHANT_RING_T3 = newSafe(() -> new EnchantmentBoostBauble("enchant_ring_t3", 5), "enchant_ring_t3");
         ENCHANT_RING_ULTIMATE = newSafe(() -> new EnchantmentBoostBauble("enchant_ring_ultimate", 10), "enchant_ring_ultimate");
+
         // SimpleDifficulty（按需）
         initSimpleDifficultyItems();
 
@@ -197,32 +298,129 @@ public class RegisterItem {
         JETPACKS.clear();
         addIfNotNull(JETPACKS, JETPACK_T1, JETPACK_T2, JETPACK_T3, CREATIVE_JETPACK);
 
-        // ===== 初始化扩展升级组件 =====
-        // 生存类
-        YELLOW_SHIELD_MODULE = UpgradeItemsExtended.YELLOW_SHIELD_MODULE;
-        NANO_REPAIR_SYSTEM = UpgradeItemsExtended.NANO_REPAIR_SYSTEM;
-        METABOLIC_REGULATOR = UpgradeItemsExtended.METABOLIC_REGULATOR;
-        REACTIVE_ARMOR = UpgradeItemsExtended.REACTIVE_ARMOR;
-        FIRE_SUPPRESSION = UpgradeItemsExtended.FIRE_SUPPRESSION;
+        // ===== 初始化基础升级组件（分级版本） =====
+        // 能量容量（10级）
+        ENERGY_CAPACITY_LV1 = UpgradeItems.ENERGY_CAPACITY_LV1;
+        ENERGY_CAPACITY_LV2 = UpgradeItems.ENERGY_CAPACITY_LV2;
+        ENERGY_CAPACITY_LV3 = UpgradeItems.ENERGY_CAPACITY_LV3;
+        ENERGY_CAPACITY_LV4 = UpgradeItems.ENERGY_CAPACITY_LV4;
+        ENERGY_CAPACITY_LV5 = UpgradeItems.ENERGY_CAPACITY_LV5;
+        ENERGY_CAPACITY_LV6 = UpgradeItems.ENERGY_CAPACITY_LV6;
+        ENERGY_CAPACITY_LV7 = UpgradeItems.ENERGY_CAPACITY_LV7;
+        ENERGY_CAPACITY_LV8 = UpgradeItems.ENERGY_CAPACITY_LV8;
+        ENERGY_CAPACITY_LV9 = UpgradeItems.ENERGY_CAPACITY_LV9;
+        ENERGY_CAPACITY_LV10 = UpgradeItems.ENERGY_CAPACITY_LV10;
+
+        // 能量效率（5级）
+        ENERGY_EFFICIENCY_LV1 = UpgradeItems.ENERGY_EFFICIENCY_LV1;
+        ENERGY_EFFICIENCY_LV2 = UpgradeItems.ENERGY_EFFICIENCY_LV2;
+        ENERGY_EFFICIENCY_LV3 = UpgradeItems.ENERGY_EFFICIENCY_LV3;
+        ENERGY_EFFICIENCY_LV4 = UpgradeItems.ENERGY_EFFICIENCY_LV4;
+        ENERGY_EFFICIENCY_LV5 = UpgradeItems.ENERGY_EFFICIENCY_LV5;
+
+        // 护甲强化（5级）
+        ARMOR_ENHANCEMENT_LV1 = UpgradeItems.ARMOR_ENHANCEMENT_LV1;
+        ARMOR_ENHANCEMENT_LV2 = UpgradeItems.ARMOR_ENHANCEMENT_LV2;
+        ARMOR_ENHANCEMENT_LV3 = UpgradeItems.ARMOR_ENHANCEMENT_LV3;
+        ARMOR_ENHANCEMENT_LV4 = UpgradeItems.ARMOR_ENHANCEMENT_LV4;
+        ARMOR_ENHANCEMENT_LV5 = UpgradeItems.ARMOR_ENHANCEMENT_LV5;
+
+        // 速度提升（3级）
+
+
+        // 飞行模块（3个独立等级）
+        FLIGHT_MODULE_BASIC = UpgradeItems.FLIGHT_MODULE_BASIC;
+        FLIGHT_MODULE_ADVANCED = UpgradeItems.FLIGHT_MODULE_ADVANCED;
+        FLIGHT_MODULE_ULTIMATE = UpgradeItems.FLIGHT_MODULE_ULTIMATE;
+
+        // 温度调节（5级）
+        TEMPERATURE_CONTROL_LV1 = UpgradeItems.TEMPERATURE_CONTROL_LV1;
+        TEMPERATURE_CONTROL_LV2 = UpgradeItems.TEMPERATURE_CONTROL_LV2;
+        TEMPERATURE_CONTROL_LV3 = UpgradeItems.TEMPERATURE_CONTROL_LV3;
+        TEMPERATURE_CONTROL_LV4 = UpgradeItems.TEMPERATURE_CONTROL_LV4;
+        TEMPERATURE_CONTROL_LV5 = UpgradeItems.TEMPERATURE_CONTROL_LV5;
+
+        // 特殊套装
+        OMNIPOTENT_PACKAGE = UpgradeItems.OMNIPOTENT_PACKAGE;
+
+        // ===== 初始化扩展升级组件（分级版本） =====
+        // 生存类（3级）
+        YELLOW_SHIELD_LV1 = UpgradeItemsExtended.YELLOW_SHIELD_LV1;
+        YELLOW_SHIELD_LV2 = UpgradeItemsExtended.YELLOW_SHIELD_LV2;
+        YELLOW_SHIELD_LV3 = UpgradeItemsExtended.YELLOW_SHIELD_LV3;
+
+        HEALTH_REGEN_LV1 = UpgradeItemsExtended.HEALTH_REGEN_LV1;
+        HEALTH_REGEN_LV2 = UpgradeItemsExtended.HEALTH_REGEN_LV2;
+        HEALTH_REGEN_LV3 = UpgradeItemsExtended.HEALTH_REGEN_LV3;
+
+        HUNGER_THIRST_LV1 = UpgradeItemsExtended.HUNGER_THIRST_LV1;
+        HUNGER_THIRST_LV2 = UpgradeItemsExtended.HUNGER_THIRST_LV2;
+        HUNGER_THIRST_LV3 = UpgradeItemsExtended.HUNGER_THIRST_LV3;
+
+        THORNS_LV1 = UpgradeItemsExtended.THORNS_LV1;
+        THORNS_LV2 = UpgradeItemsExtended.THORNS_LV2;
+        THORNS_LV3 = UpgradeItemsExtended.THORNS_LV3;
+
+        FIRE_EXTINGUISH_LV1 = UpgradeItemsExtended.FIRE_EXTINGUISH_LV1;
+        FIRE_EXTINGUISH_LV2 = UpgradeItemsExtended.FIRE_EXTINGUISH_LV2;
+        FIRE_EXTINGUISH_LV3 = UpgradeItemsExtended.FIRE_EXTINGUISH_LV3;
 
         // 辅助类
-        WATERPROOF_MODULE = UpgradeItemsExtended.WATERPROOF_MODULE;
-        ORE_SCANNER = UpgradeItemsExtended.ORE_SCANNER;
-        SERVO_MOTORS = UpgradeItemsExtended.SERVO_MOTORS;
-        OPTICAL_CAMOUFLAGE = UpgradeItemsExtended.OPTICAL_CAMOUFLAGE;
-        EXP_COLLECTOR = UpgradeItemsExtended.EXP_COLLECTOR;
+        WATERPROOF_MODULE_BASIC = UpgradeItemsExtended.WATERPROOF_MODULE_BASIC;
+        WATERPROOF_MODULE_ADVANCED = UpgradeItemsExtended.WATERPROOF_MODULE_ADVANCED;
+        WATERPROOF_MODULE_DEEP_SEA = UpgradeItemsExtended.WATERPROOF_MODULE_DEEP_SEA;
+
+        ORE_VISION_LV1 = UpgradeItemsExtended.ORE_VISION_LV1;
+        ORE_VISION_LV2 = UpgradeItemsExtended.ORE_VISION_LV2;
+        ORE_VISION_LV3 = UpgradeItemsExtended.ORE_VISION_LV3;
+
+        MOVEMENT_SPEED_LV1 = UpgradeItemsExtended.MOVEMENT_SPEED_LV1;
+        MOVEMENT_SPEED_LV2 = UpgradeItemsExtended.MOVEMENT_SPEED_LV2;
+        MOVEMENT_SPEED_LV3 = UpgradeItemsExtended.MOVEMENT_SPEED_LV3;
+
+        STEALTH_LV1 = UpgradeItemsExtended.STEALTH_LV1;
+        STEALTH_LV2 = UpgradeItemsExtended.STEALTH_LV2;
+        STEALTH_LV3 = UpgradeItemsExtended.STEALTH_LV3;
+
+        EXP_AMPLIFIER_LV1 = UpgradeItemsExtended.EXP_AMPLIFIER_LV1;
+        EXP_AMPLIFIER_LV2 = UpgradeItemsExtended.EXP_AMPLIFIER_LV2;
+        EXP_AMPLIFIER_LV3 = UpgradeItemsExtended.EXP_AMPLIFIER_LV3;
 
         // 战斗类
-        STRENGTH_AMPLIFIER = UpgradeItemsExtended.STRENGTH_AMPLIFIER;
-        REFLEX_ENHANCER = UpgradeItemsExtended.REFLEX_ENHANCER;
-        SWEEP_MODULE = UpgradeItemsExtended.SWEEP_MODULE;
-        PURSUIT_SYSTEM = UpgradeItemsExtended.PURSUIT_SYSTEM;
+        DAMAGE_BOOST_LV1 = UpgradeItemsExtended.DAMAGE_BOOST_LV1;
+        DAMAGE_BOOST_LV2 = UpgradeItemsExtended.DAMAGE_BOOST_LV2;
+        DAMAGE_BOOST_LV3 = UpgradeItemsExtended.DAMAGE_BOOST_LV3;
+        DAMAGE_BOOST_LV4 = UpgradeItemsExtended.DAMAGE_BOOST_LV4;
+        DAMAGE_BOOST_LV5 = UpgradeItemsExtended.DAMAGE_BOOST_LV5;
+
+        ATTACK_SPEED_LV1 = UpgradeItemsExtended.ATTACK_SPEED_LV1;
+        ATTACK_SPEED_LV2 = UpgradeItemsExtended.ATTACK_SPEED_LV2;
+        ATTACK_SPEED_LV3 = UpgradeItemsExtended.ATTACK_SPEED_LV3;
+
+        RANGE_EXTENSION_LV1 = UpgradeItemsExtended.RANGE_EXTENSION_LV1;
+        RANGE_EXTENSION_LV2 = UpgradeItemsExtended.RANGE_EXTENSION_LV2;
+        RANGE_EXTENSION_LV3 = UpgradeItemsExtended.RANGE_EXTENSION_LV3;
+
+        PURSUIT_LV1 = UpgradeItemsExtended.PURSUIT_LV1;
+        PURSUIT_LV2 = UpgradeItemsExtended.PURSUIT_LV2;
+        PURSUIT_LV3 = UpgradeItemsExtended.PURSUIT_LV3;
 
         // 能源类
-        KINETIC_DYNAMO = UpgradeItemsExtended.KINETIC_DYNAMO;
-        SOLAR_PANEL = UpgradeItemsExtended.SOLAR_PANEL;
-        VOID_RESONATOR = UpgradeItemsExtended.VOID_RESONATOR;
-        COMBAT_HARVESTER = UpgradeItemsExtended.COMBAT_HARVESTER;
+        KINETIC_GENERATOR_LV1 = UpgradeItemsExtended.KINETIC_GENERATOR_LV1;
+        KINETIC_GENERATOR_LV2 = UpgradeItemsExtended.KINETIC_GENERATOR_LV2;
+        KINETIC_GENERATOR_LV3 = UpgradeItemsExtended.KINETIC_GENERATOR_LV3;
+
+        SOLAR_GENERATOR_LV1 = UpgradeItemsExtended.SOLAR_GENERATOR_LV1;
+        SOLAR_GENERATOR_LV2 = UpgradeItemsExtended.SOLAR_GENERATOR_LV2;
+        SOLAR_GENERATOR_LV3 = UpgradeItemsExtended.SOLAR_GENERATOR_LV3;
+
+        VOID_ENERGY_LV1 = UpgradeItemsExtended.VOID_ENERGY_LV1;
+        VOID_ENERGY_LV2 = UpgradeItemsExtended.VOID_ENERGY_LV2;
+        VOID_ENERGY_LV3 = UpgradeItemsExtended.VOID_ENERGY_LV3;
+
+        COMBAT_CHARGER_LV1 = UpgradeItemsExtended.COMBAT_CHARGER_LV1;
+        COMBAT_CHARGER_LV2 = UpgradeItemsExtended.COMBAT_CHARGER_LV2;
+        COMBAT_CHARGER_LV3 = UpgradeItemsExtended.COMBAT_CHARGER_LV3;
 
         // 特殊套装
         SURVIVAL_PACKAGE = UpgradeItemsExtended.SURVIVAL_PACKAGE;
@@ -237,7 +435,9 @@ public class RegisterItem {
                 BATTERY_BAUBLE, CREATIVE_BATTERY_BAUBLE, BATTERY_BASIC, BATTERY_ADVANCED, BATTERY_ELITE,
                 BATTERY_ULTIMATE, BATTERY_QUANTUM,RIFTGUN,
                 MECHANICAL_HEART, TEMPORAL_HEART, BLOODY_THIRST_MASK, MERCHANT_PERSUADER, VILLAGER_PROFESSION_TOOL,
-                ANTIKYTHERA_GEAR, TOGGLE_RENDER,DIMENSIONALRIPPER,DIMENSIONALANCOR,SPACETIME_SHARD,ANCHORKEY,ENCHANT_RING_T1,ENCHANT_RING_T2,ENCHANT_RING_T3,ENCHANT_RING_ULTIMATE,TIME_BLOCK,LIGHTING_BOLT,SAGEBOOK
+                ANTIKYTHERA_GEAR, TOGGLE_RENDER,DIMENSIONALRIPPER,DIMENSIONALANCOR,SPACETIME_SHARD,ANCHORKEY,
+                ENCHANT_RING_T1,ENCHANT_RING_T2,ENCHANT_RING_T3,ENCHANT_RING_ULTIMATE,TIME_BLOCK,LIGHTING_BOLT,
+                SAGEBOOK,HOLY_WATER
         );
         if (SIMPLE_DIFFICULTY_LOADED) {
             addIfNotNull(itemsToRegister, TEMPERATURE_REGULATOR, THIRST_PROCESSOR);
@@ -248,17 +448,27 @@ public class RegisterItem {
             event.getRegistry().register(MECHANICAL_CORE);
         }
 
-        // 升级组件
+        // ===== 注册基础升级组件（分级版本） =====
         try {
-            com.moremod.item.UpgradeItems.printUpgradeInfo();
-            event.getRegistry().registerAll(com.moremod.item.UpgradeItems.getAllUpgrades());
+            System.out.println("[moremod] 正在注册基础升级组件（分级版本）...");
+            ItemUpgradeComponent[] baseUpgrades = UpgradeItems.getAllUpgrades();
+            if (baseUpgrades != null && baseUpgrades.length > 0) {
+                event.getRegistry().registerAll(baseUpgrades);
+                System.out.println("[moremod] ✓ 成功注册 " + baseUpgrades.length + " 个基础升级组件");
+
+                // 打印详细信息（可选）
+                UpgradeItems.printUpgradeInfo();
+            } else {
+                System.err.println("[moremod] ⚠ 没有找到基础升级组件");
+            }
         } catch (Throwable e) {
-            System.err.println("[moremod] ❌ 升级组件注册失败: " + e.getMessage());
+            System.err.println("[moremod] ❌ 基础升级组件注册失败: " + e.getMessage());
+            e.printStackTrace();
         }
 
-        // ===== 注册扩展升级组件 =====
+        // ===== 注册扩展升级组件（分级版本） =====
         try {
-            System.out.println("[moremod] 正在注册扩展升级组件...");
+            System.out.println("[moremod] 正在注册扩展升级组件（分级版本）...");
             ItemUpgradeComponent[] extendedUpgrades = UpgradeItemsExtended.getAllExtendedUpgrades();
             if (extendedUpgrades != null && extendedUpgrades.length > 0) {
                 event.getRegistry().registerAll(extendedUpgrades);

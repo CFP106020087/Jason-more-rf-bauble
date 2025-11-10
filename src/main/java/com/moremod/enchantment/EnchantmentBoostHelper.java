@@ -14,24 +14,23 @@ import net.minecraftforge.fml.relauncher.Side;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-/** moremod 附魔增强辅助类 (1.12.2) —— 修复 & 兼容旧调用 */
+/** moremod 附魔增强辅助类 (1.12.2) —— 修复版 */
 public class EnchantmentBoostHelper {
 
     /* ---------------- 状态存储（UUID键） ---------------- */
 
-    // 临时 Buff 结束时间戳 ms
     private static final Map<UUID, Long> activeBoostsEndAt = new ConcurrentHashMap<>();
-    // 临时 Buff 强度
     private static final Map<UUID, Integer> activeBoostLevels = new ConcurrentHashMap<>();
-    // 按键是否激活
-    private static final Map<UUID, Boolean> keyActive = new ConcurrentHashMap<>();
-
-    // 上下文玩家（Transformer注入方法里可设定）
     private static final ThreadLocal<EntityPlayer> currentContextPlayer = new ThreadLocal<>();
+
+    // 反射缓存
+    private static Class<?> minecraftClass = null;
+    private static java.lang.reflect.Method getMinecraftMethod = null;
+    private static java.lang.reflect.Field playerField = null;
+    private static boolean reflectionInitialized = false;
 
     /* ---------------- 外部 API ---------------- */
 
-    /** 启用一个持续 timeSeconds 的临时增幅（可与按键饰品叠加） */
     public static void activateBoost(EntityPlayer player, int boostAmount, int durationSeconds) {
         if (player == null || boostAmount <= 0 || durationSeconds <= 0) return;
         final UUID id = player.getUniqueID();
@@ -42,13 +41,22 @@ public class EnchantmentBoostHelper {
                 + ": +" + boostAmount + " for " + durationSeconds + "s");
     }
 
-    /** 是否存在仍在持续的临时增幅 */
+    public static void deactivateBoost(EntityPlayer player) {
+        if (player == null) return;
+        final UUID id = player.getUniqueID();
+        boolean hadBoost = activeBoostsEndAt.containsKey(id);
+        activeBoostsEndAt.remove(id);
+        activeBoostLevels.remove(id);
+        if (hadBoost) {
+            System.out.println("[moremod] 临时 Buff 清除 - 玩家: " + safeName(player) + ", UUID: " + id);
+        }
+    }
+
     public static boolean hasActiveBoost(EntityPlayer player) {
         if (player == null) return false;
         Long end = activeBoostsEndAt.get(player.getUniqueID());
         if (end == null) return false;
         if (System.currentTimeMillis() > end) {
-            // 过期清理
             activeBoostsEndAt.remove(player.getUniqueID());
             activeBoostLevels.remove(player.getUniqueID());
             return false;
@@ -56,31 +64,14 @@ public class EnchantmentBoostHelper {
         return true;
     }
 
-    /** 临时增幅剩余时间（秒） */
     public static int getRemainingTime(EntityPlayer player) {
         if (!hasActiveBoost(player)) return 0;
         long remaining = activeBoostsEndAt.get(player.getUniqueID()) - System.currentTimeMillis();
         return (int) Math.max(0, remaining / 1000L);
     }
 
-    /** 供按键层设置：R键按下/松开 */
-    public static void setKeyActive(EntityPlayer player, boolean active) {
-        if (player == null) return;
-        keyActive.put(player.getUniqueID(), active);
-    }
-
-    /** 查询R键是否被判定为激活 */
-    public static boolean isKeyActive(EntityPlayer player) {
-        if (player == null) return false;
-        Boolean v = keyActive.get(player.getUniqueID());
-        return v != null && v.booleanValue();
-    }
-
-    /** 建议周期性清理（每 10~20 tick 调用一次） */
     public static void tickCleanup() {
         final long now = System.currentTimeMillis();
-
-        // 清理过期临时 Buff
         for (Iterator<Map.Entry<UUID, Long>> it = activeBoostsEndAt.entrySet().iterator(); it.hasNext();) {
             Map.Entry<UUID, Long> e = it.next();
             if (e.getValue() == null || e.getValue() <= now) {
@@ -90,45 +81,73 @@ public class EnchantmentBoostHelper {
             }
         }
 
-        // 可选：清理离线玩家的按键状态
         List<EntityPlayerMP> online = getOnlinePlayers();
         if (online != null) {
             Set<UUID> onlineIds = new HashSet<>();
             for (EntityPlayerMP p : online) onlineIds.add(p.getUniqueID());
-            keyActive.keySet().retainAll(onlineIds);
+            activeBoostsEndAt.keySet().retainAll(onlineIds);
+            activeBoostLevels.keySet().retainAll(onlineIds);
         }
     }
 
-    /* ---------------- 兼容旧调用点的方法（保留签名） ---------------- */
+    /* ---------------- ✅ 修复：佩戴检测方法 ---------------- */
 
-    /** 是否佩戴了可提供增幅的饰品（不考虑R键） */
+    /**
+     * ✅ 修复：检查是否佩戴了附魔增强饰品（不考虑激活状态）
+     * 直接检查物品类型，避免循环依赖
+     */
     public static boolean hasBoostBauble(EntityPlayer player) {
-        return getBaubleBoostAmount(player) > 0;
+        try {
+            if (player == null) return false;
+            IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(player);
+            if (baubles != null) {
+                for (int i = 0; i < baubles.getSlots(); i++) {
+                    ItemStack bauble = baubles.getStackInSlot(i);
+                    // ✅ 直接检查类型，不调用 getBoostAmount()
+                    if (!bauble.isEmpty() && bauble.getItem() instanceof com.moremod.item.EnchantmentBoostBauble) {
+                        return true;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[moremod] Error checking boost bauble: " + e.getMessage());
+        }
+        return false;
     }
 
     /**
-     * 返回“原始饰品数值”（不考虑R键开关），用于一次性60s Buff。
-     * 实战计算时是否加入，由 computeTotalBoost 决定（需R键激活）。
+     * ✅ 修复：获取原始饰品增幅值（不考虑激活状态）
+     * 用于获取饰品的配置值
      */
     public static int getBaubleBoostAmount(EntityPlayer player) {
-        return getRawBaubleBoostAmount(player);
+        try {
+            if (player == null) return 0;
+            IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(player);
+            if (baubles != null) {
+                for (int i = 0; i < baubles.getSlots(); i++) {
+                    ItemStack bauble = baubles.getStackInSlot(i);
+                    if (!bauble.isEmpty() && bauble.getItem() instanceof com.moremod.item.EnchantmentBoostBauble) {
+                        // ✅ 获取原始增幅值（不考虑激活状态）
+                        return ((com.moremod.item.EnchantmentBoostBauble) bauble.getItem()).getRawBoostAmount();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[moremod] Error getting bauble boost amount: " + e.getMessage());
+        }
+        return 0;
     }
 
     /* ---------------- ASM 注入调用的入口 ---------------- */
 
-    // Astral 风格：返回最终等级（原值 + 增幅）
     public static int getNewEnchantmentLevel(int originalLevel, Enchantment enchantment, ItemStack stack) {
         try {
             if (originalLevel <= 0) return originalLevel;
-
             EntityPlayer player = getCurrentPlayer();
             if (player == null) return originalLevel;
-
             if (!isInMainHand(player, stack)) return originalLevel;
-
             int extra = computeTotalBoost(player);
             if (extra <= 0) return originalLevel;
-
             return originalLevel + extra;
         } catch (Exception e) {
             System.err.println("[moremod] Error in getNewEnchantmentLevel: " + e.getMessage());
@@ -136,19 +155,14 @@ public class EnchantmentBoostHelper {
         }
     }
 
-    // Map 批量叠加
     public static Map<Enchantment, Integer> applyNewEnchantmentLevels(Map<Enchantment, Integer> enchantments, ItemStack stack) {
         try {
             if (enchantments == null || enchantments.isEmpty()) return enchantments;
-
             EntityPlayer player = getCurrentPlayer();
             if (player == null) return enchantments;
-
             if (!isInMainHand(player, stack)) return enchantments;
-
             int extra = computeTotalBoost(player);
             if (extra <= 0) return enchantments;
-
             Map<Enchantment, Integer> out = new HashMap<>(enchantments.size());
             for (Map.Entry<Enchantment, Integer> e : enchantments.entrySet()) {
                 int base = (e.getValue() == null ? 0 : e.getValue());
@@ -161,39 +175,30 @@ public class EnchantmentBoostHelper {
         }
     }
 
-    // NBT 显示层 - Tooltip
     public static NBTTagList modifyEnchantmentTagsForTooltip(NBTTagList enchantmentTags, ItemStack stack) {
         try {
             if (enchantmentTags == null || enchantmentTags.tagCount() == 0) return enchantmentTags;
-
             EntityPlayer player = getCurrentPlayer();
             if (player == null) return enchantmentTags;
-
             if (!isInMainHand(player, stack)) return enchantmentTags;
-
-            int extra = computeTotalBoost(player);
-            if (extra <= 0) return enchantmentTags;
-
-            return addLevelToAll(enchantmentTags, extra);
+            int boost = computeTotalBoost(player);
+            if (boost <= 0) return enchantmentTags;
+            int displayBoost = boost * 2;
+            return addLevelToAll(enchantmentTags, displayBoost);
         } catch (Exception e) {
             System.err.println("[moremod] Error in modifyEnchantmentTagsForTooltip: " + e.getMessage());
             return enchantmentTags;
         }
     }
 
-    // NBT 显示层 - 战斗计算
     public static NBTTagList modifyEnchantmentTagsForCombat(NBTTagList enchantmentTags, ItemStack stack) {
         try {
             if (enchantmentTags == null || enchantmentTags.tagCount() == 0) return enchantmentTags;
-
             EntityPlayer player = getCurrentPlayer();
             if (player == null) return enchantmentTags;
-
             if (!isInMainHand(player, stack)) return enchantmentTags;
-
             int extra = computeTotalBoost(player);
             if (extra <= 0) return enchantmentTags;
-
             return addLevelToAll(enchantmentTags, extra);
         } catch (Exception e) {
             System.err.println("[moremod] Error in modifyEnchantmentTagsForCombat: " + e.getMessage());
@@ -203,17 +208,12 @@ public class EnchantmentBoostHelper {
 
     /* ---------------- 内部逻辑 ---------------- */
 
-    /** 统一计算总增幅：临时Buff + （R键按住？饰品数值：0） */
     private static int computeTotalBoost(EntityPlayer player) {
         if (player == null) return 0;
-
-        int temp = getTempBoostLevel(player);                 // 需 activateBoost 才有
-        int bauble = isKeyActive(player) ? getRawBaubleBoostAmount(player) : 0;
+        int temp = getTempBoostLevel(player);
+        int bauble = getRawBaubleBoostAmount(player);
         int total = temp + bauble;
-
-        // 需要可以在这里做上限，例如不超过 10：
-        // if (total > 10) total = 10;
-
+        total = total / 2;
         return total;
     }
 
@@ -230,7 +230,10 @@ public class EnchantmentBoostHelper {
         return v == null ? 0 : v;
     }
 
-    /** 原始饰品数值（忽略R键，仅读取是否佩戴对应饰品） */
+    /**
+     * ✅ 保持不变：获取饰品的实际激活值（用于效果计算）
+     * 这个方法会调用 getBoostAmount()，考虑激活状态
+     */
     private static int getRawBaubleBoostAmount(EntityPlayer player) {
         try {
             if (player == null) return 0;
@@ -239,6 +242,7 @@ public class EnchantmentBoostHelper {
                 for (int i = 0; i < baubles.getSlots(); i++) {
                     ItemStack bauble = baubles.getStackInSlot(i);
                     if (!bauble.isEmpty() && bauble.getItem() instanceof IEnchantmentBooster) {
+                        // 这里会调用 getBoostAmount()，只有激活状态才返回非零
                         return ((IEnchantmentBooster) bauble.getItem()).getBoostAmount(bauble, player);
                     }
                 }
@@ -247,7 +251,6 @@ public class EnchantmentBoostHelper {
         return 0;
     }
 
-    /** 为全部附魔 tag +extra 级（拷贝写入，含溢出保护） */
     private static NBTTagList addLevelToAll(NBTTagList src, int extra) {
         if (extra <= 0 || src == null || src.tagCount() == 0) return src;
         NBTTagList out = new NBTTagList();
@@ -262,7 +265,6 @@ public class EnchantmentBoostHelper {
         return out;
     }
 
-    /** 仅主手判断（同实例或内容等价） */
     private static boolean isInMainHand(EntityPlayer player, ItemStack stack) {
         if (player == null || stack == null || stack.isEmpty()) return false;
         ItemStack main = player.getHeldItemMainhand();
@@ -272,23 +274,67 @@ public class EnchantmentBoostHelper {
 
     /* ---------------- 上下文玩家获取 ---------------- */
 
+    /**
+     * ✅ 改进：获取当前玩家（支持服务端多人）
+     */
     private static EntityPlayer getCurrentPlayer() {
+        // 1. 优先使用ThreadLocal（事件中设置）
         EntityPlayer p = currentContextPlayer.get();
         if (p != null) return p;
 
+        // 2. 客户端处理
         try {
             Side side = FMLCommonHandler.instance().getEffectiveSide();
             if (side == Side.CLIENT) {
-                p = net.minecraft.client.Minecraft.getMinecraft().player;
-                if (p != null) return p;
-            }
-        } catch (Throwable ignored) {}
+                if (!reflectionInitialized) {
+                    reflectionInitialized = true;
+                    try {
+                        minecraftClass = Class.forName("net.minecraft.client.Minecraft");
+                        try {
+                            getMinecraftMethod = minecraftClass.getMethod("getMinecraft");
+                        } catch (NoSuchMethodException e) {
+                            try {
+                                getMinecraftMethod = minecraftClass.getMethod("func_71410_x");
+                            } catch (NoSuchMethodException e2) {}
+                        }
+                        try {
+                            playerField = minecraftClass.getField("player");
+                        } catch (NoSuchFieldException e) {
+                            try {
+                                playerField = minecraftClass.getField("field_71439_g");
+                            } catch (NoSuchFieldException e2) {}
+                        }
+                    } catch (Exception e) {}
+                }
 
+                if (getMinecraftMethod != null && playerField != null) {
+                    try {
+                        Object minecraftInstance = getMinecraftMethod.invoke(null);
+                        if (minecraftInstance != null) {
+                            Object playerObj = playerField.get(minecraftInstance);
+                            if (playerObj instanceof EntityPlayer) {
+                                return (EntityPlayer) playerObj;
+                            }
+                        }
+                    } catch (Exception e) {}
+                }
+            }
+        } catch (Exception e) {}
+
+        // 3. 服务端备用逻辑（移除单人限制）
         try {
             if (FMLCommonHandler.instance().getMinecraftServerInstance() != null) {
                 List<EntityPlayerMP> players =
                         FMLCommonHandler.instance().getMinecraftServerInstance().getPlayerList().getPlayers();
-                if (players.size() == 1) return players.get(0);
+
+                // ✅ 多人环境下，返回null让上层调用者处理
+                // 因为无法确定是哪个玩家在查看物品
+                if (players.size() == 1) {
+                    return players.get(0);
+                }
+
+                // 在多人环境下，如果没有ThreadLocal，则无法确定玩家
+                // 这种情况应该通过事件系统设置ThreadLocal来解决
             }
         } catch (Throwable ignored) {}
 
@@ -311,7 +357,7 @@ public class EnchantmentBoostHelper {
         try { return p.getName(); } catch (Throwable t) { return "unknown"; }
     }
 
-    /* ---------------- 接口保持不变 ---------------- */
+    /* ---------------- 接口 ---------------- */
 
     public interface IEnchantmentBooster {
         int getBoostAmount(ItemStack stack, EntityPlayer player);

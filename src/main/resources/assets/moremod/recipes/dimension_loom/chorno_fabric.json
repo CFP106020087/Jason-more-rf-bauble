@@ -2,7 +2,7 @@
   "enabled": true,
   "output": {
     "item": "moremod:chrono_fabric",
-    "count": 4
+    "count": 1
   },
   "input": [
     "moremod:gaze_fragment","moremod:unformed_fabric","moremod:gaze_fragment"

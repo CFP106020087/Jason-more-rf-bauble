@@ -212,7 +212,7 @@ public class ItemDimensionalRipper extends Item implements IBauble {
                 TextFormatting.LIGHT_PURPLE + "   欢迎来到你的私人维度！"
         ));
         player.sendMessage(new TextComponentString(
-                TextFormatting.GRAY + "   空间大小: 256x256x256"
+                TextFormatting.GRAY + "   空间大小:  30x15x30 "
         ));
         player.sendMessage(new TextComponentString(
                 TextFormatting.GRAY + "   再次按键返回原位置"

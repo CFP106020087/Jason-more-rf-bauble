@@ -15,33 +15,40 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.SoundCategory;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
-import net.minecraftforge.common.config.Configuration;
-import net.minecraftforge.fml.common.Loader;
+import net.minecraftforge.event.entity.living.LivingDamageEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
 
-import java.io.File;
 import java.util.*;
 
 /**
- * 机械外骨骼事件处理器（按“激活模块数”工作）
- * - 伤害加成 = (激活等级合计 * 10%) + 同步加成
+ * 机械外骨骼事件处理器（按"激活模块数"工作）
+ * - 伤害加成 = (激活等级合计 * 配置倍率) + 同步加成
  * - 激活数低于阈值时，自动从 Baubles 弹出饰品
- * - 阈值与是否计入发电模块可在 config/moremod_exoskeleton.cfg 配置
+ * - 阈值与是否计入发电模块可在 config/moremod.cfg 配置
  */
 @Mod.EventBusSubscriber(modid = "moremod")
 public class MechanicalExoskeletonEventHandler {
 
-    // ===== 缓存每个玩家的“激活模块数/倍率” =====
+    // ===== 配置值（通过静态块加载）=====
+    private static float DAMAGE_BONUS_PER_ACTIVE_LEVEL;
+    private static float ENERGY_SYNC_BONUS;
+
+    static {
+        com.moremod.config.ItemConfig.ensureLoaded();
+        DAMAGE_BONUS_PER_ACTIVE_LEVEL = com.moremod.config.ItemConfig.MechanicalExoskeleton.damageBonus;
+        ENERGY_SYNC_BONUS = com.moremod.config.ItemConfig.MechanicalExoskeleton.energySyncBonus;
+    }
+
+    // ===== 缓存每个玩家的"激活模块数/倍率" =====
     private static final Map<UUID, Cached> CACHE = new HashMap<>();
 
     private static class Cached {
-        int activeLevels;      // 激活模块“等级”合计
+        int activeLevels;      // 激活模块"等级"合计
         float syncBonus;       // 能效同步加成（0.02/级）
-        float totalMultiplier; // 1 + active*0.1 + sync
+        float totalMultiplier = 1.0f; // ✅ 修复：默认值设为 1.0，避免初始化为0导致伤害归零
         long lastUpdate;
         boolean hasExo;
         boolean hasCore;
@@ -71,7 +78,7 @@ public class MechanicalExoskeletonEventHandler {
                 float sync = calcSync(core);
                 c.activeLevels = act;
                 c.syncBonus = sync;
-                c.totalMultiplier = 1.0f + act * 0.10f + sync;
+                c.totalMultiplier = 1.0f + act * DAMAGE_BONUS_PER_ACTIVE_LEVEL + sync;
 
                 // 写入饰品 NBT 供 tooltip
                 writeExoNbt(exo, act, sync);
@@ -98,9 +105,13 @@ public class MechanicalExoskeletonEventHandler {
 
     // ===== 伤害加成（最后执行） =====
     @SubscribeEvent(priority = EventPriority.LOWEST)
-    public static void onHurt(LivingHurtEvent e) {
+    public static void onHurt(LivingDamageEvent e) {
         if (!(e.getSource().getTrueSource() instanceof EntityPlayer)) return;
         EntityPlayer p = (EntityPlayer) e.getSource().getTrueSource();
+
+        // ✅ 修复：在伤害事件中立即更新缓存，确保数据实时性
+        updateCache(p);
+
         Cached c = CACHE.get(p.getUniqueID());
         if (c == null || !c.hasExo || !c.hasCore || c.activeLevels <= 0) return;
 
@@ -121,7 +132,7 @@ public class MechanicalExoskeletonEventHandler {
         }
     }
 
-    // ===== 统计“激活模块等级合计” =====
+    // ===== 统计"激活模块等级合计" =====
     private static int countActiveModules(EntityPlayer p, ItemStack core, boolean countGenerators) {
         int total = 0;
 
@@ -199,7 +210,7 @@ public class MechanicalExoskeletonEventHandler {
 
     private static float calcSync(ItemStack core) {
         int eff = ItemMechanicalCore.getUpgradeLevel(core, UpgradeType.ENERGY_EFFICIENCY);
-        return eff * 0.02f;
+        return eff * ENERGY_SYNC_BONUS;
     }
 
     // ===== 从 Baubles 找饰品、写入 NBT、弹出饰品 =====
@@ -247,32 +258,15 @@ public class MechanicalExoskeletonEventHandler {
         }
     }
 
-    // ===== 简易配置载入（开服/开局首次调用时读取/生成） =====
+    // ===== 配置辅助类（使用ItemConfig） =====
     private static final class Cfg {
-        static boolean loaded = false;
-        static int minActive = 6;             // 佩戴阈值（默认6）
-        static boolean countGenerators = false; // 发电是否计入
+        static int minActive;
+        static boolean countGenerators;
 
         static {
-            ensure();
-        }
-
-        static void ensure() {
-            if (loaded) return;
-            loaded = true;
-            try {
-                File cfgDir = Loader.instance().getConfigDir();
-                File f = new File(cfgDir, "moremod_exoskeleton.cfg");
-                Configuration cfg = new Configuration(f);
-                cfg.load();
-                minActive = Math.max(0, cfg.getInt(
-                        "minActiveModules", "general", 6,
-                        0, 999, "佩戴外骨骼需要的最低“激活模块等级总和”"));
-                countGenerators = cfg.getBoolean(
-                        "countGeneratorsInActive", "general", false,
-                        "是否把发电/充能类模块计入“激活模块数”");
-                if (cfg.hasChanged()) cfg.save();
-            } catch (Throwable ignored) {}
+            com.moremod.config.ItemConfig.ensureLoaded();
+            minActive = com.moremod.config.ItemConfig.MechanicalExoskeleton.minActiveModules;
+            countGenerators = com.moremod.config.ItemConfig.MechanicalExoskeleton.countGenerators;
         }
     }
 }

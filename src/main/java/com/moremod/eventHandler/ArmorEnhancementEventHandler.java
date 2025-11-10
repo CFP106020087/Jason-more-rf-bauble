@@ -298,7 +298,7 @@ public class ArmorEnhancementEventHandler {
                 });
 
         player.sendMessage(new TextComponentString(
-                TextFormatting.DARK_PURPLE + "✦ 护甲能量爆发！"
+                TextFormatting.DARK_PURPLE + "✦ LV3护甲模块效果触发，弹开周围实体！"
         ));
     }
 
@@ -349,7 +349,7 @@ public class ArmorEnhancementEventHandler {
         }
 
         player.sendMessage(new TextComponentString(
-                TextFormatting.GOLD + "✦✦ " + TextFormatting.RED + "致命保护已触发！" +
+                TextFormatting.GOLD + "✦✦ " + TextFormatting.RED + "LV4护甲能力触发，致命保护已触发！" +
                         TextFormatting.GRAY + " (冷却: 10分钟)"
         ));
 
@@ -384,7 +384,7 @@ public class ArmorEnhancementEventHandler {
 
         // 视觉效果
         player.sendMessage(new TextComponentString(
-                TextFormatting.LIGHT_PURPLE + "✦✦✦ 无敌护盾激活！3秒内免疫所有伤害！"
+                TextFormatting.LIGHT_PURPLE + "✦✦✦ LV5护甲模块效果触发！3秒内免疫所有伤害！"
         ));
 
         // 发光效果

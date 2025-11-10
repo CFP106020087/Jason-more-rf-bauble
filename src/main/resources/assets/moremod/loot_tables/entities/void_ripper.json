@@ -2,27 +2,138 @@
   "pools": [
     {
       "name": "void_ripper_drops",
-      "rolls": 1,
+      "rolls": {
+        "min": 3,
+        "max": 5
+      },
+      "bonus_rolls": {
+        "min": 2,
+        "max": 4
+      },
       "entries": [
         {
           "type": "item",
           "name": "moremod:rending_core",
-          "weight": 2
+          "weight": 2,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": {
+                "min": 2,
+                "max": 5
+              }
+            }
+          ]
         },
         {
           "type": "item",
           "name": "moremod:voidscale_shard",
-          "weight": 3
+          "weight": 3,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": {
+                "min": 4,
+                "max": 8
+              }
+            }
+          ]
         },
         {
           "type": "item",
           "name": "moremod:eye_of_the_abyss",
-          "weight": 1
+          "weight": 1,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": {
+                "min": 1,
+                "max": 3
+              }
+            }
+          ]
         },
         {
           "type": "item",
           "name": "moremod:void_ichor",
-          "weight": 1
+          "weight": 1,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": {
+                "min": 3,
+                "max": 6
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "void_ripper_guaranteed_drops",
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "item",
+          "name": "moremod:voidscale_shard",
+          "functions": [
+            {
+              "function": "set_count",
+              "count": {
+                "min": 3,
+                "max": 5
+              }
+            }
+          ]
+        }
+      ],
+      "conditions": [
+        {
+          "condition": "killed_by_player"
+        }
+      ]
+    },
+    {
+      "name": "void_ripper_rare_bonus",
+      "rolls": {
+        "min": 0,
+        "max": 1
+      },
+      "entries": [
+        {
+          "type": "item",
+          "name": "moremod:eye_of_the_abyss",
+          "weight": 1,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": {
+                "min": 1,
+                "max": 2
+              }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "moremod:void_ichor",
+          "weight": 1,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": {
+                "min": 2,
+                "max": 4
+              }
+            }
+          ]
+        }
+      ],
+      "conditions": [
+        {
+          "condition": "random_chance_with_looting",
+          "chance": 0.15,
+          "looting_multiplier": 0.05
         }
       ]
     }

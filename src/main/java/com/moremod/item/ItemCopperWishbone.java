@@ -34,10 +34,16 @@ import java.util.UUID;
 public class ItemCopperWishbone extends Item implements IBauble {
 
     // ===== 配置 =====
-    public static final int REQUIRED_ACTIVE_MODULES = 4;  // 需要4个激活模块才能佩戴
-    public static final int MIN_LEVEL_FOR_LUCK = 3;       // 等级≥3的模块才提供幸运
-    public static final int MAX_LUCK_POINTS = 100;        // 幸运上限
+    public static int REQUIRED_ACTIVE_MODULES;
+    public static int MIN_LEVEL_FOR_LUCK;
+    public static int MAX_LUCK_POINTS;
 
+    static {
+        com.moremod.config.ItemConfig.ensureLoaded();
+        REQUIRED_ACTIVE_MODULES = com.moremod.config.ItemConfig.CopperWishbone.requiredActiveModules;
+        MIN_LEVEL_FOR_LUCK = com.moremod.config.ItemConfig.CopperWishbone.minLevelForLuck;
+        MAX_LUCK_POINTS = com.moremod.config.ItemConfig.CopperWishbone.maxLuckPoints;
+    }
     // ===== NBT Keys =====
     private static final String NBT_CACHED_ACTIVE = "CachedActive";
     private static final String NBT_CACHED_QUALIFIED = "CachedQualified";  // 等级≥3的模块数
@@ -175,7 +181,7 @@ public class ItemCopperWishbone extends Item implements IBauble {
         if (GuiScreen.isShiftKeyDown()) {
             tip.add("");
             tip.add(TextFormatting.GOLD + "说明:");
-            tip.add(TextFormatting.GRAY + "• 需要装备机械核心并激活至少 " + REQUIRED_ACTIVE_MODULES + " 个模块");
+            tip.add(TextFormatting.GRAY + "• 需要装备机械核心并激活至少 " + REQUIRED_ACTIVE_MODULES + " 种模块");
             tip.add(TextFormatting.GRAY + "• 每个等级≥" + MIN_LEVEL_FOR_LUCK + " 的激活模块提供 +1 幸运");
             tip.add(TextFormatting.GRAY + "• 幸运上限: " + MAX_LUCK_POINTS);
             tip.add("");
@@ -249,7 +255,8 @@ public class ItemCopperWishbone extends Item implements IBauble {
                 }
             }
         }
-
+        info.activeModules = info.activeModules / 2;
+        info.qualifiedModules = info.qualifiedModules / 2;
         return info;
     }
 

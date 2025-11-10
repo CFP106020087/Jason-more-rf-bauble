@@ -1,3 +1,6 @@
+// ItemMechanicalCore.java - 完整版本（集成新电池系统）
+// Part 1: 导入和主要方法（第1-600行）
+
 package com.moremod.item;
 
 import java.util.List;
@@ -8,6 +11,7 @@ import java.util.WeakHashMap;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
 
 import baubles.api.BaubleType;
@@ -16,16 +20,26 @@ import baubles.api.BaublesApi;
 import baubles.api.cap.IBaublesItemHandler;
 
 import com.moremod.config.EnergyBalanceConfig;
+import com.moremod.config.EquipmentTimeConfig;
 import com.moremod.creativetab.moremodCreativeTab;
+import com.moremod.event.EquipmentTimeTracker;
 import com.moremod.upgrades.UpgradeEffectManager;
 import com.moremod.upgrades.auxiliary.AuxiliaryUpgradeManager;
 import com.moremod.upgrades.combat.CombatUpgradeManager;
 import com.moremod.upgrades.energy.EnergyDepletionManager;
 import com.moremod.upgrades.energy.EnergyUpgradeManager;
 
+// ✨ 新增：导入新电池系统
+import com.moremod.item.battery.ItemBatteryBase;
+import com.moremod.item.battery.ItemBatteryBasic;
+import com.moremod.item.battery.ItemBatteryAdvanced;
+import com.moremod.item.battery.ItemBatteryElite;
+import com.moremod.item.battery.ItemBatteryUltimate;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.SoundEvents;
 import net.minecraft.item.Item;
@@ -42,13 +56,14 @@ import net.minecraftforge.common.capabilities.ICapabilityProvider;
 import net.minecraftforge.energy.CapabilityEnergy;
 import net.minecraftforge.energy.IEnergyStorage;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.gameevent.PlayerEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 /**
- * 机械核心 - 完整整合版（含惩罚/冷却/代价解除）
+ * 机械核心 - 完整整合版（含惩罚/冷却/代价解除/Enigmatic冲突检测/新电池系统）
  */
 public class ItemMechanicalCore extends Item implements IBauble {
 
@@ -57,14 +72,18 @@ public class ItemMechanicalCore extends Item implements IBauble {
     private static final ThreadLocal<Boolean> isCalculatingEnergy = ThreadLocal.withInitial(() -> false);
     private static final ThreadLocal<Boolean> isCheckingUpgrade  = ThreadLocal.withInitial(() -> false);
 
+    // ===== Enigmatic 冲突配置 =====
+    private static final boolean BLOCK_ALL_ENIGMATIC = true;
+    private static final boolean VERBOSE_ENIGMATIC_DETECTION = false;
+
     // ===== 电池缓存 =====
     private static class BatteryCache {
         boolean hasBattery;
-        int batteryTier; // 0=无, 1=基础, 2=高级, 3=精英, 4=终极, 5=量子/创造
+        int batteryTier;
         long lastCheck;
-        boolean isValid(long currentTime) { return currentTime - lastCheck < 20; } // 每秒刷新
+        boolean isValid(long currentTime) { return currentTime - lastCheck < 20; }
     }
-    private static final Map<UUID, BatteryCache> batteryCache = new WeakHashMap<>();
+    private static final Map<UUID, BatteryCache> batteryCache = new ConcurrentHashMap<>();
 
     // ===== 扩展升级ID（统一管理） =====
     private static final String[] EXTENDED_UPGRADE_IDS = {
@@ -125,18 +144,241 @@ public class ItemMechanicalCore extends Item implements IBauble {
         setMaxStackSize(1);
     }
 
-    /** 在 Mod 主类或 CommonProxy 中调用 */
     public static void registerEnergyGenerationEvents() {
         MinecraftForge.EVENT_BUS.register(EnergyUpgradeManager.class);
         MinecraftForge.EVENT_BUS.register(EnergyUpgradeManager.KineticGeneratorSystem.class);
         MinecraftForge.EVENT_BUS.register(EnergyUpgradeManager.CombatChargerSystem.class);
-        // 注册冲突检测器
         MinecraftForge.EVENT_BUS.register(new ConflictChecker());
     }
 
     // =====================================================================
-    // GUI 暂停/禁用统一拦截（含防水别名联动）
+    // ✨ 新电池系统集成 - 更新的方法
     // =====================================================================
+
+    /**
+     * ✨ 更新：识别新电池系统
+     */
+    private boolean isBatteryItem(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return false;
+
+        // 新电池系统（优先检测）
+        if (stack.getItem() instanceof ItemBatteryBase) return true;
+
+        // 旧电池系统（兼容）
+        if (stack.getItem() instanceof ItemBatteryBauble ||
+                stack.getItem() instanceof ItemCreativeBatteryBauble) return true;
+
+        // 通用电池检测（注册名识别）
+        if (stack.getItem().getRegistryName() != null) {
+            String rn = stack.getItem().getRegistryName().toString().toLowerCase();
+
+            // 排除非电池物品
+            if (rn.contains("tool") || rn.contains("sword") ||
+                    rn.contains("armor") || rn.contains("jetpack") ||
+                    rn.contains("drill") || rn.contains("core"))
+                return false;
+
+            // 识别电池物品
+            if (rn.contains("battery") || rn.contains("cell") ||
+                    rn.contains("capacitor")) {
+                IEnergyStorage es = stack.getCapability(CapabilityEnergy.ENERGY, null);
+                return es != null && es.getMaxEnergyStored() >= 50_000;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * ✨ 更新：准确识别新电池等级
+     */
+    private int getBatteryTier(ItemStack stack) {
+        if (!isBatteryItem(stack)) return 0;
+
+        // 创造电池：最高等级
+        if (stack.getItem() instanceof ItemCreativeBatteryBauble) return 5;
+
+        // 新电池系统：直接通过类型判断（更准确）
+        if (stack.getItem() instanceof ItemBatteryUltimate) return 4;
+        if (stack.getItem() instanceof ItemBatteryElite) return 3;
+        if (stack.getItem() instanceof ItemBatteryAdvanced) return 2;
+        if (stack.getItem() instanceof ItemBatteryBasic) return 1;
+
+        // 通用方式：通过容量判断（兼容其他电池）
+        IEnergyStorage es = stack.getCapability(CapabilityEnergy.ENERGY, null);
+        if (es != null) {
+            int cap = es.getMaxEnergyStored();
+
+            // 新电池容量等级
+            if (cap >= 50_000_000) return 4;  // 终极：50M
+            if (cap >= 10_000_000) return 3;  // 精英：10M
+            if (cap >= 1_000_000)  return 2;  // 高级：1M
+            if (cap >= 100_000)    return 1;  // 基础：100K
+
+            // 旧电池配置（兼容）
+            if (cap >= EnergyBalanceConfig.BatterySystem.QUANTUM_BATTERY_CAPACITY) return 3;
+            if (cap >= EnergyBalanceConfig.BatterySystem.ADVANCED_BATTERY_CAPACITY) return 2;
+            if (cap >= EnergyBalanceConfig.BatterySystem.BASIC_BATTERY_CAPACITY) return 1;
+        }
+        return 0;
+    }
+
+    /**
+     * ✨ 更新：根据新电池类型返回传输速率
+     */
+    private int getTransferRateForBattery(ItemStack batteryStack) {
+        // 创造电池：超高速传输
+        if (batteryStack.getItem() instanceof ItemCreativeBatteryBauble) {
+            return EnergyBalanceConfig.BatterySystem.QUANTUM_BATTERY_OUTPUT * 2;
+        }
+
+        // 新电池系统：根据类型返回传输速率
+        if (batteryStack.getItem() instanceof ItemBatteryUltimate) {
+            return 100_000 / 20;  // 100K RF/t -> 5K RF/tick
+        }
+        if (batteryStack.getItem() instanceof ItemBatteryElite) {
+            return 20_000 / 20;   // 20K RF/t -> 1K RF/tick
+        }
+        if (batteryStack.getItem() instanceof ItemBatteryAdvanced) {
+            return 5_000 / 20;    // 5K RF/t -> 250 RF/tick
+        }
+        if (batteryStack.getItem() instanceof ItemBatteryBasic) {
+            return 1_000 / 20;    // 1K RF/t -> 50 RF/tick
+        }
+
+        // 通用方式：根据容量判断（兼容其他电池）
+        IEnergyStorage energy = batteryStack.getCapability(CapabilityEnergy.ENERGY, null);
+        if (energy != null) {
+            int capacity = energy.getMaxEnergyStored();
+
+            // 新电池容量判断
+            if (capacity >= 50_000_000) return 5_000;   // 终极
+            if (capacity >= 10_000_000) return 1_000;   // 精英
+            if (capacity >= 1_000_000)  return 250;     // 高级
+            if (capacity >= 100_000)    return 50;      // 基础
+
+            // 旧配置兼容
+            if (capacity >= 50_000_000)
+                return EnergyBalanceConfig.BatterySystem.QUANTUM_BATTERY_OUTPUT * 2;
+            else if (capacity >= 10_000_000)
+                return EnergyBalanceConfig.BatterySystem.QUANTUM_BATTERY_OUTPUT * 3 / 2;
+            else if (capacity >= EnergyBalanceConfig.BatterySystem.QUANTUM_BATTERY_CAPACITY)
+                return EnergyBalanceConfig.BatterySystem.QUANTUM_BATTERY_OUTPUT;
+            else if (capacity >= EnergyBalanceConfig.BatterySystem.ADVANCED_BATTERY_CAPACITY)
+                return EnergyBalanceConfig.BatterySystem.ADVANCED_BATTERY_OUTPUT;
+            else
+                return EnergyBalanceConfig.BatterySystem.BASIC_BATTERY_OUTPUT;
+        }
+        return EnergyBalanceConfig.BatterySystem.BASIC_BATTERY_OUTPUT;
+    }
+
+    private static final ResourceLocation LOST_ENGINE_ID = new ResourceLocation("enigmaticlegacy", "lost_engine");
+
+    private static boolean isLostEngine(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return false;
+        ResourceLocation registryName = stack.getItem().getRegistryName();
+        if (registryName == null) return false;
+        return registryName.equals(LOST_ENGINE_ID);
+    }
+
+    // 原有的 isEnigmaticItem 方法保持不变（用于识别）
+    private static boolean isEnigmaticItem(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return false;
+        ResourceLocation registryName = stack.getItem().getRegistryName();
+        if (registryName == null) return false;
+        String modId = registryName.getNamespace().toLowerCase();
+        String itemPath = registryName.getPath().toLowerCase();
+        return modId.contains("enigma") || itemPath.contains("enigma");
+    }
+
+    // ✨ 新增：检测是否是被阻止的 Enigmatic 物品（排除 lost_engine）
+    private static boolean isBlockedEnigmaticItem(ItemStack stack) {
+        if (!isEnigmaticItem(stack)) return false;
+        // Lost Engine 不被阻止
+        if (isLostEngine(stack)) return false;
+        return true;
+    }
+
+    private static boolean isFromKnownEnigmaticMods(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return false;
+        ResourceLocation registryName = stack.getItem().getRegistryName();
+        if (registryName == null) return false;
+        String modId = registryName.getNamespace();
+        return modId.equals("enigmaticlegacy") ||
+                modId.equals("enigmaticaddons") ||
+                modId.equals("enigmaticgraves") ||
+                modId.startsWith("enigmatic");
+    }
+
+    private static String getItemDisplayName(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return "未知物品";
+        try {
+            return stack.getDisplayName();
+        } catch (Exception e) {
+            return stack.getItem().getRegistryName() != null ?
+                    stack.getItem().getRegistryName().getPath() : "未知物品";
+        }
+    }
+
+    // ✨ 修改：检测是否装备了被阻止的 Enigmatic 物品（排除 lost_engine）
+    private static boolean hasAnyEnigmaticItemEquipped(EntityPlayer player) {
+        try {
+            IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(player);
+            if (baubles == null) return false;
+            for (int i = 0; i < baubles.getSlots(); i++) {
+                ItemStack bauble = baubles.getStackInSlot(i);
+                // 使用新的检测方法，排除 lost_engine
+                if (BLOCK_ALL_ENIGMATIC && isBlockedEnigmaticItem(bauble)) {
+                    if (VERBOSE_ENIGMATIC_DETECTION && !player.world.isRemote) {
+                        System.out.println("[MechanicalCore] 检测到被阻止的 Enigmatic 物品: " + getItemDisplayName(bauble));
+                    }
+                    return true;
+                }
+            }
+        } catch (Throwable ignored) {}
+        return false;
+    }
+
+    // ✨ 修改：获取装备的被阻止的 Enigmatic 物品列表（排除 lost_engine）
+    private static List<ItemStack> getEquippedEnigmaticItems(EntityPlayer player) {
+        List<ItemStack> enigmaticItems = new ArrayList<>();
+        try {
+            IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(player);
+            if (baubles == null) return enigmaticItems;
+            for (int i = 0; i < baubles.getSlots(); i++) {
+                ItemStack bauble = baubles.getStackInSlot(i);
+                // 只添加被阻止的 Enigmatic 物品
+                if (isBlockedEnigmaticItem(bauble)) {
+                    enigmaticItems.add(bauble);
+                }
+            }
+        } catch (Throwable ignored) {}
+        return enigmaticItems;
+    }
+
+    private static final ResourceLocation CURSED_RING_ID = new ResourceLocation("enigmaticlegacy", "cursed_ring");
+    private static final ResourceLocation BLESSED_RING_ID = new ResourceLocation("enigmaticaddons", "blessed_ring");
+
+    private static boolean isCursedRing(ItemStack s) {
+        return s != null && !s.isEmpty() && s.getItem().getRegistryName() != null &&
+                s.getItem().getRegistryName().equals(CURSED_RING_ID);
+    }
+
+    private static boolean isBlessedRing(ItemStack s) {
+        return s != null && !s.isEmpty() && s.getItem().getRegistryName() != null &&
+                s.getItem().getRegistryName().equals(BLESSED_RING_ID);
+    }
+
+    private static boolean isConflictingRing(ItemStack s) {
+        return isCursedRing(s) || isBlessedRing(s);
+    }
+
+// ItemMechanicalCore.java - Part 2
+// 包含：电池充电、显示方法、Baubles接口等
+
+    // =====================================================================
+    // GUI 暂停/禁用统一拦截（保持原样）
+    // =====================================================================
+
     private static final java.util.Set<String> WATERPROOF_ALIASES = new HashSet<>(
             Arrays.asList("WATERPROOF_MODULE","WATERPROOF","waterproof_module","waterproof")
     );
@@ -145,7 +387,6 @@ public class ItemMechanicalCore extends Item implements IBauble {
         return id == null ? "" : id.trim().toUpperCase(java.util.Locale.ROOT);
     }
 
-    /** 命中 Disabled_* 或 IsPaused_* 的升级都视为"被临时屏蔽" */
     public static boolean isTemporarilyBlockedByGui(ItemStack stack, String upgradeId) {
         if (stack == null || stack.isEmpty() || upgradeId == null) return false;
         NBTTagCompound nbt = stack.getTagCompound();
@@ -157,7 +398,6 @@ public class ItemMechanicalCore extends Item implements IBauble {
         java.util.List<String> keys = new java.util.ArrayList<>();
         keys.add(upgradeId); keys.add(up); keys.add(lo);
 
-        // 防水：别名联动
         if (up.contains("WATERPROOF") || WATERPROOF_ALIASES.contains(upgradeId)
                 || WATERPROOF_ALIASES.contains(up) || WATERPROOF_ALIASES.contains(lo)) {
             for (String alias : WATERPROOF_ALIASES) {
@@ -175,22 +415,19 @@ public class ItemMechanicalCore extends Item implements IBauble {
         return false;
     }
 
-    // ===== 惩罚/冷却：核心工具方法（供 GUI/服务端使用） =====
+    // ===== 惩罚/冷却方法（保持原样） =====
 
-    /** 是否处于惩罚期（未到期） */
     public static boolean isPenalized(ItemStack core, String id) {
         if (core == null || core.isEmpty() || !core.hasTagCompound()) return false;
         long exp = core.getTagCompound().getLong("PenaltyExpire_" + id);
         return exp > System.currentTimeMillis();
     }
 
-    /** 惩罚期临时可用的等级上限（到 cap 为止可以点 +，超过不行） */
     public static int getPenaltyCap(ItemStack core, String id) {
         if (core == null || core.isEmpty() || !core.hasTagCompound()) return 0;
         return core.getTagCompound().getInteger("PenaltyCap_" + id);
     }
 
-    /** 剩余惩罚秒数，用于 UI 提示 */
     public static int getPenaltySecondsLeft(ItemStack core, String id) {
         if (core == null || core.isEmpty() || !core.hasTagCompound()) return 0;
         long exp = core.getTagCompound().getLong("PenaltyExpire_" + id);
@@ -198,13 +435,11 @@ public class ItemMechanicalCore extends Item implements IBauble {
         return left > 0 ? (int)(left / 1000) : 0;
     }
 
-    /** 惩罚层级（触发越频繁层级越高，用于加重时长/代价） */
     public static int getPenaltyTier(ItemStack core, String id) {
         if (core == null || core.isEmpty() || !core.hasTagCompound()) return 0;
         return core.getTagCompound().getInteger("PenaltyTier_" + id);
     }
 
-    /** 施加惩罚：cap=临时上限; seconds=持续秒; tierInc=层级增量; debtFE/XP=可选偿债 */
     public static void applyPenalty(ItemStack core, String id, int cap, int seconds, int tierInc, int debtFE, int debtXP) {
         if (core == null || core.isEmpty()) return;
         NBTTagCompound nbt = getOrCreateNBT(core);
@@ -217,7 +452,6 @@ public class ItemMechanicalCore extends Item implements IBauble {
         if (debtXP > 0) nbt.setInteger("PenaltyDebtXP_" + id, debtXP);
     }
 
-    /** 清除惩罚（到期或代价已付） */
     public static void clearPenalty(ItemStack core, String id) {
         if (core == null || core.isEmpty() || !core.hasTagCompound()) return;
         NBTTagCompound nbt = core.getTagCompound();
@@ -228,7 +462,6 @@ public class ItemMechanicalCore extends Item implements IBauble {
         nbt.removeTag("PenaltyTier_" + id);
     }
 
-    /** 立即支付代价以解除惩罚（从核心能量与玩家 XP 扣除） */
     public static boolean tryPayPenaltyDebt(EntityPlayer p, ItemStack core, String id) {
         if (core == null || core.isEmpty() || !core.hasTagCompound()) return false;
         NBTTagCompound nbt = core.getTagCompound();
@@ -249,7 +482,8 @@ public class ItemMechanicalCore extends Item implements IBauble {
         return ok;
     }
 
-    // ===== 升级激活判定 =====
+    // ===== 升级激活判定（保持原样） =====
+
     public static boolean isUpgradeActive(ItemStack stack, String upgradeId) {
         if (!isMechanicalCore(stack)) return false;
         NBTTagCompound nbt = stack.getTagCompound();
@@ -325,15 +559,12 @@ public class ItemMechanicalCore extends Item implements IBauble {
     public static int getEffectiveUpgradeLevel(ItemStack stack, String upgradeId) {
         return isUpgradeActive(stack, upgradeId) ? getUpgradeLevelDirect(stack, upgradeId) : 0;
     }
+
     public static int getEffectiveUpgradeLevel(ItemStack stack, UpgradeType type) {
         return getEffectiveUpgradeLevel(stack, type.getKey());
     }
 
-    // ===== 电池/充电 =====
-    private static class BatteryInfo {
-        boolean present;
-        int tier;
-    }
+    // ===== 电池/充电（已更新集成新电池系统） =====
 
     private boolean hasBatteryEquippedOrCarried(@Nullable EntityPlayer player) {
         if (player == null) return false;
@@ -374,21 +605,6 @@ public class ItemMechanicalCore extends Item implements IBauble {
         return energy != null && energy.getEnergyStored() > 0;
     }
 
-    private boolean isBatteryItem(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) return false;
-        if (stack.getItem() instanceof ItemBatteryBauble || stack.getItem() instanceof ItemCreativeBatteryBauble) return true;
-        if (stack.getItem().getRegistryName() != null) {
-            String rn = stack.getItem().getRegistryName().toString().toLowerCase();
-            if (rn.contains("tool") || rn.contains("sword") || rn.contains("armor") || rn.contains("jetpack") || rn.contains("drill") || rn.contains("core"))
-                return false;
-            if (rn.contains("battery") || rn.contains("cell") || rn.contains("capacitor")) {
-                IEnergyStorage es = stack.getCapability(CapabilityEnergy.ENERGY, null);
-                return es != null && es.getMaxEnergyStored() >= 50_000;
-            }
-        }
-        return false;
-    }
-
     private int detectBatteryTier(EntityPlayer player) {
         int maxTier = 0;
         for (ItemStack s : player.inventory.mainInventory) {
@@ -404,21 +620,6 @@ public class ItemMechanicalCore extends Item implements IBauble {
             }
         } catch (Throwable ignored) {}
         return maxTier;
-    }
-
-    private int getBatteryTier(ItemStack stack) {
-        if (!isBatteryItem(stack)) return 0;
-        if (stack.getItem() instanceof ItemCreativeBatteryBauble) return 5;
-        IEnergyStorage es = stack.getCapability(CapabilityEnergy.ENERGY, null);
-        if (es != null) {
-            int cap = es.getMaxEnergyStored();
-            if (cap >= 50_000_000) return 5;
-            if (cap >= 10_000_000) return 4;
-            if (cap >= EnergyBalanceConfig.BatterySystem.QUANTUM_BATTERY_CAPACITY) return 3;
-            if (cap >= EnergyBalanceConfig.BatterySystem.ADVANCED_BATTERY_CAPACITY) return 2;
-            if (cap >= EnergyBalanceConfig.BatterySystem.BASIC_BATTERY_CAPACITY) return 1;
-        }
-        return 0;
     }
 
     private ItemStack findChargedBattery(EntityPlayer player) {
@@ -460,23 +661,9 @@ public class ItemMechanicalCore extends Item implements IBauble {
         return bestBattery;
     }
 
-    private int getTransferRateForBattery(ItemStack batteryStack) {
-        if (batteryStack.getItem() instanceof ItemCreativeBatteryBauble) {
-            return EnergyBalanceConfig.BatterySystem.QUANTUM_BATTERY_OUTPUT * 2;
-        }
-        IEnergyStorage energy = batteryStack.getCapability(CapabilityEnergy.ENERGY, null);
-        if (energy != null) {
-            int capacity = energy.getMaxEnergyStored();
-            if (capacity >= 50_000_000) return EnergyBalanceConfig.BatterySystem.QUANTUM_BATTERY_OUTPUT * 2;
-            else if (capacity >= 10_000_000) return EnergyBalanceConfig.BatterySystem.QUANTUM_BATTERY_OUTPUT * 3 / 2;
-            else if (capacity >= EnergyBalanceConfig.BatterySystem.QUANTUM_BATTERY_CAPACITY) return EnergyBalanceConfig.BatterySystem.QUANTUM_BATTERY_OUTPUT;
-            else if (capacity >= EnergyBalanceConfig.BatterySystem.ADVANCED_BATTERY_CAPACITY) return EnergyBalanceConfig.BatterySystem.ADVANCED_BATTERY_OUTPUT;
-            else return EnergyBalanceConfig.BatterySystem.BASIC_BATTERY_OUTPUT;
-        }
-        return EnergyBalanceConfig.BatterySystem.BASIC_BATTERY_OUTPUT;
-    }
-
-    // 修复的电池充电方法 —— 不播放音效
+    /**
+     * 修复的电池充电方法 —— 不播放音效
+     */
     private void applyBatteryGeneration(ItemStack core, EntityPlayer player) {
         if (!hasBatteryEquippedOrCarried(player)) return;
 
@@ -510,19 +697,103 @@ public class ItemMechanicalCore extends Item implements IBauble {
         }
     }
 
-    // ===== 能量消耗 =====
-    public static boolean consumeEnergy(ItemStack stack, int baseAmount) { return consumeEnergy(stack, baseAmount, true); }
+    /**
+     * ✨ 更新：显示新电池系统的充电状态
+     */
+    private void displayBatteryChargingStatus(EntityPlayer player, ItemStack core) {
+        ItemStack battery = findChargedBattery(player);
+        if (!battery.isEmpty()) {
+            IEnergyStorage batteryEnergy = battery.getCapability(CapabilityEnergy.ENERGY, null);
+            IEnergyStorage coreEnergy = getEnergyStorage(core);
+
+            // 创造电池
+            if (battery.getItem() instanceof ItemCreativeBatteryBauble) {
+                if (coreEnergy != null) {
+                    float corePercent = (float) coreEnergy.getEnergyStored() / Math.max(1, coreEnergy.getMaxEnergyStored());
+                    if (corePercent < 0.95f) {
+                        player.sendStatusMessage(new TextComponentString(
+                                TextFormatting.LIGHT_PURPLE + "⚡ 创造电池充电中 [∞]"
+                        ), true);
+                    }
+                }
+            }
+            // 新电池系统显示
+            else if (battery.getItem() instanceof ItemBatteryBase) {
+                if (batteryEnergy != null && coreEnergy != null) {
+                    float batteryPercent = (float) batteryEnergy.getEnergyStored() / Math.max(1, batteryEnergy.getMaxEnergyStored());
+                    float corePercent = (float) coreEnergy.getEnergyStored() / Math.max(1, coreEnergy.getMaxEnergyStored());
+
+                    String batteryType = "";
+                    TextFormatting batteryColor = TextFormatting.GRAY;
+
+                    if (battery.getItem() instanceof ItemBatteryUltimate) {
+                        batteryType = "终极";
+                        batteryColor = TextFormatting.LIGHT_PURPLE;
+                    } else if (battery.getItem() instanceof ItemBatteryElite) {
+                        batteryType = "精英";
+                        batteryColor = TextFormatting.AQUA;
+                    } else if (battery.getItem() instanceof ItemBatteryAdvanced) {
+                        batteryType = "高级";
+                        batteryColor = TextFormatting.YELLOW;
+                    } else if (battery.getItem() instanceof ItemBatteryBasic) {
+                        batteryType = "基础";
+                        batteryColor = TextFormatting.GRAY;
+                    }
+
+                    if (batteryPercent > 0.1f && corePercent < 0.95f) {
+                        player.sendStatusMessage(new TextComponentString(
+                                TextFormatting.GREEN + "⚡ 充电中 " +
+                                        batteryColor + "[" + batteryType + "电池: " +
+                                        TextFormatting.AQUA + String.format("%.0f%%", batteryPercent * 100) +
+                                        batteryColor + "]"
+                        ), true);
+                    } else if (batteryPercent <= 0.1f && corePercent < 0.5f) {
+                        player.sendStatusMessage(new TextComponentString(
+                                TextFormatting.RED + "⚠ " + batteryType + "电池电量低，请充电！"
+                        ), true);
+                    }
+                }
+            }
+            // 旧电池系统兼容
+            else if (batteryEnergy != null && coreEnergy != null) {
+                float batteryPercent = (float) batteryEnergy.getEnergyStored() / Math.max(1, batteryEnergy.getMaxEnergyStored());
+                float corePercent = (float) coreEnergy.getEnergyStored() / Math.max(1, coreEnergy.getMaxEnergyStored());
+
+                if (batteryPercent > 0.1f && corePercent < 0.95f) {
+                    player.sendStatusMessage(new TextComponentString(
+                            TextFormatting.GREEN + "⚡ 充电中 " +
+                                    TextFormatting.GRAY + "[电池: " +
+                                    TextFormatting.AQUA + String.format("%.0f%%", batteryPercent * 100) +
+                                    TextFormatting.GRAY + "]"
+                    ), true);
+                } else if (batteryPercent <= 0.1f && corePercent < 0.5f) {
+                    player.sendStatusMessage(new TextComponentString(
+                            TextFormatting.RED + "⚠ 电池电量低，请充电！"
+                    ), true);
+                }
+            }
+        }
+    }// ItemMechanicalCore.java - Part 3
+// 包含：能量消耗、被动消耗计算、Baubles接口实现
+
+    // ===== 能量消耗方法（保持原样） =====
+
+    public static boolean consumeEnergy(ItemStack stack, int baseAmount) {
+        return consumeEnergy(stack, baseAmount, true);
+    }
 
     public static boolean consumeEnergy(ItemStack stack, int baseAmount, boolean applyEfficiency) {
         IEnergyStorage energy = getEnergyStorage(stack);
         if (energy == null || baseAmount <= 0) return false;
 
         int actual = baseAmount;
-        if (applyEfficiency && isUpgradeActive(stack, "energy_efficiency")) actual = calculateActualEnergyCost(stack, baseAmount);
+        if (applyEfficiency && isUpgradeActive(stack, "energy_efficiency"))
+            actual = calculateActualEnergyCost(stack, baseAmount);
 
         if (energy.extractEnergy(actual, true) >= actual) {
             energy.extractEnergy(actual, false);
-            if (applyEfficiency && baseAmount > actual) recordEnergySaved(stack, baseAmount - actual);
+            if (applyEfficiency && baseAmount > actual)
+                recordEnergySaved(stack, baseAmount - actual);
             return true;
         }
         return false;
@@ -533,7 +804,8 @@ public class ItemMechanicalCore extends Item implements IBauble {
 
         int configured = baseAmount > 0 ? baseAmount : getDefaultConsumptionForUpgrade(upgradeId);
         int actual = configured;
-        if (isUpgradeActive(stack, "energy_efficiency")) actual = calculateActualEnergyCost(stack, configured);
+        if (isUpgradeActive(stack, "energy_efficiency"))
+            actual = calculateActualEnergyCost(stack, configured);
 
         IEnergyStorage energy = getEnergyStorage(stack);
         if (energy == null || actual <= 0) return false;
@@ -572,7 +844,8 @@ public class ItemMechanicalCore extends Item implements IBauble {
         return actual;
     }
 
-    // ===== 主动消耗管理器 =====
+    // ===== 主动消耗管理器（保持原样） =====
+
     public static class ActiveEnergyConsumption {
         public static boolean consumeForOreVision(ItemStack stack, int level, boolean isScanning) {
             int cost = EnergyBalanceConfig.AuxiliaryActive.ORE_VISION_BASE + (level * EnergyBalanceConfig.AuxiliaryActive.ORE_VISION_PER_LEVEL);
@@ -602,7 +875,8 @@ public class ItemMechanicalCore extends Item implements IBauble {
         public static boolean consumeForFireExtinguish(ItemStack s){ return consumeEnergyForUpgradeBalanced(s, "FIRE_EXTINGUISH", EnergyBalanceConfig.SurvivalActive.FIRE_EXTINGUISH); }
     }
 
-    // ===== 被动消耗（含电池/过载/泄漏/效率等） =====
+    // ===== 被动消耗（含电池/过载/泄漏/效率等）=====
+
     private int calculateActivePassiveConsumption(ItemStack stack, @Nullable EntityPlayer player) {
         int baseConsumption = 0;
 
@@ -630,12 +904,14 @@ public class ItemMechanicalCore extends Item implements IBauble {
             }
         }
 
-        if (getTotalInstalledUpgrades(stack) > 0) baseConsumption += EnergyBalanceConfig.BASE_PASSIVE_DRAIN;
+        if (getTotalInstalledUpgrades(stack) > 0)
+            baseConsumption += EnergyBalanceConfig.BASE_PASSIVE_DRAIN;
 
         ModuleStats stats = collectModuleStats(stack);
         IEnergyStorage es = getEnergyStorage(stack);
         float energyPercent = 0f;
-        if (es != null && es.getMaxEnergyStored() > 0) energyPercent = (float) es.getEnergyStored() / es.getMaxEnergyStored();
+        if (es != null && es.getMaxEnergyStored() > 0)
+            energyPercent = (float) es.getEnergyStored() / es.getMaxEnergyStored();
 
         boolean hasBattery = hasBatteryEquippedOrCarried(player);
         int total = EnergyBalanceConfig.calculateTotalDrain(baseConsumption, stats.totalLevels, stats.typesInstalled, energyPercent, hasBattery);
@@ -657,8 +933,11 @@ public class ItemMechanicalCore extends Item implements IBauble {
             }
         }
 
-        if (isUpgradeActive(stack, "energy_efficiency")) total = calculateActualEnergyCost(stack, total);
-        if (DEBUG_MODE) System.out.println("[MechanicalCore] 最终被动消耗: " + total + " RF/s");
+        if (isUpgradeActive(stack, "energy_efficiency"))
+            total = calculateActualEnergyCost(stack, total);
+
+        if (DEBUG_MODE)
+            System.out.println("[MechanicalCore] 最终被动消耗: " + total + " RF/s");
         return Math.max(0, total);
     }
 
@@ -687,8 +966,12 @@ public class ItemMechanicalCore extends Item implements IBauble {
         return new ModuleStats(types, levels);
     }
 
-    // ===== Baubles =====
-    @Override public BaubleType getBaubleType(ItemStack itemstack) { return BaubleType.HEAD; }
+    // ===== Baubles 接口实现 =====
+
+    @Override
+    public BaubleType getBaubleType(ItemStack itemstack) {
+        return BaubleType.HEAD;
+    }
 
     @Override
     public void onWornTick(ItemStack itemstack, EntityLivingBase entity) {
@@ -719,41 +1002,6 @@ public class ItemMechanicalCore extends Item implements IBauble {
         applyUpgradeEffects(itemstack, player);
     }
 
-    private void displayBatteryChargingStatus(EntityPlayer player, ItemStack core) {
-        ItemStack battery = findChargedBattery(player);
-        if (!battery.isEmpty()) {
-            IEnergyStorage batteryEnergy = battery.getCapability(CapabilityEnergy.ENERGY, null);
-            IEnergyStorage coreEnergy = getEnergyStorage(core);
-
-            if (battery.getItem() instanceof ItemCreativeBatteryBauble) {
-                if (coreEnergy != null) {
-                    float corePercent = (float) coreEnergy.getEnergyStored() / Math.max(1, coreEnergy.getMaxEnergyStored());
-                    if (corePercent < 0.95f) {
-                        player.sendStatusMessage(new TextComponentString(
-                                TextFormatting.LIGHT_PURPLE + "⚡ 创造电池充电中 [∞]"
-                        ), true);
-                    }
-                }
-            } else if (batteryEnergy != null && coreEnergy != null) {
-                float batteryPercent = (float) batteryEnergy.getEnergyStored() / Math.max(1, batteryEnergy.getMaxEnergyStored());
-                float corePercent = (float) coreEnergy.getEnergyStored() / Math.max(1, coreEnergy.getMaxEnergyStored());
-
-                if (batteryPercent > 0.1f && corePercent < 0.95f) {
-                    player.sendStatusMessage(new TextComponentString(
-                            TextFormatting.GREEN + "⚡ 充电中 " +
-                                    TextFormatting.GRAY + "[电池: " +
-                                    TextFormatting.AQUA + String.format("%.0f%%", batteryPercent * 100) +
-                                    TextFormatting.GRAY + "]"
-                    ), true);
-                } else if (batteryPercent <= 0.1f && corePercent < 0.5f) {
-                    player.sendStatusMessage(new TextComponentString(
-                            TextFormatting.RED + "⚠ 电池电量低，请充电！"
-                    ), true);
-                }
-            }
-        }
-    }
-
     private void applyUpgradeEffects(ItemStack stack, EntityPlayer player) {
         try {
             // 不授予/不修改飞行能力，飞行由推力逻辑负责
@@ -770,29 +1018,189 @@ public class ItemMechanicalCore extends Item implements IBauble {
         }
     }
 
-
-    // ===== 修改的 onEquipped 方法 - 装备时自动卸下七咒之戒 =====
     @Override
     public void onEquipped(ItemStack itemstack, EntityLivingBase entity) {
         if (entity.world.isRemote || !(entity instanceof EntityPlayer)) return;
         EntityPlayer player = (EntityPlayer) entity;
 
-        // 自动卸下七咒之戒
+        // ✅ 时间限制检查（装备成功后的二次验证）
+        if (EquipmentTimeConfig.restriction.enabled) {
+            // 再次检查是否被禁止（双重保险）
+            if (EquipmentTimeTracker.isPermanentlyBanned(player)) {
+                forceUnequipCore(player, itemstack);
+                player.sendMessage(new TextComponentString(
+                        TextFormatting.RED + "✗ 你已被永久禁止佩戴机械核心！"
+                ));
+                return;
+            }
+
+            // 检查当前是否超时
+            long remainingTime = EquipmentTimeTracker.getRemainingTime(player);
+
+            if (remainingTime == 0 && !EquipmentTimeTracker.hasEquippedInTime(player)) {
+                // ⚠️ 超时了！立即卸下
+                forceUnequipCore(player, itemstack);
+
+                player.sendMessage(new TextComponentString(
+                        TextFormatting.DARK_RED + "✗ 时间已到！你已无法佩戴机械核心！"
+                ));
+                player.sendMessage(new TextComponentString(
+                        TextFormatting.RED + "⏰ 佩戴时限已过期"
+                ));
+                player.sendMessage(new TextComponentString(
+                        TextFormatting.GRAY + "机械核心拒绝与你建立连接，已退回背包..."
+                ));
+
+                if (EquipmentTimeConfig.restriction.allowAdminReset) {
+                    player.sendMessage(new TextComponentString(
+                            TextFormatting.YELLOW + "联系管理员使用 /moremod resetequiptime 重置限制。"
+                    ));
+                }
+
+                // 标记为禁止
+                EquipmentTimeTracker.markAsBanned(player);
+                return;  // ✅ 直接返回，不执行后续的初始化逻辑
+            }
+
+            // ✅ 在时间内成功装备
+            EquipmentTimeTracker.onCoreEquipped(player);
+        }
+
+        // 自动卸下冲突物品
         removeConflictingItems(player, false);
 
-        player.sendMessage(new TextComponentString(TextFormatting.DARK_AQUA + "⚙ 机械核心已激活！系统开始启动..."));
+        player.sendMessage(new TextComponentString(
+                TextFormatting.DARK_AQUA + "⚙ 机械核心已激活！系统开始启动..."
+        ));
 
         IEnergyStorage energy = getEnergyStorage(itemstack);
         if (energy != null && energy.getEnergyStored() == 0) {
-            player.sendMessage(new TextComponentString(TextFormatting.YELLOW + "⚡ 警告：能量耗尽！能源发电模块仍可工作"));
+            player.sendMessage(new TextComponentString(
+                    TextFormatting.YELLOW + "⚡ 警告：能量耗尽！能源发电模块仍可工作"
+            ));
             checkAndNotifyEnergyGenerators(itemstack, player);
         } else {
             EnergyDepletionManager.displayDetailedEnergyStatus(player, itemstack);
         }
     }
 
-    // ===== 新增方法 - 移除冲突饰品 =====
-    private void removeConflictingItems(EntityPlayer player, boolean isUnequippingCore) {
+// ===== 新增方法：强制卸下机械核心（方案3 - 最安全） =====
+    /**
+     * ✅ 强制卸下机械核心（永不掉落，强制放入背包）
+     * @param player 玩家
+     * @param coreStack 要卸下的核心（用于日志记录）
+     */
+    private void forceUnequipCore(EntityPlayer player, ItemStack coreStack) {
+        try {
+            IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(player);
+            if (baubles == null) {
+                System.err.println("[MechanicalCore] 无法获取 Baubles 处理器");
+                return;
+            }
+
+            // 查找并移除机械核心
+            for (int i = 0; i < baubles.getSlots(); i++) {
+                ItemStack bauble = baubles.getStackInSlot(i);
+
+                if (isMechanicalCore(bauble)) {
+                    ItemStack removed = baubles.extractItem(i, 1, false);
+
+                    if (!removed.isEmpty()) {
+                        boolean placed = false;
+
+                        // ✅ 策略1：尝试正常放入背包
+                        if (player.inventory.addItemStackToInventory(removed)) {
+                            placed = true;
+                            if (DEBUG_MODE) {
+                                System.out.println("[MechanicalCore] 核心已返还到背包");
+                            }
+                        }
+
+                        // ✅ 策略2：找第一个空槽位
+                        if (!placed) {
+                            for (int slot = 0; slot < player.inventory.mainInventory.size(); slot++) {
+                                if (player.inventory.mainInventory.get(slot).isEmpty()) {
+                                    player.inventory.mainInventory.set(slot, removed);
+                                    placed = true;
+                                    if (DEBUG_MODE) {
+                                        System.out.println("[MechanicalCore] 核心已放入空槽位 " + slot);
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+
+                        // ✅ 策略3：强制替换第一个槽位
+                        if (!placed) {
+                            ItemStack displaced = player.inventory.mainInventory.get(0);
+                            player.inventory.mainInventory.set(0, removed);
+
+                            // 被替换的物品处理
+                            if (!displaced.isEmpty()) {
+                                // 尝试放入其他位置
+                                if (!player.inventory.addItemStackToInventory(displaced)) {
+                                    // 实在没办法，生成掉落物（这不是机械核心，不会被保护拦截）
+                                    EntityItem entityItem = new EntityItem(
+                                            player.world,
+                                            player.posX,
+                                            player.posY,
+                                            player.posZ,
+                                            displaced
+                                    );
+                                    entityItem.setNoPickupDelay();
+                                    player.world.spawnEntity(entityItem);
+
+                                    if (DEBUG_MODE) {
+                                        System.out.println("[MechanicalCore] 被替换的物品已掉落: " +
+                                                displaced.getDisplayName());
+                                    }
+                                }
+                            }
+
+                            player.sendMessage(new TextComponentString(
+                                    TextFormatting.YELLOW + "⚠ 背包已满，机械核心已强制放入第一格"
+                            ));
+                            placed = true;
+                        }
+
+                        if (placed) {
+                            player.sendMessage(new TextComponentString(
+                                    TextFormatting.GRAY + "机械核心已返回背包"
+                            ));
+                        }
+
+                        if (DEBUG_MODE) {
+                            System.out.println("[MechanicalCore] 成功强制卸下核心: " + player.getName());
+                        }
+                    }
+                    break;
+                }
+            }
+        } catch (Throwable t) {
+            System.err.println("[MechanicalCore] 强制卸下失败: " + t.getMessage());
+            t.printStackTrace();
+
+            player.sendMessage(new TextComponentString(
+                    TextFormatting.RED + "⚠ 系统错误！请联系管理员"
+            ));
+        }
+    }
+
+// ===== 新增方法：格式化剩余时间 =====
+    /**
+     * 格式化剩余时间为可读字符串
+     * @param seconds 剩余秒数
+     * @return 格式化后的字符串
+     */
+
+
+    /**
+     * ===== 新增辅助方法 =====
+     * 格式化剩余时间
+     */
+
+
+    private static void removeConflictingItems(EntityPlayer player, boolean isUnequippingCore) {
         try {
             IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(player);
             if (baubles == null) return;
@@ -805,14 +1213,16 @@ public class ItemMechanicalCore extends Item implements IBauble {
                     continue;
                 }
 
-                if (!isUnequippingCore && isCursedRing(bauble)) {
+                // ✨ 修改：检测并移除被阻止的 Enigmatic 物品（lost_engine 不会被移除）
+                if (!isUnequippingCore && (BLOCK_ALL_ENIGMATIC && isBlockedEnigmaticItem(bauble))) {
                     ItemStack removed = baubles.extractItem(i, 1, false);
                     if (!removed.isEmpty()) {
                         if (!player.inventory.addItemStackToInventory(removed)) {
                             player.dropItem(removed, false);
                         }
+                        String itemName = getItemDisplayName(bauble);
                         player.sendMessage(new TextComponentString(
-                                TextFormatting.YELLOW + "七咒之戒已自动卸下 - 与机械核心不兼容"
+                                TextFormatting.YELLOW + itemName + " 已自动卸下 - 与机械核心不兼容"
                         ));
                     }
                 }
@@ -831,25 +1241,35 @@ public class ItemMechanicalCore extends Item implements IBauble {
 
         if (!gens.isEmpty()) {
             player.sendMessage(new TextComponentString(TextFormatting.GREEN + "可用能源模块："));
-            for (String g : gens) player.sendMessage(new TextComponentString(TextFormatting.AQUA + "  • " + g));
+            for (String g : gens)
+                player.sendMessage(new TextComponentString(TextFormatting.AQUA + "  • " + g));
         } else {
-            player.sendMessage(new TextComponentString(TextFormatting.RED + "⚠ 无可用能源模块！请安装并激活能源升级"));
+            player.sendMessage(new TextComponentString(
+                    TextFormatting.RED + "⚠ 无可用能源模块！请安装并激活能源升级"
+            ));
         }
 
         ItemStack battery = findChargedBattery(player);
         if (!battery.isEmpty()) {
             if (battery.getItem() instanceof ItemCreativeBatteryBauble) {
-                player.sendMessage(new TextComponentString(TextFormatting.LIGHT_PURPLE + "✦ 检测到创造电池 - 无限能量供应"));
+                player.sendMessage(new TextComponentString(
+                        TextFormatting.LIGHT_PURPLE + "✦ 检测到创造电池 - 无限能量供应"
+                ));
             } else {
                 IEnergyStorage batteryEnergy = battery.getCapability(CapabilityEnergy.ENERGY, null);
                 if (batteryEnergy != null) {
                     float percent = (float) batteryEnergy.getEnergyStored() / Math.max(1, batteryEnergy.getMaxEnergyStored());
-                    TextFormatting color = percent > 0.5f ? TextFormatting.GREEN : percent > 0.2f ? TextFormatting.YELLOW : TextFormatting.RED;
-                    player.sendMessage(new TextComponentString(TextFormatting.GRAY + "电池状态: " + color + String.format("%.0f%%", percent * 100)));
+                    TextFormatting color = percent > 0.5f ? TextFormatting.GREEN :
+                            percent > 0.2f ? TextFormatting.YELLOW : TextFormatting.RED;
+                    player.sendMessage(new TextComponentString(
+                            TextFormatting.GRAY + "电池状态: " + color + String.format("%.0f%%", percent * 100)
+                    ));
                 }
             }
         } else {
-            player.sendMessage(new TextComponentString(TextFormatting.DARK_GRAY + "未检测到有电的电池"));
+            player.sendMessage(new TextComponentString(
+                    TextFormatting.DARK_GRAY + "未检测到有电的电池"
+            ));
         }
     }
 
@@ -857,7 +1277,9 @@ public class ItemMechanicalCore extends Item implements IBauble {
     public void onUnequipped(ItemStack itemstack, EntityLivingBase entity) {
         if (entity.world.isRemote || !(entity instanceof EntityPlayer)) return;
         EntityPlayer player = (EntityPlayer) entity;
-        player.sendMessage(new TextComponentString(TextFormatting.GRAY + "⚙ 机械核心已停止运行..."));
+        player.sendMessage(new TextComponentString(
+                TextFormatting.GRAY + "⚙ 机械核心已停止运行..."
+        ));
         removeAllUpgradeEffects(itemstack, player);
     }
 
@@ -877,8 +1299,11 @@ public class ItemMechanicalCore extends Item implements IBauble {
             System.err.println("[moremod] 清理升级效果时发生错误: " + t.getMessage());
         }
     }
+    // ItemMechanicalCore.java - Part 4 (最终部分)
+// 包含：Tooltip、辅助方法、升级管理、能量Provider、冲突检测器
 
-    // ===== 工具提示 =====
+    // ===== Tooltip =====
+
     @Override
     @SideOnly(Side.CLIENT)
     public void addInformation(ItemStack stack, @Nullable World worldIn, List<String> tooltip, net.minecraft.client.util.ITooltipFlag flagIn) {
@@ -901,7 +1326,8 @@ public class ItemMechanicalCore extends Item implements IBauble {
         if (isUpgradeActive(stack, "energy_efficiency")) {
             int effLv = getUpgradeLevel(stack, UpgradeType.ENERGY_EFFICIENCY);
             int percent = getEfficiencyPercentage(stack);
-            TextFormatting col = percent >= 75 ? TextFormatting.LIGHT_PURPLE : percent >= 60 ? TextFormatting.GOLD : TextFormatting.GREEN;
+            TextFormatting col = percent >= 75 ? TextFormatting.LIGHT_PURPLE :
+                    percent >= 60 ? TextFormatting.GOLD : TextFormatting.GREEN;
             tooltip.add(col + "⚡ 能量效率 Lv." + effLv + " (" + percent + "% 节能)");
         }
 
@@ -912,26 +1338,62 @@ public class ItemMechanicalCore extends Item implements IBauble {
                     " 激活 / " + TextFormatting.WHITE + installed + TextFormatting.GRAY + " 已安装");
         }
 
-        if (nbt.getBoolean("EmergencyMode")) tooltip.add(TextFormatting.DARK_RED + "⚠ 紧急省电模式");
+        if (nbt.getBoolean("EmergencyMode"))
+            tooltip.add(TextFormatting.DARK_RED + "⚠ 紧急省电模式");
 
         if (GuiScreen.isShiftKeyDown()) {
+            // ✨ 更新：新电池系统 Tooltip 显示
             EntityPlayer p = Minecraft.getMinecraft().player;
             if (p != null) {
                 boolean hasBattery = false;
                 String info = TextFormatting.DARK_GRAY + "未检测到";
+
                 for (ItemStack s : p.inventory.mainInventory) {
-                    if (s.getItem() instanceof ItemBatteryBauble) {
+                    // 新电池系统
+                    if (s.getItem() instanceof ItemBatteryBase) {
                         hasBattery = true;
                         IEnergyStorage bs = s.getCapability(CapabilityEnergy.ENERGY, null);
                         if (bs != null) {
                             float bp = (float) bs.getEnergyStored() / Math.max(1, bs.getMaxEnergyStored());
-                            TextFormatting bc = bp > 0.5f ? TextFormatting.GREEN : bp > 0.2f ? TextFormatting.YELLOW : TextFormatting.RED;
-                            info = bc + String.format("%.0f%%", bp * 100f);
+                            TextFormatting bc = bp > 0.5f ? TextFormatting.GREEN :
+                                    bp > 0.2f ? TextFormatting.YELLOW : TextFormatting.RED;
+
+                            String type = "";
+                            TextFormatting typeColor = TextFormatting.GRAY;
+                            if (s.getItem() instanceof ItemBatteryUltimate) {
+                                type = "终极";
+                                typeColor = TextFormatting.LIGHT_PURPLE;
+                            } else if (s.getItem() instanceof ItemBatteryElite) {
+                                type = "精英";
+                                typeColor = TextFormatting.AQUA;
+                            } else if (s.getItem() instanceof ItemBatteryAdvanced) {
+                                type = "高级";
+                                typeColor = TextFormatting.YELLOW;
+                            } else if (s.getItem() instanceof ItemBatteryBasic) {
+                                type = "基础";
+                                typeColor = TextFormatting.GRAY;
+                            }
+
+                            info = typeColor + type + " " + bc + String.format("%.0f%%", bp * 100f);
                         }
                         break;
-                    } else if (s.getItem() instanceof ItemCreativeBatteryBauble) {
+                    }
+                    // 创造电池
+                    else if (s.getItem() instanceof ItemCreativeBatteryBauble) {
                         hasBattery = true;
                         info = TextFormatting.LIGHT_PURPLE + "∞ 创造";
+                        break;
+                    }
+                    // 旧电池系统兼容
+                    else if (s.getItem() instanceof ItemBatteryBauble) {
+                        hasBattery = true;
+                        IEnergyStorage bs = s.getCapability(CapabilityEnergy.ENERGY, null);
+                        if (bs != null) {
+                            float bp = (float) bs.getEnergyStored() / Math.max(1, bs.getMaxEnergyStored());
+                            TextFormatting bc = bp > 0.5f ? TextFormatting.GREEN :
+                                    bp > 0.2f ? TextFormatting.YELLOW : TextFormatting.RED;
+                            info = bc + String.format("%.0f%%", bp * 100f);
+                        }
                         break;
                     }
                 }
@@ -960,7 +1422,7 @@ public class ItemMechanicalCore extends Item implements IBauble {
             tooltip.add(TextFormatting.DARK_RED + "⚠ 诅咒特性:");
             tooltip.add(TextFormatting.RED + "• 一旦装备永远无法摘下");
             tooltip.add(TextFormatting.RED + "• 死亡时不会掉落");
-            tooltip.add(TextFormatting.YELLOW + "• 与七咒之戒互斥");
+            tooltip.add(TextFormatting.YELLOW + "• 与 Enigmatic 系列模组物品互斥");
 
         } else {
             tooltip.add(TextFormatting.DARK_PURPLE + "使用 Redstone Flux 驱动的机械核心");
@@ -980,7 +1442,8 @@ public class ItemMechanicalCore extends Item implements IBauble {
         }
     }
 
-    // ===== 辅助 & 统计 =====
+    // ===== 辅助 & 统计方法 =====
+
     private void handleInsufficientEnergy(ItemStack stack, EntityPlayer player, int requiredEnergy) {
         EnergyDepletionManager.EnergyStatus status = EnergyDepletionManager.getCurrentEnergyStatus(stack);
         boolean hasGen = isEnergyGeneratorActive(stack, "KINETIC_GENERATOR") ||
@@ -1002,20 +1465,26 @@ public class ItemMechanicalCore extends Item implements IBauble {
         switch (status) {
             case POWER_SAVING:
                 if (player.world.getTotalWorldTime() % 100 == 0)
-                    player.sendStatusMessage(new TextComponentString(TextFormatting.YELLOW + "⚡ 省电模式 - 部分功能性能降低" +
-                            (hasGen ? TextFormatting.GREEN + " [充电中]" : "") +
-                            (hasBatteryCharging ? TextFormatting.AQUA + " [电池供电]" : "")), true);
+                    player.sendStatusMessage(new TextComponentString(
+                            TextFormatting.YELLOW + "⚡ 省电模式 - 部分功能性能降低" +
+                                    (hasGen ? TextFormatting.GREEN + " [充电中]" : "") +
+                                    (hasBatteryCharging ? TextFormatting.AQUA + " [电池供电]" : "")
+                    ), true);
                 break;
             case EMERGENCY:
                 if (player.world.getTotalWorldTime() % 80 == 0)
-                    player.sendStatusMessage(new TextComponentString(TextFormatting.RED + "⚠ 紧急模式 - 高耗能功能已关闭" +
-                            (hasGen ? TextFormatting.YELLOW + " [缓慢充电]" : "") +
-                            (hasBatteryCharging ? TextFormatting.YELLOW + " [电池供电]" : "")), true);
+                    player.sendStatusMessage(new TextComponentString(
+                            TextFormatting.RED + "⚠ 紧急模式 - 高耗能功能已关闭" +
+                                    (hasGen ? TextFormatting.YELLOW + " [缓慢充电]" : "") +
+                                    (hasBatteryCharging ? TextFormatting.YELLOW + " [电池供电]" : "")
+                    ), true);
                 break;
             case CRITICAL:
                 if (player.world.getTotalWorldTime() % 60 == 0)
-                    player.sendStatusMessage(new TextComponentString(TextFormatting.DARK_RED + "💀 生命支持模式" +
-                            (hasGen || hasBatteryCharging ? TextFormatting.YELLOW + " - 能源模块工作中" : " - 立即充能！")), true);
+                    player.sendStatusMessage(new TextComponentString(
+                            TextFormatting.DARK_RED + "💀 生命支持模式" +
+                                    (hasGen || hasBatteryCharging ? TextFormatting.YELLOW + " - 能源模块工作中" : " - 立即充能！")
+                    ), true);
                 break;
         }
     }
@@ -1026,7 +1495,9 @@ public class ItemMechanicalCore extends Item implements IBauble {
             IEnergyStorage energy = getEnergyStorage(stack);
             if (energy != null) {
                 int pct = (int) ((float) energy.getEnergyStored() / Math.max(1, energy.getMaxEnergyStored()) * 100);
-                player.sendStatusMessage(new TextComponentString(status.color + status.icon + " " + status.displayName + " - " + pct + "%"), true);
+                player.sendStatusMessage(new TextComponentString(
+                        status.color + status.icon + " " + status.displayName + " - " + pct + "%"
+                ), true);
             }
         }
     }
@@ -1049,34 +1520,30 @@ public class ItemMechanicalCore extends Item implements IBauble {
     }
 
     // ===== NBT & 升级访问 =====
+
     private static NBTTagCompound getOrCreateNBT(ItemStack stack) {
         if (!stack.hasTagCompound()) stack.setTagCompound(new NBTTagCompound());
         return stack.getTagCompound();
     }
 
-    public static int getUpgradeLevel(ItemStack stack, UpgradeType type) { return getUpgradeLevelDirect(stack, type.getKey()); }
-    public static int getUpgradeLevel(ItemStack stack, String upgradeId) { return getUpgradeLevelDirect(stack, upgradeId); }
+    public static int getUpgradeLevel(ItemStack stack, UpgradeType type) {
+        return getUpgradeLevelDirect(stack, type.getKey());
+    }
+
+    public static int getUpgradeLevel(ItemStack stack, String upgradeId) {
+        return getUpgradeLevelDirect(stack, upgradeId);
+    }
 
     public static void setUpgradeLevel(ItemStack stack, UpgradeType type, int level) {
         NBTTagCompound nbt = getOrCreateNBT(stack);
         nbt.setInteger("upgrade_" + type.getKey(), level);
         if (level > 0) nbt.setBoolean("HasUpgrade_" + type.getKey(), true);
     }
+
     public static void setUpgradeLevel(ItemStack stack, String upgradeId, int level) {
         NBTTagCompound nbt = getOrCreateNBT(stack);
         nbt.setInteger("upgrade_" + upgradeId, level);
         if (level > 0) nbt.setBoolean("HasUpgrade_" + upgradeId, true);
-    }
-
-    private static final ResourceLocation CURSED_RING_ID = new ResourceLocation("enigmaticlegacy", "cursed_ring");
-    private static boolean isCursedRing(ItemStack s) {
-        return s != null && !s.isEmpty() && s.getItem().getRegistryName() != null && s.getItem().getRegistryName().equals(CURSED_RING_ID);
-    }
-    private static boolean isCursedRingEquipped(EntityPlayer player) {
-        IBaublesItemHandler h = BaublesApi.getBaublesHandler(player);
-        if (h == null) return false;
-        for (int i = 0; i < h.getSlots(); i++) if (isCursedRing(h.getStackInSlot(i))) return true;
-        return false;
     }
 
     public static int getTotalInstalledUpgrades(ItemStack stack) {
@@ -1093,7 +1560,7 @@ public class ItemMechanicalCore extends Item implements IBauble {
             }
         }
 
-        // b) NBT 直接扫描：upgrade_* / HasUpgrade_*
+        // b) NBT 直接扫描
         for (String k : nbt.getKeySet()) {
             if (k.startsWith("upgrade_") && nbt.getInteger(k) > 0) {
                 installed.add(norm(k.substring("upgrade_".length())));
@@ -1124,34 +1591,30 @@ public class ItemMechanicalCore extends Item implements IBauble {
 
         return installed.size();
     }
+
     // ===== 安全的等级设置方法 =====
+
     public static void setUpgradeLevelSafe(ItemStack stack, String upgradeId, int newLevel, boolean isManualOperation) {
         if (stack == null || stack.isEmpty()) return;
         NBTTagCompound nbt = getOrCreateNBT(stack);
 
         String normalizedId = upgradeId.toUpperCase();
-
-        // 获取当前 OwnedMax
         int currentOwnedMax = nbt.getInteger("OwnedMax_" + normalizedId);
         int currentLevel = nbt.getInteger("upgrade_" + normalizedId);
 
         if (isManualOperation) {
-            // 手动操作时的 OwnedMax 处理
             if (currentOwnedMax <= 0) {
-                // 初始化 OwnedMax：取当前等级和新等级的最大值，至少为1
                 int initialMax = Math.max(Math.max(currentLevel, newLevel), 1);
                 nbt.setInteger("OwnedMax_" + normalizedId, initialMax);
                 nbt.setInteger("OwnedMax_" + upgradeId, initialMax);
                 currentOwnedMax = initialMax;
             }
 
-            // 升级时更新 OwnedMax
             if (newLevel > currentOwnedMax) {
                 nbt.setInteger("OwnedMax_" + normalizedId, newLevel);
                 nbt.setInteger("OwnedMax_" + upgradeId, newLevel);
             }
 
-            // 临停处理（设为0）
             if (newLevel == 0) {
                 nbt.setBoolean("IsPaused_" + normalizedId, true);
                 nbt.setBoolean("IsPaused_" + upgradeId, true);
@@ -1161,7 +1624,6 @@ public class ItemMechanicalCore extends Item implements IBauble {
             }
         }
 
-        // 设置实际等级（所有变体）
         String[] variants = {upgradeId, normalizedId, upgradeId.toLowerCase()};
         for (String variant : variants) {
             nbt.setInteger("upgrade_" + variant, newLevel);
@@ -1171,7 +1633,6 @@ public class ItemMechanicalCore extends Item implements IBauble {
         }
     }
 
-    // 获取安全的 OwnedMax
     public static int getSafeOwnedMax(ItemStack stack, String upgradeId) {
         if (stack == null || stack.isEmpty()) return 0;
         NBTTagCompound nbt = stack.getTagCompound();
@@ -1184,11 +1645,9 @@ public class ItemMechanicalCore extends Item implements IBauble {
             max = Math.max(max, nbt.getInteger("OwnedMax_" + variant));
         }
 
-        // 如果没有 OwnedMax，返回当前等级作为默认值
         if (max <= 0) {
             max = getUpgradeLevel(stack, upgradeId);
             if (max > 0) {
-                // 补充缺失的 OwnedMax
                 for (String variant : variants) {
                     nbt.setInteger("OwnedMax_" + variant, max);
                 }
@@ -1198,7 +1657,6 @@ public class ItemMechanicalCore extends Item implements IBauble {
         return max;
     }
 
-    // 检查是否临停
     public static boolean isUpgradePaused(ItemStack stack, String upgradeId) {
         if (stack == null || stack.isEmpty()) return false;
         NBTTagCompound nbt = stack.getTagCompound();
@@ -1210,6 +1668,7 @@ public class ItemMechanicalCore extends Item implements IBauble {
         }
         return false;
     }
+
     public static int getTotalActiveUpgradeLevel(ItemStack stack) {
         if (isCheckingUpgrade.get()) return 0;
         try {
@@ -1238,9 +1697,19 @@ public class ItemMechanicalCore extends Item implements IBauble {
     }
 
     // ===== 兼容方法 =====
-    @Deprecated public static boolean isUpgradeEnabled(ItemStack stack, String upgradeId) { return isUpgradeActive(stack, upgradeId); }
-    public static EnergyDepletionManager.EnergyStatus getEnergyStatus(ItemStack stack) { return EnergyDepletionManager.getCurrentEnergyStatus(stack); }
-    public static boolean consumeEnergyForUpgrade(ItemStack stack, String upgradeId, int baseAmount) { return consumeEnergyForUpgradeBalanced(stack, upgradeId, baseAmount); }
+
+    @Deprecated
+    public static boolean isUpgradeEnabled(ItemStack stack, String upgradeId) {
+        return isUpgradeActive(stack, upgradeId);
+    }
+
+    public static EnergyDepletionManager.EnergyStatus getEnergyStatus(ItemStack stack) {
+        return EnergyDepletionManager.getCurrentEnergyStatus(stack);
+    }
+
+    public static boolean consumeEnergyForUpgrade(ItemStack stack, String upgradeId, int baseAmount) {
+        return consumeEnergyForUpgradeBalanced(stack, upgradeId, baseAmount);
+    }
 
     public static double getEfficiencyMultiplier(int lv) {
         switch (lv) {
@@ -1253,6 +1722,7 @@ public class ItemMechanicalCore extends Item implements IBauble {
             default: return lv > 5 ? Math.max(0.10, 0.25 - (lv - 5) * 0.05) : 1.00;
         }
     }
+
     public static int getEfficiencyPercentage(ItemStack stack) {
         int lv = getEffectiveUpgradeLevel(stack, "energy_efficiency");
         double mul = getEfficiencyMultiplier(lv);
@@ -1264,7 +1734,10 @@ public class ItemMechanicalCore extends Item implements IBauble {
         nbt.setLong("TotalEnergySaved", nbt.getLong("TotalEnergySaved") + saved);
         nbt.setInteger("SessionEnergySaved", nbt.getInteger("SessionEnergySaved") + saved);
     }
-    public static long getTotalEnergySaved(ItemStack stack) { return !stack.hasTagCompound() ? 0 : stack.getTagCompound().getLong("TotalEnergySaved"); }
+
+    public static long getTotalEnergySaved(ItemStack stack) {
+        return !stack.hasTagCompound() ? 0 : stack.getTagCompound().getLong("TotalEnergySaved");
+    }
 
     @Override
     public ActionResult<ItemStack> onItemRightClick(World world, EntityPlayer player, EnumHand hand) {
@@ -1272,7 +1745,9 @@ public class ItemMechanicalCore extends Item implements IBauble {
         if (!world.isRemote) {
             ItemStack equipped = findEquippedMechanicalCore(player);
             if (!isMechanicalCore(equipped)) {
-                player.sendMessage(new TextComponentString(TextFormatting.YELLOW + "请先将机械核心装备到头部饰品栏！"));
+                player.sendMessage(new TextComponentString(
+                        TextFormatting.YELLOW + "请先将机械核心装备到头部饰品栏！"
+                ));
             } else {
                 EnergyDepletionManager.displayDetailedEnergyStatus(player, equipped);
             }
@@ -1286,7 +1761,8 @@ public class ItemMechanicalCore extends Item implements IBauble {
             if (baubles != null) {
                 for (int i = 0; i < baubles.getSlots(); i++) {
                     ItemStack s = baubles.getStackInSlot(i);
-                    if (isMechanicalCore(s) && s.getItem() instanceof IBauble && ((IBauble) s.getItem()).getBaubleType(s) == BaubleType.HEAD) {
+                    if (isMechanicalCore(s) && s.getItem() instanceof IBauble &&
+                            ((IBauble) s.getItem()).getBaubleType(s) == BaubleType.HEAD) {
                         return s;
                     }
                 }
@@ -1307,8 +1783,13 @@ public class ItemMechanicalCore extends Item implements IBauble {
         if (e != null) e.receiveEnergy(amount, false);
     }
 
-    public static boolean isMechanicalCore(ItemStack stack) { return !stack.isEmpty() && stack.getItem() instanceof ItemMechanicalCore; }
-    public static ItemStack getCoreFromPlayer(EntityPlayer player) { return findEquippedMechanicalCore(player); }
+    public static boolean isMechanicalCore(ItemStack stack) {
+        return !stack.isEmpty() && stack.getItem() instanceof ItemMechanicalCore;
+    }
+
+    public static ItemStack getCoreFromPlayer(EntityPlayer player) {
+        return findEquippedMechanicalCore(player);
+    }
 
     // 速度模式
     public static SpeedMode getSpeedMode(ItemStack stack) {
@@ -1316,28 +1797,106 @@ public class ItemMechanicalCore extends Item implements IBauble {
         int mode = stack.getTagCompound().getInteger("CoreSpeedMode");
         return SpeedMode.values()[Math.min(Math.max(0, mode), SpeedMode.values().length - 1)];
     }
-    public static void setSpeedMode(ItemStack stack, SpeedMode mode) { getOrCreateNBT(stack).setInteger("CoreSpeedMode", mode.ordinal()); }
+
+    public static void setSpeedMode(ItemStack stack, SpeedMode mode) {
+        getOrCreateNBT(stack).setInteger("CoreSpeedMode", mode.ordinal());
+    }
+
     public static void cycleSpeedMode(ItemStack stack) {
         SpeedMode cur = getSpeedMode(stack);
         SpeedMode next = SpeedMode.values()[(cur.ordinal() + 1) % SpeedMode.values().length];
         setSpeedMode(stack, next);
     }
 
+    // ===== canEquip 方法 =====
+
+    // ItemMechanicalCore.java - 只修改 canEquip 方法
+
+    /**
+     * ✅ 修复：检查装备条件
+     */
     @Override
     public boolean canEquip(ItemStack itemstack, EntityLivingBase entity) {
         if (!(entity instanceof EntityPlayer)) return false;
+
+        EntityPlayer player = (EntityPlayer) entity;
+
+        // ✅ 只在服务端做检查，客户端直接通过
+        if (player.world.isRemote) {
+            return true;
+        }
+
+        // ========== 服务端检查 ==========
+
+        // 检查佩戴时间限制
+        if (EquipmentTimeConfig.restriction.enabled) {
+            if (EquipmentTimeTracker.isPermanentlyBanned(player)) {
+                player.sendMessage(new TextComponentString(
+                        TextFormatting.RED + "✗ 你已被永久禁止佩戴机械核心！"
+                ));
+                return false;
+            }
+
+            long remainingTime = EquipmentTimeTracker.getRemainingTime(player);
+
+            if (remainingTime == 0 && !EquipmentTimeTracker.hasEquippedInTime(player)) {
+                player.sendMessage(new TextComponentString(
+                        TextFormatting.DARK_RED + "✗ 时间已到！你已无法佩戴机械核心！"
+                ));
+                EquipmentTimeTracker.markAsBanned(player);
+                return false;
+            }
+
+            if (remainingTime > 0) {
+                String timeStr = formatRemainingTime((int) remainingTime);
+                player.sendMessage(new TextComponentString(
+                        TextFormatting.YELLOW + "⏰ 提醒：佩戴时间还剩 " +
+                                TextFormatting.AQUA + timeStr
+                ));
+            }
+        }
+
         return true;
     }
 
-    @Override public boolean willAutoSync(ItemStack itemstack, EntityLivingBase player) { return true; }
-    @Override public boolean canUnequip(ItemStack itemstack, EntityLivingBase player) {
+    // 辅助方法
+    private String formatRemainingTime(int seconds) {
+        if (seconds >= 3600) {
+            int hours = seconds / 3600;
+            int minutes = (seconds % 3600) / 60;
+            return hours + "小时" + (minutes > 0 ? minutes + "分钟" : "");
+        } else if (seconds >= 60) {
+            int minutes = seconds / 60;
+            int secs = seconds % 60;
+            return minutes + "分钟" + (secs > 0 ? secs + "秒" : "");
+        } else {
+            return seconds + "秒";
+        }
+    }
+
+    /**
+     * 辅助方法：格式化剩余时间
+     */
+
+
+    @Override
+    public boolean willAutoSync(ItemStack itemstack, EntityLivingBase player) {
+        return true;
+    }
+
+    @Override
+    public boolean canUnequip(ItemStack itemstack, EntityLivingBase player) {
         if (player instanceof EntityPlayer) {
             EntityPlayer ep = (EntityPlayer) player;
             return ep.isCreative() || ep.isSpectator();
         }
         return false;
     }
-    @Override public boolean hasEffect(ItemStack stack) { return getTotalActiveUpgradeLevel(stack) > 0; }
+
+    @Override
+    public boolean hasEffect(ItemStack stack) {
+        return getTotalActiveUpgradeLevel(stack) > 0;
+    }
 
     @Override
     public boolean shouldCauseReequipAnimation(ItemStack oldStack, ItemStack newStack, boolean slotChanged) {
@@ -1345,13 +1904,20 @@ public class ItemMechanicalCore extends Item implements IBauble {
         return super.shouldCauseReequipAnimation(oldStack, newStack, slotChanged);
     }
 
-    @Override public boolean showDurabilityBar(ItemStack stack) { return true; }
-    @Override public double getDurabilityForDisplay(ItemStack stack) {
+    @Override
+    public boolean showDurabilityBar(ItemStack stack) {
+        return true;
+    }
+
+    @Override
+    public double getDurabilityForDisplay(ItemStack stack) {
         IEnergyStorage e = getEnergyStorage(stack);
         if (e == null || e.getMaxEnergyStored() == 0) return 1.0;
         return 1.0 - ((double) e.getEnergyStored() / e.getMaxEnergyStored());
     }
-    @Override public int getRGBDurabilityForDisplay(ItemStack stack) {
+
+    @Override
+    public int getRGBDurabilityForDisplay(ItemStack stack) {
         IEnergyStorage e = getEnergyStorage(stack);
         if (e != null) {
             float r = (float) e.getEnergyStored() / Math.max(1, e.getMaxEnergyStored());
@@ -1369,13 +1935,18 @@ public class ItemMechanicalCore extends Item implements IBauble {
         if (!world.isRemote && world.getTotalWorldTime() % 100 == 0 && entity instanceof EntityPlayer) {
             IEnergyStorage e = getEnergyStorage(stack);
             if (e != null && e.getEnergyStored() == 0 && getTotalActiveUpgradeLevel(stack) > 0) {
-                ((EntityPlayer) entity).sendStatusMessage(new TextComponentString(TextFormatting.RED + "⚡ 机械核心能量耗尽！"), true);
+                ((EntityPlayer) entity).sendStatusMessage(new TextComponentString(
+                        TextFormatting.RED + "⚡ 机械核心能量耗尽！"
+                ), true);
             }
         }
         super.onUpdate(stack, world, entity, itemSlot, isSelected);
     }
 
-    @Override public ICapabilityProvider initCapabilities(ItemStack stack, @Nullable NBTTagCompound nbt) { return new MechanicalCoreEnergyProvider(stack); }
+    @Override
+    public ICapabilityProvider initCapabilities(ItemStack stack, @Nullable NBTTagCompound nbt) {
+        return new MechanicalCoreEnergyProvider(stack);
+    }
 
     public static void clearPlayerCache(EntityPlayer player) {
         if (player != null) {
@@ -1384,10 +1955,9 @@ public class ItemMechanicalCore extends Item implements IBauble {
         }
     }
 
-    // ===== 冲突检测器 - 处理七咒之戒与机械核心的互斥 =====
+    // ===== 增强的冲突检测器 =====
     public static class ConflictChecker {
-        private static final Map<UUID, Long> lastCursedRingTime = new WeakHashMap<>();
-        private static final Map<UUID, Long> lastMechanicalCoreTime = new WeakHashMap<>();
+        private static final Map<UUID, Long> lastCheckTime = new WeakHashMap<>();
 
         @SubscribeEvent
         public void onPlayerTick(TickEvent.PlayerTickEvent event) {
@@ -1399,68 +1969,97 @@ public class ItemMechanicalCore extends Item implements IBauble {
             UUID uuid = player.getUniqueID();
             long currentTime = System.currentTimeMillis();
 
+            Long lastTime = lastCheckTime.get(uuid);
+            if (lastTime != null && currentTime - lastTime < 1000) return;
+            lastCheckTime.put(uuid, currentTime);
+
             try {
                 IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(player);
                 if (baubles == null) return;
 
-                ItemStack cursedRing = ItemStack.EMPTY;
-                ItemStack mechanicalCore = ItemStack.EMPTY;
-                int cursedRingSlot = -1;
+                boolean hasMechanicalCore = false;
+                List<Integer> enigmaticSlots = new ArrayList<>();
+                List<String> enigmaticNames = new ArrayList<>();
 
                 for (int i = 0; i < baubles.getSlots(); i++) {
                     ItemStack bauble = baubles.getStackInSlot(i);
-                    if (isCursedRing(bauble)) {
-                        cursedRing = bauble;
-                        cursedRingSlot = i;
-                        if (lastCursedRingTime.get(uuid) == null) lastCursedRingTime.put(uuid, currentTime);
-                    }
+
                     if (isMechanicalCore(bauble)) {
-                        mechanicalCore = bauble;
-                        if (lastMechanicalCoreTime.get(uuid) == null) lastMechanicalCoreTime.put(uuid, currentTime);
+                        hasMechanicalCore = true;
+                    }
+
+                    // ✨ 修改：只检测被阻止的 Enigmatic 物品（lost_engine 不会被移除）
+                    if (BLOCK_ALL_ENIGMATIC && isBlockedEnigmaticItem(bauble)) {
+                        enigmaticSlots.add(i);
+                        enigmaticNames.add(getItemDisplayName(bauble));
                     }
                 }
 
-                if (!cursedRing.isEmpty() && !mechanicalCore.isEmpty()) {
-                    ItemStack removed = baubles.extractItem(cursedRingSlot, 1, false);
-                    if (!removed.isEmpty()) {
-                        if (!player.inventory.addItemStackToInventory(removed)) {
-                            player.dropItem(removed, false);
+                if (hasMechanicalCore && !enigmaticSlots.isEmpty()) {
+                    for (int i = 0; i < enigmaticSlots.size(); i++) {
+                        int slot = enigmaticSlots.get(i);
+                        ItemStack removed = baubles.extractItem(slot, 1, false);
+
+                        if (!removed.isEmpty()) {
+                            if (!player.inventory.addItemStackToInventory(removed)) {
+                                player.dropItem(removed, false);
+                            }
+
+                            String itemName = enigmaticNames.get(i);
+                            player.sendMessage(new TextComponentString(
+                                    TextFormatting.YELLOW + "⚠ " + itemName +
+                                            " 与机械核心不兼容，已自动卸下"
+                            ));
+                            player.sendMessage(new TextComponentString(
+                                    TextFormatting.GRAY + "（Lost Engine 可以同时装备）"
+                            ));
                         }
-                        player.sendMessage(new TextComponentString(
-                                TextFormatting.YELLOW + "⚠ 七咒之戒与机械核心不兼容，已自动卸下七咒之戒"
-                        ));
-                        lastCursedRingTime.remove(uuid);
                     }
                 }
-
-                if (cursedRing.isEmpty()) lastCursedRingTime.remove(uuid);
-                if (mechanicalCore.isEmpty()) lastMechanicalCoreTime.remove(uuid);
 
             } catch (Throwable t) {
-                // 静默处理错误
+                if (DEBUG_MODE) {
+                    System.err.println("[MechanicalCore] 冲突检测时出错: " + t.getMessage());
+                }
             }
         }
     }
 
     // ===== 能量 Provider/Storage =====
+
     private static class MechanicalCoreEnergyProvider implements ICapabilityProvider {
         private final MechanicalCoreEnergyStorage storage;
-        MechanicalCoreEnergyProvider(ItemStack stack) { this.storage = new MechanicalCoreEnergyStorage(stack); }
-        @Override public boolean hasCapability(Capability<?> capability, @Nullable EnumFacing facing) { return capability == CapabilityEnergy.ENERGY; }
-        @Override @Nullable public <T> T getCapability(Capability<T> capability, @Nullable EnumFacing facing) { return capability == CapabilityEnergy.ENERGY ? CapabilityEnergy.ENERGY.cast(storage) : null; }
+        MechanicalCoreEnergyProvider(ItemStack stack) {
+            this.storage = new MechanicalCoreEnergyStorage(stack);
+        }
+        @Override
+        public boolean hasCapability(Capability<?> capability, @Nullable EnumFacing facing) {
+            return capability == CapabilityEnergy.ENERGY;
+        }
+        @Override
+        @Nullable
+        public <T> T getCapability(Capability<T> capability, @Nullable EnumFacing facing) {
+            return capability == CapabilityEnergy.ENERGY ? CapabilityEnergy.ENERGY.cast(storage) : null;
+        }
     }
 
     private static class MechanicalCoreEnergyStorage implements IEnergyStorage {
         private static final String NBT_ENERGY = "Energy";
         private final ItemStack container;
 
-        MechanicalCoreEnergyStorage(ItemStack stack) { this.container = stack; initNBT(); }
-        private void initNBT() {
-            if (!container.hasTagCompound()) container.setTagCompound(new NBTTagCompound());
-            if (!container.getTagCompound().hasKey(NBT_ENERGY)) container.getTagCompound().setInteger(NBT_ENERGY, 0);
+        MechanicalCoreEnergyStorage(ItemStack stack) {
+            this.container = stack;
+            initNBT();
         }
 
-        @Override public int receiveEnergy(int maxReceive, boolean simulate) {
+        private void initNBT() {
+            if (!container.hasTagCompound()) container.setTagCompound(new NBTTagCompound());
+            if (!container.getTagCompound().hasKey(NBT_ENERGY))
+                container.getTagCompound().setInteger(NBT_ENERGY, 0);
+        }
+
+        @Override
+        public int receiveEnergy(int maxReceive, boolean simulate) {
             int energy = getEnergyStored();
             int maxEnergy = getMaxEnergyStored();
             int received = Math.min(maxEnergy - energy, Math.min(maxReceive, EnergyBalanceConfig.BASE_ENERGY_TRANSFER));
@@ -1468,16 +2067,21 @@ public class ItemMechanicalCore extends Item implements IBauble {
             return received;
         }
 
-        @Override public int extractEnergy(int maxExtract, boolean simulate) {
+        @Override
+        public int extractEnergy(int maxExtract, boolean simulate) {
             int energy = getEnergyStored();
             int extracted = Math.min(energy, Math.min(maxExtract, EnergyBalanceConfig.BASE_ENERGY_TRANSFER));
             if (!simulate && extracted > 0) setEnergy(energy - extracted);
             return extracted;
         }
 
-        @Override public int getEnergyStored() { return container.hasTagCompound() ? container.getTagCompound().getInteger(NBT_ENERGY) : 0; }
+        @Override
+        public int getEnergyStored() {
+            return container.hasTagCompound() ? container.getTagCompound().getInteger(NBT_ENERGY) : 0;
+        }
 
-        @Override public int getMaxEnergyStored() {
+        @Override
+        public int getMaxEnergyStored() {
             if (isCalculatingEnergy.get()) return EnergyBalanceConfig.BASE_ENERGY_CAPACITY;
             try {
                 isCalculatingEnergy.set(true);
@@ -1495,11 +2099,23 @@ public class ItemMechanicalCore extends Item implements IBauble {
             }
         }
 
-        @Override public boolean canExtract() { return true; }
-        @Override public boolean canReceive() { return true; }
+        @Override
+        public boolean canExtract() {
+            return true;
+        }
+
+        @Override
+        public boolean canReceive() {
+            return true;
+        }
 
         private void setEnergy(int energy) {
             getOrCreateNBT(container).setInteger(NBT_ENERGY, Math.max(0, Math.min(getMaxEnergyStored(), energy)));
         }
+    }// 加个清理机制防止内存泄漏
+    @SubscribeEvent
+    public void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+        batteryCache.remove(event.player.getUniqueID());
     }
 }
+

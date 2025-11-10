@@ -16,6 +16,9 @@ public class ModPotions {
     public static final Potion MALFUNCTION = new PotionMalfunction();
     public static final Potion MINOR_MALFUNCTION = new PotionMinorMalfunction();
 
+    // ✨ 新增：月殇药水
+    public static final Potion MOON_AFFLICTION = new PotionMoonAffliction();
+
     /**
      * 注册药水效果
      */
@@ -23,11 +26,11 @@ public class ModPotions {
     public static void registerPotions(RegistryEvent.Register<Potion> event) {
         IForgeRegistry<Potion> registry = event.getRegistry();
 
-        // 注册节能模式
-
         // 注册故障效果
         registry.register(MALFUNCTION);
         registry.register(MINOR_MALFUNCTION);
 
+        // ✨ 注册月殇效果
+        registry.register(MOON_AFFLICTION);
     }
 }

@@ -1,6 +1,6 @@
 {
-    "parent": "item/generated",
-    "textures": {
-        "layer0": "moremod:items/combat_enhancement_package"
-    }
+  "parent": "item/generated",
+  "textures": {
+    "layer0": "moremod:items/combat_enhancement_package"
+  }
 }

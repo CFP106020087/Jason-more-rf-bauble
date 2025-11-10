@@ -2,7 +2,7 @@
   "enabled": true,
   "output": {
     "item": "moremod:spacetime_fabric",
-    "count": 4
+    "count": 2
   },
   "input": [
  "moremod:rift_crystal","moremod:unformed_fabric","moremod:rift_crystal"

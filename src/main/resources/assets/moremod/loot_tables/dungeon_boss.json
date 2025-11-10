@@ -34,13 +34,13 @@
         {
           "type": "item",
           "name": "moremod:parasitic_mass",
-          "weight": 80,
+          "weight": 100,
           "functions": [
             {
               "function": "set_count",
               "count": {
-                "min": 2,
-                "max": 4
+                "min": 3,
+                "max": 5
               }
             }
           ]
@@ -48,21 +48,49 @@
         {
           "type": "item",
           "name": "moremod:void_echo",
-          "weight": 100,
+          "weight": 120,
           "functions": [
             {
               "function": "set_count",
               "count": {
-                "min": 3,
-                "max": 6
+                "min": 4,
+                "max": 8
               }
             }
           ]
         },
         {
           "type": "item",
-          "name": "moremod:spectre_dust",
-          "weight": 120,
+          "name": "moremod:unformed_fiber",
+          "weight": 180,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": {
+                "min": 10,
+                "max": 20
+              }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "minecraft:diamond",
+          "weight": 80,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": {
+                "min": 4,
+                "max": 8
+              }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "minecraft:emerald",
+          "weight": 90,
           "functions": [
             {
               "function": "set_count",
@@ -75,28 +103,14 @@
         },
         {
           "type": "item",
-          "name": "moremod:unformed_fiber",
-          "weight": 150,
+          "name": "minecraft:experience_bottle",
+          "weight": 100,
           "functions": [
             {
               "function": "set_count",
               "count": {
                 "min": 8,
                 "max": 16
-              }
-            }
-          ]
-        },
-        {
-          "type": "item",
-          "name": "minecraft:diamond",
-          "weight": 60,
-          "functions": [
-            {
-              "function": "set_count",
-              "count": {
-                "min": 3,
-                "max": 6
               }
             }
           ]

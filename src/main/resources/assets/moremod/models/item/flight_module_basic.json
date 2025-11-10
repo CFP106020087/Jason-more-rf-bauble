@@ -1,6 +1,6 @@
 {
-    "parent": "item/generated",
-    "textures": {
-        "layer0": "moremod:items/flight_module_basic"
-    }
+  "parent": "item/generated",
+  "textures": {
+    "layer0": "moremod:items/flight_module_basic"
+  }
 }

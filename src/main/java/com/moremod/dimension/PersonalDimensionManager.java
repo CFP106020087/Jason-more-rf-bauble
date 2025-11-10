@@ -1,12 +1,13 @@
+// File: com/moremod/dimension/PersonalDimensionManager.java
 package com.moremod.dimension;
 
 import com.moremod.init.ModBlocks;
+import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.init.Blocks;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
@@ -19,1034 +20,845 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
+import java.io.*;
+import java.lang.ref.WeakReference;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 /**
- * 私人维度管理系统 - 修复版
- * 修复了只能在第一个存档创建维度的问题
+ * 私人维度管理系统 - 智能加载优化版
+ * ✅ 无玩家时自动卸载维度
+ * ✅ 有玩家时自动加载维度
+ * ✅ 大幅降低服务器资源消耗
  */
 public class PersonalDimensionManager {
 
-    // 私人维度ID
     public static final int PERSONAL_DIM_ID = 100;
 
-    // 空间配置
-    private static final int SPACE_WIDTH = 30;
-    private static final int SPACE_HEIGHT = 15;
-    private static final int SPACE_DEPTH = 30;
-    private static final int WALL_THICKNESS = 1;
-    private static final int SPACE_PADDING = 20;
+    // 几何参数
+    private static final int SPACE_WIDTH = 30, SPACE_HEIGHT = 15, SPACE_DEPTH = 30;
+    private static final int WALL_THICKNESS = 1, SPACE_PADDING = 800;
+    private static final int TERRITORY_RADIUS = 400;
 
-    // 玩家空间分配 - 使用线程安全的集合
+    // 定时参数
+    private static final long SAVE_INTERVAL = 300_000L;
+    private static final long CLEANUP_INTERVAL = 600_000L;
+    private static final long INACTIVE_THRESHOLD = 3_600_000L;
+
+    // ✅ 新增：维度自动卸载参数
+    private static final long DIMENSION_UNLOAD_DELAY = 30_000L; // 30秒无玩家后卸载
+    private static long lastPlayerLeftTime = 0;
+    private static boolean shouldCheckUnload = false;
+
+    // 数据
     private static final Map<UUID, PersonalSpace> playerSpaces = new ConcurrentHashMap<>();
-    private static final Map<BlockPos, UUID> spaceOwners = new ConcurrentHashMap<>();
-    private static int nextSpaceIndex = 0;
+    private static final Map<UUID, Integer> playerToSpaceIndex = new ConcurrentHashMap<>();
+    private static final Map<Integer, UUID> spaceIndexToPlayer = new ConcurrentHashMap<>();
+    private static final Map<BlockPos, WeakReference<UUID>> spaceOwners = new ConcurrentHashMap<>();
 
-    // 墙壁恢复任务队列
+    // 门洞 & 墙恢复
+    private static final Map<UUID, List<BlockPos>> doorHoles = new ConcurrentHashMap<>();
     private static final Map<UUID, WallRestoreTask> wallRestoreTasks = new ConcurrentHashMap<>();
 
-    // 记录已初始化的玩家
-    private static final Set<UUID> initializedPlayers = Collections.synchronizedSet(new HashSet<>());
-
-    // 待生成队列（用于延迟生成）
+    // 待生成
     private static final Map<UUID, Long> pendingGenerations = new ConcurrentHashMap<>();
 
-    // 标记维度是否已经初始化
+    private static final BatchBlockUpdater batchUpdater = new BatchBlockUpdater();
+
+    // 状态
     private static boolean isDimensionInitialized = false;
-
-    // 标记数据是否已加载
     private static boolean isDataLoaded = false;
+    private static boolean isRegistered = false;
 
-    /**
-     * 墙壁恢复任务
-     */
-    private static class WallRestoreTask {
+    private static final Object ALLOCATION_LOCK = new Object();
+    private static final Object FILE_LOCK = new Object();
+    private static long lastSaveTime = 0, lastCleanupTime = 0;
+
+    // ---------------- 内部类 ----------------
+
+    public static class WallRestoreTask {
         public final UUID playerId;
         public final long restoreTime;
+        public WallRestoreTask(UUID playerId, long restoreTime) { this.playerId = playerId; this.restoreTime = restoreTime; }
+    }
 
-        public WallRestoreTask(UUID playerId, long restoreTime) {
-            this.playerId = playerId;
-            this.restoreTime = restoreTime;
+    private static class BatchBlockUpdater {
+        private final Map<BlockPos, IBlockState> pending = new HashMap<>();
+        private static final int BATCH = 100;
+        synchronized void add(BlockPos p, IBlockState s){ pending.put(p, s); if(pending.size()>=BATCH) flush(); }
+        synchronized void flush(){
+            if(pending.isEmpty()) return;
+            WorldServer w = DimensionManager.getWorld(PERSONAL_DIM_ID);
+            if(w!=null) pending.forEach((p,s)-> w.setBlockState(p,s,2));
+            pending.clear();
+        }
+        synchronized void flushToWorld(World w){
+            if(pending.isEmpty()) return;
+            pending.forEach((p,s)-> w.setBlockState(p,s,2));
+            pending.clear();
         }
     }
 
-    /**
-     * 玩家的私人空间数据
-     */
     public static class PersonalSpace {
-        public final UUID playerId;
-        public final String playerName;
-        public final BlockPos centerPos;
-        public final BlockPos innerMinPos;
-        public final BlockPos innerMaxPos;
-        public final BlockPos outerMinPos;
-        public final BlockPos outerMaxPos;
+        public UUID playerId; public String playerName; public int index;
+        public final BlockPos centerPos, innerMinPos, innerMaxPos, outerMinPos, outerMaxPos;
         public final long createdTime;
-        public boolean isActive;
-        public boolean isGenerated;
-        public boolean hasVoidStructures;  // 新增：是否已生成虚空结构
-        public final int index;
+        public boolean isActive, isGenerated, hasVoidStructures;
+        public long lastActiveTime;
 
-        public PersonalSpace(UUID playerId, String playerName, int index) {
-            this.playerId = playerId;
-            this.playerName = playerName;
-            this.index = index;
+        public PersonalSpace(UUID pid, String name, int idx){
+            this.playerId=pid; this.playerName=name; this.index=idx;
             this.createdTime = System.currentTimeMillis();
-            this.isActive = true;
-            this.isGenerated = false;
-            this.hasVoidStructures = false;  // 初始化为false
+            this.lastActiveTime = createdTime;
+            this.isActive = true; this.isGenerated=false; this.hasVoidStructures=false;
 
-            // 计算空间位置
-            int gridSize = 10;
-            int gridX = index % gridSize;
-            int gridZ = index / gridSize;
-
-            int totalSpacing = SPACE_WIDTH + WALL_THICKNESS * 2 + SPACE_PADDING;
-            int centerX = gridX * totalSpacing;
-            int centerZ = gridZ * totalSpacing;
-            int centerY = 128;
-
-            this.centerPos = new BlockPos(centerX, centerY, centerZ);
-
-            // 内部空间边界
-            this.innerMinPos = new BlockPos(
-                    centerX - SPACE_WIDTH/2,
-                    centerY - SPACE_HEIGHT/2,
-                    centerZ - SPACE_DEPTH/2
-            );
-            this.innerMaxPos = new BlockPos(
-                    centerX + SPACE_WIDTH/2,
-                    centerY + SPACE_HEIGHT/2,
-                    centerZ + SPACE_DEPTH/2
-            );
-
-            // 外墙边界
-            this.outerMinPos = new BlockPos(
-                    innerMinPos.getX() - WALL_THICKNESS,
-                    innerMinPos.getY() - WALL_THICKNESS,
-                    innerMinPos.getZ() - WALL_THICKNESS
-            );
-            this.outerMaxPos = new BlockPos(
-                    innerMaxPos.getX() + WALL_THICKNESS,
-                    innerMaxPos.getY() + WALL_THICKNESS,
-                    innerMaxPos.getZ() + WALL_THICKNESS
-            );
+            BlockPos grid = calculateSpiral(idx);
+            int cx=grid.getX(), cz=grid.getZ(), cy=128;
+            this.centerPos = new BlockPos(cx, cy, cz);
+            this.innerMinPos = new BlockPos(cx - SPACE_WIDTH/2,  cy - SPACE_HEIGHT/2, cz - SPACE_DEPTH/2);
+            this.innerMaxPos = new BlockPos(cx + SPACE_WIDTH/2,  cy + SPACE_HEIGHT/2, cz + SPACE_DEPTH/2);
+            this.outerMinPos = new BlockPos(innerMinPos.getX()-WALL_THICKNESS, innerMinPos.getY()-WALL_THICKNESS, innerMinPos.getZ()-WALL_THICKNESS);
+            this.outerMaxPos = new BlockPos(innerMaxPos.getX()+WALL_THICKNESS, innerMaxPos.getY()+WALL_THICKNESS, innerMaxPos.getZ()+WALL_THICKNESS);
         }
 
-        public boolean isInInnerSpace(BlockPos pos) {
-            return pos.getX() >= innerMinPos.getX() && pos.getX() <= innerMaxPos.getX() &&
-                    pos.getY() >= innerMinPos.getY() && pos.getY() <= innerMaxPos.getY() &&
-                    pos.getZ() >= innerMinPos.getZ() && pos.getZ() <= innerMaxPos.getZ();
+        public PersonalSpace(UUID pid, String name, int idx,
+                             BlockPos c, BlockPos inMin, BlockPos inMax, BlockPos outMin, BlockPos outMax,
+                             long created, long lastActive, boolean active, boolean gen, boolean structs){
+            this.playerId=pid; this.playerName=name; this.index=idx;
+            this.centerPos=c; this.innerMinPos=inMin; this.innerMaxPos=inMax; this.outerMinPos=outMin; this.outerMaxPos=outMax;
+            this.createdTime=created; this.lastActiveTime=lastActive;
+            this.isActive=active; this.isGenerated=gen; this.hasVoidStructures=structs;
         }
 
-        public boolean isInOuterSpace(BlockPos pos) {
-            return pos.getX() >= outerMinPos.getX() && pos.getX() <= outerMaxPos.getX() &&
-                    pos.getY() >= outerMinPos.getY() && pos.getY() <= outerMaxPos.getY() &&
-                    pos.getZ() >= outerMinPos.getZ() && pos.getZ() <= outerMaxPos.getZ();
+        public void updateActivity(){ lastActiveTime = System.currentTimeMillis(); }
+
+        public boolean isInInnerSpace(BlockPos p){
+            return p.getX()>=innerMinPos.getX() && p.getX()<=innerMaxPos.getX()
+                    && p.getY()>=innerMinPos.getY() && p.getY()<=innerMaxPos.getY()
+                    && p.getZ()>=innerMinPos.getZ() && p.getZ()<=innerMaxPos.getZ();
+        }
+        public boolean isInOuterSpace(BlockPos p){
+            return p.getX()>=outerMinPos.getX() && p.getX()<=outerMaxPos.getX()
+                    && p.getY()>=outerMinPos.getY() && p.getY()<=outerMaxPos.getY()
+                    && p.getZ()>=outerMinPos.getZ() && p.getZ()<=outerMaxPos.getZ();
+        }
+        public boolean isWall(BlockPos p){ return isInOuterSpace(p) && !isInInnerSpace(p); }
+
+        public boolean isInTerritory(BlockPos p){
+            return Math.abs(p.getX()-centerPos.getX())<=TERRITORY_RADIUS
+                    && Math.abs(p.getZ()-centerPos.getZ())<=TERRITORY_RADIUS;
         }
 
-        public boolean isWall(BlockPos pos) {
-            return isInOuterSpace(pos) && !isInInnerSpace(pos);
+        public NBTTagCompound toNBT(){
+            NBTTagCompound t=new NBTTagCompound();
+            t.setString("playerName", playerName);
+            t.setInteger("index", index);
+            t.setBoolean("isGenerated", isGenerated);
+            t.setBoolean("hasVoidStructures", hasVoidStructures);
+            t.setLong("createdTime", createdTime);
+            t.setLong("lastActiveTime", lastActiveTime);
+            t.setBoolean("isActive", isActive);
+            t.setInteger("cx", centerPos.getX()); t.setInteger("cy", centerPos.getY()); t.setInteger("cz", centerPos.getZ());
+            writePos(t,"inMin",innerMinPos); writePos(t,"inMax",innerMaxPos); writePos(t,"outMin",outerMinPos); writePos(t,"outMax",outerMaxPos);
+            t.setInteger("dataVersion",2);
+            return t;
         }
-    }
+        public static PersonalSpace fromNBT(UUID pid, String name, NBTTagCompound tag){
+            int idx = tag.getInteger("index");
+            long created=tag.getLong("createdTime");
+            long last= tag.hasKey("lastActiveTime")?tag.getLong("lastActiveTime"):System.currentTimeMillis();
+            boolean active=tag.getBoolean("isActive");
+            boolean gen   =tag.getBoolean("isGenerated");
+            boolean structs= tag.hasKey("hasVoidStructures") && tag.getBoolean("hasVoidStructures");
 
-    /**
-     * 初始化私人维度管理器 - 改进版
-     */
-    public static void init() {
-        System.out.println("[口袋空间] 系统初始化开始...");
-
-        // 只加载数据，不重置（避免清空已有数据）
-        if (!isDataLoaded) {
-            loadPlayerSpaces();
-            isDataLoaded = true;
-        }
-
-        System.out.println("[口袋空间] 系统初始化完成");
-    }
-
-    /**
-     * 完全初始化（包括重置）
-     */
-    public static void fullInit() {
-        System.out.println("[口袋空间] 完全初始化开始...");
-
-        // 重置状态
-        reset();
-
-        // 加载数据
-        loadPlayerSpaces();
-        isDataLoaded = true;
-
-        // 确保维度被加载
-        ensureDimensionLoaded();
-
-        isDimensionInitialized = true;
-        System.out.println("[口袋空间] 完全初始化完成");
-    }
-
-    /**
-     * 重置所有静态数据（用于世界切换）
-     */
-    public static void reset() {
-        System.out.println("[口袋空间] 重置管理器状态");
-        playerSpaces.clear();
-        spaceOwners.clear();
-        wallRestoreTasks.clear();
-        initializedPlayers.clear();
-        pendingGenerations.clear();
-        nextSpaceIndex = 0;
-        isDimensionInitialized = false;
-        isDataLoaded = false;
-    }
-
-    /**
-     * 确保维度被加载 - 改进版
-     */
-    private static void ensureDimensionLoaded() {
-        // 如果已经初始化，直接返回
-        if (isDimensionInitialized) {
-            return;
-        }
-
-        // 先检查主世界是否已加载
-        WorldServer overworld = DimensionManager.getWorld(0);
-        if (overworld == null) {
-            System.out.println("[口袋空间] 主世界未加载，跳过维度初始化");
-            return;
-        }
-
-        // 先检查维度是否注册
-        if (!DimensionManager.isDimensionRegistered(PERSONAL_DIM_ID)) {
-            System.out.println("[口袋空间] 警告：维度未注册！尝试注册维度...");
-            PersonalDimensionType.registerDimension();
-
-            // 再次检查
-            if (!DimensionManager.isDimensionRegistered(PERSONAL_DIM_ID)) {
-                System.err.println("[口袋空间] 错误：无法注册维度！");
-                return;
+            if(tag.hasKey("cx")){
+                BlockPos c=new BlockPos(tag.getInteger("cx"), tag.getInteger("cy"), tag.getInteger("cz"));
+                BlockPos inMin=readPos(tag,"inMin"), inMax=readPos(tag,"inMax"), outMin=readPos(tag,"outMin"), outMax=readPos(tag,"outMax");
+                return new PersonalSpace(pid,name,idx,c,inMin,inMax,outMin,outMax,created,last,active,gen,structs);
+            }else{
+                PersonalSpace ps=new PersonalSpace(pid,name,idx);
+                ps.isActive=active; ps.isGenerated=gen; ps.hasVoidStructures=structs; ps.lastActiveTime=last;
+                return ps;
             }
         }
 
-        // 标记为保持加载，但不立即初始化
-        DimensionManager.keepDimensionLoaded(PERSONAL_DIM_ID, true);
-        System.out.println("[口袋空间] 维度已标记为保持加载");
+        private static void writePos(NBTTagCompound r,String k,BlockPos p){ NBTTagCompound t=new NBTTagCompound(); t.setInteger("x",p.getX()); t.setInteger("y",p.getY()); t.setInteger("z",p.getZ()); r.setTag(k,t); }
+        private static BlockPos readPos(NBTTagCompound r,String k){ NBTTagCompound t=r.getCompoundTag(k); return new BlockPos(t.getInteger("x"),t.getInteger("y"),t.getInteger("z")); }
+
+        private static BlockPos calculateSpiral(int i){
+            if(i==0) return new BlockPos(0,0,0);
+            int k=(int)Math.ceil((Math.sqrt(i+1)-1)/2); int t=2*k+1; int m=t*t; t=t-1; int x,z;
+            if(i>=m-t){ x=k-(m-i); z=-k; }
+            else{ m=m-t; if(i>=m-t){ x=-k; z=-k+(m-i); }
+            else{ m=m-t; if(i>=m-t){ x=-k+(m-i); z=k; } else { x=k; z=k-(m-t-i); } } }
+            x*=SPACE_PADDING; z*=SPACE_PADDING; return new BlockPos(x,0,z);
+        }
     }
 
-    /**
-     * 获取私人维度世界（确保已加载）
-     */
-    private static WorldServer getPersonalDimensionWorld() {
-        // 先检查主世界是否已加载
-        WorldServer overworld = DimensionManager.getWorld(0);
-        if (overworld == null) {
-            System.out.println("[口袋空间] 主世界未加载，无法获取私人维度");
+    // -------------- 初始化 / 世界加载 --------------
+
+    public static void init(){
+        if(!isRegistered) isRegistered=true;
+    }
+
+    public static void reset(){
+        batchUpdater.flush();
+        playerSpaces.clear(); playerToSpaceIndex.clear(); spaceIndexToPlayer.clear(); spaceOwners.clear();
+        wallRestoreTasks.clear(); pendingGenerations.clear(); doorHoles.clear();
+        isDimensionInitialized=false; isDataLoaded=false; lastSaveTime=0; lastCleanupTime=0;
+        shouldCheckUnload = false;
+        lastPlayerLeftTime = 0;
+    }
+
+    @SubscribeEvent
+    public static void onWorldLoad(WorldEvent.Load e){
+        if(e.getWorld().isRemote) return;
+        int dim=e.getWorld().provider.getDimension();
+        if(dim==0 && !isDataLoaded){
+            loadPlayerSpaces();
+            loadBindings();
+            isDataLoaded=true;
+        }
+    }
+
+    // ✅ 优化：只在需要时加载维度，不强制保持加载
+    private static void ensureDimensionLoaded(){
+        if(isDimensionInitialized) return;
+        WorldServer overworld=DimensionManager.getWorld(0);
+        if(overworld==null) return;
+        if(!DimensionManager.isDimensionRegistered(PERSONAL_DIM_ID)){
+            PersonalDimensionType.registerDimension();
+            if(!DimensionManager.isDimensionRegistered(PERSONAL_DIM_ID)) return;
+        }
+
+        // ✅ 移除了 keepDimensionLoaded(true)，让维度可以自动卸载
+        isDimensionInitialized=true;
+        System.out.println("[私人维度] ✅ 维度已加载（智能管理模式）");
+    }
+
+    private static WorldServer getPersonalDimensionWorld(){
+        WorldServer w = DimensionManager.getWorld(PERSONAL_DIM_ID);
+        if(w!=null) return w;
+        ensureDimensionLoaded();
+        try{
+            DimensionManager.initDimension(PERSONAL_DIM_ID);
+            w = DimensionManager.getWorld(PERSONAL_DIM_ID);
+            if(w != null) {
+                System.out.println("[私人维度] ✅ 维度世界已初始化");
+            }
+            return w;
+        }catch(Throwable t){
+            System.err.println("[私人维度] ❌ 维度初始化失败: " + t.getMessage());
             return null;
         }
-
-        // 直接尝试获取维度世界
-        WorldServer world = DimensionManager.getWorld(PERSONAL_DIM_ID);
-        if (world != null) {
-            return world;
-        }
-
-        // 只在维度不存在时才初始化
-        if (!isDimensionInitialized) {
-            System.out.println("[口袋空间] 初始化维度世界...");
-
-            try {
-                // 确保维度已注册
-                if (!DimensionManager.isDimensionRegistered(PERSONAL_DIM_ID)) {
-                    System.err.println("[口袋空间] 维度未注册！");
-                    return null;
-                }
-
-                // 保持维度加载
-                DimensionManager.keepDimensionLoaded(PERSONAL_DIM_ID, true);
-
-                // 初始化维度
-                DimensionManager.initDimension(PERSONAL_DIM_ID);
-                world = DimensionManager.getWorld(PERSONAL_DIM_ID);
-
-                if (world != null) {
-                    isDimensionInitialized = true;
-                    System.out.println("[口袋空间] 维度初始化成功");
-                } else {
-                    System.err.println("[口袋空间] 维度初始化失败");
-                }
-            } catch (Exception e) {
-                System.err.println("[口袋空间] 维度初始化异常: " + e.getMessage());
-                e.printStackTrace();
-            }
-        }
-
-        return world;
     }
 
-    /**
-     * 世界加载事件 - 改进版
-     */
+    // -------------- 玩家事件 --------------
+
     @SubscribeEvent
-    public static void onWorldLoad(WorldEvent.Load event) {
-        if (event.getWorld().isRemote) return;
-
-        // 如果是主世界被加载
-        if (event.getWorld().provider.getDimension() == 0) {
-            System.out.println("[口袋空间] 主世界加载");
-
-            // 如果数据还未加载，立即加载
-            if (!isDataLoaded) {
-                loadPlayerSpaces();
-                isDataLoaded = true;
-            }
+    public static void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent e){
+        if(e.player.world.isRemote) return;
+        if(!isDataLoaded){ loadPlayerSpaces(); loadBindings(); isDataLoaded=true; }
+        PersonalSpace s = getOrCreateSpaceWithBinding(e.player);
+        if(!s.playerId.equals(e.player.getUniqueID())){
+            s.playerId=e.player.getUniqueID(); s.playerName=e.player.getName(); savePlayerSpaces();
         }
-        // 如果是私人维度被加载
-        else if (event.getWorld().provider.getDimension() == PERSONAL_DIM_ID) {
-            System.out.println("[口袋空间] 私人维度世界加载");
-
-            // 标记维度已初始化
-            isDimensionInitialized = true;
-
-            // 保持维度加载
-            DimensionManager.keepDimensionLoaded(PERSONAL_DIM_ID, true);
-
-            // 不在这里立即生成空间，等待玩家实际需要时再生成
-            System.out.println("[口袋空间] 维度已准备就绪");
+        s.updateActivity();
+        if(!s.isGenerated && pendingGenerations.size()<20){
+            pendingGenerations.put(e.player.getUniqueID(), System.currentTimeMillis()+3000L);
         }
     }
 
-    /**
-     * 世界卸载事件
-     */
     @SubscribeEvent
-    public static void onWorldUnload(WorldEvent.Unload event) {
-        if (event.getWorld().isRemote) return;
+    public static void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent e){
+        if(e.player.world.isRemote) return;
+        pendingGenerations.remove(e.player.getUniqueID());
+        PersonalSpace s=playerSpaces.get(e.player.getUniqueID());
+        if(s!=null) s.updateActivity();
 
-        // 如果是服务器关闭，保存数据
-        if (event.getWorld().provider.getDimension() == 0) {
-            System.out.println("[口袋空间] 主世界卸载，保存数据");
-            savePlayerSpacesInternal();
-        }
-    }
-
-    /**
-     * 服务器Tick事件（定期保存 & 延迟空间生成 & 墙体恢复）
-     */
-    @SubscribeEvent
-    public static void onServerTick(TickEvent.ServerTickEvent event) {
-        if (event.phase != TickEvent.Phase.END) return;
-
-        // 处理待生成队列 - 简化逻辑，避免频繁获取维度
-        if (!pendingGenerations.isEmpty()) {
-            long currentTime = System.currentTimeMillis();
-            Iterator<Map.Entry<UUID, Long>> it = pendingGenerations.entrySet().iterator();
-
-            // 每tick只处理一个生成任务
-            while (it.hasNext()) {
-                Map.Entry<UUID, Long> entry = it.next();
-                if (currentTime >= entry.getValue()) {
-                    PersonalSpace space = playerSpaces.get(entry.getKey());
-                    if (space != null && !space.isGenerated) {
-                        // 只在真正需要生成时才获取世界
-                        WorldServer world = DimensionManager.getWorld(PERSONAL_DIM_ID);
-                        if (world != null) {
-                            System.out.println("[口袋空间] 生成空间: " + space.playerName);
-                            generateCompleteSpace(world, space);
-                        }
-                    }
-                    it.remove();
-                    break; // 每tick只处理一个
-                }
-            }
+        // ✅ 检查是否需要卸载维度
+        if(e.player.dimension == PERSONAL_DIM_ID) {
+            checkDimensionUnload();
         }
 
-        // 处理墙壁恢复任务
-        if (!wallRestoreTasks.isEmpty()) {
-            long currentTime = System.currentTimeMillis();
-            Iterator<Map.Entry<UUID, WallRestoreTask>> it = wallRestoreTasks.entrySet().iterator();
-
-            while (it.hasNext()) {
-                Map.Entry<UUID, WallRestoreTask> entry = it.next();
-                WallRestoreTask task = entry.getValue();
-
-                if (currentTime >= task.restoreTime) {
-                    PersonalSpace space = playerSpaces.get(task.playerId);
-                    if (space != null && space.isGenerated) {
-                        WorldServer world = DimensionManager.getWorld(PERSONAL_DIM_ID);
-                        if (world != null) {
-                            restoreAnchorWalls(world, space);
-                        }
-                    }
-                    it.remove();
-                }
-            }
-        }
-
-        // 定期保存数据（约每5分钟一次）
-        if (event.side.isServer() && System.currentTimeMillis() % 6000 == 0) {
-            savePlayerSpaces();
-        }
-    }
-
-    /**
-     * 玩家加入游戏事件 - 修复版
-     */
-    @SubscribeEvent
-    public static void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
-        EntityPlayer player = event.player;
-        if (player.world.isRemote) return;
-
-        UUID playerId = player.getUniqueID();
-
-        // 确保数据已加载
-        if (!isDataLoaded) {
-            loadPlayerSpaces();
-            isDataLoaded = true;
-        }
-
-        PersonalSpace existingSpace = playerSpaces.get(playerId);
-
-        if (existingSpace == null) {
-            System.out.println("[口袋空间] 为玩家 " + player.getName() + " 创建新空间");
-
-            // 创建空间数据但延迟生成
-            PersonalSpace space = new PersonalSpace(playerId, player.getName(), nextSpaceIndex++);
-            playerSpaces.put(playerId, space);
-
-            // 注册空间所有权（按区块粗粒度）
-            for (int x = space.outerMinPos.getX(); x <= space.outerMaxPos.getX(); x += 16) {
-                for (int z = space.outerMinPos.getZ(); z <= space.outerMaxPos.getZ(); z += 16) {
-                    spaceOwners.put(new BlockPos(x, 0, z), playerId);
-                }
-            }
-
-            // 延迟3秒生成
-            pendingGenerations.put(playerId, System.currentTimeMillis() + 3000);
-
-            savePlayerSpaces();
-        } else {
-            System.out.println("[口袋空间] 玩家 " + player.getName() + " 已有空间");
-
-            // 如果空间未生成，安排生成
-            if (!existingSpace.isGenerated) {
-                pendingGenerations.put(playerId, System.currentTimeMillis() + 3000);
-            }
-        }
-    }
-
-    /**
-     * 玩家退出时清理
-     */
-    @SubscribeEvent
-    public static void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent event) {
-        if (event.player.world.isRemote) return;
-
-        UUID playerId = event.player.getUniqueID();
-        initializedPlayers.remove(playerId);
-        pendingGenerations.remove(playerId);
-
-        // 保存当前数据
         savePlayerSpaces();
     }
 
-    /**
-     * 传送玩家到私人空间 - 修复版
-     */
-    public static void teleportToPersonalSpace(EntityPlayer player) {
-        if (player.world.isRemote) return;
-
-        UUID playerId = player.getUniqueID();
-
-        // 确保数据已加载
-        if (!isDataLoaded) {
-            loadPlayerSpaces();
-            isDataLoaded = true;
-        }
-
-        PersonalSpace space = playerSpaces.get(playerId);
-
-        if (space == null) {
-            System.out.println("[口袋空间] 传送时创建新空间: " + player.getName());
-
-            space = new PersonalSpace(playerId, player.getName(), nextSpaceIndex++);
-            playerSpaces.put(playerId, space);
-
-            for (int x = space.outerMinPos.getX(); x <= space.outerMaxPos.getX(); x += 16) {
-                for (int z = space.outerMinPos.getZ(); z <= space.outerMaxPos.getZ(); z += 16) {
-                    spaceOwners.put(new BlockPos(x, 0, z), playerId);
-                }
+    // ✅ 新增：检查维度是否应该卸载
+    private static void checkDimensionUnload() {
+        WorldServer w = DimensionManager.getWorld(PERSONAL_DIM_ID);
+        if(w != null) {
+            List<EntityPlayer> players = getPlayersInDimension(w);
+            if(players.isEmpty()) {
+                lastPlayerLeftTime = System.currentTimeMillis();
+                shouldCheckUnload = true;
+                System.out.println("[私人维度] ⏳ 维度中无玩家，将在" + (DIMENSION_UNLOAD_DELAY/1000) + "秒后卸载");
             }
+        }
+    }
 
-            savePlayerSpaces();
+    // ✅ 新增：安全卸载维度
+    private static void unloadDimensionSafely() {
+        WorldServer w = DimensionManager.getWorld(PERSONAL_DIM_ID);
+        if(w == null) return;
+
+        // 最后保存一次
+        System.out.println("[私人维度] 💾 卸载前保存数据...");
+        batchUpdater.flush();
+        savePlayerSpaces();
+        saveBindings();
+
+        // 清理WorldProvider
+        if(w.provider instanceof PersonalDimensionWorldProvider) {
+            ((PersonalDimensionWorldProvider) w.provider).cleanup();
         }
 
-        WorldServer personalWorld = getPersonalDimensionWorld();
-        if (personalWorld == null) {
-            player.sendStatusMessage(new TextComponentString(
-                    TextFormatting.RED + "无法加载私人维度！请稍后再试。"
-            ), true);
+        // 清理生成处理器缓存
+        PersonalDimensionSpawnHandler.onWorldUnload();
+
+        // 标记为未初始化，下次需要时会重新加载
+        isDimensionInitialized = false;
+
+        System.out.println("[私人维度] ✅ 维度已安全卸载，节省资源");
+    }
+
+    public static void teleportToPersonalSpace(EntityPlayer p){
+        if(p.world.isRemote) return;
+        if(!isDataLoaded){ loadPlayerSpaces(); loadBindings(); isDataLoaded=true; }
+        PersonalSpace s = getOrCreateSpaceWithBinding(p);
+        s.updateActivity();
+
+        // ✅ 取消卸载计划（有玩家要进入）
+        shouldCheckUnload = false;
+
+        WorldServer w = getPersonalDimensionWorld();
+        if(w==null){
+            p.sendStatusMessage(new TextComponentString(TextFormatting.RED+"无法加载私人维度！"), true);
             return;
         }
 
-        // 确保空间已生成
-        if (!space.isGenerated) {
-            System.out.println("[口袋空间] 立即生成空间: " + space.centerPos);
-            generateCompleteSpace(personalWorld, space);
+        if(!s.isGenerated && probeAndFixGenerated(w, s)){
+            // 探测到已生成
         }
 
-        // 老空间补一次结构（打补丁前已生成的存档）
-        if (!space.hasVoidStructures) {
-            maybeGenerateVoidStructures(personalWorld, space);
+        if(!s.isGenerated){
+            generateCompleteSpace(w, s);
         }
 
-        // 传送玩家
-        if (player.dimension != PERSONAL_DIM_ID) {
-            player.changeDimension(PERSONAL_DIM_ID, new PersonalTeleporter(personalWorld, space.centerPos));
-        } else {
-            ((EntityPlayerMP)player).connection.setPlayerLocation(
-                    space.centerPos.getX() + 0.5,
-                    space.centerPos.getY(),
-                    space.centerPos.getZ() + 0.5,
-                    player.rotationYaw,
-                    player.rotationPitch
+        if(!s.hasVoidStructures && p.dimension==PERSONAL_DIM_ID){
+            generatePlayerStructures(w, s, p);
+            s.hasVoidStructures=true;
+        }
+
+        if(p.dimension!=PERSONAL_DIM_ID){
+            p.changeDimension(PERSONAL_DIM_ID, new PersonalTeleporter(w, s.centerPos));
+        }else{
+            ((EntityPlayerMP)p).connection.setPlayerLocation(
+                    s.centerPos.getX()+0.5, s.centerPos.getY(), s.centerPos.getZ()+0.5,
+                    p.rotationYaw, p.rotationPitch
             );
         }
-
-        player.sendStatusMessage(new TextComponentString(
-                TextFormatting.GREEN + "已传送到你的私人空间"
-        ), true);
+        p.sendStatusMessage(new TextComponentString(TextFormatting.GREEN+"已传送到你的私人空间"), true);
     }
 
-    // ==================== 空间生成相关方法 ====================
+    private static PersonalSpace getOrCreateSpaceWithBinding(EntityPlayer player){
+        UUID pid=player.getUniqueID(); String name=player.getName();
+        synchronized(ALLOCATION_LOCK){
+            PersonalSpace ex=playerSpaces.get(pid);
+            if(ex!=null) return ex;
 
-    /**
-     * 一次性生成完整空间
-     */
-    private static void generateCompleteSpace(World world, PersonalSpace space) {
-        if (space.isGenerated) {
-            System.out.println("[口袋空间] 空间已生成，跳过: " + space.playerName);
-            return;
-        }
-
-        // 强制加载自身区块
-        for (int cx = (space.outerMinPos.getX() >> 4); cx <= (space.outerMaxPos.getX() >> 4); cx++) {
-            for (int cz = (space.outerMinPos.getZ() >> 4); cz <= (space.outerMaxPos.getZ() >> 4); cz++) {
-                world.getChunk(cx, cz);
+            Integer bound=playerToSpaceIndex.get(pid);
+            if(bound!=null){
+                UUID rev = spaceIndexToPlayer.get(bound);
+                if(pid.equals(rev)){
+                    PersonalSpace restored = new PersonalSpace(pid, name, bound);
+                    playerSpaces.put(pid, restored);
+                    registerSpaceOwnership(restored);
+                    return restored;
+                }else{
+                    System.err.println("[私人维度] 绑定冲突：为 "+name+" 重新分配空间");
+                }
             }
-        }
-
-        long startTime = System.currentTimeMillis();
-        System.out.println("[口袋空间] 开始生成空间: " + space.centerPos);
-
-        IBlockState wallBlock;
-        try {
-            wallBlock = ModBlocks.UNBREAKABLE_BARRIER_ANCHOR.getDefaultState();
-            System.out.println("[口袋空间] 使用维度锚定屏障");
-        } catch (Exception e) {
-            wallBlock = Blocks.BEDROCK.getDefaultState();
-            System.out.println("[口袋空间] 使用基岩作为墙壁");
-        }
-
-        generateWalls(world, space, wallBlock);
-        clearInterior(world, space);
-        generateFloor(world, space);
-        addInfrastructure(world, space);
-
-        space.isGenerated = true;
-
-        // === 新增：生成一次虚空结构 ===
-        if (world instanceof WorldServer) {
-            maybeGenerateVoidStructures((WorldServer) world, space);
-        }
-
-        long endTime = System.currentTimeMillis();
-        System.out.println("[口袋空间] 空间生成完成，耗时: " + (endTime - startTime) + "ms");
-
-        savePlayerSpaces();
-    }
-
-    /**
-     * 在玩家空间周边生成一次虚空结构（只执行一次）
-     */
-    private static void maybeGenerateVoidStructures(WorldServer world, PersonalSpace space) {
-        if (space.hasVoidStructures) {
-            return;
-        }
-
-        final int maxDistance = 200; // 与 VoidStructureGenerator 的最远生成距离保持一致
-        final int minChunkX = (space.centerPos.getX() - maxDistance) >> 4;
-        final int maxChunkX = (space.centerPos.getX() + maxDistance) >> 4;
-        final int minChunkZ = (space.centerPos.getZ() - maxDistance) >> 4;
-        final int maxChunkZ = (space.centerPos.getZ() + maxDistance) >> 4;
-
-        // 预加载外围区块，避免 setBlockState 引发同步加载卡顿
-        for (int cx = minChunkX; cx <= maxChunkX; cx++) {
-            for (int cz = minChunkZ; cz <= maxChunkZ; cz++) {
-                world.getChunk(cx, cz);
-            }
-        }
-
-        System.out.println("[口袋空间] 为 " + space.playerName + " 生成虚空结构（<=200格）...");
-        VoidStructureGenerator.generateNearbyStructures(world, space.centerPos, maxDistance);
-        space.hasVoidStructures = true;
-        savePlayerSpaces();
-    }
-
-    /**
-     * 生成所有墙壁
-     */
-    private static void generateWalls(World world, PersonalSpace space, IBlockState wallBlock) {
-        // 底面
-        int y = space.outerMinPos.getY();
-        for (int x = space.outerMinPos.getX(); x <= space.outerMaxPos.getX(); x++) {
-            for (int z = space.outerMinPos.getZ(); z <= space.outerMaxPos.getZ(); z++) {
-                world.setBlockState(new BlockPos(x, y, z), wallBlock, 2);
-            }
-        }
-
-        // 顶面
-        y = space.outerMaxPos.getY();
-        for (int x = space.outerMinPos.getX(); x <= space.outerMaxPos.getX(); x++) {
-            for (int z = space.outerMinPos.getZ(); z <= space.outerMaxPos.getZ(); z++) {
-                world.setBlockState(new BlockPos(x, y, z), wallBlock, 2);
-            }
-        }
-
-        // 四个侧面
-        for (y = space.outerMinPos.getY() + 1; y < space.outerMaxPos.getY(); y++) {
-            // 前后墙
-            for (int x = space.outerMinPos.getX(); x <= space.outerMaxPos.getX(); x++) {
-                world.setBlockState(new BlockPos(x, y, space.outerMinPos.getZ()), wallBlock, 2);
-                world.setBlockState(new BlockPos(x, y, space.outerMaxPos.getZ()), wallBlock, 2);
-            }
-            // 左右墙
-            for (int z = space.outerMinPos.getZ() + 1; z < space.outerMaxPos.getZ(); z++) {
-                world.setBlockState(new BlockPos(space.outerMinPos.getX(), y, z), wallBlock, 2);
-                world.setBlockState(new BlockPos(space.outerMaxPos.getX(), y, z), wallBlock, 2);
-            }
+            int idx=allocateNewSpaceIndex();
+            PersonalSpace s=new PersonalSpace(pid,name,idx);
+            playerSpaces.put(pid,s);
+            playerToSpaceIndex.put(pid,idx);
+            spaceIndexToPlayer.put(idx,pid);
+            registerSpaceOwnership(s);
+            saveBindings(); savePlayerSpaces();
+            return s;
         }
     }
 
-    /**
-     * 清空内部空间
-     */
-    private static void clearInterior(World world, PersonalSpace space) {
-        IBlockState air = Blocks.AIR.getDefaultState();
+    private static int allocateNewSpaceIndex(){
+        int i=0; while(spaceIndexToPlayer.containsKey(i)) i++; return i;
+    }
 
-        for (int x = space.innerMinPos.getX(); x <= space.innerMaxPos.getX(); x++) {
-            for (int y = space.innerMinPos.getY(); y <= space.innerMaxPos.getY(); y++) {
-                for (int z = space.innerMinPos.getZ(); z <= space.innerMaxPos.getZ(); z++) {
-                    BlockPos pos = new BlockPos(x, y, z);
-                    if (world.getBlockState(pos).getBlock() != Blocks.AIR) {
-                        world.setBlockState(pos, air, 2);
+    private static void registerSpaceOwnership(PersonalSpace s){
+        for(int x=s.outerMinPos.getX(); x<=s.outerMaxPos.getX(); x+=16)
+            for(int z=s.outerMinPos.getZ(); z<=s.outerMaxPos.getZ(); z+=16)
+                spaceOwners.put(new BlockPos(x,0,z), new WeakReference<>(s.playerId));
+    }
+
+    // -------------- Tick：延迟生成/恢复/保存清理 --------------
+
+    @SubscribeEvent
+    public static void onServerTick(TickEvent.ServerTickEvent e){
+        if(e.phase!=TickEvent.Phase.END) return;
+
+        // ✅ 检查是否需要卸载维度
+        if(shouldCheckUnload) {
+            long now = System.currentTimeMillis();
+            if(now - lastPlayerLeftTime >= DIMENSION_UNLOAD_DELAY) {
+                WorldServer w = DimensionManager.getWorld(PERSONAL_DIM_ID);
+                if(w != null) {
+                    List<EntityPlayer> players = getPlayersInDimension(w);
+                    if(players.isEmpty()) {
+                        unloadDimensionSafely();
+                        shouldCheckUnload = false;
+                    } else {
+                        // 有玩家重新进入，取消卸载
+                        shouldCheckUnload = false;
+                        System.out.println("[私人维度] ✅ 检测到玩家，取消卸载");
                     }
                 }
             }
         }
-    }
 
-    /**
-     * 生成地板
-     */
-    private static void generateFloor(World world, PersonalSpace space) {
-        int floorY = space.innerMinPos.getY();
-
-        for (int x = space.innerMinPos.getX(); x <= space.innerMaxPos.getX(); x++) {
-            for (int z = space.innerMinPos.getZ(); z <= space.innerMaxPos.getZ(); z++) {
-                BlockPos pos = new BlockPos(x, floorY, z);
-
-                int dx = Math.abs(x - space.centerPos.getX());
-                int dz = Math.abs(z - space.centerPos.getZ());
-
-                if (dx <= 1 && dz <= 1) {
-                    world.setBlockState(pos, Blocks.SEA_LANTERN.getDefaultState(), 2);
-                } else if (dx <= 2 && dz <= 2) {
-                    world.setBlockState(pos, Blocks.QUARTZ_BLOCK.getDefaultState(), 2);
-                } else {
-                    world.setBlockState(pos, Blocks.STONE.getDefaultState(), 2);
-                }
-            }
-        }
-    }
-
-    /**
-     * 添加基础设施
-     */
-    private static void addInfrastructure(World world, PersonalSpace space) {
-        int floorY = space.innerMinPos.getY() + 1;
-
-        BlockPos[] corners = {
-                new BlockPos(space.innerMinPos.getX() + 2, floorY, space.innerMinPos.getZ() + 2),
-                new BlockPos(space.innerMaxPos.getX() - 2, floorY, space.innerMinPos.getZ() + 2),
-                new BlockPos(space.innerMinPos.getX() + 2, floorY, space.innerMaxPos.getZ() - 2),
-                new BlockPos(space.innerMaxPos.getX() - 2, floorY, space.innerMaxPos.getZ() - 2)
-        };
-
-        for (BlockPos corner : corners) {
-            world.setBlockState(corner, Blocks.GLOWSTONE.getDefaultState(), 2);
-            world.setBlockState(corner.up(), Blocks.END_ROD.getDefaultState(), 2);
-        }
-
-        int lightY = space.innerMinPos.getY() + 4;
-        int spacing = 10;
-
-        for (int i = space.innerMinPos.getX() + spacing; i < space.innerMaxPos.getX(); i += spacing) {
-            world.setBlockState(new BlockPos(i, lightY, space.innerMinPos.getZ() + 1),
-                    Blocks.GLOWSTONE.getDefaultState(), 2);
-            world.setBlockState(new BlockPos(i, lightY, space.innerMaxPos.getZ() - 1),
-                    Blocks.GLOWSTONE.getDefaultState(), 2);
-        }
-    }
-
-    /**
-     * 恢复空间的维度锚定墙壁
-     */
-    private static void restoreAnchorWalls(World world, PersonalSpace space) {
-        IBlockState wallBlock;
-        try {
-            wallBlock = ModBlocks.UNBREAKABLE_BARRIER_ANCHOR.getDefaultState();
-        } catch (Exception e) {
-            wallBlock = Blocks.BEDROCK.getDefaultState();
-            System.out.println("[口袋空间] 使用基岩恢复墙壁");
-        }
-
-        System.out.println("[口袋空间] 开始恢复维度锚定墙壁: " + space.playerName);
-
-        // 恢复底面
-        int y = space.outerMinPos.getY();
-        for (int x = space.outerMinPos.getX(); x <= space.outerMaxPos.getX(); x++) {
-            for (int z = space.outerMinPos.getZ(); z <= space.outerMaxPos.getZ(); z++) {
-                BlockPos pos = new BlockPos(x, y, z);
-                if (world.getBlockState(pos).getBlock() == Blocks.AIR) {
-                    world.setBlockState(pos, wallBlock, 3);
-                    spawnRestoreParticles(world, pos);
+        // 待生成
+        if(!pendingGenerations.isEmpty()){
+            long now=System.currentTimeMillis();
+            Iterator<Map.Entry<UUID,Long>> it=pendingGenerations.entrySet().iterator();
+            while(it.hasNext()){
+                Map.Entry<UUID,Long> en=it.next();
+                if(now>=en.getValue()){
+                    PersonalSpace s=playerSpaces.get(en.getKey());
+                    if(s!=null && !s.isGenerated){
+                        WorldServer w=DimensionManager.getWorld(PERSONAL_DIM_ID);
+                        if(w!=null){
+                            if(!probeAndFixGenerated(w,s)){
+                                generateCompleteSpace(w,s);
+                            }
+                        }
+                    }
+                    it.remove(); break;
                 }
             }
         }
 
-        // 恢复顶面
-        y = space.outerMaxPos.getY();
-        for (int x = space.outerMinPos.getX(); x <= space.outerMaxPos.getX(); x++) {
-            for (int z = space.outerMinPos.getZ(); z <= space.outerMaxPos.getZ(); z++) {
-                BlockPos pos = new BlockPos(x, y, z);
-                if (world.getBlockState(pos).getBlock() == Blocks.AIR) {
-                    world.setBlockState(pos, wallBlock, 3);
-                    spawnRestoreParticles(world, pos);
+        // 墙恢复
+        if(!wallRestoreTasks.isEmpty()){
+            long now=System.currentTimeMillis();
+            Iterator<Map.Entry<UUID,WallRestoreTask>> it=wallRestoreTasks.entrySet().iterator();
+            while(it.hasNext()){
+                Map.Entry<UUID,WallRestoreTask> en=it.next();
+                if(now>=en.getValue().restoreTime){
+                    PersonalSpace s=playerSpaces.get(en.getKey());
+                    if(s!=null && s.isGenerated){
+                        WorldServer w=DimensionManager.getWorld(PERSONAL_DIM_ID);
+                        if(w!=null) restoreAnchorWalls(w,s);
+                    }
+                    it.remove();
                 }
             }
         }
 
-        // 恢复四个侧面
-        for (y = space.outerMinPos.getY() + 1; y < space.outerMaxPos.getY(); y++) {
-            // 前后墙
-            for (int x = space.outerMinPos.getX(); x <= space.outerMaxPos.getX(); x++) {
-                BlockPos frontPos = new BlockPos(x, y, space.outerMinPos.getZ());
-                BlockPos backPos = new BlockPos(x, y, space.outerMaxPos.getZ());
-
-                if (world.getBlockState(frontPos).getBlock() == Blocks.AIR) {
-                    world.setBlockState(frontPos, wallBlock, 3);
-                    spawnRestoreParticles(world, frontPos);
-                }
-                if (world.getBlockState(backPos).getBlock() == Blocks.AIR) {
-                    world.setBlockState(backPos, wallBlock, 3);
-                    spawnRestoreParticles(world, backPos);
-                }
-            }
-
-            // 左右墙
-            for (int z = space.outerMinPos.getZ() + 1; z < space.outerMaxPos.getZ(); z++) {
-                BlockPos leftPos = new BlockPos(space.outerMinPos.getX(), y, z);
-                BlockPos rightPos = new BlockPos(space.outerMaxPos.getX(), y, z);
-
-                if (world.getBlockState(leftPos).getBlock() == Blocks.AIR) {
-                    world.setBlockState(leftPos, wallBlock, 3);
-                    spawnRestoreParticles(world, leftPos);
-                }
-                if (world.getBlockState(rightPos).getBlock() == Blocks.AIR) {
-                    world.setBlockState(rightPos, wallBlock, 3);
-                    spawnRestoreParticles(world, rightPos);
-                }
-            }
-        }
-
-        System.out.println("[口袋空间] 维度锚定墙壁恢复完成");
-    }
-
-    /**
-     * 生成恢复粒子效果
-     */
-    private static void spawnRestoreParticles(World world, BlockPos pos) {
-        for (int i = 0; i < 3; i++) {
-            double x = pos.getX() + 0.5 + (world.rand.nextDouble() - 0.5) * 0.5;
-            double y = pos.getY() + 0.5 + (world.rand.nextDouble() - 0.5) * 0.5;
-            double z = pos.getZ() + 0.5 + (world.rand.nextDouble() - 0.5) * 0.5;
-            world.spawnParticle(EnumParticleTypes.SPELL_WITCH, x, y, z, 0, 0.1, 0);
+        // 定期保存/清理
+        if(e.side.isServer()){
+            long now=System.currentTimeMillis();
+            if(now-lastSaveTime>SAVE_INTERVAL){ batchUpdater.flush(); savePlayerSpaces(); saveBindings(); lastSaveTime=now; }
+            if(now-lastCleanupTime>CLEANUP_INTERVAL){ cleanupInactiveSpaces(); lastCleanupTime=now; }
         }
     }
 
-    // ==================== 事件处理方法 ====================
+    // -------------- 方块保护 --------------
 
-    /**
-     * 方块破坏事件 - 只保护维度锚定墙壁
-     */
     @SubscribeEvent
-    public static void onBlockBreak(BlockEvent.BreakEvent event) {
-        if (event.getWorld().provider.getDimension() != PERSONAL_DIM_ID) return;
-
-        EntityPlayer player = event.getPlayer();
-        BlockPos pos = event.getPos();
-        IBlockState state = event.getState();
-
-        PersonalSpace space = findSpaceByPos(pos);
-        if (space == null) {
-            return;
-        }
-
-        // 检查是否是维度锚定墙壁
-        if (state.getBlock().getRegistryName() != null) {
-            String blockName = state.getBlock().getRegistryName().toString();
-
-            // 只保护维度锚定屏障墙壁
-            if (blockName.contains("unbreakable_barrier") && space.isWall(pos)) {
-                event.setCanceled(true);
-                player.sendStatusMessage(new TextComponentString(
-                        TextFormatting.RED + "⚠ 维度锚定墙壁不可破坏！"
-                ), true);
+    public static void onBlockBreak(BlockEvent.BreakEvent e){
+        if(e.getWorld().provider.getDimension()!=PERSONAL_DIM_ID) return;
+        EntityPlayer p=e.getPlayer(); BlockPos pos=e.getPos(); IBlockState st=e.getState();
+        PersonalSpace s=findSpaceByPos(pos); if(s==null) return;
+        s.updateActivity();
+        if(st.getBlock().getRegistryName()!=null){
+            String id=st.getBlock().getRegistryName().toString();
+            if(id.contains("unbreakable_barrier") && s.isWall(pos)){
+                e.setCanceled(true);
+                p.sendStatusMessage(new TextComponentString(TextFormatting.RED+"⚠ 维度锚定墙壁不可破坏！"), true);
                 return;
             }
         }
-
-        // 检查是否在其他玩家的空间内
-        if (!space.playerId.equals(player.getUniqueID()) && space.isInInnerSpace(pos)) {
-            event.setCanceled(true);
-            player.sendStatusMessage(new TextComponentString(
-                    TextFormatting.RED + "你不能破坏其他玩家的私人空间！"
-            ), true);
+        if(!s.playerId.equals(p.getUniqueID()) && s.isInInnerSpace(pos)){
+            e.setCanceled(true);
+            p.sendStatusMessage(new TextComponentString(TextFormatting.RED+"你不能破坏其他玩家的私人空间！"), true);
         }
     }
 
-    /**
-     * 方块放置事件 - 限制在维度锚定墙壁上放置
-     */
     @SubscribeEvent
-    public static void onBlockPlace(BlockEvent.PlaceEvent event) {
-        if (event.getWorld().provider.getDimension() != PERSONAL_DIM_ID) return;
-
-        EntityPlayer player = event.getPlayer();
-        BlockPos pos = event.getPos();
-
-        PersonalSpace space = findSpaceByPos(pos);
-        if (space == null) {
-            return;
-        }
-
-        // 检查是否试图在维度锚定墙壁位置放置方块
-        if (space.isWall(pos)) {
-            IBlockState existingState = event.getWorld().getBlockState(pos);
-            if (existingState.getBlock().getRegistryName() != null) {
-                String blockName = existingState.getBlock().getRegistryName().toString();
-
-                // 只有在维度锚定墙壁位置才阻止放置
-                if (blockName.contains("unbreakable_barrier")) {
-                    event.setCanceled(true);
-                    player.sendStatusMessage(new TextComponentString(
-                            TextFormatting.RED + "不能在维度锚定墙壁上放置方块！"
-                    ), true);
+    public static void onBlockPlace(BlockEvent.PlaceEvent e){
+        if(e.getWorld().provider.getDimension()!=PERSONAL_DIM_ID) return;
+        EntityPlayer p=e.getPlayer(); BlockPos pos=e.getPos();
+        PersonalSpace s=findSpaceByPos(pos); if(s==null) return;
+        s.updateActivity();
+        if(s.isWall(pos)){
+            IBlockState st=e.getWorld().getBlockState(pos);
+            if(st.getBlock().getRegistryName()!=null){
+                String id=st.getBlock().getRegistryName().toString();
+                if(id.contains("unbreakable_barrier")){
+                    e.setCanceled(true);
+                    p.sendStatusMessage(new TextComponentString(TextFormatting.RED+"不能在维度锚定墙壁上放置方块！"), true);
                     return;
                 }
             }
         }
-
-        // 检查是否在其他玩家的空间内
-        if (!space.playerId.equals(player.getUniqueID()) && space.isInInnerSpace(pos)) {
-            event.setCanceled(true);
-            player.sendStatusMessage(new TextComponentString(
-                    TextFormatting.RED + "你不能在其他玩家的私人空间放置方块！"
-            ), true);
+        if(!s.playerId.equals(p.getUniqueID()) && s.isInInnerSpace(pos)){
+            e.setCanceled(true);
+            p.sendStatusMessage(new TextComponentString(TextFormatting.RED+"你不能在其他玩家的私人空间放置方块！"), true);
         }
     }
 
-    // ==================== 辅助方法 ====================
+    // -------------- 生成 --------------
 
-    /**
-     * 安排墙壁恢复任务
-     */
-    public static void scheduleWallRestore(UUID playerId, int ticksDelay) {
-        long restoreTime = System.currentTimeMillis() + (ticksDelay * 50L);
-        WallRestoreTask task = new WallRestoreTask(playerId, restoreTime);
-        wallRestoreTasks.put(playerId, task);
+    private static void generateCompleteSpace(World w, PersonalSpace s){
+        if(s.isGenerated) return;
+        for(int cx=(s.outerMinPos.getX()>>4); cx<=(s.outerMaxPos.getX()>>4); cx++)
+            for(int cz=(s.outerMinPos.getZ()>>4); cz<=(s.outerMaxPos.getZ()>>4); cz++)
+                w.getChunk(cx,cz);
 
-        System.out.println("[口袋空间] 已安排墙壁恢复，将在 " + (ticksDelay/20) + " 秒后执行");
+        IBlockState wall = getAnchorWallBlockSafe();
+        generateWallsBatched(w,s,wall);
+        clearInteriorBatched(w,s);
+        generateFloorBatched(w,s);
+        addInfrastructureBatched(w,s);
+        batchUpdater.flushToWorld(w);
+
+        s.isGenerated=true;
+        savePlayerSpaces();
     }
 
-    private static PersonalSpace findSpaceByPos(BlockPos pos) {
-        for (PersonalSpace space : playerSpaces.values()) {
-            if (space.isInOuterSpace(pos)) {
-                return space;
+    private static void generateWallsBatched(World w, PersonalSpace s, IBlockState wall){
+        int y=s.outerMinPos.getY();
+        for(int x=s.outerMinPos.getX(); x<=s.outerMaxPos.getX(); x++)
+            for(int z=s.outerMinPos.getZ(); z<=s.outerMaxPos.getZ(); z++)
+                batchUpdater.add(new BlockPos(x,y,z), wall);
+        y=s.outerMaxPos.getY();
+        for(int x=s.outerMinPos.getX(); x<=s.outerMaxPos.getX(); x++)
+            for(int z=s.outerMinPos.getZ(); z<=s.outerMaxPos.getZ(); z++)
+                batchUpdater.add(new BlockPos(x,y,z), wall);
+        for(y=s.outerMinPos.getY()+1; y<s.outerMaxPos.getY(); y++){
+            for(int x=s.outerMinPos.getX(); x<=s.outerMaxPos.getX(); x++){
+                batchUpdater.add(new BlockPos(x,y,s.outerMinPos.getZ()), wall);
+                batchUpdater.add(new BlockPos(x,y,s.outerMaxPos.getZ()), wall);
+            }
+            for(int z=s.outerMinPos.getZ()+1; z<s.outerMaxPos.getZ(); z++){
+                batchUpdater.add(new BlockPos(s.outerMinPos.getX(),y,z), wall);
+                batchUpdater.add(new BlockPos(s.outerMaxPos.getX(),y,z), wall);
             }
         }
+    }
+
+    private static void clearInteriorBatched(World w, PersonalSpace s){
+        IBlockState air=Blocks.AIR.getDefaultState();
+        for(int x=s.innerMinPos.getX(); x<=s.innerMaxPos.getX(); x++)
+            for(int y=s.innerMinPos.getY(); y<=s.innerMaxPos.getY(); y++)
+                for(int z=s.innerMinPos.getZ(); z<=s.innerMaxPos.getZ(); z++){
+                    BlockPos p=new BlockPos(x,y,z);
+                    if(w.getBlockState(p).getBlock()!=Blocks.AIR) batchUpdater.add(p, air);
+                }
+    }
+
+    private static void generateFloorBatched(World w, PersonalSpace s){
+        int y=s.innerMinPos.getY();
+        for(int x=s.innerMinPos.getX(); x<=s.innerMaxPos.getX(); x++)
+            for(int z=s.innerMinPos.getZ(); z<=s.innerMaxPos.getZ(); z++){
+                BlockPos p=new BlockPos(x,y,z);
+                int dx=Math.abs(x-s.centerPos.getX()), dz=Math.abs(z-s.centerPos.getZ());
+                if(dx<=1 && dz<=1) batchUpdater.add(p, Blocks.SEA_LANTERN.getDefaultState());
+                else if(dx<=2 && dz<=2) batchUpdater.add(p, Blocks.QUARTZ_BLOCK.getDefaultState());
+                else batchUpdater.add(p, Blocks.STONE.getDefaultState());
+            }
+    }
+
+    private static void addInfrastructureBatched(World w, PersonalSpace s){
+        int fy=s.innerMinPos.getY()+1;
+        BlockPos[] corners={
+                new BlockPos(s.innerMinPos.getX()+2,fy,s.innerMinPos.getZ()+2),
+                new BlockPos(s.innerMaxPos.getX()-2,fy,s.innerMinPos.getZ()+2),
+                new BlockPos(s.innerMinPos.getX()+2,fy,s.innerMaxPos.getZ()-2),
+                new BlockPos(s.innerMaxPos.getX()-2,fy,s.innerMaxPos.getZ()-2)
+        };
+        for(BlockPos c:corners){ batchUpdater.add(c,Blocks.GLOWSTONE.getDefaultState()); batchUpdater.add(c.up(),Blocks.END_ROD.getDefaultState()); }
+        int ly=s.innerMinPos.getY()+4;
+        for(int i=s.innerMinPos.getX()+10; i<s.innerMaxPos.getX(); i+=10){
+            batchUpdater.add(new BlockPos(i,ly,s.innerMinPos.getZ()+1),Blocks.GLOWSTONE.getDefaultState());
+            batchUpdater.add(new BlockPos(i,ly,s.innerMaxPos.getZ()-1),Blocks.GLOWSTONE.getDefaultState());
+        }
+    }
+
+    private static void restoreAnchorWalls(World w, PersonalSpace s){
+        IBlockState wall=getAnchorWallBlockSafe();
+        List<BlockPos> holes=doorHoles.remove(s.playerId);
+        if(holes==null || holes.isEmpty()) return;
+        for(BlockPos p:holes) if(s.isWall(p)) w.setBlockState(p, wall,2);
+    }
+
+    private static IBlockState getAnchorWallBlockSafe(){
+        try{ Block b = ModBlocks.UNBREAKABLE_BARRIER_ANCHOR; if(b!=null) return b.getDefaultState(); }
+        catch(Throwable ignore){}
+        return Blocks.BEDROCK.getDefaultState();
+    }
+
+    // -------------- "存在性探测 + 自愈" --------------
+
+    private static boolean probeAndFixGenerated(WorldServer w, PersonalSpace s){
+        if(s.isGenerated) return true;
+        for(int cx=(s.outerMinPos.getX()>>4); cx<=(s.outerMaxPos.getX()>>4); cx++)
+            for(int cz=(s.outerMinPos.getZ()>>4); cz<=(s.outerMaxPos.getZ()>>4); cz++)
+                w.getChunk(cx, cz);
+
+        List<BlockPos> samples=new ArrayList<>(16);
+        BlockPos min=s.outerMinPos, max=s.outerMaxPos;
+        int yBot=min.getY(), yTop=max.getY(), yMid=(yBot+yTop)/2;
+
+        samples.add(new BlockPos(min.getX(), yBot, min.getZ()));
+        samples.add(new BlockPos(max.getX(), yBot, min.getZ()));
+        samples.add(new BlockPos(min.getX(), yBot, max.getZ()));
+        samples.add(new BlockPos(max.getX(), yBot, max.getZ()));
+        samples.add(new BlockPos(min.getX(), yTop, min.getZ()));
+        samples.add(new BlockPos(max.getX(), yTop, min.getZ()));
+        samples.add(new BlockPos(min.getX(), yTop, max.getZ()));
+        samples.add(new BlockPos(max.getX(), yTop, max.getZ()));
+        samples.add(new BlockPos(min.getX(), yMid, (min.getZ()+max.getZ())/2));
+        samples.add(new BlockPos(max.getX(), yMid, (min.getZ()+max.getZ())/2));
+        samples.add(new BlockPos((min.getX()+max.getX())/2, yMid, min.getZ()));
+        samples.add(new BlockPos((min.getX()+max.getX())/2, yMid, max.getZ()));
+
+        int anchorHits=0, checked=0;
+        for(BlockPos p:samples){
+            if(!w.isBlockLoaded(p)) continue;
+            Block b = w.getBlockState(p).getBlock();
+            if(b==Blocks.BEDROCK || (b.getRegistryName()!=null && b.getRegistryName().toString().contains("unbreakable_barrier"))){
+                anchorHits++;
+            }
+            checked++;
+        }
+
+        BlockPos floorCenter=new BlockPos(s.centerPos.getX(), s.innerMinPos.getY(), s.centerPos.getZ());
+        boolean hasCenterLamp=false;
+        if(w.isBlockLoaded(floorCenter)){
+            Block fb=w.getBlockState(floorCenter).getBlock();
+            hasCenterLamp = (fb==Blocks.SEA_LANTERN || fb==Blocks.QUARTZ_BLOCK || fb==Blocks.STONE);
+        }
+
+        if(checked>=4 && anchorHits>=3){
+            s.isGenerated=true;
+            savePlayerSpaces();
+            return true;
+        }
+
+        if(hasCenterLamp){
+            s.isGenerated=true;
+            savePlayerSpaces();
+            return true;
+        }
+
+        return false;
+    }
+
+    // -------------- 辅助 --------------
+
+    private static PersonalSpace findSpaceByPos(BlockPos p){
+        for(PersonalSpace s:playerSpaces.values()) if(s.isInOuterSpace(p)) return s; return null;
+    }
+
+    public static PersonalSpace getPlayerSpace(UUID id){ return playerSpaces.get(id); }
+    public static boolean hasPersonalSpace(UUID id){ return playerSpaces.containsKey(id); }
+    public static Collection<PersonalSpace> getAllSpaces(){ return playerSpaces.values(); }
+
+    public static UUID findSpaceOwner(BlockPos p){
+        for(Map.Entry<UUID,PersonalSpace> e:playerSpaces.entrySet())
+            if(e.getValue().isInTerritory(p)) return e.getKey();
         return null;
     }
 
-    public static PersonalSpace getPlayerSpace(UUID playerId) {
-        return playerSpaces.get(playerId);
+    public static List<EntityPlayer> getPlayersInDimension(World w){
+        List<EntityPlayer> list=new ArrayList<>();
+        if(w instanceof WorldServer){
+            for(EntityPlayer p:((WorldServer)w).playerEntities)
+                if(p.dimension==PERSONAL_DIM_ID && !p.isDead) list.add(p);
+        }
+        return list;
     }
 
-    public static boolean hasPersonalSpace(UUID playerId) {
-        return playerSpaces.containsKey(playerId);
+    public static boolean hasPlayersInDimension(World w){
+        return w.provider.getDimension()==PERSONAL_DIM_ID && !getPlayersInDimension(w).isEmpty();
     }
 
-    public static Collection<PersonalSpace> getAllSpaces() {
-        return playerSpaces.values();
+    private static void cleanupInactiveSpaces(){
+        long now=System.currentTimeMillis();
+        List<UUID> toMark=playerSpaces.entrySet().stream()
+                .filter(en-> now - en.getValue().lastActiveTime > INACTIVE_THRESHOLD)
+                .filter(en-> !isPlayerOnline(en.getKey()))
+                .map(Map.Entry::getKey).collect(Collectors.toList());
+        for(UUID id:toMark){ PersonalSpace s=playerSpaces.get(id); if(s!=null) s.isActive=false; }
+        spaceOwners.entrySet().removeIf(en->{ WeakReference<UUID> ref=en.getValue(); return ref==null || ref.get()==null; });
     }
 
-    public static PersonalSpace getOrCreateSpace(EntityPlayer player) {
-        UUID playerId = player.getUniqueID();
-        PersonalSpace space = playerSpaces.get(playerId);
+    private static boolean isPlayerOnline(UUID id){
+        WorldServer w=DimensionManager.getWorld(0); if(w==null) return false;
+        return w.getMinecraftServer().getPlayerList().getPlayers().stream().anyMatch(p->p.getUniqueID().equals(id));
+    }
 
-        if (space == null) {
-            space = new PersonalSpace(playerId, player.getName(), nextSpaceIndex++);
-            playerSpaces.put(playerId, space);
+    // -------------- 数据 I/O --------------
 
-            for (int x = space.outerMinPos.getX(); x <= space.outerMaxPos.getX(); x += 16) {
-                for (int z = space.outerMinPos.getZ(); z <= space.outerMaxPos.getZ(); z += 16) {
-                    spaceOwners.put(new BlockPos(x, 0, z), playerId);
+    public static void savePlayerSpaces(){ savePlayerSpacesInternal(); }
+
+    private static void savePlayerSpacesInternal(){
+        synchronized(FILE_LOCK){
+            File f=getSaveFile(); if(f==null) return;
+            try{
+                NBTTagCompound root=new NBTTagCompound(), spaces=new NBTTagCompound();
+                for(Map.Entry<UUID,PersonalSpace> en:playerSpaces.entrySet())
+                    spaces.setTag(en.getKey().toString(), en.getValue().toNBT());
+                root.setTag("spaces",spaces); root.setInteger("version",2);
+                if(!f.getParentFile().exists()) f.getParentFile().mkdirs();
+                try(FileOutputStream fos=new FileOutputStream(f);
+                    DataOutputStream dos=new DataOutputStream(fos)){
+                    net.minecraft.nbt.CompressedStreamTools.writeCompressed(root,dos);
                 }
-            }
-
-            WorldServer world = getPersonalDimensionWorld();
-            if (world != null && !space.isGenerated) {
-                generateCompleteSpace(world, space);
-            }
-
-            savePlayerSpaces();
-        }
-
-        return space;
-    }
-
-    // ==================== 数据保存和加载 ====================
-
-    /**
-     * 公共的保存方法
-     */
-    public static void savePlayerSpaces() {
-        savePlayerSpacesInternal();
-    }
-
-    private static void savePlayerSpacesInternal() {
-        try {
-            File saveFile = getSaveFile();
-            NBTTagCompound compound = new NBTTagCompound();
-
-            compound.setInteger("nextIndex", nextSpaceIndex);
-
-            NBTTagCompound spaces = new NBTTagCompound();
-            for (Map.Entry<UUID, PersonalSpace> entry : playerSpaces.entrySet()) {
-                NBTTagCompound spaceData = new NBTTagCompound();
-                PersonalSpace space = entry.getValue();
-
-                spaceData.setString("playerName", space.playerName);
-                spaceData.setInteger("index", space.index);
-                spaceData.setBoolean("isGenerated", space.isGenerated);
-                spaceData.setBoolean("hasVoidStructures", space.hasVoidStructures);
-                spaceData.setLong("createdTime", space.createdTime);
-                spaceData.setBoolean("isActive", space.isActive);
-
-                spaces.setTag(entry.getKey().toString(), spaceData);
-            }
-            compound.setTag("spaces", spaces);
-
-            if (!saveFile.getParentFile().exists()) {
-                saveFile.getParentFile().mkdirs();
-            }
-
-            try (FileOutputStream fos = new FileOutputStream(saveFile);
-                 DataOutputStream dos = new DataOutputStream(fos)) {
-                net.minecraft.nbt.CompressedStreamTools.writeCompressed(compound, dos);
-            }
-
-            System.out.println("[口袋空间] 已保存 " + playerSpaces.size() + " 个玩家空间");
-        } catch (Exception e) {
-            System.err.println("[口袋空间] 保存数据失败！");
-            e.printStackTrace();
+            }catch(Exception ex){ ex.printStackTrace(); }
         }
     }
 
-    private static void loadPlayerSpaces() {
-        try {
-            File saveFile = getSaveFile();
-            if (!saveFile.exists()) {
-                System.out.println("[口袋空间] 没有找到保存文件，使用空数据");
-                return;
-            }
-
-            NBTTagCompound compound;
-            try (FileInputStream fis = new FileInputStream(saveFile);
-                 DataInputStream dis = new DataInputStream(fis)) {
-                compound = net.minecraft.nbt.CompressedStreamTools.readCompressed(dis);
-            }
-
-            playerSpaces.clear();
-            spaceOwners.clear();
-
-            nextSpaceIndex = compound.getInteger("nextIndex");
-
-            NBTTagCompound spaces = compound.getCompoundTag("spaces");
-            for (String key : spaces.getKeySet()) {
-                try {
-                    UUID playerId = UUID.fromString(key);
-                    NBTTagCompound spaceData = spaces.getCompoundTag(key);
-
-                    String playerName = spaceData.getString("playerName");
-                    int index = spaceData.getInteger("index");
-
-                    PersonalSpace space = new PersonalSpace(playerId, playerName, index);
-                    space.isActive = spaceData.getBoolean("isActive");
-                    space.isGenerated = spaceData.getBoolean("isGenerated");
-                    space.hasVoidStructures = spaceData.hasKey("hasVoidStructures") ?
-                            spaceData.getBoolean("hasVoidStructures") : false;
-
-                    playerSpaces.put(playerId, space);
-
-                    // 重建空间所有权映射
-                    for (int x = space.outerMinPos.getX(); x <= space.outerMaxPos.getX(); x += 16) {
-                        for (int z = space.outerMinPos.getZ(); z <= space.outerMaxPos.getZ(); z += 16) {
-                            spaceOwners.put(new BlockPos(x, 0, z), playerId);
-                        }
-                    }
-                } catch (Exception e) {
-                    System.err.println("[口袋空间] 加载空间数据失败: " + key);
-                    e.printStackTrace();
+    public static void saveBindings(){
+        synchronized(FILE_LOCK){
+            File f=getBindingFile(); if(f==null) return;
+            try{
+                NBTTagCompound root=new NBTTagCompound();
+                NBTTagCompound u2i=new NBTTagCompound();
+                for(Map.Entry<UUID,Integer> en:playerToSpaceIndex.entrySet())
+                    u2i.setInteger(en.getKey().toString(), en.getValue());
+                root.setTag("uuidToIndex",u2i);
+                NBTTagCompound i2u=new NBTTagCompound();
+                for(Map.Entry<Integer,UUID> en:spaceIndexToPlayer.entrySet())
+                    i2u.setString(String.valueOf(en.getKey()), en.getValue().toString());
+                root.setTag("indexToUuid",i2u);
+                root.setInteger("version",1);
+                root.setLong("lastModified",System.currentTimeMillis());
+                if(!f.getParentFile().exists()) f.getParentFile().mkdirs();
+                try(FileOutputStream fos=new FileOutputStream(f);
+                    DataOutputStream dos=new DataOutputStream(fos)){
+                    net.minecraft.nbt.CompressedStreamTools.writeCompressed(root,dos);
                 }
-            }
-
-            isDataLoaded = true;
-            System.out.println("[口袋空间] 已加载 " + playerSpaces.size() + " 个玩家空间");
-        } catch (Exception e) {
-            System.err.println("[口袋空间] 加载数据失败！");
-            e.printStackTrace();
+            }catch(Exception ex){ ex.printStackTrace(); }
         }
     }
 
-    /**
-     * 获取保存文件路径
-     */
-    private static File getSaveFile() {
-        // 使用世界相关的保存路径
-        WorldServer overworld = DimensionManager.getWorld(0);
-        if (overworld != null) {
-            File worldDir = overworld.getSaveHandler().getWorldDirectory();
-            return new File(worldDir, "data/personal_dimensions.dat");
-        } else {
-            // 备用路径
-            return new File("config/personal_dimensions.dat");
+    private static void loadPlayerSpaces(){
+        synchronized(FILE_LOCK){
+            File f=getSaveFile(); if(f==null || !f.exists()) return;
+            try(FileInputStream fis=new FileInputStream(f);
+                DataInputStream dis=new DataInputStream(fis)){
+                NBTTagCompound root= net.minecraft.nbt.CompressedStreamTools.readCompressed(dis);
+                playerSpaces.clear(); spaceOwners.clear();
+                NBTTagCompound spaces=root.getCompoundTag("spaces");
+                for(String key: spaces.getKeySet()){
+                    try{
+                        UUID pid=UUID.fromString(key);
+                        NBTTagCompound data=spaces.getCompoundTag(key);
+                        String name=data.getString("playerName");
+                        PersonalSpace s=PersonalSpace.fromNBT(pid,name,data);
+                        playerSpaces.put(pid,s);
+                        playerToSpaceIndex.put(pid, s.index);
+                        spaceIndexToPlayer.put(s.index, pid);
+                        registerSpaceOwnership(s);
+                    }catch(Exception ex){ ex.printStackTrace(); }
+                }
+            }catch(Exception ex){ ex.printStackTrace(); }
+        }
+    }
+
+    private static void loadBindings(){
+        synchronized(FILE_LOCK){
+            File f=getBindingFile(); if(f==null || !f.exists()) return;
+            try(FileInputStream fis=new FileInputStream(f);
+                DataInputStream dis=new DataInputStream(fis)){
+                NBTTagCompound root= net.minecraft.nbt.CompressedStreamTools.readCompressed(dis);
+                playerToSpaceIndex.clear(); spaceIndexToPlayer.clear();
+                if(root.hasKey("uuidToIndex")){
+                    NBTTagCompound u2i=root.getCompoundTag("uuidToIndex");
+                    for(String k:u2i.getKeySet())
+                        playerToSpaceIndex.put(UUID.fromString(k), u2i.getInteger(k));
+                }
+                if(root.hasKey("indexToUuid")){
+                    NBTTagCompound i2u=root.getCompoundTag("indexToUuid");
+                    for(String k:i2u.getKeySet())
+                        spaceIndexToPlayer.put(Integer.parseInt(k), UUID.fromString(i2u.getString(k)));
+                }
+            }catch(Exception ex){ ex.printStackTrace(); }
+        }
+    }
+
+    private static File getSaveFile(){
+        WorldServer overworld=DimensionManager.getWorld(0);
+        if(overworld==null) return null;
+        File dir=overworld.getSaveHandler().getWorldDirectory();
+        return new File(dir,"data/personal_dimensions.dat");
+    }
+
+    private static File getBindingFile(){
+        WorldServer overworld=DimensionManager.getWorld(0);
+        if(overworld==null) return null;
+        File dir=overworld.getSaveHandler().getWorldDirectory();
+        return new File(dir,"data/personal_dimension_bindings.dat");
+    }
+
+    @SubscribeEvent
+    public static void onWorldSave(WorldEvent.Save e){
+        if(e.getWorld().isRemote) return;
+        int dim=e.getWorld().provider.getDimension();
+        long now=System.currentTimeMillis();
+        if(dim==0){
+            if(now-lastSaveTime>SAVE_INTERVAL){
+                batchUpdater.flush();
+                savePlayerSpacesInternal(); saveBindings();
+                lastSaveTime=now;
+            }
+        }else if(dim==PERSONAL_DIM_ID){
+            batchUpdater.flushToWorld(e.getWorld());
+            savePlayerSpacesInternal();
+        }
+    }
+
+    // -------------- 钥匙/门洞 API --------------
+
+    public static void scheduleWallRestore(UUID playerId,int ticks){
+        if(ticks<=0) ticks=1;
+        wallRestoreTasks.put(playerId, new WallRestoreTask(playerId, System.currentTimeMillis()+ticks*50L));
+    }
+    public static void setDoorHoles(UUID playerId, List<BlockPos> holes){
+        if(holes==null || holes.isEmpty()) return;
+        doorHoles.put(playerId, new ArrayList<>(holes));
+    }
+    public static void recordDoorHole(UUID playerId, BlockPos pos){
+        doorHoles.computeIfAbsent(playerId, k->new ArrayList<>()).add(pos);
+    }
+
+    // -------------- 玩家专属建筑 --------------
+
+    private static void generatePlayerStructures(WorldServer world, PersonalSpace space, EntityPlayer player){
+        int count=3+world.rand.nextInt(5);
+        for(int i=0;i<count;i++){
+            double ang=world.rand.nextDouble()*Math.PI*2;
+            int dist=100+world.rand.nextInt(100);
+            int x=space.centerPos.getX()+(int)(Math.cos(ang)*dist);
+            int z=space.centerPos.getZ()+(int)(Math.sin(ang)*dist);
+            int y=96+world.rand.nextInt(64);
+            BlockPos pos=new BlockPos(x,y,z);
+            if(space.isInTerritory(pos)){
+                VoidStructureGenerator.StructureType t= VoidStructureGenerator.selectRandomStructure();
+                VoidStructureGenerator.generateStructureOptimized(world,pos,t);
+            }
         }
     }
 }

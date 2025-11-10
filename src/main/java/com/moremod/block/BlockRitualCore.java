@@ -1,5 +1,6 @@
 package com.moremod.block;
 
+import com.moremod.creativetab.moremodCreativeTab;
 import com.moremod.tile.TileEntityRitualCore;
 import net.minecraft.block.BlockContainer;
 import net.minecraft.block.material.Material;
@@ -24,6 +25,7 @@ public class BlockRitualCore extends BlockContainer {
         super(Material.ROCK);
         setHardness(3.0F);
         setResistance(10.0F);
+        setCreativeTab(moremodCreativeTab.moremod_TAB);
 
     }
 

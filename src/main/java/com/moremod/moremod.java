@@ -1,14 +1,20 @@
 package com.moremod;
-
+import com.moremod.accessorybox.unlock.rules.RuleChecker;
+import com.moremod.accessorybox.ExtraSlotsInit;
+import com.moremod.accessorybox.compat.SetBonusAccessoryBoxCompat;
+import com.moremod.accessorybox.unlock.UnlockableSlotsInit;
+import com.moremod.capabilities.autoattack.AutoAttackCapabilityHandler;
 import com.moremod.client.ClientTickEvent;
 import com.moremod.client.JetpackKeyHandler;
 import com.moremod.client.KeyBindHandler;
 import com.moremod.client.RenderHandler;
 import com.moremod.commands.CommandLootDebug;
+import com.moremod.commands.CommandResetEquipTime;
+import com.moremod.compat.PotionCoreCompatEnhanced;
+import com.moremod.config.*;
 import com.moremod.dimension.PersonalDimensionManager;
 import com.moremod.dimension.PersonalDimensionSpawnHandler;
 import com.moremod.dimension.PersonalDimensionType;
-import com.moremod.dungeon.loot.DungeonLootManager;
 import com.moremod.entity.*;
 import com.moremod.entity.boss.EntityRiftwarden;
 import com.moremod.entity.boss.EntityStoneSentinel;
@@ -17,15 +23,23 @@ import com.moremod.entity.fx.EntityLightningArc;
 import com.moremod.entity.fx.EntityPlayerLaserBeam;
 import com.moremod.entity.fx.EntityRiftLightning;
 import com.moremod.entity.projectile.EntityVoidBullet;
-import com.moremod.event.OtherworldAttackEvent;
+// ========== 新增：剑气实体导入 ==========
+import com.moremod.entity.EntitySwordBeam;
+import com.moremod.client.render.RenderSwordBeam;
+// ========================================
+import com.moremod.event.*;
 import com.moremod.eventHandler.*;
-import com.moremod.event.PlayerStarterKitHandler;
 import com.moremod.client.gui.GuiHandler;
+import com.moremod.fabric.handler.SpatialFabricFirstAidHandler;
 import com.moremod.fabric.sanity.CompleteSanitySystem;
+import com.moremod.init.GemSystemInit;
+import com.moremod.init.RSNodeRegistryCompat;
+import com.moremod.init.SimpleReverseDeducer;
 import com.moremod.integration.ModIntegration;
 import com.moremod.integration.jei.JEIIntegrationManager;
 import com.moremod.item.ItemDimensionalRipper;
 import com.moremod.item.ItemMechanicalCore;
+import com.moremod.item.chengyue.ChengYueEventHandler;
 import com.moremod.network.PacketCreateEnchantedBook;
 import com.moremod.network.PacketHandler;
 import com.moremod.network.NetworkHandler;
@@ -33,19 +47,17 @@ import com.moremod.proxy.CommonProxy;
 import com.moremod.recipe.DimensionLoomRecipeLoader;
 import com.moremod.ritual.RitualRecipeLoader;
 import com.moremod.ritual.fabric.UniversalFabricRituals;
-import com.moremod.event.EnergyPunishmentSystem;
 import com.moremod.eventHandler.SimpleCoreHandler;
 import com.moremod.eventHandler.CoreDropProtection;
 import com.moremod.eventHandler.SmartUpgradeHandler;
 import com.moremod.handler.DimensionalRipperEventHandler;
 
 // 配置系统导入
-import com.moremod.config.EnergyBalanceConfig;
-import com.moremod.config.ModConfig;
 // 时光之心相关导入
 import com.moremod.capability.*;
 
 // 机械核心系统导入
+import com.moremod.shields.integrated.EnhancedVisualsHandler;
 import com.moremod.upgrades.MechanicalCoreNetworkHandler;
 import com.moremod.upgrades.auxiliary.AuxiliaryUpgradeManager;
 import com.moremod.upgrades.combat.CombatUpgradeManager;
@@ -53,7 +65,16 @@ import com.moremod.upgrades.energy.EnergyUpgradeManager;
 import com.moremod.upgrades.survival.SurvivalUpgradeManager;
 
 // 飾品盒系統導入
-import com.moremod.accessorybox.AccessoryBoxEventHandler;
+
+// 装瓶机系统导入
+import com.moremod.block.BlockBottlingMachine;
+import com.moremod.tile.TileEntityBottlingMachine;
+
+import com.moremod.recipe.BottlingMachineRecipe;
+import net.minecraft.item.ItemStack;
+import net.minecraftforge.fluids.FluidRegistry;
+import net.minecraftforge.fluids.FluidStack;
+import net.minecraft.init.Items;
 
 // Mixin 相关导入
 import com.moremod.world.SpacetimeOreWorldGenerator;
@@ -75,6 +96,10 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import software.bernie.geckolib3.GeckoLib;
 
+// ========== 新增：渲染注册导入 ==========
+import net.minecraftforge.fml.client.registry.RenderingRegistry;
+// ========================================
+
 /* ===================== Ritual Integration: imports (1.12.2) ===================== */
 import com.moremod.block.BlockRitualCore;
 import com.moremod.block.BlockPedestal;
@@ -85,10 +110,6 @@ import com.moremod.ritual.RitualInfusionAPI;
 import net.minecraft.block.Block;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemBlock;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.crafting.Ingredient;
-import net.minecraft.init.Blocks;
-import net.minecraft.init.Items;
 
 import net.minecraftforge.client.model.ModelLoader;
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
@@ -99,7 +120,7 @@ import static com.dhanantry.scapeandrunparasites.SRPMain.network;
 /* ================================================================================ */
 
 /**
- * moremod 主类 - 完整集成版（修复注册方式）
+ * moremod 主类 - 完整集成版（包含装瓶机系统和剑气实体）
  */
 @Mod(
         modid = moremod.MODID,
@@ -112,7 +133,7 @@ public class moremod {
 
     public static final String MODID = "moremod";
     public static final String NAME = "More Mod";
-    public static final String VERSION = "2.5";
+    public static final String VERSION = "3.2.1";
 
     @Instance(MODID)
     public static moremod instance;
@@ -133,6 +154,11 @@ public class moremod {
     public static Block RITUAL_CORE_BLOCK;
     public static Block RITUAL_PEDESTAL_BLOCK;
     /* ===================================================================== */
+
+    /* ===================== 装瓶机系统字段 ===================== */
+    public static Block BOTTLING_MACHINE_BLOCK;
+    private static boolean enableAutoBottlingRecipes = true;  // 配置选项
+    /* ========================================================== */
 
     /**
      * 构造阶段 - 加载可选的 Mixin 配置
@@ -179,12 +205,24 @@ public class moremod {
         CompleteSanitySystem.registerRecipes();
         network.registerMessage(PacketCreateEnchantedBook.Handler.class,
                 PacketCreateEnchantedBook.class, 0, Side.SERVER);
+        ItemConfig.init(event);  // 第一行就初始化配置
+        RSNodeRegistryCompat.registerAll();
+        UnlockableSlotsInit.preInit(event);
+        AutoAttackCapabilityHandler.registerCapability();
+        ChengYueCapabilityHandler.register();
+
+        // 2. 注册澄月的事件处理器
+        MinecraftForge.EVENT_BUS.register(new ChengYueCapabilityHandler());
+        MinecraftForge.EVENT_BUS.register(new ChengYueEventHandler());
         // ========== 配置系统初始化（最先执行）==========
         System.out.println("[moremod] 📄 初始化配置系统...");
         EnergyBalanceConfig.init();
         ModConfig.updateEnergyBalanceConfig();
+        EquipmentTimeConfig.initialize();
+
         MinecraftForge.EVENT_BUS.register(ModConfig.EventHandler.class);
         System.out.println("[moremod] ✅ 配置系统初始化完成");
+        SetBonusAccessoryBoxCompat.runFullTest();
 
         // ========== 飾品盒系統初始化 ==========
         System.out.println("[moremod] 📦 初始化飾品盒系統...");
@@ -192,111 +230,8 @@ public class moremod {
         System.out.println("[moremod] ✅ 飾品盒系統預初始化完成");
 
         // ========== 实体注册 ==========
-        int nextEntityId = 0;
-
-        EntityRegistry.registerModEntity(
-                new ResourceLocation(MODID, "rift_portal"),
-                EntityRiftPortal.class,
-                "rift_portal",
-                nextEntityId++,        // 0
-                INSTANCE,
-                64,                    // tracking range
-                1,                     // update frequency
-                false                  // sendVelocityUpdates
-        );
-        EntityRegistry.registerModEntity(
-                new ResourceLocation(MODID, "rift_warden"),
-                EntityRiftwarden.class,
-                "rift_warden",
-                nextEntityId++,        // 1
-                INSTANCE,
-                64, 1, false
-        );
-        EntityRegistry.registerModEntity(
-                new ResourceLocation(MODID, "weeping_angel"),
-                EntityWeepingAngel.class,
-                "weeping_angel",
-                nextEntityId++,        // 2
-                INSTANCE,
-                64, 1, false
-        );
-        EntityRegistry.registerModEntity(
-                new ResourceLocation(MODID, "curse_knight"),
-                EntityCursedKnight.class,
-                "curse_knight",
-                nextEntityId++,        // 3
-                INSTANCE,
-                64, 1, false
-        );
-        EntityRegistry.registerModEntity(
-                new ResourceLocation(MODID, "void_ripper"),
-                EntityVoidRipper.class,
-                "void_ripper",
-                nextEntityId++,        // 4
-                INSTANCE,
-                64, 1, false
-        );
-        EntityRegistry.registerModEntity(
-                new ResourceLocation(MODID, "stone_sentinel"),
-                EntityStoneSentinel.class,
-                "stone_sentinel",
-                nextEntityId++,        // 5
-                INSTANCE,
-                64, 1, false
-        );
-        EntityRegistry.registerModEntity(
-                new ResourceLocation(MODID, "void_bullet"),
-                EntityVoidBullet.class,
-                "void_bullet",
-                nextEntityId++,        // 6
-                INSTANCE,
-                64, 1, false
-        );
-        EntityRegistry.registerModEntity(
-                new ResourceLocation(MODID, "laser_beam"),
-                EntityLaserBeam.class, "laser_beam",
-                nextEntityId++,       // 7
-                MODID,
-                64, 1, true
-        );
-        EntityRegistry.registerModEntity(
-                new ResourceLocation(MODID, "lightning_arc"),
-                EntityLightningArc.class, "lightning_arc",
-                nextEntityId++,   // 8
-                MODID,
-                64, 1, true
-        );
-        EntityRegistry.registerModEntity(
-                new ResourceLocation(MODID, "void_portal"),
-                EntityVoidPortal.class,
-                "void_portal",
-                nextEntityId++,        // 9
-                INSTANCE,
-                64,
-                1,
-                true
-        );
-        EntityRegistry.registerModEntity(
-                new ResourceLocation(MODID, "lighting_orb"),
-                EntityRiftLightning.class,
-                "lighting_orb",
-                nextEntityId++,
-                INSTANCE,
-                64,
-                1,
-                true
-        );
-        EntityRegistry.registerModEntity(
-                new ResourceLocation(MODID, "PlayerLaser"),
-                EntityPlayerLaserBeam.class,
-                "PlayerLaser",
-                nextEntityId++,
-                INSTANCE,
-                64,
-                1,
-                true
-        );
-
+        System.out.println("[moremod] 🎭 开始注册实体...");
+        registerEntities();
         System.out.println("[moremod] ✅ 实体注册完成");
 
         // ========== 核心系统注册 ==========
@@ -326,6 +261,17 @@ public class moremod {
         GameRegistry.registerTileEntity(TileEntityPedestal.class, new ResourceLocation(MODID, "ritual_pedestal"));
         System.out.println("[moremod] ✅ Ritual TileEntity 注册完成");
 
+        // ========== 装瓶机系统：创建实例和注册TileEntity ==========
+        System.out.println("[moremod] 🏭 创建装瓶机实例...");
+        BOTTLING_MACHINE_BLOCK = new BlockBottlingMachine()
+                .setRegistryName(MODID, "bottling_machine")
+                .setTranslationKey("bottling_machine");
+
+        // 注册装瓶机 TileEntity
+        GameRegistry.registerTileEntity(TileEntityBottlingMachine.class,
+                new ResourceLocation(MODID, "bottling_machine"));
+        System.out.println("[moremod] ✅ 装瓶机 TileEntity 注册完成");
+
         // ========== 客户端专用注册 ==========
         if (event.getSide().isClient()) {
             registerClientSystems();
@@ -338,16 +284,151 @@ public class moremod {
         MinecraftForge.EVENT_BUS.register(EnergyPunishmentSystem.class);
         MinecraftForge.EVENT_BUS.register(MechanicalExoskeletonEventHandler.class);
         MinecraftForge.EVENT_BUS.register(new DimensionalRipperEventHandler());
-        MinecraftForge.EVENT_BUS.register(new OtherworldAttackEvent
-                ());
+        MinecraftForge.EVENT_BUS.register(new OtherworldAttackEvent());
 
         // 註冊飾品盒事件處理器
-        MinecraftForge.EVENT_BUS.register(AccessoryBoxEventHandler.class);
         System.out.println("[moremod] 📦 飾品盒事件處理器注册成功");
 
         proxy.preInit(event);
 
         System.out.println("[moremod] ========== 预初始化完成 ==========\n");
+    }
+
+    // ========================================
+    // 新增：统一的实体注册方法
+    // ========================================
+    private void registerEntities() {
+        int nextEntityId = 0;
+
+        // 传送门实体
+        EntityRegistry.registerModEntity(
+                new ResourceLocation(MODID, "rift_portal"),
+                EntityRiftPortal.class,
+                "rift_portal",
+                nextEntityId++,        // 0
+                INSTANCE,
+                64,                    // tracking range
+                1,                     // update frequency
+                false                  // sendVelocityUpdates
+        );
+
+        // Boss 实体
+        EntityRegistry.registerModEntity(
+                new ResourceLocation(MODID, "rift_warden"),
+                EntityRiftwarden.class,
+                "rift_warden",
+                nextEntityId++,        // 1
+                INSTANCE,
+                64, 1, false
+        );
+
+        EntityRegistry.registerModEntity(
+                new ResourceLocation(MODID, "weeping_angel"),
+                EntityWeepingAngel.class,
+                "weeping_angel",
+                nextEntityId++,        // 2
+                INSTANCE,
+                64, 1, false
+        );
+
+        EntityRegistry.registerModEntity(
+                new ResourceLocation(MODID, "curse_knight"),
+                EntityCursedKnight.class,
+                "curse_knight",
+                nextEntityId++,        // 3
+                INSTANCE,
+                64, 1, false
+        );
+
+        EntityRegistry.registerModEntity(
+                new ResourceLocation(MODID, "void_ripper"),
+                EntityVoidRipper.class,
+                "void_ripper",
+                nextEntityId++,        // 4
+                INSTANCE,
+                64, 1, false
+        );
+
+        EntityRegistry.registerModEntity(
+                new ResourceLocation(MODID, "stone_sentinel"),
+                EntityStoneSentinel.class,
+                "stone_sentinel",
+                nextEntityId++,        // 5
+                INSTANCE,
+                64, 1, false
+        );
+
+        // 抛射物实体
+        EntityRegistry.registerModEntity(
+                new ResourceLocation(MODID, "void_bullet"),
+                EntityVoidBullet.class,
+                "void_bullet",
+                nextEntityId++,        // 6
+                INSTANCE,
+                64, 1, false
+        );
+
+        // 特效实体
+        EntityRegistry.registerModEntity(
+                new ResourceLocation(MODID, "laser_beam"),
+                EntityLaserBeam.class,
+                "laser_beam",
+                nextEntityId++,       // 7
+                MODID,
+                64, 1, true
+        );
+
+        EntityRegistry.registerModEntity(
+                new ResourceLocation(MODID, "lightning_arc"),
+                EntityLightningArc.class,
+                "lightning_arc",
+                nextEntityId++,       // 8
+                MODID,
+                64, 1, true
+        );
+
+        EntityRegistry.registerModEntity(
+                new ResourceLocation(MODID, "void_portal"),
+                EntityVoidPortal.class,
+                "void_portal",
+                nextEntityId++,        // 9
+                INSTANCE,
+                64, 1, true
+        );
+
+        EntityRegistry.registerModEntity(
+                new ResourceLocation(MODID, "lighting_orb"),
+                EntityRiftLightning.class,
+                "lighting_orb",
+                nextEntityId++,        // 10
+                INSTANCE,
+                64, 1, true
+        );
+
+        EntityRegistry.registerModEntity(
+                new ResourceLocation(MODID, "PlayerLaser"),
+                EntityPlayerLaserBeam.class,
+                "PlayerLaser",
+                nextEntityId++,        // 11
+                INSTANCE,
+                64, 1, true
+        );
+
+        // ========================================
+        // 新增：剑气实体注册
+        // ========================================
+        EntityRegistry.registerModEntity(
+                new ResourceLocation(MODID, "sword_beam"),
+                EntitySwordBeam.class,
+                "sword_beam",
+                nextEntityId++,        // 12
+                INSTANCE,
+                64,                    // 追踪范围
+                3,                     // 更新频率（更频繁以保证流畅）
+                true                   // 发送速度更新
+        );
+        System.out.println("[moremod] ⚔️ 剑气实体注册成功 (ID: " + (nextEntityId - 1) + ")");
+        // ========================================
     }
 
     /**
@@ -361,6 +442,11 @@ public class moremod {
                 RITUAL_PEDESTAL_BLOCK
         );
         System.out.println("[moremod] ✅ Ritual 方块注册完成");
+
+        // 注册装瓶机方块
+        System.out.println("[moremod] 🏭 注册装瓶机方块...");
+        event.getRegistry().register(BOTTLING_MACHINE_BLOCK);
+        System.out.println("[moremod] ✅ 装瓶机方块注册完成");
     }
 
     /**
@@ -374,6 +460,13 @@ public class moremod {
                 new ItemBlock(RITUAL_PEDESTAL_BLOCK).setRegistryName(RITUAL_PEDESTAL_BLOCK.getRegistryName())
         );
         System.out.println("[moremod] ✅ Ritual 方块物品注册完成");
+
+        // 注册装瓶机方块物品
+        System.out.println("[moremod] 🏭 注册装瓶机方块物品...");
+        event.getRegistry().register(
+                new ItemBlock(BOTTLING_MACHINE_BLOCK).setRegistryName(BOTTLING_MACHINE_BLOCK.getRegistryName())
+        );
+        System.out.println("[moremod] ✅ 装瓶机方块物品注册完成");
     }
 
     /**
@@ -383,16 +476,24 @@ public class moremod {
         System.out.println("[moremod] ✅ 网络包初始化");
     }
 
+    @Mod.EventHandler
+    public void onLoadComplete(net.minecraftforge.fml.common.event.FMLLoadCompleteEvent event) {
+        UpgradeConfig.loadConfigs();  // 建立/載入 moremod/sword_upgrades/*.json
+    }
+
     /**
      * 初始化阶段
      */
     @EventHandler
     public void init(FMLInitializationEvent event) {
         System.out.println("[moremod] ========== 开始初始化 ==========");
-
+        UnlockableSlotsInit.init(event);
+        RuleChecker.initialize();
+        GemSystemInit.init(event);
         // 注册维度类型
         PersonalDimensionType.registerDimension();
         System.out.println("[moremod] ✅ 维度类型注册完成");
+        EquipmentTimeTracker.register();
 
         // 初始化维度管理器
         PersonalDimensionManager.init();
@@ -416,9 +517,9 @@ public class moremod {
         GeckoLib.initialize();
         ModConfig.updateEnergyBalanceConfig();
 
-        // GUI
+        // GUI - 注意：你的GuiHandler需要添加装瓶机的GUI处理
         NetworkRegistry.INSTANCE.registerGuiHandler(this, new GuiHandler());
-        System.out.println("[moremod] ✅ GUI處理器注册完成（包含飾品盒）");
+        System.out.println("[moremod] ✅ GUI處理器注册完成（包含飾品盒和装瓶机）");
 
         // 客户端渲染
         if (event.getSide().isClient()) {
@@ -430,6 +531,9 @@ public class moremod {
         registerRitualRecipes();
         UniversalFabricRituals.registerRituals();
 
+        /* ===== 装瓶机：注册基础配方 ===== */
+        registerBottlingMachineRecipes();
+
         proxy.init(event);
 
         System.out.println("[moremod] ========== 初始化完成 ==========\n");
@@ -439,24 +543,37 @@ public class moremod {
      * 注册Ritual配方
      */
     private void registerRitualRecipes() {
-        System.out.println("[moremod] 🔮 注册 Ritual 配方...");
+        System.out.println("[moremod] ✅ Ritual 配方注册完成，共 " + RitualInfusionAPI.RITUAL_RECIPES.size() + " 个配方");
+    }
 
-        // 测试配方1: 钻石块 + 4金锭 = 附魔金苹果
-        RitualInfusionAPI.addRitual(
-                Ingredient.fromStacks(new ItemStack(Blocks.DIAMOND_BLOCK)),
-                new ItemStack(Items.GOLDEN_APPLE, 1, 1), // meta 1 = 附魔金苹果
-                200,    // 时间 (10秒)
-                5000,   // 每个基座能量
-                0.1f,   // 失败率 10%
-                Ingredient.fromStacks(new ItemStack(Items.GOLD_INGOT)),
-                Ingredient.fromStacks(new ItemStack(Items.GOLD_INGOT)),
-                Ingredient.fromStacks(new ItemStack(Items.GOLD_INGOT)),
-                Ingredient.fromStacks(new ItemStack(Items.GOLD_INGOT))
+    /**
+     * 注册装瓶机基础配方
+     */
+    private void registerBottlingMachineRecipes() {
+        System.out.println("[moremod] 🏭 注册装瓶机基础配方...");
+
+        // 水瓶配方
+        BottlingMachineRecipe.addRecipe(
+                new ItemStack(Items.POTIONITEM, 1, 0), // 水瓶
+                new ItemStack(Items.GLASS_BOTTLE), 1,
+                new FluidStack(FluidRegistry.WATER, 250)
         );
 
+        // 水桶配方
+        BottlingMachineRecipe.addRecipe(
+                new ItemStack(Items.WATER_BUCKET),
+                new ItemStack(Items.BUCKET), 1,
+                new FluidStack(FluidRegistry.WATER, 1000)
+        );
 
+        // 岩浆桶配方
+        BottlingMachineRecipe.addRecipe(
+                new ItemStack(Items.LAVA_BUCKET),
+                new ItemStack(Items.BUCKET), 1,
+                new FluidStack(FluidRegistry.LAVA, 1000)
+        );
 
-        System.out.println("[moremod] ✅ Ritual 配方注册完成，共 " + RitualInfusionAPI.RITUAL_RECIPES.size() + " 个配方");
+        System.out.println("[moremod] ✅ 装瓶机基础配方注册完成");
     }
 
     /**
@@ -476,6 +593,15 @@ public class moremod {
 
         ModIntegration.postInit();
 
+        // ========== 装瓶机自动配方注册 ==========
+        if (enableAutoBottlingRecipes) {
+            // 原有的自动扫描（可选）
+            // AutoBottlingRecipeManager.registerAutoRecipes();
+
+            // 新增：精简版反向推导
+            SimpleReverseDeducer.deduceRecipes();
+        }
+
         // 在这里注册模组特有物品的配方
         try {
             System.out.println("[moremod] 🔮 后初始化：注册模组配方...");
@@ -483,9 +609,6 @@ public class moremod {
             // 检查物品是否存在再注册配方
             if (Item.getByNameOrId("moremod:spacetime_fabric") != null &&
                     Item.getByNameOrId("moremod:chrono_fabric") != null) {
-
-
-
                 System.out.println("[moremod] ✅ 模组专属配方注册成功");
             }
         } catch (Exception e) {
@@ -502,7 +625,6 @@ public class moremod {
     public void serverAboutToStart(FMLServerAboutToStartEvent event) {
         System.out.println("[moremod] ========== 服务器即将启动 ==========");
 
-        PersonalDimensionManager.reset();
         VoidStructureWorldGenerator.clearAllData();
         System.out.println("[moremod] ✅ 清理上次会话的数据");
 
@@ -516,6 +638,8 @@ public class moremod {
     public void serverStarting(FMLServerStartingEvent event) {
         System.out.println("[moremod] ========== 服务器启动中 ==========");
         event.registerServerCommand(new CommandLootDebug());
+        event.registerServerCommand(new CommandResetEquipTime());
+
         ModConfig.updateEnergyBalanceConfig();
         System.out.println("[moremod] ✅ 服务器配置已加载");
 
@@ -534,19 +658,20 @@ public class moremod {
 
         PersonalDimensionManager.savePlayerSpaces();
         System.out.println("[moremod] ✅ 私人维度数据已保存");
-
+        PersonalDimensionManager.reset();
         VoidStructureWorldGenerator.clearAllData();
         System.out.println("[moremod] ✅ 虚空结构数据已清理");
 
         System.out.println("[moremod] ========== 服务器停止完成 ==========\n");
     }
 
-    /**
-     * 注册客户端系统（仅客户端调用）
-     */
+    // ========================================
+    // 修改：客户端系统注册（添加剑气渲染器）
+    // ========================================
     @SideOnly(Side.CLIENT)
     private void registerClientSystems() {
         System.out.println("[moremod] --- 注册客户端系统 ---");
+        MinecraftForge.EVENT_BUS.register(EnhancedVisualsHandler.instance);
 
         // 1. 喷气背包系统
         MinecraftForge.EVENT_BUS.register(new ClientTickEvent());
@@ -577,6 +702,16 @@ public class moremod {
         AuxiliaryUpgradeManager.OreVisionSystem.initializeOreDictionary();
         System.out.println("[moremod] ⛏️ 矿物透视系统注册成功");
 
+        // ========================================
+        // 新增：剑气渲染器注册
+        // ========================================
+        RenderingRegistry.registerEntityRenderingHandler(
+                EntitySwordBeam.class,
+                RenderSwordBeam::new
+        );
+        System.out.println("[moremod] ⚔️ 剑气渲染器注册成功");
+        // ========================================
+
         /* === Ritual: 绑定方块物品模型 === */
         try {
             ModelLoader.setCustomModelResourceLocation(
@@ -586,8 +721,14 @@ public class moremod {
                     Item.getItemFromBlock(RITUAL_PEDESTAL_BLOCK), 0,
                     new ModelResourceLocation(RITUAL_PEDESTAL_BLOCK.getRegistryName(), "inventory"));
             System.out.println("[moremod] 🎭 Ritual 多方块物品模型已绑定");
+
+            // 绑定装瓶机模型
+            ModelLoader.setCustomModelResourceLocation(
+                    Item.getItemFromBlock(BOTTLING_MACHINE_BLOCK), 0,
+                    new ModelResourceLocation(BOTTLING_MACHINE_BLOCK.getRegistryName(), "inventory"));
+            System.out.println("[moremod] 🏭 装瓶机物品模型已绑定");
         } catch (Throwable t) {
-            System.err.println("[moremod] ⚠️ Ritual 模型绑定失败： " + t.getMessage());
+            System.err.println("[moremod] ⚠️ 模型绑定失败： " + t.getMessage());
         }
     }
 
@@ -600,10 +741,15 @@ public class moremod {
         // 1. 机械心脏系统
         MinecraftForge.EVENT_BUS.register(new MechanicalHeartEventHandler());
         System.out.println("[moremod] 💓 机械心脏事件处理器注册成功");
-
+        MinecraftForge.EVENT_BUS.register(new SwordUpgradeEventHandler());
+        MinecraftForge.EVENT_BUS.register(new PotionCoreCompatEnhanced());
+// 在主类/代理类中
+        MinecraftForge.EVENT_BUS.register(new ChengYueEventHandler());
         // 2. 创造电池充电处理器
         MinecraftForge.EVENT_BUS.register(new CreativeBatteryChargeHandler());
         System.out.println("[moremod] 🌟 创造电池充电处理器注册成功");
+        MinecraftForge.EVENT_BUS.register(new SpatialFabricFirstAidHandler());
+        MinecraftForge.EVENT_BUS.register(new WisdomFountainEventHandler());
 
         // 3. 时光之心系统
         MinecraftForge.EVENT_BUS.register(PlayerTimeDataCapability.class);

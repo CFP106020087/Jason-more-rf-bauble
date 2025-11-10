@@ -6,9 +6,10 @@
   "target": "@env(DEFAULT)",
   "minVersion": "0.8",
   "mixins": [
-    "lycanites.MixinForceGoal",
     "lycanites.MixinEntityAsmodeus_BypassShield",
-    "lycanites.MixinPullAndWhirlpool"
+    "lycanites.MixinPullAndWhirlpool",
+    "lycanites.BaseCreatureEntityMixin"
+
   ],
   "injectors": {
     "maxShiftBy": 10

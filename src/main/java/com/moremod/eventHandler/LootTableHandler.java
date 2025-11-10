@@ -37,7 +37,7 @@ public class LootTableHandler {
         if (name.contains("chest") &&
                 !name.contains("player") &&
                 !name.contains("entities/")) {
-            injectRareBaubles(event, 0.05f);
+            injectRareBaubles(event, 0.001f);
         }
 
         // === 原版战利品表 ===

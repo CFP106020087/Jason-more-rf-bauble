@@ -6,21 +6,26 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.DimensionType;
 import net.minecraft.world.WorldProvider;
-import net.minecraft.world.biome.Biome;
 import net.minecraft.world.biome.BiomeProviderSingle;
 import net.minecraft.world.gen.IChunkGenerator;
 import net.minecraftforge.client.IRenderHandler;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-import java.util.List;
-import java.util.ArrayList;
+import java.lang.ref.WeakReference;
 
 /**
- * 私人维度世界提供者
- * 创建一个完全虚空的维度，完全禁止生物生成
+ * 私人维度世界提供者 - 优化修复版
+ * 修复了渲染器内存泄漏问题
  */
 public class PersonalDimensionWorldProvider extends WorldProvider {
+
+    // 使用弱引用防止内存泄漏
+    @SideOnly(Side.CLIENT)
+    private WeakReference<PersonalDimensionSkyRenderer> skyRendererRef;
+
+    // 缓存的区块生成器
+    private VoidChunkGenerator cachedChunkGenerator;
 
     @Override
     public DimensionType getDimensionType() {
@@ -46,8 +51,11 @@ public class PersonalDimensionWorldProvider extends WorldProvider {
 
     @Override
     public IChunkGenerator createChunkGenerator() {
-        // 使用虚空区块生成器（禁止生物生成）
-        return new VoidChunkGenerator(world);
+        // 复用区块生成器以避免重复创建
+        if (cachedChunkGenerator == null) {
+            cachedChunkGenerator = new VoidChunkGenerator(world);
+        }
+        return cachedChunkGenerator;
     }
 
     @Override
@@ -129,7 +137,19 @@ public class PersonalDimensionWorldProvider extends WorldProvider {
     @Override
     @SideOnly(Side.CLIENT)
     public IRenderHandler getSkyRenderer() {
-        return new PersonalDimensionSkyRenderer();
+        // 使用弱引用管理天空渲染器
+        PersonalDimensionSkyRenderer renderer = null;
+
+        if (skyRendererRef != null) {
+            renderer = skyRendererRef.get();
+        }
+
+        if (renderer == null) {
+            renderer = new PersonalDimensionSkyRenderer();
+            skyRendererRef = new WeakReference<>(renderer);
+        }
+
+        return renderer;
     }
 
     /**
@@ -138,5 +158,49 @@ public class PersonalDimensionWorldProvider extends WorldProvider {
     @Override
     public boolean canCoordinateBeSpawn(int x, int z) {
         return false; // 任何坐标都不能作为生成点
+    }
+
+    /**
+     * 世界保存时调用
+     */
+    @Override
+    public void onWorldSave() {
+        // 可以在这里执行一些保存操作
+    }
+
+    /**
+     * 清理资源 - 需要外部调用
+     * 应该在维度卸载时由事件处理器调用
+     */
+    public void cleanup() {
+        // 只在客户端清理渲染器相关资源
+        if (world != null && world.isRemote) {
+            cleanupClientResources();
+        }
+
+        // 清理区块生成器（服务器和客户端都需要）
+        if (cachedChunkGenerator != null) {
+            cachedChunkGenerator.cleanup();
+            cachedChunkGenerator = null;
+        }
+
+        // 清理生成处理器缓存（服务器和客户端都需要）
+        PersonalDimensionSpawnHandler.onWorldUnload();
+    }
+
+    /**
+     * 清理客户端资源
+     * 此方法只在客户端调用
+     */
+    @SideOnly(Side.CLIENT)
+    private void cleanupClientResources() {
+        // 清理天空渲染器
+        if (skyRendererRef != null) {
+            PersonalDimensionSkyRenderer renderer = skyRendererRef.get();
+            // 如果渲染器还存在，可以在这里清理它的资源
+            // 例如：if (renderer != null) { renderer.cleanup(); }
+            skyRendererRef.clear();
+            skyRendererRef = null;
+        }
     }
 }

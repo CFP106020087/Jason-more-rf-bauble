@@ -22,6 +22,12 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
+import net.minecraftforge.event.entity.living.LivingAttackEvent;
+import net.minecraftforge.event.entity.living.LivingDamageEvent;
+import net.minecraftforge.event.entity.living.LivingHealEvent;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.common.eventhandler.EventPriority;
+import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import software.bernie.geckolib3.core.IAnimatable;
 import software.bernie.geckolib3.core.PlayState;
 import software.bernie.geckolib3.core.builder.AnimationBuilder;
@@ -41,8 +47,6 @@ public class EntityCursedKnight extends EntityMob implements IAnimatable {
     // 動畫狀態
     private static final DataParameter<Integer> ANIMATION_STATE = EntityDataManager.createKey(
             EntityCursedKnight.class, DataSerializers.VARINT);
-    private static final DataParameter<Integer> HIT_COUNT = EntityDataManager.createKey(
-            EntityCursedKnight.class, DataSerializers.VARINT);
 
     // 動畫狀態常量
     private static final int ANIM_IDLE = 0;
@@ -51,25 +55,38 @@ public class EntityCursedKnight extends EntityMob implements IAnimatable {
     private static final int ANIM_ATTACK = 3;
     private static final int ANIM_SKILL = 4;
 
+    // ========== Gate 限伤系统（参考 Riftwarden）==========
+    private static final String CHUNK_ID = MODID + ".cursed_knight_chunk";
+    public static final DamageSource CURSE_CHUNK = new DamageSource(CHUNK_ID)
+            .setDamageIsAbsolute()
+            .setDamageBypassesArmor();
+
+    private int invulTicks = 0;
+    private boolean pendingChunk = false;
+    private boolean applyingChunk = false;
+    private float frozenHealth = -1F;
+    private float frozenAbsorb = -1F;
+    private int gateOpenFxCooldown = 0;
+    private static final int INVUL_TICKS_BASE = 30; // 1.5秒基础无敌
+
     // 戰鬥狀態
     private int attackCooldown = 0;
     private int skillCooldown = 0;
     private int callAnimationTimer = 0;
     private boolean hasTriggeredCall = false;
     private int currentPhase = 0; // 0=正常, 1=憤怒, 2=狂暴
-    // 戰鬥狀態
     private int spawnAnimationTimer = 0;
     private boolean hasSpawned = false;
-    // 限傷機制
-    private static final float MAX_DAMAGE_PERCENT = 0.15F;
-    private static final int INVULNERABILITY_TIME = 30;
-    private int invulnerabilityTimer = 0;
+
     // AI相關
     private EntityPlayer targetPlayer = null;
     private BlockPos homePosition;
     private int wanderTimer = 0;
+
     @Override
-    protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "entities/curse_knight");}
+    protected ResourceLocation getLootTable() {
+        return new ResourceLocation(MODID, "entities/curse_knight");
+    }
 
     public EntityCursedKnight(World worldIn) {
         super(worldIn);
@@ -79,7 +96,7 @@ public class EntityCursedKnight extends EntityMob implements IAnimatable {
 
         // 生成時觸發召喚動畫
         if (!worldIn.isRemote) {
-            this.spawnAnimationTimer = 64; // 3.2秒動畫
+            this.spawnAnimationTimer = 64;
             this.callAnimationTimer = 64;
             this.hasTriggeredCall = true;
         }
@@ -89,12 +106,10 @@ public class EntityCursedKnight extends EntityMob implements IAnimatable {
     protected void entityInit() {
         super.entityInit();
         this.dataManager.register(ANIMATION_STATE, ANIM_IDLE);
-        this.dataManager.register(HIT_COUNT, 0);
     }
 
     @Override
     protected void initEntityAI() {
-        // 優先級系統
         this.tasks.addTask(0, new EntityAISwimming(this));
         this.tasks.addTask(1, new AICursedKnightAttack(this));
         this.tasks.addTask(2, new AICursedKnightSkill(this));
@@ -148,7 +163,6 @@ public class EntityCursedKnight extends EntityMob implements IAnimatable {
                             .addAnimation("animation.skeleton.move", true));
                     return PlayState.CONTINUE;
                 }
-                // 如果不移動則播放idle
 
             case ANIM_IDLE:
             default:
@@ -172,18 +186,18 @@ public class EntityCursedKnight extends EntityMob implements IAnimatable {
         if (attackCooldown > 0) attackCooldown--;
         if (skillCooldown > 0) skillCooldown--;
         if (callAnimationTimer > 0) callAnimationTimer--;
-        if (invulnerabilityTimer > 0) invulnerabilityTimer--;
+        if (gateOpenFxCooldown > 0) gateOpenFxCooldown--;
+
+        // Gate 系统处理
+        handleInvulnerability();
 
         // 生成動畫處理
         if (spawnAnimationTimer > 0) {
             spawnAnimationTimer--;
-
-            // 出生動畫期間不索敵
             this.setAttackTarget(null);
             this.getNavigator().clearPath();
 
             if (spawnAnimationTimer == 63 && !world.isRemote) {
-                // 開始播放召喚動畫
                 this.dataManager.set(ANIMATION_STATE, ANIM_CALL);
                 triggerCallAnimation();
             }
@@ -192,11 +206,10 @@ public class EntityCursedKnight extends EntityMob implements IAnimatable {
                 hasSpawned = true;
                 this.dataManager.set(ANIMATION_STATE, ANIM_IDLE);
             }
-
-            return; // 出生動畫期間不執行其他邏輯
+            return;
         }
 
-        // 第一次看到玩家時觸發召喚動畫（如果不是出生動畫）
+        // 第一次看到玩家時觸發召喚動畫
         if (!hasTriggeredCall && this.getAttackTarget() != null && !world.isRemote) {
             triggerCallAnimation();
         }
@@ -221,15 +234,186 @@ public class EntityCursedKnight extends EntityMob implements IAnimatable {
         }
     }
 
+    // ========== Gate 系统核心方法 ==========
+
+    private void handleInvulnerability() {
+        if (this.invulTicks > 0) {
+            this.invulTicks--;
+
+            // 冻结血量
+            if (!this.applyingChunk) {
+                if (this.frozenHealth >= 0F && this.getHealth() != this.frozenHealth) {
+                    this.setHealth(this.frozenHealth);
+                }
+                if (this.frozenAbsorb >= 0F && this.getAbsorptionAmount() != this.frozenAbsorb) {
+                    this.setAbsorptionAmount(this.frozenAbsorb);
+                }
+            }
+
+            // 无敌粒子效果
+            if (this.ticksExisted % 5 == 0 && world instanceof WorldServer) {
+                spawnRing(EnumParticleTypes.REDSTONE, 16, 1.5D);
+            }
+
+            // 无敌结束
+            if (this.invulTicks == 0) {
+                if (this.pendingChunk && this.getHealth() > 0F) {
+                    float dmg = getChunkSize();
+                    this.applyingChunk = true;
+                    try {
+                        super.attackEntityFrom(CURSE_CHUNK, dmg);
+                        playSound(SoundEvents.BLOCK_ANVIL_LAND, 0.7F, 1.0F);
+                        spawnRing(EnumParticleTypes.CRIT_MAGIC, 32, 2.0D);
+                    } finally {
+                        this.applyingChunk = false;
+                    }
+                }
+                this.pendingChunk = false;
+                this.frozenHealth = -1F;
+                this.frozenAbsorb = -1F;
+            }
+        }
+    }
+
+    public float getChunkSize() {
+        return 20.0F; // 累积伤害阈值
+    }
+
+    public boolean isGateInvulnerable() {
+        return invulTicks > 0;
+    }
+
+    public void openGateAndFreeze(boolean scheduleChunk) {
+        int base = INVUL_TICKS_BASE - currentPhase * 5;
+        this.invulTicks = Math.max(this.invulTicks, Math.max(20, base));
+
+        this.frozenHealth = this.getHealth();
+        this.frozenAbsorb = this.getAbsorptionAmount();
+        this.pendingChunk = scheduleChunk;
+
+        if (gateOpenFxCooldown <= 0) {
+            playSound(SoundEvents.ITEM_SHIELD_BLOCK, 0.9F, 0.9F);
+            spawnRing(EnumParticleTypes.PORTAL, 32, 2.0D);
+            gateOpenFxCooldown = 5;
+        }
+    }
+
+    public boolean isTrustedChunkSource(DamageSource src) {
+        return src != null && CHUNK_ID.equals(src.getDamageType());
+    }
+
+    private void spawnRing(EnumParticleTypes type, int count, double radius) {
+        if (!(world instanceof WorldServer)) return;
+        WorldServer ws = (WorldServer) world;
+        double cx = this.posX;
+        double cy = this.posY + this.height * 0.5D;
+        double cz = this.posZ;
+        for (int i = 0; i < count; i++) {
+            double ang = (Math.PI * 2 * i) / count;
+            double dx = cx + Math.cos(ang) * radius;
+            double dz = cz + Math.sin(ang) * radius;
+            ws.spawnParticle(type, dx, cy, dz, 1, 0, 0, 0, 0.0D);
+        }
+    }
+
+    // ========== 伤害处理（完全重写）==========
+
+    @Override
+    public boolean attackEntityFrom(DamageSource source, float amount) {
+        if (callAnimationTimer > 0 || spawnAnimationTimer > 0) {
+            return false; // 召喚/生成動畫期間無敵
+        }
+
+        // Gate 无敌检查
+        if (this.isGateInvulnerable() && !isTrustedChunkSource(source)) {
+            if (world instanceof WorldServer && gateOpenFxCooldown <= 0) {
+                WorldServer ws = (WorldServer) world;
+                ws.spawnParticle(EnumParticleTypes.SPELL_WITCH,
+                        posX, posY + height * 0.5, posZ,
+                        10, 0.5, 0.5, 0.5, 0.1);
+                playSound(SoundEvents.ITEM_SHIELD_BLOCK, 1.0F, 1.5F);
+                gateOpenFxCooldown = 3;
+            }
+            return false;
+        }
+
+        // 只接受玩家伤害
+        if (!(source.getTrueSource() instanceof EntityPlayer)) {
+            return false;
+        }
+
+        return super.attackEntityFrom(source, amount);
+    }
+
+    @Override
+    protected void damageEntity(DamageSource damageSrc, float damageAmount) {
+        // 信任伤害源直接通过
+        if (isTrustedChunkSource(damageSrc)) {
+            super.damageEntity(damageSrc, damageAmount);
+            return;
+        }
+
+        // Gate 无敌期间不处理
+        if (this.isGateInvulnerable()) {
+            return;
+        }
+
+        // 只接受玩家伤害
+        if (!(damageSrc.getTrueSource() instanceof EntityPlayer)) {
+            return;
+        }
+
+        EntityPlayer player = (EntityPlayer) damageSrc.getTrueSource();
+
+        // 固定伤害：每次 20 血
+        float actualDamage = 20.0F;
+
+        // 判断是否需要累积大额伤害
+        boolean scheduleChunk = damageAmount >= getChunkSize();
+
+        // 开启 Gate 并冻结血量
+        openGateAndFreeze(scheduleChunk);
+
+        // 立即应用固定伤害
+        if (!this.applyingChunk) {
+            this.applyingChunk = true;
+            try {
+                super.damageEntity(damageSrc, actualDamage);
+            } finally {
+                this.applyingChunk = false;
+            }
+        }
+
+        // 给玩家反馈
+        float healthPercent = (this.getHealth() / this.getMaxHealth()) * 100;
+        player.sendStatusMessage(new TextComponentString(
+                String.format("§c诅咒骑士 §7| §e%.0f%%", healthPercent)
+        ), true);
+
+        // 特效
+        if (world instanceof WorldServer) {
+            WorldServer ws = (WorldServer) world;
+            ws.spawnParticle(EnumParticleTypes.DRAGON_BREATH,
+                    posX, posY + height * 0.5, posZ,
+                    20, 0.5, 0.5, 0.5, 0.1);
+
+            if (scheduleChunk) {
+                ws.spawnParticle(EnumParticleTypes.CRIT_MAGIC,
+                        posX, posY + height * 0.5, posZ,
+                        30, 1, 1, 1, 0.2);
+                player.sendMessage(new TextComponentString("§6§l强力一击！将在无敌结束后造成额外伤害！"));
+            }
+        }
+    }
+
+    // ========== 原有方法保持不变 ==========
+
     private void triggerCallAnimation() {
         hasTriggeredCall = true;
-        callAnimationTimer = 64; // 3.2秒動畫
+        callAnimationTimer = 64;
         this.dataManager.set(ANIMATION_STATE, ANIM_CALL);
-
-        // 播放召喚音效
         this.playSound(SoundEvents.EVOCATION_ILLAGER_PREPARE_ATTACK, 1.0F, 0.5F);
 
-        // 召喚特效
         if (!world.isRemote) {
             WorldServer ws = (WorldServer) world;
             for (int i = 0; i < 50; i++) {
@@ -257,10 +441,7 @@ public class EntityCursedKnight extends EntityMob implements IAnimatable {
     }
 
     private void enterAngryMode() {
-        // 提升速度
         this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(0.32D);
-
-        // 視覺效果
         if (!world.isRemote) {
             WorldServer ws = (WorldServer) world;
             ws.spawnParticle(EnumParticleTypes.VILLAGER_ANGRY,
@@ -270,11 +451,8 @@ public class EntityCursedKnight extends EntityMob implements IAnimatable {
     }
 
     private void enterRageMode() {
-        // 大幅提升屬性
         this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(0.35D);
         this.getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).setBaseValue(12.0D);
-
-        // 狂暴特效
         if (!world.isRemote) {
             WorldServer ws = (WorldServer) world;
             ws.spawnParticle(EnumParticleTypes.FLAME,
@@ -283,9 +461,8 @@ public class EntityCursedKnight extends EntityMob implements IAnimatable {
         }
     }
 
-    // ========== 自定義AI任務 ==========
+    // ========== AI 類（保持不变）==========
 
-    // 攻擊AI
     static class AICursedKnightAttack extends EntityAIBase {
         private final EntityCursedKnight knight;
         private int animationTimer = 0;
@@ -303,13 +480,13 @@ public class EntityCursedKnight extends EntityMob implements IAnimatable {
                     knight.getDistanceSq(target) < 9.0D &&
                     knight.attackCooldown <= 0 &&
                     knight.callAnimationTimer <= 0 &&
-                    knight.spawnAnimationTimer <= 0; // 出生動畫期間不攻擊
+                    knight.spawnAnimationTimer <= 0;
         }
 
         @Override
         public void startExecuting() {
             knight.dataManager.set(ANIMATION_STATE, ANIM_ATTACK);
-            animationTimer = 14; // 0.58秒動畫
+            animationTimer = 14;
             knight.attackCooldown = 30;
         }
 
@@ -319,16 +496,13 @@ public class EntityCursedKnight extends EntityMob implements IAnimatable {
             if (target != null) {
                 knight.getLookHelper().setLookPositionWithEntity(target, 30.0F, 30.0F);
 
-                // 在動畫中間造成傷害
                 if (animationTimer == 7) {
                     if (knight.getDistanceSq(target) < 9.0D) {
                         target.attackEntityFrom(DamageSource.causeMobDamage(knight),
                                 (float)knight.getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).getAttributeValue());
-                        // 普通攻擊不詛咒玩家
                     }
                 }
             }
-
             animationTimer--;
         }
 
@@ -343,7 +517,8 @@ public class EntityCursedKnight extends EntityMob implements IAnimatable {
         }
     }
 
-    // 技能AI
+    // ========== 技能 AI（使用统一诅咒系统）==========
+
     static class AICursedKnightSkill extends EntityAIBase {
         private final EntityCursedKnight knight;
         private int animationTimer = 0;
@@ -360,24 +535,22 @@ public class EntityCursedKnight extends EntityMob implements IAnimatable {
                     target.isEntityAlive() &&
                     knight.skillCooldown <= 0 &&
                     knight.callAnimationTimer <= 0 &&
-                    knight.spawnAnimationTimer <= 0 && // 出生動畫期間不使用技能
+                    knight.spawnAnimationTimer <= 0 &&
                     (knight.currentPhase > 0 || knight.rand.nextFloat() < 0.1F);
         }
 
         @Override
         public void startExecuting() {
             knight.dataManager.set(ANIMATION_STATE, ANIM_SKILL);
-            animationTimer = 30; // 1.25秒動畫
+            animationTimer = 30;
             knight.skillCooldown = 200;
         }
 
         @Override
         public void updateTask() {
-            // 旋轉攻擊
             if (animationTimer == 20) {
                 performSpinAttack();
             }
-
             animationTimer--;
         }
 
@@ -390,35 +563,9 @@ public class EntityCursedKnight extends EntityMob implements IAnimatable {
                 // 基礎傷害
                 player.attackEntityFrom(DamageSource.causeMobDamage(knight), 10.0F);
 
-                // 應用詛咒效果 - 扣除最大生命值的5%
-                float maxHealth = player.getMaxHealth();
-                float curseDamage = maxHealth * 0.05F;
-
-                // 應用詛咒
+                // ✅ 使用统一的诅咒系统
                 if (!player.world.isRemote) {
-                    // 檢查玩家是否已被詛咒
-                    NBTTagCompound playerData = player.getEntityData();
-                    if (!playerData.hasKey("CursedKnight_Cursed")) {
-                        playerData.setBoolean("CursedKnight_Cursed", true);
-                        playerData.setFloat("CursedKnight_MaxHealthReduction", curseDamage);
-
-                        // 減少最大生命值
-                        player.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH)
-                                .setBaseValue(maxHealth - curseDamage);
-
-                        // 如果當前生命值超過新的最大值，調整它
-                        if (player.getHealth() > player.getMaxHealth()) {
-                            player.setHealth(player.getMaxHealth());
-                        }
-
-                        player.sendMessage(new TextComponentString(
-                                "§4§l你被詛咒了！§r§c最大生命值減少" +
-                                        String.format("%.1f", curseDamage) + "點 (5%)"
-                        ));
-                        player.sendMessage(new TextComponentString(
-                                "§e使用純淨聖水可以解除詛咒"
-                        ));
-                    }
+                    CurseManager.applyCurse(player);
                 }
 
                 // 擊退
@@ -439,14 +586,12 @@ public class EntityCursedKnight extends EntityMob implements IAnimatable {
                     double angle = Math.toRadians(i);
                     double radius = 3.0;
 
-                    // 黑色煙霧粒子
                     ws.spawnParticle(EnumParticleTypes.SMOKE_LARGE,
                             knight.posX + Math.cos(angle) * radius,
                             knight.posY + 1.0,
                             knight.posZ + Math.sin(angle) * radius,
                             1, 0.0D, 0.0D, 0.0D, 0);
 
-                    // 詛咒粒子
                     ws.spawnParticle(EnumParticleTypes.SPELL_MOB,
                             knight.posX + Math.cos(angle) * radius,
                             knight.posY + 1.2,
@@ -454,7 +599,7 @@ public class EntityCursedKnight extends EntityMob implements IAnimatable {
                             1, 0.1, 0, 0.1, 0);
                 }
 
-                // 中心爆發的黑色粒子
+                // 中心爆發
                 for (int i = 0; i < 30; i++) {
                     double offsetX = (knight.rand.nextDouble() - 0.5) * 3;
                     double offsetY = knight.rand.nextDouble() * 2;
@@ -481,13 +626,11 @@ public class EntityCursedKnight extends EntityMob implements IAnimatable {
                     }
                 }
 
-                // 斬擊效果
                 ws.spawnParticle(EnumParticleTypes.SWEEP_ATTACK,
                         knight.posX, knight.posY + 1, knight.posZ,
                         5, 2.0D, 0.5D, 2.0D, 0);
             }
 
-            // 音效
             knight.playSound(SoundEvents.ENTITY_WITHER_SHOOT, 1.0F, 0.5F);
             knight.playSound(SoundEvents.ENTITY_ENDERDRAGON_FLAP, 1.0F, 0.8F);
         }
@@ -503,7 +646,7 @@ public class EntityCursedKnight extends EntityMob implements IAnimatable {
         }
     }
 
-    // 追擊AI
+    // 追擊 AI
     static class AICursedKnightChase extends EntityAIBase {
         private final EntityCursedKnight knight;
 
@@ -519,7 +662,7 @@ public class EntityCursedKnight extends EntityMob implements IAnimatable {
                     target.isEntityAlive() &&
                     knight.getDistanceSq(target) > 9.0D &&
                     knight.callAnimationTimer <= 0 &&
-                    knight.spawnAnimationTimer <= 0; // 出生動畫期間不追擊
+                    knight.spawnAnimationTimer <= 0;
         }
 
         @Override
@@ -533,7 +676,7 @@ public class EntityCursedKnight extends EntityMob implements IAnimatable {
         }
     }
 
-    // 巡邏AI
+    // 巡邏 AI
     static class AICursedKnightPatrol extends EntityAIBase {
         private final EntityCursedKnight knight;
         private double targetX, targetY, targetZ;
@@ -547,7 +690,7 @@ public class EntityCursedKnight extends EntityMob implements IAnimatable {
         public boolean shouldExecute() {
             return knight.getAttackTarget() == null &&
                     knight.rand.nextFloat() < 0.02F &&
-                    knight.spawnAnimationTimer <= 0; // 出生動畫期間不巡邏
+                    knight.spawnAnimationTimer <= 0;
         }
 
         @Override
@@ -570,7 +713,7 @@ public class EntityCursedKnight extends EntityMob implements IAnimatable {
         }
     }
 
-    // 尋找目標AI
+    // 尋找目標 AI
     static class AICursedKnightFindTarget extends EntityAINearestAttackableTarget<EntityPlayer> {
         private final EntityCursedKnight knight;
 
@@ -582,7 +725,7 @@ public class EntityCursedKnight extends EntityMob implements IAnimatable {
         @Override
         public boolean shouldExecute() {
             return knight.callAnimationTimer <= 0 &&
-                    knight.spawnAnimationTimer <= 0 && // 出生動畫期間不尋找目標
+                    knight.spawnAnimationTimer <= 0 &&
                     super.shouldExecute();
         }
     }
@@ -593,7 +736,6 @@ public class EntityCursedKnight extends EntityMob implements IAnimatable {
         if (!world.isRemote) {
             WorldServer ws = (WorldServer) world;
 
-            // 根據階段產生不同粒子
             if (currentPhase == 2) {
                 ws.spawnParticle(EnumParticleTypes.FLAME,
                         this.posX + (rand.nextDouble() - 0.5) * 1.5,
@@ -606,7 +748,6 @@ public class EntityCursedKnight extends EntityMob implements IAnimatable {
                         1, 0.0D, 0.0D, 0.0D, 0);
             }
 
-            // 常駐的詛咒粒子
             ws.spawnParticle(EnumParticleTypes.SPELL_MOB,
                     this.posX + (rand.nextDouble() - 0.5) * 2.0,
                     this.posY + rand.nextDouble() * height,
@@ -616,111 +757,75 @@ public class EntityCursedKnight extends EntityMob implements IAnimatable {
     }
 
     @Override
-    public boolean attackEntityFrom(DamageSource source, float amount) {
-        if (callAnimationTimer > 0 || spawnAnimationTimer > 0) {
-            return false; // 召喚/生成動畫期間無敵
-        }
-
-        // 無敵時間檢查
-        if (invulnerabilityTimer > 0) {
-            if (world instanceof WorldServer) {
-                WorldServer ws = (WorldServer) world;
-                ws.spawnParticle(EnumParticleTypes.SPELL_WITCH,
-                        posX, posY + height * 0.5, posZ,
-                        10, 0.5, 0.5, 0.5, 0.1);
-            }
-            playSound(SoundEvents.ITEM_SHIELD_BLOCK, 1.0F, 1.5F);
-            return false;
-        }
-
-        if (source.getTrueSource() instanceof EntityPlayer) {
-            return super.attackEntityFrom(source, amount);
-        }
-
-        return false;
-    }
-
-    @Override
-    protected void damageEntity(DamageSource damageSrc, float damageAmount) {
-        // 無敵時間內完全免疫
-        if (invulnerabilityTimer > 0) {
-            return;
-        }
-
-        // 限傷機制
-        if (damageSrc.getTrueSource() instanceof EntityPlayer) {
-            float maxDamage = this.getMaxHealth() * MAX_DAMAGE_PERCENT;
-            if (damageAmount > maxDamage) {
-                damageAmount = maxDamage;
-
-                // 限傷觸發特效
-                if (world instanceof WorldServer) {
-                    WorldServer ws = (WorldServer) world;
-                    for (int i = 0; i < 20; i++) {
-                        double angle = (Math.PI * 2) * i / 20;
-                        double px = posX + Math.cos(angle) * 2;
-                        double pz = posZ + Math.sin(angle) * 2;
-                        ws.spawnParticle(EnumParticleTypes.PORTAL,
-                                px, posY + height * 0.5, pz,
-                                1, 0, 0.5, 0, 0.1);
-                    }
-                }
-                playSound(SoundEvents.ENTITY_ENDERMEN_TELEPORT, 1.5F, 0.5F);
-            }
-
-            // 更新擊中次數
-            int currentHits = this.dataManager.get(HIT_COUNT);
-            currentHits++;
-            this.dataManager.set(HIT_COUNT, currentHits);
-
-            // 固定傷害系統
-            float actualDamage = 20.0F;
-
-            if (currentHits >= 5) {
-                this.setHealth(0);
-                super.damageEntity(damageSrc, this.getMaxHealth());
-            } else {
-                super.damageEntity(damageSrc, actualDamage);
-                invulnerabilityTimer = INVULNERABILITY_TIME;
-
-                EntityPlayer player = (EntityPlayer) damageSrc.getTrueSource();
-                player.sendStatusMessage(new TextComponentString(
-                        "§c詛咒騎士受到攻擊！ (" + currentHits + "/5)"
-                ), true);
-
-                if (world instanceof WorldServer) {
-                    WorldServer ws = (WorldServer) world;
-                    ws.spawnParticle(EnumParticleTypes.DRAGON_BREATH,
-                            posX, posY + height * 0.5, posZ,
-                            30, 1, 1, 1, 0.2);
-                }
-            }
-        }
-    }
-
-    @Override
     public void writeEntityToNBT(NBTTagCompound compound) {
         super.writeEntityToNBT(compound);
-        compound.setInteger("HitCount", this.dataManager.get(HIT_COUNT));
         compound.setInteger("AnimationState", this.dataManager.get(ANIMATION_STATE));
         compound.setInteger("Phase", currentPhase);
         compound.setBoolean("HasSpawned", hasSpawned);
         compound.setInteger("AttackCooldown", attackCooldown);
         compound.setInteger("SkillCooldown", skillCooldown);
         compound.setInteger("SpawnAnimationTimer", spawnAnimationTimer);
-        compound.setInteger("InvulnerabilityTimer", invulnerabilityTimer);
+
+        // Gate 系统
+        compound.setInteger("GateInvul", invulTicks);
+        compound.setBoolean("GatePendingChunk", pendingChunk);
+        compound.setFloat("GateFrozenHealth", frozenHealth);
+        compound.setFloat("GateFrozenAbsorb", frozenAbsorb);
     }
 
     @Override
     public void readEntityFromNBT(NBTTagCompound compound) {
         super.readEntityFromNBT(compound);
-        this.dataManager.set(HIT_COUNT, compound.getInteger("HitCount"));
         this.dataManager.set(ANIMATION_STATE, compound.getInteger("AnimationState"));
         this.currentPhase = compound.getInteger("Phase");
         this.hasSpawned = compound.getBoolean("HasSpawned");
         this.attackCooldown = compound.getInteger("AttackCooldown");
         this.skillCooldown = compound.getInteger("SkillCooldown");
         this.spawnAnimationTimer = compound.getInteger("SpawnAnimationTimer");
-        this.invulnerabilityTimer = compound.getInteger("InvulnerabilityTimer");
+
+        // Gate 系统
+        this.invulTicks = compound.getInteger("GateInvul");
+        this.pendingChunk = compound.getBoolean("GatePendingChunk");
+        this.frozenHealth = compound.getFloat("GateFrozenHealth");
+        this.frozenAbsorb = compound.getFloat("GateFrozenAbsorb");
+    }
+
+    // ========== 事件处理器（参考 Riftwarden）==========
+
+    @Mod.EventBusSubscriber(modid = MODID)
+    public static class EventHooks {
+        @SubscribeEvent(priority = EventPriority.HIGHEST)
+        public static void onAttackPre(LivingAttackEvent e) {
+            if (!(e.getEntityLiving() instanceof EntityCursedKnight)) return;
+            EntityCursedKnight knight = (EntityCursedKnight) e.getEntityLiving();
+            if (knight.isGateInvulnerable() && !knight.isTrustedChunkSource(e.getSource())) {
+                e.setCanceled(true);
+            }
+        }
+
+        @SubscribeEvent(priority = EventPriority.HIGHEST)
+        public static void onHeal(LivingHealEvent e) {
+            if (!(e.getEntityLiving() instanceof EntityCursedKnight)) return;
+            EntityCursedKnight knight = (EntityCursedKnight) e.getEntityLiving();
+            if (knight.isGateInvulnerable()) {
+                e.setCanceled(true);
+                e.setAmount(0F);
+            }
+        }
+
+        @SubscribeEvent(priority = EventPriority.LOWEST, receiveCanceled = true)
+        public static void onFinalDamage(LivingDamageEvent e) {
+            if (!(e.getEntityLiving() instanceof EntityCursedKnight)) return;
+            EntityCursedKnight knight = (EntityCursedKnight) e.getEntityLiving();
+
+            if (knight.isTrustedChunkSource(e.getSource())) {
+                return; // 信任伤害源通过
+            }
+
+            if (knight.isGateInvulnerable()) {
+                e.setCanceled(true);
+                e.setAmount(0F);
+            }
+        }
     }
 }

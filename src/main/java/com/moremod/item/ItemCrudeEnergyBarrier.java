@@ -1,7 +1,9 @@
 package com.moremod.item;
 
 import baubles.api.BaubleType;
+import baubles.api.BaublesApi;
 import baubles.api.IBauble;
+import baubles.api.cap.IBaublesItemHandler;
 import com.moremod.creativetab.moremodCreativeTab;
 import com.moremod.upgrades.EnergyEfficiencyManager;  // 添加导入
 import net.minecraft.client.Minecraft;
@@ -50,6 +52,44 @@ public class ItemCrudeEnergyBarrier extends Item implements IBauble {
 
     @Override
     public boolean canEquip(ItemStack itemstack, EntityLivingBase player) {
+        // 检查是否是玩家
+        if (!(player instanceof EntityPlayer)) {
+            return false;
+        }
+
+        EntityPlayer entityPlayer = (EntityPlayer) player;
+
+        // 检查是否已装备机械核心
+        try {
+            IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(entityPlayer);
+            if (baubles != null) {
+                boolean hasMechanicalCore = false;
+
+                // 遍历所有饰品栏位
+                for (int i = 0; i < baubles.getSlots(); i++) {
+                    ItemStack bauble = baubles.getStackInSlot(i);
+                    if (!bauble.isEmpty() && bauble.getItem() instanceof ItemMechanicalCore) {
+                        hasMechanicalCore = true;
+                        break;
+                    }
+                }
+
+                if (!hasMechanicalCore) {
+                    // 如果没有装备机械核心，发送提示消息
+                    if (!entityPlayer.world.isRemote) {
+                        entityPlayer.sendStatusMessage(
+                                new TextComponentString(
+                                        TextFormatting.RED + "✗ 需要先装备机械核心才能使用粗劣能量屏障！"
+                                ), true);
+                    }
+                    return false;
+                }
+            }
+        } catch (Exception e) {
+            // 如果出现异常，默认不允许装备
+            return false;
+        }
+
         // 允许装备在任何饰品槽位
         return true;
     }
@@ -179,19 +219,20 @@ public class ItemCrudeEnergyBarrier extends Item implements IBauble {
         return super.getRGBDurabilityForDisplay(stack);
     }
 
+    // ===== ItemCrudeEnergyBarrier.java 的 addInformation 方法 =====
     @Override
     @SideOnly(Side.CLIENT)
     public void addInformation(ItemStack stack, @Nullable World worldIn, List<String> tooltip, ITooltipFlag flagIn) {
         int energy = getEnergyStored(stack);
 
-        // 🎯 获取实际消耗
+        // 获取实际消耗
         EntityPlayer player = Minecraft.getMinecraft().player;
         int actualCost = getActualCost(player);
 
         // 基础信息
         tooltip.add(TextFormatting.YELLOW + "能量：" + String.format("%,d", energy) + " / " + String.format("%,d", MAX_ENERGY) + " RF");
-        tooltip.add(TextFormatting.GREEN + "100% 格挡物理攻击");
-        tooltip.add(TextFormatting.RED + "冷却时间：20秒");
+        tooltip.add(TextFormatting.GREEN + "激活时：免疫任意伤害");
+        tooltip.add(TextFormatting.RED + "激活冷却：30秒");
         tooltip.add(TextFormatting.BLUE + "可放置在任意饰品槽位");
         tooltip.add(TextFormatting.GREEN + "⚡ 支持机械核心能量效率加成");
 
@@ -200,34 +241,31 @@ public class ItemCrudeEnergyBarrier extends Item implements IBauble {
         // 简单描述
         tooltip.add(TextFormatting.GRAY + "「 粗劣能量屏障 」");
         tooltip.add(TextFormatting.DARK_GRAY + "用廉价材料拼凑的防护装置");
-        tooltip.add(TextFormatting.DARK_GRAY + "经过改进，现在能可靠地格挡攻击");
+        tooltip.add(TextFormatting.DARK_GRAY + "虽然简陋，但在关键时刻能救命");
 
         tooltip.add("");
 
         // 基本功能
-        tooltip.add(TextFormatting.YELLOW + "基本功能：");
-        tooltip.add(TextFormatting.GRAY + "  • 完全格挡物理攻击");
-        tooltip.add(TextFormatting.GRAY + "  • 格挡后进入冷却状态");
-
-        // 根据是否有效率加成显示不同颜色
-        if (actualCost < COST_PER_BLOCK) {
-            tooltip.add(TextFormatting.GREEN + "  • 消耗：" + actualCost + " RF/次 (优化后)");
-        } else {
-            tooltip.add(TextFormatting.GRAY + "  • 消耗：" + actualCost + " RF/次");
-        }
+        tooltip.add(TextFormatting.YELLOW + "防护机制：");
+        tooltip.add(TextFormatting.GRAY + "  • 激活时完全免疫所有伤害");
+        tooltip.add(TextFormatting.GRAY + "  • 击退3格内敌人，造成50%反伤");
+        tooltip.add(TextFormatting.GRAY + "  • 低血量(<30%)时自动触发");
+        tooltip.add(TextFormatting.RED + "  • 冷却时间：30秒（最长）");
+        tooltip.add(TextFormatting.GRAY + "  • 消耗：" + actualCost + " RF/次" +
+                (actualCost < COST_PER_BLOCK ? TextFormatting.GREEN + " (已优化)" : ""));
 
         tooltip.add("");
 
-        // 使用说明
-        tooltip.add(TextFormatting.AQUA + "使用说明：");
-        tooltip.add(TextFormatting.GRAY + "  • 需要外部充电设备");
-        tooltip.add(TextFormatting.GRAY + "  • 每次格挡后冷却20秒");
-        tooltip.add(TextFormatting.GRAY + "  • 无法防御远程攻击");
+        // 被动效果
+        tooltip.add(TextFormatting.AQUA + "冷却期间被动：");
+        tooltip.add(TextFormatting.GRAY + "  • 20%概率规避致命头部伤害");
+        tooltip.add(TextFormatting.GRAY + "  • 30%免疫爆炸视觉效果");
+        tooltip.add(TextFormatting.DARK_GRAY + "  • 被动防护最弱");
 
         // 冷却状态显示
         long currentTime = System.currentTimeMillis();
         long lastBlockTime = getLastBlockTime(stack);
-        long cooldownRemaining = 20000L - (currentTime - lastBlockTime);
+        long cooldownRemaining = 30000L - (currentTime - lastBlockTime);
 
         if (cooldownRemaining > 0) {
             int secondsRemaining = (int) Math.ceil(cooldownRemaining / 1000.0);
@@ -259,28 +297,26 @@ public class ItemCrudeEnergyBarrier extends Item implements IBauble {
             tooltip.add("");
             tooltip.add(TextFormatting.DARK_AQUA + "=== 详细信息 ===");
 
-            // 显示当前效率
+            // 显示效率
             if (player != null && actualCost < COST_PER_BLOCK) {
                 int saved = COST_PER_BLOCK - actualCost;
                 int efficiencyPercentage = EnergyEfficiencyManager.getEfficiencyPercentage(player);
                 tooltip.add(TextFormatting.GREEN + "当前效率加成: " + efficiencyPercentage + "%");
                 tooltip.add(TextFormatting.GREEN + "每次格挡节省: " + saved + " RF");
-
-                // 计算可格挡次数
-                int normalBlocks = energy / COST_PER_BLOCK;
-                int efficientBlocks = energy / actualCost;
-                if (efficientBlocks > normalBlocks) {
-                    tooltip.add(TextFormatting.GREEN + "额外格挡次数: +" + (efficientBlocks - normalBlocks));
-                }
             } else {
                 tooltip.add(TextFormatting.GRAY + "当前效率加成: 0%");
                 tooltip.add(TextFormatting.DARK_GRAY + "装备机械核心可减少能量消耗");
             }
 
-            // 显示可格挡次数
+            // 显示可激活次数
             int blocksLeft = energy / actualCost;
             tooltip.add("");
-            tooltip.add(TextFormatting.YELLOW + "剩余格挡次数: " + blocksLeft);
+            tooltip.add(TextFormatting.YELLOW + "剩余激活次数: " + blocksLeft);
+
+            tooltip.add("");
+            tooltip.add(TextFormatting.DARK_GRAY + "爆炸反击范围: 3格");
+            tooltip.add(TextFormatting.DARK_GRAY + "反击伤害系数: 50%");
+            tooltip.add(TextFormatting.DARK_GRAY + "紧急触发阈值: 30%血量");
         } else {
             tooltip.add("");
             tooltip.add(TextFormatting.DARK_GRAY + "<按住Shift查看详细信息>");
@@ -289,110 +325,9 @@ public class ItemCrudeEnergyBarrier extends Item implements IBauble {
         tooltip.add("");
 
         // 底部评价
-        tooltip.add(TextFormatting.DARK_GRAY + "━━━━━━━━━━━━━━━━━━━━");
-        tooltip.add(TextFormatting.ITALIC + "" + TextFormatting.DARK_GRAY + "\"升级版本，总算靠谱点了\"");
-        tooltip.add(TextFormatting.DARK_GRAY + "━━━━━━━━━━━━━━━━━━━━");
-    }
-
-    // 移除右键充能功能 - 现在显示详细状态信息
-    @Override
-    public ActionResult<ItemStack> onItemRightClick(World world, EntityPlayer player, EnumHand hand) {
-        ItemStack stack = player.getHeldItem(hand);
-
-        if (!world.isRemote) {
-            int energy = getEnergyStored(stack);
-            double energyPercent = (double) energy / MAX_ENERGY * 100;
-            int actualCost = getActualCost(player);
-
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.GRAY + "=== 粗劣能量护盾状态 ==="
-            ));
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.YELLOW + "当前能量：" + String.format("%,d", energy) + "/" +
-                            String.format("%,d", MAX_ENERGY) + " RF (" +
-                            String.format("%.1f", energyPercent) + "%)"
-            ));
-
-            // 冷却状态检查
-            long currentTime = System.currentTimeMillis();
-            long lastBlockTime = getLastBlockTime(stack);
-            long cooldownRemaining = 20000L - (currentTime - lastBlockTime);
-
-            if (cooldownRemaining > 0) {
-                int secondsRemaining = (int) Math.ceil(cooldownRemaining / 1000.0);
-                player.sendMessage(new TextComponentString(
-                        TextFormatting.YELLOW + "⏰ 护盾冷却中：" + secondsRemaining + "秒"
-                ));
-            } else {
-                player.sendMessage(new TextComponentString(
-                        TextFormatting.GREEN + "✓ 护盾就绪，可以使用"
-                ));
-            }
-
-            if (energy < actualCost) {
-                player.sendMessage(new TextComponentString(
-                        TextFormatting.RED + "⚠ 能量不足！无法提供保护！"
-                ));
-                player.sendMessage(new TextComponentString(
-                        TextFormatting.DARK_RED + "需要至少 " + actualCost + " RF 才能格挡一次攻击" +
-                                (actualCost < COST_PER_BLOCK ? TextFormatting.GREEN + " (已优化)" : "")
-                ));
-            } else {
-                int blocksLeft = energy / actualCost;
-                player.sendMessage(new TextComponentString(
-                        TextFormatting.GREEN + "✓ 护盾活跃中，可格挡约 " + blocksLeft + " 次攻击"
-                ));
-                player.sendMessage(new TextComponentString(
-                        TextFormatting.LIGHT_PURPLE + "✓ 格挡概率：100%（冷却后）"
-                ));
-
-                // 显示效率信息
-                if (actualCost < COST_PER_BLOCK) {
-                    int saved = COST_PER_BLOCK - actualCost;
-                    int percentage = EnergyEfficiencyManager.getEfficiencyPercentage(player);
-                    player.sendMessage(new TextComponentString(
-                            TextFormatting.GREEN + "⚡ 能量效率加成: " + percentage + "% (每次节省 " + saved + " RF)"
-                    ));
-                }
-
-                // 根据剩余能量给出提醒
-                if (energyPercent < 20) {
-                    player.sendMessage(new TextComponentString(
-                            TextFormatting.RED + "⚠ 能量严重不足，建议立即充电！"
-                    ));
-                } else if (energyPercent < 40) {
-                    player.sendMessage(new TextComponentString(
-                            TextFormatting.YELLOW + "⚠ 能量偏低，建议及时充电"
-                    ));
-                } else if (energyPercent >= 80) {
-                    player.sendMessage(new TextComponentString(
-                            TextFormatting.DARK_GREEN + "✓ 能量充足，护盾运行良好"
-                    ));
-                }
-            }
-
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.GRAY + "护盾类型：" + TextFormatting.GREEN + "完全物理护盾 (100%)"
-            ));
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.GRAY + "实际消耗：" + TextFormatting.YELLOW + actualCost + " RF/次" +
-                            (actualCost < COST_PER_BLOCK ? TextFormatting.GREEN + " (效率加成)" : "")
-            ));
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.DARK_GRAY + "保护范围：所有物理攻击（100% 格挡概率）"
-            ));
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.RED + "冷却机制：每次格挡后冷却20秒"
-            ));
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.GREEN + "装备方式：可放置在任意饰品槽位"
-            ));
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.DARK_PURPLE + "特点：改进版护盾，可靠但有冷却限制"
-            ));
-        }
-
-        return new ActionResult<>(EnumActionResult.SUCCESS, stack);
+        tooltip.add(TextFormatting.DARK_GRAY + "━━━━━━━━━━━━━━━━━━━");
+        tooltip.add(TextFormatting.ITALIC + "" + TextFormatting.DARK_GRAY + "\"廉价但实用的最后防线\"");
+        tooltip.add(TextFormatting.DARK_GRAY + "━━━━━━━━━━━━━━━━━━━");
     }
 
     @Override

@@ -17,7 +17,7 @@ import java.util.Map;
  */
 public class EnergyConsumptionManager {
 
-    // 各類升級的基礎能量消耗 (RF/秒) - 全部翻十倍
+    // 各類升級的基礎能量消耗 (RF/秒)
     private static final Map<String, Integer> UPGRADE_CONSUMPTION = new HashMap<>();
 
     static {
@@ -232,6 +232,7 @@ public class EnergyConsumptionManager {
     /**
      * 消耗明細類
      */
+
     public static class ConsumptionBreakdown {
         public List<ConsumptionItem> items = new java.util.ArrayList<>();
         public int totalBase;

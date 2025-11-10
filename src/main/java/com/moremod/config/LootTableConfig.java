@@ -35,14 +35,14 @@ public class LootTableConfig {
         @Config.Comment("Antikythera Gear settings")
         public ItemConfig antikytheraGear = new ItemConfig(true, 1.0f);
 
-        @Config.Comment("Ancient Component settings (example)")
+        @Config.Comment("Ancient Component settings")
         public ItemConfig ancientComponent = new ItemConfig(true, 0.5f);
 
-        @Config.Comment("Mysterious Dust settings (example)")
+        @Config.Comment("Mysterious Dust settings")
         public ItemConfig mysteriousDust = new ItemConfig(true, 2.0f);
 
-        @Config.Comment("Rare Crystal settings (example)")
-        public ItemConfig rareCrystal = new ItemConfig(false, 0.3f);
+        @Config.Comment("Rare Crystal settings")
+        public ItemConfig rareCrystal = new ItemConfig(true, 0.5f);  // ✅ 修改：启用 + 0.5倍（与component一致）
     }
 
     /**
@@ -75,7 +75,7 @@ public class LootTableConfig {
                 15, 1, 2,  // gear
                 8, 1, 1,   // component
                 20, 2, 4,  // dust
-                3, 1, 1    // crystal
+                8, 1, 1    // crystal ✅ 修改：3 → 8
         );
 
         @Config.Comment("Abandoned Mineshaft")
@@ -83,7 +83,7 @@ public class LootTableConfig {
                 10, 1, 1,  // gear
                 5, 1, 1,   // component
                 15, 1, 3,  // dust
-                2, 1, 1    // crystal
+                5, 1, 1    // crystal ✅ 修改：2 → 5
         );
 
         @Config.Comment("Stronghold (all types)")
@@ -91,7 +91,7 @@ public class LootTableConfig {
                 25, 1, 3,  // gear
                 12, 1, 2,  // component
                 20, 2, 4,  // dust
-                5, 1, 1    // crystal
+                12, 1, 2   // crystal ✅ 修改：5 → 12，掉落数 1 → 1-2
         );
 
         @Config.Comment("Desert Pyramid")
@@ -99,7 +99,7 @@ public class LootTableConfig {
                 20, 1, 2,  // gear
                 10, 1, 1,  // component
                 18, 2, 4,  // dust
-                4, 1, 1    // crystal
+                10, 1, 1   // crystal ✅ 修改：4 → 10
         );
 
         @Config.Comment("Jungle Temple")
@@ -107,7 +107,7 @@ public class LootTableConfig {
                 18, 1, 2,  // gear
                 9, 1, 1,   // component
                 16, 2, 3,  // dust
-                4, 1, 1    // crystal
+                9, 1, 1    // crystal ✅ 修改：4 → 9
         );
 
         @Config.Comment("End City Treasure")
@@ -115,7 +115,7 @@ public class LootTableConfig {
                 35, 2, 4,  // gear
                 20, 1, 2,  // component
                 30, 3, 6,  // dust
-                10, 1, 2   // crystal
+                20, 1, 2   // crystal ✅ 修改：10 → 20
         );
 
         @Config.Comment("Village Blacksmith")
@@ -123,7 +123,7 @@ public class LootTableConfig {
                 8, 1, 1,   // gear
                 4, 1, 1,   // component
                 10, 1, 2,  // dust
-                1, 1, 1    // crystal
+                4, 1, 1    // crystal ✅ 修改：1 → 4
         );
 
         @Config.Comment("Nether Bridge")
@@ -131,7 +131,7 @@ public class LootTableConfig {
                 15, 1, 2,  // gear
                 8, 1, 1,   // component
                 12, 2, 3,  // dust
-                3, 1, 1    // crystal
+                8, 1, 1    // crystal ✅ 修改：3 → 8
         );
 
         @Config.Comment("Woodland Mansion")
@@ -139,7 +139,7 @@ public class LootTableConfig {
                 22, 1, 3,  // gear
                 12, 1, 2,  // component
                 18, 2, 4,  // dust
-                6, 1, 1    // crystal
+                12, 1, 2   // crystal ✅ 修改：6 → 12，掉落数改为1-2
         );
     }
 
@@ -223,7 +223,7 @@ public class LootTableConfig {
                 18, 1, 2,  // gear
                 10, 1, 1,  // component
                 15, 2, 3,  // dust
-                4, 1, 1    // crystal
+                10, 1, 1   // crystal ✅ 修改：4 → 10
         );
 
         @Config.Comment("Rare/Treasure chests")
@@ -231,7 +231,7 @@ public class LootTableConfig {
                 25, 2, 3,  // gear
                 15, 1, 2,  // component
                 20, 3, 5,  // dust
-                8, 1, 2    // crystal
+                15, 1, 2   // crystal ✅ 修改：8 → 15
         );
 
         @Config.Comment("Common/Basic chests")
@@ -239,7 +239,7 @@ public class LootTableConfig {
                 12, 1, 1,  // gear
                 6, 1, 1,   // component
                 10, 1, 2,  // dust
-                2, 1, 1    // crystal
+                6, 1, 1    // crystal ✅ 修改：2 → 6
         );
 
         @Config.Comment("Dungeon-type structures")
@@ -247,7 +247,7 @@ public class LootTableConfig {
                 20, 1, 2,  // gear
                 12, 1, 1,  // component
                 18, 2, 4,  // dust
-                5, 1, 1    // crystal
+                12, 1, 1   // crystal ✅ 修改：5 → 12
         );
 
         @Config.Comment("Tower-type structures")
@@ -255,7 +255,7 @@ public class LootTableConfig {
                 22, 1, 3,  // gear
                 14, 1, 2,  // component
                 16, 2, 3,  // dust
-                6, 1, 1    // crystal
+                14, 1, 2   // crystal ✅ 修改：6 → 14
         );
     }
 
@@ -271,7 +271,7 @@ public class LootTableConfig {
                 30, 2, 4,  // gear
                 18, 1, 2,  // component
                 25, 3, 5,  // dust
-                10, 1, 2   // crystal
+                18, 1, 2   // crystal ✅ 修改：10 → 18
         );
 
         @Config.Comment("Middle floors")
@@ -279,7 +279,7 @@ public class LootTableConfig {
                 20, 1, 2,  // gear
                 10, 1, 1,  // component
                 15, 2, 3,  // dust
-                5, 1, 1    // crystal
+                10, 1, 1   // crystal ✅ 修改：5 → 10
         );
 
         @Config.Comment("Bottom/Common floors")
@@ -287,7 +287,7 @@ public class LootTableConfig {
                 10, 1, 1,  // gear
                 5, 1, 1,   // component
                 8, 1, 2,   // dust
-                2, 1, 1    // crystal
+                5, 1, 1    // crystal ✅ 修改：2 → 5
         );
 
         @Config.Comment("Generic tower chests")
@@ -295,7 +295,7 @@ public class LootTableConfig {
                 15, 1, 2,  // gear
                 8, 1, 1,   // component
                 12, 2, 3,  // dust
-                4, 1, 1    // crystal
+                8, 1, 1    // crystal ✅ 修改：4 → 8
         );
     }
 
@@ -311,7 +311,7 @@ public class LootTableConfig {
                 10, 1, 2,  // gear
                 6, 1, 1,   // component
                 8, 1, 3,   // dust
-                3, 1, 1    // crystal
+                6, 1, 1    // crystal ✅ 修改：3 → 6
         );
 
         @Config.Comment("Common mod chests")
@@ -319,7 +319,7 @@ public class LootTableConfig {
                 5, 1, 1,   // gear
                 3, 1, 1,   // component
                 4, 1, 2,   // dust
-                1, 1, 1    // crystal
+                3, 1, 1    // crystal ✅ 修改：1 → 3
         );
     }
 

@@ -48,10 +48,18 @@ import java.util.*;
 public class VillagerProfessionTool extends Item {
 
     // ===== 配置常量 =====
-    private static final int MAX_ENERGY = 100000;
-    private static final int ENERGY_PER_USE = 5000;
-    private static final int MAX_TRANSFORM_ATTEMPTS = 20;
-    private static final double FAILURE_CHANCE = 0.60; // 60%失败概率
+    private static int MAX_ENERGY;
+    private static int ENERGY_PER_USE;
+    private static int MAX_TRANSFORM_ATTEMPTS;
+    private static double FAILURE_CHANCE;
+
+    static {
+        com.moremod.config.ItemConfig.ensureLoaded();
+        MAX_ENERGY = com.moremod.config.ItemConfig.VillagerTransformer.maxEnergy;
+        ENERGY_PER_USE = com.moremod.config.ItemConfig.VillagerTransformer.energyPerUse;
+        MAX_TRANSFORM_ATTEMPTS = com.moremod.config.ItemConfig.VillagerTransformer.maxTransformAttempts;
+        FAILURE_CHANCE = com.moremod.config.ItemConfig.VillagerTransformer.failureChance;
+    }
 
     // 职业映射表
     private static final Map<String, ProfessionCareerPair> PROFESSION_MAP = new LinkedHashMap<>();

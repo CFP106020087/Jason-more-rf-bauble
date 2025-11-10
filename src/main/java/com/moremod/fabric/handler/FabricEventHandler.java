@@ -3,6 +3,7 @@ package com.moremod.fabric.handler;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.moremod.event.OtherworldAttackEvent;
 import com.moremod.fabric.data.UpdatedFabricPlayerData;
 import com.moremod.fabric.system.FabricWeavingSystem;
 
@@ -68,7 +69,9 @@ public class FabricEventHandler {
     private static final Set<String> DAMAGE_AMPLIFICATION_BLACKLIST = new HashSet<>(Arrays.asList(
             "spaceTimeBarrier",
             "dimensionalCollapse",
-            "phaseDamage"
+            "phaseDamage",
+            "abyssSplash"  // 新增：防止深渊溅射循环
+
     ));
 
     // 自定义伤害源
@@ -77,6 +80,12 @@ public class FabricEventHandler {
             super(name);
             this.setDamageBypassesArmor();
             this.setMagicDamage();
+        }
+    }
+    public static class AbyssSplashDamage extends DamageSource {
+        public AbyssSplashDamage() {
+            super("abyssSplash");
+            this.setDamageBypassesArmor();
         }
     }
 
@@ -108,7 +117,9 @@ public class FabricEventHandler {
             this.caster = caster;
             this.casterId = caster.getUniqueID();
             this.spatialCount = spatialCount;
-            this.damagePerTick = totalDamage / (duration / 5);
+
+            // 提高每tick伤害（改为每3tick而非5tick）
+            this.damagePerTick = totalDamage / (duration / 3);  // 从/5改为/3
         }
 
         public void tick() {
@@ -120,12 +131,12 @@ public class FabricEventHandler {
             ticksRemaining--;
             damageTickCounter++;
 
-            // 逐渐收缩领域
+            // 更激进的收缩曲线
             float shrinkProgress = 1f - ((float)ticksRemaining / (float)(ticksRemaining + (100 - ticksRemaining)));
-            currentRadius = initialRadius * (0.3f + 0.7f * shrinkProgress);
+            currentRadius = initialRadius * (0.2f + 0.8f * shrinkProgress);  // 从0.3+0.7改为0.2+0.8
 
-            // 每5tick造成伤害和拉扯效果
-            if (damageTickCounter >= 5) {
+            // 改为每3tick造成伤害
+            if (damageTickCounter >= 3) {  // 从5改为3
                 damageTickCounter = 0;
                 applyFieldEffects();
             }
@@ -153,37 +164,49 @@ public class FabricEventHandler {
                 double distance = victim.getDistance(center.getX(), center.getY(), center.getZ());
                 if (distance > currentRadius) continue;
 
-                // 距离系数：越靠近中心伤害越高
-                float distanceModifier = 1f - (float)(distance / currentRadius) * 0.5f;
+                // 更激进的距离伤害曲线
+                float distanceModifier = 1.5f - (float)(distance / currentRadius) * 0.7f;  // 从1-0.5改为1.5-0.7
                 float damage = damagePerTick * distanceModifier;
 
-                // 造成伤害
+                // 额外的装备件数伤害加成
+                damage *= (1.0f + spatialCount * 0.3f);
+
+                // 对BOSS造成额外伤害
+                if (victim instanceof EntityDragon || victim instanceof EntityWither) {
+                    damage *= 1.5f;
+                }
+
+                // 造成真实伤害
                 victim.attackEntityFrom(
-                        new DimensionalDamageSource("dimensionalCollapse"),
+                        new DimensionalDamageSource("dimensionalCollapse")
+                                .setDamageBypassesArmor()
+                                .setDamageIsAbsolute(),  // 添加绝对伤害
                         damage
                 );
 
-                // 向中心拉扯，力度随距离递减
+                // 更强的拉扯力
                 Vec3d victimPos = victim.getPositionVector();
                 Vec3d centerVec = new Vec3d(center.getX() + 0.5, center.getY(), center.getZ() + 0.5);
                 Vec3d pull = centerVec.subtract(victimPos).normalize();
 
-                double pullStrength = 0.3 * distanceModifier * (1 + spatialCount * 0.2);
+                double pullStrength = 0.5 * distanceModifier * (1 + spatialCount * 0.3);  // 从0.3改为0.5
                 victim.motionX += pull.x * pullStrength;
                 victim.motionZ += pull.z * pullStrength;
 
-                // 接近中心时的上升力
+                // 接近中心时的更强上升力
                 if (distance < currentRadius * 0.3) {
-                    victim.motionY += 0.1;
+                    victim.motionY += 0.2;  // 从0.1改为0.2
                 }
 
-                // 添加虚弱效果
+                // 添加更强的debuff
                 if (!affectedEntities.contains(victim.getUniqueID())) {
                     affectedEntities.add(victim.getUniqueID());
                     victim.addPotionEffect(new PotionEffect(MobEffects.SLOWNESS,
+                            ticksRemaining, spatialCount));  // 从spatialCount-1改为spatialCount
+                    victim.addPotionEffect(new PotionEffect(MobEffects.WEAKNESS,
                             ticksRemaining, spatialCount - 1));
-                    victim.addPotionEffect(new PotionEffect(MobEffects.MINING_FATIGUE,
-                            ticksRemaining, 0));
+                    victim.addPotionEffect(new PotionEffect(MobEffects.WITHER,
+                            ticksRemaining / 2, 1));  // 新增凋零效果
                 }
             }
         }
@@ -212,8 +235,8 @@ public class FabricEventHandler {
                 }
             }
 
-            // 内部扭曲粒子
-            for (int i = 0; i < 10; i++) {
+            // 内部扭曲粒子 - 增加数量
+            for (int i = 0; i < 20; i++) {  // 从10改为20
                 double randomRadius = RANDOM.nextDouble() * currentRadius;
                 double randomAngle = RANDOM.nextDouble() * Math.PI * 2;
                 double x = center.getX() + 0.5 + Math.cos(randomAngle) * randomRadius;
@@ -243,31 +266,38 @@ public class FabricEventHandler {
         }
 
         private void finalCollapse() {
-            // 最终崩塌爆发
-            float finalDamage = totalDamage * 0.3f;
+            // 最终崩塌爆发 - 大幅提升伤害
+            float finalDamage = totalDamage * 0.5f;  // 从0.3改为0.5
 
             List<EntityLivingBase> victims = world.getEntitiesWithinAABB(
                     EntityLivingBase.class,
-                    new AxisAlignedBB(center).grow(initialRadius),
+                    new AxisAlignedBB(center).grow(initialRadius * 1.5),  // 扩大最终爆发范围
                     e -> e != caster && e.isEntityAlive()
             );
 
             for (EntityLivingBase victim : victims) {
                 double distance = victim.getDistance(center.getX(), center.getY(), center.getZ());
-                float distanceModifier = Math.max(0, 1f - (float)(distance / initialRadius));
+                float distanceModifier = Math.max(0, 1.2f - (float)(distance / (initialRadius * 1.5)));
 
+                // 最终爆发造成真实伤害
                 victim.attackEntityFrom(
-                        new DimensionalDamageSource("dimensionalCollapse"),
+                        new DimensionalDamageSource("dimensionalCollapse")
+                                .setDamageBypassesArmor()
+                                .setDamageIsAbsolute(),
                         finalDamage * distanceModifier
                 );
 
-                // 最终击飞
+                // 更强的击飞效果
                 Vec3d knockback = victim.getPositionVector()
                         .subtract(new Vec3d(center.getX() + 0.5, center.getY(), center.getZ() + 0.5))
                         .normalize();
-                victim.motionX = knockback.x * 2 * distanceModifier;
-                victim.motionY = 0.8 * distanceModifier;
-                victim.motionZ = knockback.z * 2 * distanceModifier;
+                victim.motionX = knockback.x * 3 * distanceModifier;  // 从2改为3
+                victim.motionY = 1.2 * distanceModifier;  // 从0.8改为1.2
+                victim.motionZ = knockback.z * 3 * distanceModifier;
+
+                // 最终爆发施加强力debuff
+                victim.addPotionEffect(new PotionEffect(MobEffects.BLINDNESS, 100, 0));
+                victim.addPotionEffect(new PotionEffect(MobEffects.NAUSEA, 100, 0));
             }
 
             // 音效和粒子
@@ -276,15 +306,28 @@ public class FabricEventHandler {
 
             if (world instanceof WorldServer) {
                 WorldServer ws = (WorldServer) world;
-                for (int i = 0; i < 100; i++) {
+                // 更密集的粒子效果
+                for (int i = 0; i < 200; i++) {  // 从100改为200
                     double angle = RANDOM.nextDouble() * Math.PI * 2;
-                    double radius = RANDOM.nextDouble() * initialRadius;
+                    double radius = RANDOM.nextDouble() * initialRadius * 1.5;
                     double x = center.getX() + 0.5 + Math.cos(angle) * radius;
                     double z = center.getZ() + 0.5 + Math.sin(angle) * radius;
 
                     ws.spawnParticle(EnumParticleTypes.EXPLOSION_NORMAL,
                             x, center.getY() + 1, z,
                             1, 0, 0.2, 0, 0.1);
+                }
+
+                // 添加额外的龙息粒子
+                for (int i = 0; i < 50; i++) {
+                    double angle = RANDOM.nextDouble() * Math.PI * 2;
+                    double radius = RANDOM.nextDouble() * initialRadius;
+                    double x = center.getX() + 0.5 + Math.cos(angle) * radius;
+                    double z = center.getZ() + 0.5 + Math.sin(angle) * radius;
+
+                    ws.spawnParticle(EnumParticleTypes.DRAGON_BREATH,
+                            x, center.getY() + 1, z,
+                            1, 0, 0.3, 0, 0.05);
                 }
             }
         }
@@ -314,7 +357,7 @@ public class FabricEventHandler {
         // 时空布料
         public int spatialCount = 0;
         public int lastSpatialCount = 0;
-        public float dimensionalEnergy = 100;
+        public float dimensionalEnergy = 300;
         public float storedDamage = 0;
         public int phaseStrikeCount = 0;
         public boolean collapseFieldReady = false;
@@ -747,20 +790,26 @@ public class FabricEventHandler {
 
         activateDimensionalCollapse(player, data);
     }
-
     private static void activateDimensionalCollapse(EntityPlayer player, PlayerFabricData data) {
         World world = player.world;
         BlockPos targetPos = player.getPosition();
 
-        float baseRadius = 6.0f + data.spatialCount * 2.0f;
-        float radiusBonus = Math.min(10.0f, data.storedDamage / 50.0f);
+        // 增大基础范围
+        float baseRadius = 8.0f + data.spatialCount * 3.0f;  // 从6+2改为8+3
+        float radiusBonus = Math.min(15.0f, data.storedDamage / 30.0f);  // 从10/50改为15/30
         float totalRadius = baseRadius + radiusBonus;
 
-        int duration = 100 + data.spatialCount * 20;
+        // 延长持续时间
+        int duration = 120 + data.spatialCount * 40;  // 从100+20改为120+40
 
-        float baseDamage = data.storedDamage * 2.0f;
-        float equipmentMultiplier = 1.0f + data.spatialCount * 0.5f;
-        float totalDamage = baseDamage * equipmentMultiplier;
+        // 大幅提升伤害倍率
+        float baseDamage = data.storedDamage * 5.0f;  // 从2倍改为5倍
+        float equipmentMultiplier = 2.0f + data.spatialCount * 1.0f;  // 从1+0.5改为2+1
+
+        // 添加额外的维度能量加成
+        float energyBonus = 1.0f + (data.dimensionalEnergy / 100.0f);
+
+        float totalDamage = baseDamage * equipmentMultiplier * energyBonus;
 
         CollapseField field = new CollapseField(
                 targetPos, world, totalRadius, duration,
@@ -769,15 +818,16 @@ public class FabricEventHandler {
 
         ACTIVE_COLLAPSE_FIELDS.add(field);
 
-        float consumed = data.storedDamage * 0.8f;
+        // 减少消耗，让玩家能更频繁使用
+        float consumed = data.storedDamage * 0.5f;  // 从0.8改为0.5
         data.storedDamage -= consumed;
-        data.dimensionalEnergy = Math.max(0, data.dimensionalEnergy - 30);
+        data.dimensionalEnergy = Math.max(0, data.dimensionalEnergy - 20);  // 从30改为20
         data.lastCollapseTime = System.currentTimeMillis();
 
         createInitialShockwave(player, targetPos, totalRadius);
 
         player.sendStatusMessage(new TextComponentString(
-                String.format("§5§l⟐ 维度崩塌领域展开！⟐\n§d范围:%.1f格 持续:%.1f秒 总伤害:%.0f",
+                String.format("§5§l⟐ 维度崩塌领域展开！⟐\n§d范围:%.1f格 持续:%.1f秒 §c总伤害:%.0f",
                         totalRadius, duration/20.0f, totalDamage)), false);
 
         world.playSound(null, targetPos, SoundEvents.ENTITY_WITHER_SPAWN,
@@ -785,7 +835,6 @@ public class FabricEventHandler {
 
         syncAllFabricDataToArmor(player, data);
     }
-
     private static void createInitialShockwave(EntityPlayer player, BlockPos center, float radius) {
         World world = player.world;
 
@@ -993,6 +1042,12 @@ public class FabricEventHandler {
 
         if (!data.hasAbyssFabric() || data.abyssPower <= 0) return;
 
+        // 关键：检查是否在黑名单中，防止循环
+        if (DAMAGE_AMPLIFICATION_BLACKLIST.contains(event.getSource().getDamageType())) {
+            return;
+        }
+
+        // 原有的伤害增幅逻辑...
         float multiplier = 1.0f + (data.abyssPower / 100.0f) * (0.5f * data.abyssCount);
 
         EntityLivingBase target = event.getEntityLiving();
@@ -1003,6 +1058,7 @@ public class FabricEventHandler {
 
         event.setAmount(event.getAmount() * multiplier);
 
+        // 3件以上触发溅射 - 现在不会循环了
         if (data.abyssCount >= 3) {
             applySplashDamage(player, target, event.getAmount() * 0.3f);
         }
@@ -1205,11 +1261,14 @@ public class FabricEventHandler {
         }
 
         data.phaseStrikeCount = 0;
-        data.dimensionalEnergy = 100;
+        data.dimensionalEnergy = 300;
         data.collapseFieldReady = false;
     }
 
     private static void removeOtherworldEffects(EntityPlayer player, PlayerFabricData data) {
+        // 关键修复：清理攻击属性加成
+        OtherworldAttackEvent.cleanupOtherworldAttributes(player);
+
         if (data.sanity < 100) {
             player.sendStatusMessage(new TextComponentString("§5理智逐渐恢复..."), true);
         }
@@ -1302,7 +1361,8 @@ public class FabricEventHandler {
                 e -> e != target && e != player && e.isEntityAlive());
 
         for (EntityLivingBase splash : nearbyTargets) {
-            splash.attackEntityFrom(DamageSource.causePlayerDamage(player), damage);
+            // 使用专用的溅射伤害源，防止触发深渊增幅循环
+            splash.attackEntityFrom(new AbyssSplashDamage(), damage);
         }
     }
 

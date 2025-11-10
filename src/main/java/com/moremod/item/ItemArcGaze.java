@@ -2,6 +2,7 @@ package com.moremod.item;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
+import com.moremod.creativetab.moremodCreativeTab;
 import com.moremod.entity.fx.EntityLightningArc;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.Entity;
@@ -63,6 +64,7 @@ public class ItemArcGaze extends Item {
 
         public ArcPiercingDamage(EntityPlayer player) {
             super("arc_piercing", player);
+
             this.sourcePlayer = player;
             this.setDamageBypassesArmor();
             this.setMagicDamage();
@@ -122,6 +124,9 @@ public class ItemArcGaze extends Item {
         setTranslationKey("arc_gaze");
         setRegistryName("arc_gaze");
         setNoRepair();
+        setCreativeTab(moremodCreativeTab.moremod_TAB);
+
+
     }
 
     public Multimap<String, AttributeModifier> getItemAttributeModifiers(EntityEquipmentSlot slot, ItemStack stack) {

@@ -1,6 +1,6 @@
 {
-    "parent": "item/generated",
-    "textures": {
-        "layer0": "moremod:items/omnipotent_package_chip"
-    }
+  "parent": "item/generated",
+  "textures": {
+    "layer0": "moremod:items/omnipotent_package_chip"
+  }
 }

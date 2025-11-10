@@ -2,6 +2,8 @@ package com.moremod.item;
 
 import baubles.api.BaubleType;
 import baubles.api.IBauble;
+import baubles.api.BaublesApi;
+import baubles.api.cap.IBaublesItemHandler;
 import com.moremod.creativetab.moremodCreativeTab;
 import com.moremod.item.ItemMechanicalCore.UpgradeType;
 import com.moremod.item.ItemMechanicalCoreExtended.UpgradeInfo;
@@ -16,40 +18,33 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
-import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
-import software.bernie.geckolib3.core.IAnimatable;
-import software.bernie.geckolib3.core.PlayState;
-import software.bernie.geckolib3.core.builder.AnimationBuilder;
-import software.bernie.geckolib3.core.controller.AnimationController;
-import software.bernie.geckolib3.core.event.predicate.AnimationEvent;
-import software.bernie.geckolib3.core.manager.AnimationData;
-import software.bernie.geckolib3.core.manager.AnimationFactory;
 
 import javax.annotation.Nullable;
-import java.io.File;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 /**
- * 机械外骨骼（饰品）- 1.12.2 + GeckoLib 3.0.30
+ * 机械外骨骼（饰品）- 1.12.2
  * - 佩戴条件：激活模块（按等级求和）达到阈值
- * - 伤害加成：每个“激活等级”+10%，并叠加能量效率同步加成
- * - 带简单 idle 动画（动画名 animation.exoskeleton.idle）
+ * - 伤害加成：每个"激活等级"+10%，并叠加能量效率同步加成
  */
-public class ItemMechanicalExoskeleton extends Item implements IBauble{
+public class ItemMechanicalExoskeleton extends Item implements IBauble {
 
     // ===== NBT Keys (on ring) =====
-    private static final String NBT_CACHED_ACTIVE = "CachedActive"; // 缓存“激活模块数（按等级合计）”
-    private static final String NBT_SYNC_BONUS    = "SyncBonus";    // 同步加成（能效带来的额外%）
-    private static final String NBT_LAST_UPDATE   = "LastUpdateTime";
+    private static final String NBT_CACHED_ACTIVE = "CachedActive";
+    private static final String NBT_SYNC_BONUS = "SyncBonus";
+    private static final String NBT_LAST_UPDATE = "LastUpdateTime";
 
-    // 每个“激活等级”提供的伤害加成
-    private static final float DAMAGE_BONUS_PER_ACTIVE_LEVEL = 0.10f; // 10%
+    // 配置值（通过静态块加载）
+    private static float DAMAGE_BONUS_PER_ACTIVE_LEVEL;
 
-    // ===== GeckoLib =====
+    static {
+        com.moremod.config.ItemConfig.ensureLoaded();
+        DAMAGE_BONUS_PER_ACTIVE_LEVEL = com.moremod.config.ItemConfig.MechanicalExoskeleton.damageBonus;
+    }
 
     public ItemMechanicalExoskeleton() {
         setTranslationKey("mechanical_exoskeleton");
@@ -57,12 +52,6 @@ public class ItemMechanicalExoskeleton extends Item implements IBauble{
         setCreativeTab(moremodCreativeTab.moremod_TAB);
         setMaxStackSize(1);
     }
-
-    // ===== GeckoLib hooks =====
-
-
-
-
 
     // ===== Baubles =====
     @Override
@@ -188,7 +177,7 @@ public class ItemMechanicalExoskeleton extends Item implements IBauble{
         if (GuiScreen.isShiftKeyDown()) {
             tip.add("");
             tip.add(TextFormatting.GOLD + "说明:");
-            tip.add(TextFormatting.GRAY + "• 只统计“激活”的模块等级：未启用/被暂停/被能量档位关闭的不计入");
+            tip.add(TextFormatting.GRAY + "• 只统计激活的模块等级：未启用/被暂停/被能量档位关闭的不计入");
             tip.add(TextFormatting.GRAY + "• 伤害加成与其他来源可叠加");
             tip.add(TextFormatting.GRAY + "• 阈值、是否计入发电可在 config 配置");
         }
@@ -198,7 +187,7 @@ public class ItemMechanicalExoskeleton extends Item implements IBauble{
     private static String fmt(float v) { return String.format(Locale.ROOT,"%.0f", v); }
     private static String U(String s){ return s==null? "" : s.toUpperCase(Locale.ROOT); }
 
-    /** 计算“激活模块数”（把各模块等级相加） */
+    /** 计算"激活模块数"（把各模块等级相加） */
     private static int countActiveModules(EntityPlayer p, ItemStack core, boolean countGenerators) {
         int total = 0;
 
@@ -275,7 +264,7 @@ public class ItemMechanicalExoskeleton extends Item implements IBauble{
     /** 能量效率带来的额外%加成（每级 +2%） */
     private static float calculateSyncBonus(ItemStack core) {
         int eff = ItemMechanicalCore.getUpgradeLevel(core, UpgradeType.ENERGY_EFFICIENCY);
-        return eff * 0.02f;
+        return eff * com.moremod.config.ItemConfig.MechanicalExoskeleton.energySyncBonus;
     }
 
     public static int getCachedActive(ItemStack ring) {
@@ -288,38 +277,16 @@ public class ItemMechanicalExoskeleton extends Item implements IBauble{
         return ring.getTagCompound().getFloat(NBT_SYNC_BONUS);
     }
 
-    // ===== 简易配置载入（专用于外骨骼） =====
+    // ===== 配置辅助类（使用ItemConfig） =====
     public static final class ExoConfig {
-        private static boolean loaded = false;
-        private static int minActive = 6;
-        private static boolean countGenerators = false;
-
         public static int minActive() {
-            ensureLoaded();
-            return minActive;
-        }
-        public static boolean countGenerators() {
-            ensureLoaded();
-            return countGenerators;
+            com.moremod.config.ItemConfig.ensureLoaded();
+            return com.moremod.config.ItemConfig.MechanicalExoskeleton.minActiveModules;
         }
 
-        private static void ensureLoaded() {
-            if (loaded) return;
-            loaded = true;
-            try {
-                File cfgDir = Loader.instance().getConfigDir();
-                File f = new File(cfgDir, "moremod_exoskeleton.cfg");
-                net.minecraftforge.common.config.Configuration cfg =
-                        new net.minecraftforge.common.config.Configuration(f);
-                cfg.load();
-                minActive = Math.max(0, cfg.getInt(
-                        "minActiveModules", "general", 6,
-                        0, 999, "佩戴外骨骼需要的最低“激活模块等级总和”"));
-                countGenerators = cfg.getBoolean(
-                        "countGeneratorsInActive", "general", false,
-                        "是否把发电/充能类模块计入“激活模块数”");
-                if (cfg.hasChanged()) cfg.save();
-            } catch (Throwable ignored) {}
+        public static boolean countGenerators() {
+            com.moremod.config.ItemConfig.ensureLoaded();
+            return com.moremod.config.ItemConfig.MechanicalExoskeleton.countGenerators;
         }
     }
 }

@@ -4,13 +4,17 @@ import net.minecraftforge.fml.common.network.NetworkRegistry;
 import net.minecraftforge.fml.common.network.simpleimpl.SimpleNetworkWrapper;
 import net.minecraftforge.fml.relauncher.Side;
 
+import static com.dhanantry.scapeandrunparasites.util.handlers.SRPPacketHandler.nextID;
+import static crafttweaker.mc1120.CraftTweaker.NETWORK;
+
 public class PacketHandler {
-    public static final SimpleNetworkWrapper INSTANCE = NetworkRegistry.INSTANCE.newSimpleChannel("moremod_channel");
+    public static final SimpleNetworkWrapper INSTANCE =
+            NetworkRegistry.INSTANCE.newSimpleChannel("moremod_channel");
 
     public static void registerMessages() {
         int id = 0;
 
-        // 🕰️ 时光之心数据同步包注册
+        // 🕰️ 时光之心数据同步包注册（S->C）
         INSTANCE.registerMessage(
                 PacketSyncPlayerTime.Handler.class,
                 PacketSyncPlayerTime.class,
@@ -18,17 +22,13 @@ public class PacketHandler {
                 Side.CLIENT
         );
 
-        // === 喷气背包相关消息 ===
-
-        // 客户端 -> 服务端：跳跃状态
+        // === 喷气背包相关（C->S）===
         INSTANCE.registerMessage(
                 MessageJetpackJumping.Handler.class,
                 MessageJetpackJumping.class,
                 id++,
                 Side.SERVER
         );
-
-        // 客户端 -> 服务端：下降状态
         INSTANCE.registerMessage(
                 MessageJetpackSneaking.Handler.class,
                 MessageJetpackSneaking.class,
@@ -47,44 +47,20 @@ public class PacketHandler {
                 id++,
                 Side.SERVER
         );
-
-        // 客户端 -> 服务端：模式切换
-        // 选项1：使用扩展处理器（同时支持喷气背包和机械核心）
+        // 模式切换（C->S）
         INSTANCE.registerMessage(
-                PacketActivateBoost.Handler.class,  // 使用新的扩展处理器
+                PacketActivateBoost.Handler.class,
                 PacketActivateBoost.class,
                 id++,
                 Side.SERVER
         );
-
-        // 客户端 -> 服务端：模式切换
-        // 选项1：使用扩展处理器（同时支持喷气背包和机械核心）
         INSTANCE.registerMessage(
-                ExtendedModeHandler.class,  // 使用新的扩展处理器
-                MessageToggleJetpackMode.class,
+                ExtendedModeHandler.class,              // handler
+                MessageToggleJetpackMode.class,         // message
                 id++,
                 Side.SERVER
         );
-
-
-        /* 选项2：如果你想保持原有处理器并添加新的消息类型
-        INSTANCE.registerMessage(
-                MessageToggleJetpackMode.Handler.class,
-                MessageToggleJetpackMode.class,
-                id++,
-                Side.SERVER
-        );
-
-        // 机械核心专用模式切换消息
-        INSTANCE.registerMessage(
-                MessageToggleCoreMode.Handler.class,
-                MessageToggleCoreMode.class,
-                id++,
-                Side.SERVER
-        );
-        */
-
-        // 服务端 -> 客户端：NBT同步
+        // NBT 同步（S->C）
         INSTANCE.registerMessage(
                 MessageSyncJetpackTagToClient.Handler.class,
                 MessageSyncJetpackTagToClient.class,
@@ -92,26 +68,106 @@ public class PacketHandler {
                 Side.CLIENT
         );
 
-        // === 机械核心相关消息 ===
-
-        // 服务端 -> 客户端：机械核心NBT同步（如果需要）
-        /*
-        INSTANCE.registerMessage(
-                MessageSyncCoreToClient.Handler.class,
-                MessageSyncCoreToClient.class,
-                id++,
-                Side.CLIENT
-        );
-        */
-
-        // === 其他消息 ===
-
-        // 村民转换器更新包
+        // === 其他（C->S）===
         INSTANCE.registerMessage(
                 PacketUpdateVillagerTransformer.Handler.class,
                 PacketUpdateVillagerTransformer.class,
                 id++,
                 Side.SERVER
         );
+        INSTANCE.registerMessage(
+                PacketTransporterConfig.Handler.class,
+                PacketTransporterConfig.class,
+                id++,
+                Side.SERVER
+        );
+        INSTANCE.registerMessage(
+                PacketTradingStationButton.Handler.class,
+                PacketTradingStationButton.class,
+                id++,
+                Side.SERVER
+        );
+        INSTANCE.registerMessage(
+                PacketOpenVoidBackpack.Handler.class,
+                PacketOpenVoidBackpack.class,
+                id++,
+                Side.SERVER
+        );
+        INSTANCE.registerMessage(
+                PacketCompassLeftClick.Handler.class,
+                PacketCompassLeftClick.class,
+                id++,
+                Side.SERVER
+        );
+        INSTANCE.registerMessage(
+                PacketCompassRightClick.Handler.class,
+                PacketCompassRightClick.class,
+                id++,
+                Side.SERVER
+        );
+
+        // === 先前漏註冊的兩個（C->S）===
+
+        // 1) 書本創建（請統一用本 channel，不要在其他 channel 再註冊一次）
+        INSTANCE.registerMessage(
+                PacketCreateEnchantedBook.Handler.class,
+                PacketCreateEnchantedBook.class,
+                id++,
+                Side.SERVER
+        );
+
+        // 2) 劍升級按鈕（造成 Undefined discriminator 的元兇）
+        INSTANCE.registerMessage(
+                PacketRemoveSingleGem.Handler.class,
+                PacketRemoveSingleGem.class,
+                id++,
+                Side.SERVER
+        );
+        INSTANCE.registerMessage(
+                PacketStarUpgrade.Handler.class,
+                PacketStarUpgrade.class,
+                id++,
+                Side.SERVER
+        );
+        INSTANCE.registerMessage(
+                PacketRemoveAllGems.Handler.class,
+                PacketRemoveAllGems.class,
+                id++,
+                Side.SERVER
+        );
+        INSTANCE.registerMessage(
+                PacketExtractAffix.Handler.class,
+                PacketExtractAffix.class,
+                id++,
+                Side.SERVER
+        );
+        INSTANCE.registerMessage(
+                PacketDecomposeGem.Handler.class,
+                PacketDecomposeGem.class,
+                id++,
+                Side.SERVER
+        );
+        INSTANCE.registerMessage(
+                PacketPurifyGem.Handler.class,
+                PacketPurifyGem.class,
+                id++,
+                Side.SERVER
+        );
+        INSTANCE.registerMessage(
+                PacketTransferGem.Handler.class,
+                PacketTransferGem.class,
+                id++,
+                Side.SERVER
+        );
+
+            // 客户端 → 服务器：自动攻击触发
+            INSTANCE.registerMessage(
+                    MessageAutoAttackTrigger.Handler.class,
+                    MessageAutoAttackTrigger.class,
+                    nextID(),
+                    Side.SERVER
+            );
+
+        System.out.println("[MoreMod] 网络包注册完成，共 " + id + " 个消息类型");
     }
 }

@@ -1,5 +1,14 @@
 #PARSE_ESCAPES
-#items
+#items\
+item.sword_chengyue.name=澄月
+item.resource_magnet_ring.name=資源磁化戒指
+tile.sword_upgrade_station_material.name=材质变化台
+container.sword_upgrade_station_material=材质变化台
+tile.sword_upgrade_station.name=宝石镶嵌台
+container.sword_upgrade_station=宝石镶嵌台
+item.causal_gateband.name=因果环带
+item.explorer_compass.name=探险者罗盘
+item.behavior_analysis_chip.name=行为分析晶片
 item.energy_ring.name=虚空之握
 item.spear_bauble.name=人造-龙胆银枪
 item.cleansing_bauble.name=人造-引擎
@@ -13,15 +22,22 @@ gui.moremod.sage_book.prev_page=上一页
 gui.moremod.sage_book.next_page=下一页
 item.adv_energy_barrier.name=高级能量屏障
 item.law_sword.name=妖刀-鬼哭
+tile.trading_station.name=自動交易站
+tile.simple_wisdom_shrine.name=簡易智慧祭壇
+item.void_backpack_link.name=虛空背包連結器
+item.resource_magnet_ring.name=資源磁鐵戒指
+item.villager_capsula.name=村民膠囊
 item.energy_sword.name=鬼妖-村正
 item.basic_energy_barrier.name=基础能量护盾
 item.crude_energy_barrier.name=粗制能量护盾
 item.creative_battery_bauble.name=创造电池
 item.bloody_thirst_mask.name=神秘面具
+tile.item_transporter.name=高级漏斗
+container.moremod.trading_station=村民交易器
 # 新增饰品
 item.battery_bauble.name=随身电池
-item.moremod.unformed_fabric.name=尚未成為任何事物的布料
-item.moremod.unformed_fabric.desc=一團漆黑無光、尚未定形的布料，似乎蘊含著未來的一切可能。
+item.moremod.unformed_fabric.name=尚未成为任何事物的布料
+item.moremod.unformed_fabric.desc=一团漆黑无光、尚未定形的布料，似乎蕴含着未来的一切可能。
 
 # 时间之心
 item.mechanical_heart.name=机械之心
@@ -61,8 +77,8 @@ item.moremod.copper_wishbone.line1=铜质许愿骨（Charm）
 item.moremod.copper_wishbone.cond=条件：机械核心激活模块 ≥ %s 方可佩戴；不足则会自动弹出。
 item.moremod.copper_wishbone.effect=属性：每 %s 个【激活且满级】模块，+1 点幸运（上限 %s）。
 item.moremod.copper_wishbone.note=Luck 为实体属性 generic.luck。
-item.ancient_component.name=远古組件
-item.mysterious_dust.name=神秘粉塵
+item.ancient_component.name=远古组件
+item.mysterious_dust.name=神秘粉尘
 item.rare_crystal.name=稀有水晶
 item.temporal_rift_glove.name=时空撕裂手套
 item.external_circulation_system.name=外置内循环系统
@@ -70,108 +86,206 @@ item.mechanical_exoskeleton.name=机械外骨骼
 item.merchant_persuader.name=村民折扣器
 item.temperature_regulator.name=智能调节器
 item.thirst_processor.name=智能口渴处理器
+item.dimensional_anchor.name=维度稳定锚
 item.mechanical_core.name=机械核心
-item.energy_cell_basic.name=能量容量 升级组件
-item.efficiency_chip.name=能量效率 升级组件
-item.armor_plating.name=装甲强化 升级组件
+item.blank_template.name=空白组件
+item.energy_capacity_lv1.name=能量容量lv1 升级组件
+item.energy_capacity_lv2.name=能量容量lv2 升级组件
+item.energy_capacity_lv3.name=能量容量lv3 升级组件
+item.energy_capacity_lv4.name=能量容量lv4 升级组件
+item.energy_capacity_lv5.name=能量容量lv5 升级组件
+item.energy_capacity_lv6.name=能量容量lv6 升级组件
+item.energy_capacity_lv7.name=能量容量lv7 升级组件
+item.energy_capacity_lv8.name=能量容量lv8 升级组件
+item.energy_capacity_lv9.name=能量容量lv9 升级组件
+item.energy_capacity_lv10.name=能量容量lv10 升级组件
+item.energy_efficiency_lv1.name=能量效率lv1 升级组件
+item.energy_efficiency_lv2.name=能量效率lv2 升级组件
+item.energy_efficiency_lv3.name=能量效率lv3 升级组件
+item.energy_efficiency_lv4.name=能量效率lv4 升级组件
+item.energy_efficiency_lv5.name=能量效率lv5 升级组件
+item.armor_enhancement_lv1.name=装甲强化lv1 升级组件
+item.armor_enhancement_lv2.name=装甲强化lv2 升级组件
+item.armor_enhancement_lv3.name=装甲强化lv3 升级组件
+item.armor_enhancement_lv4.name=装甲强化lv4 升级组件
+item.armor_enhancement_lv5.name=装甲强化lv5 升级组件
 item.flight_module_basic.name=基础飞行模块 升级组件
 item.flight_module_advanced.name=高级飞行模块 升级组件
 item.flight_module_ultimate.name=终极飞行模块 升级组件
-item.temperature_control_upgrade.name=温度调节 升级组件
+item.temperature_control_lv1.name=温度调节lv1 升级组件
+item.temperature_control_lv2.name=温度调节lv2 升级组件
+item.temperature_control_lv3.name=温度调节lv3 升级组件
+item.temperature_control_lv4.name=温度调节lv4 升级组件
+item.temperature_control_lv5.name=温度调节lv5 升级组件
 item.omnipotent_package_chip.name=全能套装 升级组件
-item.omnipotent_package_chip.name=黄条护盾 升级组件
-item.nano_repair_system.name=生命恢复 升级组件
-item.metabolic_regulator.name=饥饿与口渴管理 升级组件
-item.reactive_armor.name=反伤荆棘 升级组件
-item.fire_suppression_system.name=自动灭火 升级组件
-item.ore_scanner_module.name=矿物透视 升级组件
-item.servo_motor_upgrade.name=移动加速 升级组件
-item.optical_camouflage.name=隐身潜行 升级组件
-item.exp_collection_matrix.name=经验增幅 升级组件
-item.waterproof_module.name=防水模块 升级组件
-item.strength_amplifier.name=伤害提升 升级组件
-item.reflex_enhancement.name=攻击速度 升级组件
-item.sweep_attack_module.name=范围扩展 升级组件
-item.pursuit_targeting_system.name=追击打击 升级组件
-item.kinetic_energy_dynamo.name=动能发电 升级组件
-item.solar_collection_panel.name=太阳能发电 升级组件
-item.void_energy_resonator.name=虚空能量 升级组件
-item.combat_energy_harvester.name=战斗充能 升级组件
+item.yellow_shield_lv1.name=黄条护盾lv1 升级组件
+item.yellow_shield_lv2.name=黄条护盾lv2 升级组件
+item.yellow_shield_lv3.name=黄条护盾lv3 升级组件
+item.health_regen_lv1.name=生命恢复lv1 升级组件
+item.health_regen_lv2.name=生命恢复lv2 升级组件
+item.health_regen_lv3.name=生命恢复lv3 升级组件
+item.hunger_thirst_lv1.name=饥饿与口渴管理lv1 升级组件
+item.hunger_thirst_lv2.name=饥饿与口渴管理lv2 升级组件
+item.hunger_thirst_lv3.name=饥饿与口渴管理lv3 升级组件
+item.thorns_lv1.name=反伤荆棘lv1 升级组件
+item.thorns_lv2.name=反伤荆棘lv2 升级组件
+item.thorns_lv3.name=反伤荆棘lv3 升级组件
+item.fire_extinguish_lv1.name=自动灭火lv1 升级组件
+item.fire_extinguish_lv2.name=自动灭火lv2 升级组件
+item.fire_extinguish_lv3.name=自动灭火lv3 升级组件
+item.ore_vision_lv1.name=矿物透视lv1 升级组件
+item.ore_vision_lv2.name=矿物透视lv2 升级组件
+item.ore_vision_lv3.name=矿物透视lv3 升级组件
+item.movement_speed_lv1.name=移动加速lv1 升级组件
+item.movement_speed_lv2.name=移动加速lv2 升级组件
+item.movement_speed_lv3.name=移动加速lv3 升级组件
+item.stealth_lv1.name=隐身潜行lv1 升级组件
+item.stealth_lv2.name=隐身潜行lv2 升级组件
+item.stealth_lv3.name=隐身潜行lv3 升级组件
+item.exp_amplifier_lv1.name=经验增幅lv1 升级组件
+item.exp_amplifier_lv2.name=经验增幅lv2 升级组件
+item.exp_amplifier_lv3.name=经验增幅lv3 升级组件
+item.waterproof_module_basic.name=防水模块lv1 升级组件
+item.waterproof_module_advanced.name=防水模块lv2 升级组件
+item.waterproof_module_deep_sea.name=防水模块lv3 升级组件
+item.damage_boost_lv1.name=伤害提升lv1 升级组件
+item.damage_boost_lv2.name=伤害提升lv2 升级组件
+item.damage_boost_lv3.name=伤害提升lv3 升级组件
+item.damage_boost_lv4.name=伤害提升lv4 升级组件
+item.damage_boost_lv5.name=伤害提升lv5 升级组件
+item.attack_speed_lv1.name=攻击速度lv1 升级组件
+item.attack_speed_lv2.name=攻击速度lv2 升级组件
+item.attack_speed_lv3.name=攻击速度lv3 升级组件
+item.range_extension_lv1.name=范围扩展lv1 升级组件
+item.range_extension_lv2.name=范围扩展lv2 升级组件
+item.range_extension_lv3.name=范围扩展lv3 升级组件
+item.pursuit_lv1.name=追击打击lv1 升级组件
+item.pursuit_lv2.name=追击打击lv2 升级组件
+item.pursuit_lv3.name=追击打击lv3 升级组件
+item.kinetic_generator_lv1.name=动能发电lv1 升级组件
+item.kinetic_generator_lv2.name=动能发电lv2 升级组件
+item.kinetic_generator_lv3.name=动能发电lv3 升级组件
+item.solar_generator_lv1.name=太阳能发电lv1 升级组件
+item.solar_generator_lv2.name=太阳能发电lv2 升级组件
+item.solar_generator_lv3.name=太阳能发电lv3 升级组件
+item.void_energy_lv1.name=虚空能量lv1 升级组件
+item.void_energy_lv2.name=虚空能量lv2 升级组件
+item.void_energy_lv3.name=虚空能量lv3 升级组件
+item.combat_charger_lv1.name=战斗充能lv1 升级组件
+item.combat_charger_lv2.name=战斗充能lv2 升级组件
+item.combat_charger_lv3.name=战斗充能lv3 升级组件
 item.survival_enhancement_package.name=生存强化套装 升级组件
 item.combat_enhancement_package.name=战斗强化套装 升级组件
+item.moremod.villager_energy_transformer.name=村民转职器
+item.dimensional_ripper.name=维度撕裂者
+item.dimensional_key.name=维度钥匙
+item.spacetime_shard.name=时空碎片
+item.moremod.enchant_ring_t1.name=附魔提升之戒
+item.moremod.enchant_ring_t2.name=高级附魔提升之戒
+item.moremod.enchant_ring_t3.name=超级附魔提升之戒
+item.moremod.enchant_ring_ultimate.name=究极附魔提升之戒
+item.sanity_elixir_basic.name=理智灵药
+item.sanity_elixir_pure.name=纯净理智灵药
+tile.ritual_core.name=仪式核心
+tile.ritual_pedestal.name=仪式基座
+tile.temporal_accelerator.name=时间加速器
+tile.moremod.time_controller.name=时间控制器
+tile.protection_field_generator.name=保护立场生成器
+item.accessory_box_t1.name=简陋饰品箱
+item.accessory_box_t2.name=下界饰品箱
+item.accessory_box_t3.name=寰宇饰品箱
+item.immortal_amulet.name=不朽吊坠
+item.arc_gaze.name=镭射炮
+item.itemRiftLaser.name=镭射枪
+entity.void_ripper.name=维度撕裂者
+entity.weeping_angel.name=哭泣天使
+entity.curse_knight.name=诅咒骑士
+tile.moremod.unbreakable_barrier_temporal_lock.name=无法破坏的屏障锁
+tile.moremod.unbreakable_barrier_dimensional_anchor.name=无法破坏的维度屏障锚
+tile.moremod.unbreakable_barrier_ethereal_wall.name=无法破坏的墙壁
+tile.moremod.unbreakable_barrier_quantum_field.name=无法破坏的量子领域
+tile.wisdom_fountain_core.name=智慧之泉核心
+tile.ancient_core_block.name=古老核心
+tile.runed_void_stone_block.name=虚空符文石
+tile.guardian_stone_block.name=守护石
+tile.spacetime_shard_ore.name=时空矿石
+tile.moremod.unbreakable_barrier_void_crystal.name=无法破坏的虚空屏障水晶
 
-item.moremod.frguardian_stone.name=碎裂的守護石
-item.moremod.frguardian_stone.desc=石頭守衛的護盾殘片。
+item.moremod.frguardian_stone.name=碎裂的守护石
+item.moremod.frguardian_stone.desc=石头守卫的护盾残片。
 
-item.moremod.ancient_core_fragment.name=遠古核心碎片
-item.moremod.ancient_core_fragment.desc=失落機關的殘留核心。
+item.moremod.ancient_core_fragment.name=远古核心碎片
+item.moremod.ancient_core_fragment.desc=失落机关的残留核心。
 
-item.moremod.runed_void_stone.name=虛空雕紋石
-item.moremod.runed_void_stone.desc=刻滿虛空符紋，微弱共鳴。
+item.moremod.runed_void_stone.name=虚空雕纹石
+item.moremod.runed_void_stone.desc=刻满虚空符纹，微弱共鸣。
 
 item.moremod.rift_crystal.name=裂隙水晶
-item.moremod.rift_crystal.desc=自空間裂縫凝成的能量晶核。
+item.moremod.rift_crystal.desc=自空间裂缝凝成的能量晶核。
 
-item.moremod.otherworldly_fiber.name=異界纖維
-item.moremod.otherworldly_fiber.desc=無視歐幾里得空間的絲線。
+item.moremod.otherworldly_fiber.name=异界纤维
+item.moremod.otherworldly_fiber.desc=无视欧几里得空间的丝线。
 
-item.moremod.ethereal_shard.name=虛境碎片
-item.moremod.ethereal_shard.desc=介於存在與不存在之間。
+item.moremod.ethereal_shard.name=虚境碎片
+item.moremod.ethereal_shard.desc=介于存在与不存在之间。
 
 item.moremod.rending_core.name=撕裂核心
-item.moremod.rending_core.desc=撕開現實縫隙的動力核心。
+item.moremod.rending_core.desc=撕开现实缝隙的动力核心。
 
-item.moremod.voidscale_shard.name=虛空鱗片
-item.moremod.voidscale_shard.desc=抗拒深淵之傷的虹彩薄片。
+item.moremod.voidscale_shard.name=虚空鳞片
+item.moremod.voidscale_shard.desc=抗拒深渊之伤的虹彩薄片。
 
-item.moremod.eye_of_the_abyss.name=深淵之眼
-item.moremod.eye_of_the_abyss.desc=它穿越每一道地平線回望。
+item.moremod.eye_of_the_abyss.name=深渊之眼
+item.moremod.eye_of_the_abyss.desc=它穿越每一道地平线回望。
 
-item.moremod.void_ichor.name=虛空之血
-item.moremod.void_ichor.desc=濃稠、無星——最好封存。
+item.moremod.void_ichor.name=虚空之血
+item.moremod.void_ichor.desc=浓稠、无星——最好封存。
 
-item.moremod.cursed_ingot.name=詛咒鋼錠
-item.moremod.cursed_ingot.desc=以穢能鍛鑄，拿取需小心。
+item.moremod.cursed_ingot.name=诅咒钢锭
+item.moremod.cursed_ingot.desc=以秽能锻铸，拿取需小心。
 
-item.moremod.shadow_fragment.name=暗影殘片
-item.moremod.shadow_fragment.desc=附著於溫度的黑色微塵。
+item.moremod.shadow_fragment.name=暗影残片
+item.moremod.shadow_fragment.desc=附着于温度的黑色微尘。
 
-item.moremod.gaze_fragment.name=凝視碎片
-item.moremod.gaze_fragment.desc=只需一瞥，萬物靜止。
+item.moremod.gaze_fragment.name=凝视碎片
+item.moremod.gaze_fragment.desc=只需一瞥，万物静止。
 
-item.moremod.tear_of_stillness.name=靜止之淚
-item.moremod.tear_of_stillness.desc=時間在此滴中屏息。
+item.moremod.tear_of_stillness.name=静止之泪
+item.moremod.tear_of_stillness.desc=时间在此滴中屏息。
 
-item.moremod.spectral_dust.name=幽影塵
-item.moremod.spectral_dust.desc=來自彼岸的無重殘渣。
+item.moremod.spectral_dust.name=幽影尘
+item.moremod.spectral_dust.desc=来自彼岸的无重残渣。
 
-item.moremod.void_echo.name=虛空殘響
-item.moremod.void_echo.desc=共鳴，孕育新的可能。
+item.moremod.void_echo.name=虚空残响
+item.moremod.void_echo.desc=共鸣，孕育新的可能。
 
-item.moremod.parasitic_mass.name=寄生質塊
-item.moremod.parasitic_mass.desc=活的、饑渴、卻很有用。
+item.moremod.parasitic_mass.name=寄生质块
+item.moremod.parasitic_mass.desc=活的、饥渴、却很有用。
 
-item.moremod.corrupted_nucleus.name=腐蝕晶核
-item.moremod.corrupted_nucleus.desc=強大——但在低語。
+item.moremod.corrupted_nucleus.name=腐蚀晶核
+item.moremod.corrupted_nucleus.desc=强大——但在低语。
 
-item.moremod.dimensional_weaver_core.name=維度織布機核心
-item.moremod.dimensional_weaver_core.desc=編織諸界的心臟。
+item.moremod.dimensional_weaver_core.name=维度织布机核心
+item.moremod.dimensional_weaver_core.desc=编织诸界的心脏。
 
 item.moremod.spacetime_fabric.name=时空布料
-item.moremod.spacetime_fabric.desc=以距離與時間編織。
+item.moremod.spacetime_fabric.desc=以距离与时间编织。
 
-item.moremod.chrono_fabric.name=時序布料
-item.moremod.chrono_fabric.desc=記住每一個瞬間的線。
+item.moremod.chrono_fabric.name=时序布料
+item.moremod.chrono_fabric.desc=记住每一个瞬间的线。
 
-item.moremod.abyssal_fabric.name=深淵布料
-item.moremod.abyssal_fabric.desc=以無光縫合而成。
+item.moremod.abyssal_fabric.name=深渊布料
+item.moremod.abyssal_fabric.desc=以无光缝合而成。
 
-item.moremod.void_spindle.name=虛空紡錘
-item.moremod.void_spindle.desc=在稀薄之處紡線。
+item.moremod.void_spindle.name=虚空纺锤
+item.moremod.void_spindle.desc=在稀薄之处纺线。
 item.moremod.unformed_fiber.name=未成形的纤维
 item.moremod.unformed_fiber.desc=仿佛来自维度之外的残缺线团，闪烁着不稳定的光芒。
 tile.dimension_loom.name=维度织布机
 container.dimension_loom=维度织布机
+
+
+
 
 # 物品描述（如果使用自定义ItemDimensionLoom）
 item.dimension_loom.tooltip.1=§7九宫格合成装置
@@ -182,3 +296,6 @@ item.dimension_loom.tooltip.3=§e处理时间：10秒
 gui.dimension_loom.progress=处理进度
 gui.dimension_loom.input=输入
 gui.dimension_loom.output=输出
+effect.moremod.minor_malfunction=轻微故障
+item.holy_water.name=纯洁圣水
+item.holy_water.tooltip=解除诅咒并恢复生命力
