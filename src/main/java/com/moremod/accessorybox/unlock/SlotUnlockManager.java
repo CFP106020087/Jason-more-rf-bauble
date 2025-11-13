@@ -384,7 +384,12 @@ public class SlotUnlockManager {
         // 客户端接收同步数据（包含永久+临时）
         // 注意：客户端不区分永久/临时，统一存储
         Set<Integer> oldSlots = permanentUnlocks.get(playerUUID);
+
+        // ⚠️ 关键：完全替换数据，清除旧的临时解锁
         permanentUnlocks.put(playerUUID, new HashSet<>(unlockedSlotIds));
+
+        // 同时清理客户端的临时解锁列表（防止污染）
+        temporaryUnlocks.remove(playerUUID);
 
         if (UnlockRulesConfig.debugMode) {
             System.out.println("[SlotUnlock] [客戶端] 接收同步數據");

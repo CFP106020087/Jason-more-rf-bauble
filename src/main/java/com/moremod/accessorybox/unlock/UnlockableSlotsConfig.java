@@ -36,7 +36,7 @@ public class UnlockableSlotsConfig {
             "例如: [false, true] = 第1个额外项链可用，第2个锁定"
     })
     @Config.Name("额外项链锁定 | Extra Amulet Locks")
-    public static boolean[] extraAmuletLocks = {false, true};
+    public static boolean[] extraAmuletLocks = {true, true};
 
     // ==================== 戒指槽位 ====================
     

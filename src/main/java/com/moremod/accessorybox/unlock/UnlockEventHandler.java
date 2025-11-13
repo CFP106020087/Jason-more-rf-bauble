@@ -88,14 +88,21 @@ public class UnlockEventHandler {
     }
 
     /**
-     * 世界卸载时（仅服务器端 & 主维度 0）清空所有玩家的解锁缓存
-     * 解决单机同一进程切换存档时的“跨世界继承”问题
+     * 世界卸载时清空所有玩家的解锁缓存
+     * 解决单机同一进程切换存档时的"跨世界继承"问题
      */
     @SubscribeEvent
     public static void onWorldUnload(WorldEvent.Unload event) {
-        if (event.getWorld() == null || event.getWorld().isRemote) return;
+        if (event.getWorld() == null) return;
 
-        // 仅在主维度卸载时清空（避免多维度卸载触发多次）
+        // 客户端：直接清空（避免跨世界污染）
+        if (event.getWorld().isRemote) {
+            SlotUnlockManager.getInstance().clearAll();
+            System.out.println("[UnlockEventHandler] [客户端] 世界卸载，已清空全部解锁缓存");
+            return;
+        }
+
+        // 服务器端：仅在主维度卸载时清空（避免多维度卸载触发多次）
         try {
             if (event.getWorld().provider != null && event.getWorld().provider.getDimension() != 0) {
                 return;
@@ -103,6 +110,6 @@ public class UnlockEventHandler {
         } catch (Throwable ignored) {}
 
         SlotUnlockManager.getInstance().clearAll();
-        System.out.println("[UnlockEventHandler] Overworld 卸载，已清空全部解锁缓存");
+        System.out.println("[UnlockEventHandler] [服务器] Overworld 卸载，已清空全部解锁缓存");
     }
 }
