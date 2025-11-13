@@ -62,12 +62,16 @@ public class SlotBaubleTyped extends SlotBauble {
         }
 
         try {
-            if (ExtraSlotsToggle.isVisible()) {
-                // EX 开启：使用原始坐标
+            // ⭐ 检查槽位是否仍然解锁
+            boolean isUnlocked = SlotUnlockManager.getInstance().isSlotUnlocked(player, logicalSlotId);
+            boolean exVisible = ExtraSlotsToggle.isVisible();
+
+            if (isUnlocked && exVisible) {
+                // 解锁 + EX 开启：使用原始坐标
                 this.xPos = originalX;
                 this.yPos = originalY;
             } else {
-                // EX 关闭：移到屏幕外
+                // 未解锁 或 EX 关闭：移到屏幕外
                 this.xPos = -9999;
                 this.yPos = -9999;
             }
@@ -85,6 +89,11 @@ public class SlotBaubleTyped extends SlotBauble {
     @Override
     @SideOnly(Side.CLIENT)
     public boolean isEnabled() {
+        // ⭐ 实时检查：槽位是否仍然解锁（失效则隐藏）
+        if (!SlotUnlockManager.getInstance().isSlotUnlocked(player, logicalSlotId)) {
+            return false;
+        }
+
         // 双重保险：确保只在客户端更新
         if (player != null && player.world != null && player.world.isRemote) {
             updatePosition();
@@ -102,6 +111,11 @@ public class SlotBaubleTyped extends SlotBauble {
     public boolean isItemValid(ItemStack stack) {
         if (stack.isEmpty() || !(stack.getItem() instanceof IBauble)) return false;
 
+        // ⭐ 实时检查：槽位是否仍然解锁（修复临时解锁失效问题）
+        if (!SlotUnlockManager.getInstance().isSlotUnlocked(player, logicalSlotId)) {
+            return false;
+        }
+
         // 客户端检查：EX 隐藏 → 不准塞入
         if (player.world.isRemote) {
             try {
@@ -110,9 +124,6 @@ public class SlotBaubleTyped extends SlotBauble {
                 // 服务器端忽略此检查
             }
         }
-
-        // 槽位未解锁 → 拒绝
-        if (!SlotUnlockManager.getInstance().isSlotUnlocked(player, logicalSlotId)) return false;
 
         IBauble bauble = (IBauble) stack.getItem();
         BaubleType itemType = bauble.getBaubleType(stack);
@@ -180,6 +191,12 @@ public class SlotBaubleTyped extends SlotBauble {
 
     @Override
     public boolean canTakeStack(EntityPlayer playerIn) {
+        // ⭐ 实时检查：槽位是否仍然解锁
+        if (!SlotUnlockManager.getInstance().isSlotUnlocked(playerIn, logicalSlotId)) {
+            // 槽位已锁定，但允许取出物品（防止物品被锁在里面）
+            return true;
+        }
+
         // 客户端检查：EX 隐藏 → 不准取出
         if (playerIn.world.isRemote) {
             try {

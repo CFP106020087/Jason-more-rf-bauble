@@ -203,6 +203,14 @@ public class UnlockRulesConfig {
     public static String temporarySlotBehavior = "inventory";
 
     @Config.Comment({
+            "临时解锁失效时是否自动关闭玩家的容器",
+            "true  - 自动关闭GUI（防止玩家继续操作失效的槽位）",
+            "false - 保持GUI打开（槽位会实时隐藏，但容器不关闭）"
+    })
+    @Config.Name("失效时关闭容器 | Close Container On Loss")
+    public static boolean closeContainerOnTempLoss = false;
+
+    @Config.Comment({
             "规则检查间隔(tick)",
             "用于实时检查临时解锁条件",
             "建议: 20-100 (1-5秒)",

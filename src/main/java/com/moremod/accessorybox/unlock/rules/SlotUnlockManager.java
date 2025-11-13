@@ -123,26 +123,37 @@ public class SlotUnlockManager {
     public void updateTemporaryUnlocks(EntityPlayer player, Set<Integer> tempUnlocks) {
         UUID uuid = player.getUniqueID();
         Set<Integer> previous = temporaryUnlocks.getOrDefault(uuid, Collections.emptySet());
-        
+
         // 找出失效的临时槽位
         Set<Integer> lost = new HashSet<>(previous);
         lost.removeAll(tempUnlocks);
-        
+
         // 处理失效的临时槽位
+        boolean hasLostSlots = false;
         for (int slotId : lost) {
             handleTemporarySlotLost(player, slotId);
+            hasLostSlots = true;
         }
-        
+
         // 更新临时解锁记录
         if (tempUnlocks.isEmpty()) {
             temporaryUnlocks.remove(uuid);
         } else {
             temporaryUnlocks.put(uuid, new HashSet<>(tempUnlocks));
         }
-        
+
         // 同步到客户端
         if (player instanceof EntityPlayerMP) {
             syncToClient((EntityPlayerMP) player);
+        }
+
+        // ⭐ 如果配置启用且有槽位失效，关闭玩家当前的容器
+        if (hasLostSlots && UnlockRulesConfig.closeContainerOnTempLoss) {
+            player.closeScreen();
+
+            if (UnlockRulesConfig.debugMode) {
+                System.out.println("[SlotUnlock] 临时槽位失效，已关闭玩家容器: " + player.getName());
+            }
         }
     }
 

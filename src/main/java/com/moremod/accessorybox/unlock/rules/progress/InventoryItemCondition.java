@@ -42,7 +42,7 @@ public class InventoryItemCondition implements UnlockCondition {
 
     @Override
     public boolean isTemporary() {
-        return false;
+        return true;  // ⭐ 背包条件是临时的：物品数量不足时槽位重新锁定
     }
 
     @Override
