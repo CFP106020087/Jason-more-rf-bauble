@@ -30,6 +30,7 @@ import com.moremod.upgrades.auxiliary.AuxiliaryUpgradeManager;
 import com.moremod.upgrades.combat.CombatUpgradeManager;
 import com.moremod.upgrades.energy.EnergyDepletionManager;
 import com.moremod.upgrades.energy.EnergyUpgradeManager;
+import com.moremod.util.UpgradeKeys;
 
 // ✨ 新增：导入新电池系统
 import com.moremod.item.battery.ItemBatteryBase;
@@ -410,7 +411,7 @@ public class ItemMechanicalCore extends Item implements IBauble {
         }
 
         for (String k : keys) {
-            if (nbt.getBoolean("Disabled_" + k) || nbt.getBoolean("IsPaused_" + k)) {
+            if (nbt.getBoolean(UpgradeKeys.kDisabled(k)) || nbt.getBoolean(UpgradeKeys.kPaused(k))) {
                 return true;
             }
         }
@@ -421,54 +422,54 @@ public class ItemMechanicalCore extends Item implements IBauble {
 
     public static boolean isPenalized(ItemStack core, String id) {
         if (core == null || core.isEmpty() || !core.hasTagCompound()) return false;
-        long exp = core.getTagCompound().getLong("PenaltyExpire_" + id);
+        long exp = core.getTagCompound().getLong(UpgradeKeys.kPenaltyExpire(id));
         return exp > System.currentTimeMillis();
     }
 
     public static int getPenaltyCap(ItemStack core, String id) {
         if (core == null || core.isEmpty() || !core.hasTagCompound()) return 0;
-        return core.getTagCompound().getInteger("PenaltyCap_" + id);
+        return core.getTagCompound().getInteger(UpgradeKeys.kPenaltyCap(id));
     }
 
     public static int getPenaltySecondsLeft(ItemStack core, String id) {
         if (core == null || core.isEmpty() || !core.hasTagCompound()) return 0;
-        long exp = core.getTagCompound().getLong("PenaltyExpire_" + id);
+        long exp = core.getTagCompound().getLong(UpgradeKeys.kPenaltyExpire(id));
         long left = exp - System.currentTimeMillis();
         return left > 0 ? (int)(left / 1000) : 0;
     }
 
     public static int getPenaltyTier(ItemStack core, String id) {
         if (core == null || core.isEmpty() || !core.hasTagCompound()) return 0;
-        return core.getTagCompound().getInteger("PenaltyTier_" + id);
+        return core.getTagCompound().getInteger(UpgradeKeys.kPenaltyTier(id));
     }
 
     public static void applyPenalty(ItemStack core, String id, int cap, int seconds, int tierInc, int debtFE, int debtXP) {
         if (core == null || core.isEmpty()) return;
         NBTTagCompound nbt = getOrCreateNBT(core);
         long expire = System.currentTimeMillis() + Math.max(1000, seconds * 1000L);
-        int newTier = Math.max(0, nbt.getInteger("PenaltyTier_" + id) + Math.max(0, tierInc));
-        nbt.setInteger("PenaltyCap_" + id, Math.max(1, cap));
-        nbt.setLong("PenaltyExpire_" + id, expire);
-        nbt.setInteger("PenaltyTier_" + id, newTier);
-        if (debtFE > 0) nbt.setInteger("PenaltyDebtFE_" + id, debtFE);
-        if (debtXP > 0) nbt.setInteger("PenaltyDebtXP_" + id, debtXP);
+        int newTier = Math.max(0, nbt.getInteger(UpgradeKeys.kPenaltyTier(id)) + Math.max(0, tierInc));
+        nbt.setInteger(UpgradeKeys.kPenaltyCap(id), Math.max(1, cap));
+        nbt.setLong(UpgradeKeys.kPenaltyExpire(id), expire);
+        nbt.setInteger(UpgradeKeys.kPenaltyTier(id), newTier);
+        if (debtFE > 0) nbt.setInteger(UpgradeKeys.kPenaltyDebtFE(id), debtFE);
+        if (debtXP > 0) nbt.setInteger(UpgradeKeys.kPenaltyDebtXP(id), debtXP);
     }
 
     public static void clearPenalty(ItemStack core, String id) {
         if (core == null || core.isEmpty() || !core.hasTagCompound()) return;
         NBTTagCompound nbt = core.getTagCompound();
-        nbt.removeTag("PenaltyCap_" + id);
-        nbt.removeTag("PenaltyExpire_" + id);
-        nbt.removeTag("PenaltyDebtFE_" + id);
-        nbt.removeTag("PenaltyDebtXP_" + id);
-        nbt.removeTag("PenaltyTier_" + id);
+        nbt.removeTag(UpgradeKeys.kPenaltyCap(id));
+        nbt.removeTag(UpgradeKeys.kPenaltyExpire(id));
+        nbt.removeTag(UpgradeKeys.kPenaltyDebtFE(id));
+        nbt.removeTag(UpgradeKeys.kPenaltyDebtXP(id));
+        nbt.removeTag(UpgradeKeys.kPenaltyTier(id));
     }
 
     public static boolean tryPayPenaltyDebt(EntityPlayer p, ItemStack core, String id) {
         if (core == null || core.isEmpty() || !core.hasTagCompound()) return false;
         NBTTagCompound nbt = core.getTagCompound();
-        int fe = nbt.getInteger("PenaltyDebtFE_" + id);
-        int xp = nbt.getInteger("PenaltyDebtXP_" + id);
+        int fe = nbt.getInteger(UpgradeKeys.kPenaltyDebtFE(id));
+        int xp = nbt.getInteger(UpgradeKeys.kPenaltyDebtXP(id));
 
         boolean ok = true;
         if (ok && fe > 0) {
@@ -494,13 +495,13 @@ public class ItemMechanicalCore extends Item implements IBauble {
         if (isTemporarilyBlockedByGui(stack, upgradeId)) return false;
 
         if (isCheckingUpgrade.get()) {
-            return getUpgradeLevelDirect(stack, upgradeId) > 0 && !nbt.getBoolean("Disabled_" + upgradeId);
+            return getUpgradeLevelDirect(stack, upgradeId) > 0 && !nbt.getBoolean(UpgradeKeys.kDisabled(upgradeId));
         }
 
         try {
             isCheckingUpgrade.set(true);
 
-            if (nbt.getBoolean("Disabled_" + upgradeId)) return false;
+            if (nbt.getBoolean(UpgradeKeys.kDisabled(upgradeId))) return false;
 
             int level = getUpgradeLevelDirect(stack, upgradeId);
             if (level <= 0) return false;
@@ -530,7 +531,7 @@ public class ItemMechanicalCore extends Item implements IBauble {
         if (!isMechanicalCore(stack)) return false;
         NBTTagCompound nbt = stack.getTagCompound();
         if (nbt == null) return false;
-        if (nbt.getBoolean("Disabled_" + upgradeId)) return false;
+        if (nbt.getBoolean(UpgradeKeys.kDisabled(upgradeId))) return false;
         return getUpgradeLevelDirect(stack, upgradeId) > 0;
     }
 
@@ -544,7 +545,7 @@ public class ItemMechanicalCore extends Item implements IBauble {
     private static int getUpgradeLevelDirect(ItemStack stack, String upgradeId) {
         if (!stack.hasTagCompound()) return 0;
 
-        int level = stack.getTagCompound().getInteger("upgrade_" + upgradeId);
+        int level = stack.getTagCompound().getInteger(UpgradeKeys.kUpgrade(upgradeId));
         if (level > 0) {
             if (isTemporarilyBlockedByGui(stack, upgradeId)) return 0;
             return level;
@@ -952,7 +953,7 @@ public class ItemMechanicalCore extends Item implements IBauble {
         for (UpgradeType t : UpgradeType.values()) {
             String id = t.getKey();
             int lv = getUpgradeLevel(stack, id);
-            boolean installed = (nbt != null && nbt.getBoolean("HasUpgrade_" + id)) || lv > 0;
+            boolean installed = (nbt != null && nbt.getBoolean(UpgradeKeys.kHasUpgrade(id))) || lv > 0;
             if (installed && seen.add(norm(id))) types++;
             if (lv > 0) levels += lv;
         }
@@ -961,7 +962,7 @@ public class ItemMechanicalCore extends Item implements IBauble {
         for (String id : EXTENDED_UPGRADE_IDS) {
             int lv = 0;
             try { lv = ItemMechanicalCoreExtended.getUpgradeLevel(stack, id); } catch (Throwable ignored) {}
-            boolean installed = (nbt != null && nbt.getBoolean("HasUpgrade_" + id)) || lv > 0;
+            boolean installed = (nbt != null && nbt.getBoolean(UpgradeKeys.kHasUpgrade(id))) || lv > 0;
             if (installed && seen.add(norm(id))) types++;
             if (lv > 0) levels += lv;
         }
@@ -1411,7 +1412,7 @@ public class ItemMechanicalCore extends Item implements IBauble {
             tooltip.add("");
             tooltip.add(TextFormatting.GOLD + "基础升级:");
             for (UpgradeType type : UpgradeType.values()) {
-                if (nbt.getBoolean("HasUpgrade_" + type.getKey()) || getUpgradeLevel(stack, type) > 0) {
+                if (nbt.getBoolean(UpgradeKeys.kHasUpgrade(type.getKey())) || getUpgradeLevel(stack, type) > 0) {
                     int lv = getUpgradeLevel(stack, type);
                     boolean act = isUpgradeActive(stack, type.getKey());
                     TextFormatting sc = act ? TextFormatting.GREEN : (lv == 0 ? TextFormatting.YELLOW : TextFormatting.RED);
@@ -1437,9 +1438,9 @@ public class ItemMechanicalCore extends Item implements IBauble {
             if (installed > 0) {
                 int paused = 0, disabled = 0;
                 for (UpgradeType type : UpgradeType.values()) {
-                    if (nbt.getBoolean("HasUpgrade_" + type.getKey()) || getUpgradeLevel(stack, type) > 0) {
+                    if (nbt.getBoolean(UpgradeKeys.kHasUpgrade(type.getKey())) || getUpgradeLevel(stack, type) > 0) {
                         if (getUpgradeLevel(stack, type) == 0) paused++;
-                        else if (nbt.getBoolean("Disabled_" + type.getKey())) disabled++;
+                        else if (nbt.getBoolean(UpgradeKeys.kDisabled(type.getKey()))) disabled++;
                     }
                 }
                 if (paused > 0) tooltip.add(TextFormatting.YELLOW + "⏸ " + paused + " 个升级暂停中");
@@ -1544,14 +1545,14 @@ public class ItemMechanicalCore extends Item implements IBauble {
 
     public static void setUpgradeLevel(ItemStack stack, UpgradeType type, int level) {
         NBTTagCompound nbt = getOrCreateNBT(stack);
-        nbt.setInteger("upgrade_" + type.getKey(), level);
-        if (level > 0) nbt.setBoolean("HasUpgrade_" + type.getKey(), true);
+        nbt.setInteger(UpgradeKeys.kUpgrade(type.getKey()), level);
+        if (level > 0) nbt.setBoolean(UpgradeKeys.kHasUpgrade(type.getKey()), true);
     }
 
     public static void setUpgradeLevel(ItemStack stack, String upgradeId, int level) {
         NBTTagCompound nbt = getOrCreateNBT(stack);
-        nbt.setInteger("upgrade_" + upgradeId, level);
-        if (level > 0) nbt.setBoolean("HasUpgrade_" + upgradeId, true);
+        nbt.setInteger(UpgradeKeys.kUpgrade(upgradeId), level);
+        if (level > 0) nbt.setBoolean(UpgradeKeys.kHasUpgrade(upgradeId), true);
     }
 
     public static int getTotalInstalledUpgrades(ItemStack stack) {
@@ -1563,7 +1564,7 @@ public class ItemMechanicalCore extends Item implements IBauble {
         // a) 基础枚举
         for (UpgradeType type : UpgradeType.values()) {
             String id = type.getKey();
-            if (nbt.getBoolean("HasUpgrade_" + id) || getUpgradeLevelDirect(stack, id) > 0) {
+            if (nbt.getBoolean(UpgradeKeys.kHasUpgrade(id)) || getUpgradeLevelDirect(stack, id) > 0) {
                 installed.add(norm(id));
             }
         }
@@ -1591,7 +1592,7 @@ public class ItemMechanicalCore extends Item implements IBauble {
             for (String id : EXTENDED_UPGRADE_IDS) {
                 int lv = 0;
                 try { lv = ItemMechanicalCoreExtended.getUpgradeLevel(stack, id); } catch (Throwable ignored) {}
-                if (lv > 0 || (nbt.getBoolean("HasUpgrade_" + id))) {
+                if (lv > 0 || (nbt.getBoolean(UpgradeKeys.kHasUpgrade(id)))) {
                     installed.add(norm(id));
                 }
             }
@@ -1607,36 +1608,36 @@ public class ItemMechanicalCore extends Item implements IBauble {
         NBTTagCompound nbt = getOrCreateNBT(stack);
 
         String normalizedId = upgradeId.toUpperCase();
-        int currentOwnedMax = nbt.getInteger("OwnedMax_" + normalizedId);
-        int currentLevel = nbt.getInteger("upgrade_" + normalizedId);
+        int currentOwnedMax = nbt.getInteger(UpgradeKeys.kOwnedMax(normalizedId));
+        int currentLevel = nbt.getInteger(UpgradeKeys.kUpgrade(normalizedId));
 
         if (isManualOperation) {
             if (currentOwnedMax <= 0) {
                 int initialMax = Math.max(Math.max(currentLevel, newLevel), 1);
-                nbt.setInteger("OwnedMax_" + normalizedId, initialMax);
-                nbt.setInteger("OwnedMax_" + upgradeId, initialMax);
+                nbt.setInteger(UpgradeKeys.kOwnedMax(normalizedId), initialMax);
+                nbt.setInteger(UpgradeKeys.kOwnedMax(upgradeId), initialMax);
                 currentOwnedMax = initialMax;
             }
 
             if (newLevel > currentOwnedMax) {
-                nbt.setInteger("OwnedMax_" + normalizedId, newLevel);
-                nbt.setInteger("OwnedMax_" + upgradeId, newLevel);
+                nbt.setInteger(UpgradeKeys.kOwnedMax(normalizedId), newLevel);
+                nbt.setInteger(UpgradeKeys.kOwnedMax(upgradeId), newLevel);
             }
 
             if (newLevel == 0) {
-                nbt.setBoolean("IsPaused_" + normalizedId, true);
-                nbt.setBoolean("IsPaused_" + upgradeId, true);
+                nbt.setBoolean(UpgradeKeys.kPaused(normalizedId), true);
+                nbt.setBoolean(UpgradeKeys.kPaused(upgradeId), true);
             } else {
-                nbt.removeTag("IsPaused_" + normalizedId);
-                nbt.removeTag("IsPaused_" + upgradeId);
+                nbt.removeTag(UpgradeKeys.kPaused(normalizedId));
+                nbt.removeTag(UpgradeKeys.kPaused(upgradeId));
             }
         }
 
         String[] variants = {upgradeId, normalizedId, upgradeId.toLowerCase()};
         for (String variant : variants) {
-            nbt.setInteger("upgrade_" + variant, newLevel);
+            nbt.setInteger(UpgradeKeys.kUpgrade(variant), newLevel);
             if (newLevel > 0) {
-                nbt.setBoolean("HasUpgrade_" + variant, true);
+                nbt.setBoolean(UpgradeKeys.kHasUpgrade(variant), true);
             }
         }
     }
@@ -1650,14 +1651,14 @@ public class ItemMechanicalCore extends Item implements IBauble {
         int max = 0;
 
         for (String variant : variants) {
-            max = Math.max(max, nbt.getInteger("OwnedMax_" + variant));
+            max = Math.max(max, nbt.getInteger(UpgradeKeys.kOwnedMax(variant)));
         }
 
         if (max <= 0) {
             max = getUpgradeLevel(stack, upgradeId);
             if (max > 0) {
                 for (String variant : variants) {
-                    nbt.setInteger("OwnedMax_" + variant, max);
+                    nbt.setInteger(UpgradeKeys.kOwnedMax(variant), max);
                 }
             }
         }
@@ -1672,7 +1673,7 @@ public class ItemMechanicalCore extends Item implements IBauble {
 
         String[] variants = {upgradeId, upgradeId.toUpperCase(), upgradeId.toLowerCase()};
         for (String variant : variants) {
-            if (nbt.getBoolean("IsPaused_" + variant)) return true;
+            if (nbt.getBoolean(UpgradeKeys.kPaused(variant))) return true;
         }
         return false;
     }
@@ -2096,8 +2097,8 @@ public class ItemMechanicalCore extends Item implements IBauble {
                 int capacityLevel = 0;
                 if (container.hasTagCompound()) {
                     NBTTagCompound nbt = container.getTagCompound();
-                    if (!nbt.getBoolean("Disabled_energy_capacity") && !nbt.getBoolean("IsPaused_energy_capacity")) {
-                        capacityLevel = nbt.getInteger("upgrade_energy_capacity");
+                    if (!nbt.getBoolean(UpgradeKeys.kDisabled("energy_capacity")) && !nbt.getBoolean(UpgradeKeys.kPaused("energy_capacity"))) {
+                        capacityLevel = nbt.getInteger(UpgradeKeys.kUpgrade("energy_capacity"));
                         if (capacityLevel < 0) capacityLevel = 0;
                     }
                 }
