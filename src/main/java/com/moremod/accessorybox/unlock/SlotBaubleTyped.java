@@ -90,7 +90,14 @@ public class SlotBaubleTyped extends SlotBauble {
     @SideOnly(Side.CLIENT)
     public boolean isEnabled() {
         // ⭐ 实时检查：槽位是否仍然解锁（失效则隐藏）
-        if (!SlotUnlockManager.getInstance().isSlotUnlocked(player, logicalSlotId)) {
+        boolean isUnlocked = SlotUnlockManager.getInstance().isSlotUnlocked(player, logicalSlotId);
+
+        if (com.moremod.accessorybox.unlock.rules.UnlockRulesConfig.debugMode) {
+            System.out.println("[SlotBaubleTyped] [客戶端] isEnabled檢查 - 槽位" + logicalSlotId +
+                ", 解鎖=" + isUnlocked);
+        }
+
+        if (!isUnlocked) {
             return false;
         }
 
@@ -100,7 +107,11 @@ public class SlotBaubleTyped extends SlotBauble {
         }
 
         try {
-            return ExtraSlotsToggle.isVisible();
+            boolean exVisible = ExtraSlotsToggle.isVisible();
+            if (com.moremod.accessorybox.unlock.rules.UnlockRulesConfig.debugMode) {
+                System.out.println("[SlotBaubleTyped] [客戶端] EX開關=" + exVisible);
+            }
+            return exVisible;
         } catch (Throwable t) {
             // 如果 ExtraSlotsToggle 出现问题，默认启用
             return true;
