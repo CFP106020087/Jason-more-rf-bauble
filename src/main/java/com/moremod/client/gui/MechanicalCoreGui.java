@@ -93,12 +93,12 @@ public class MechanicalCoreGui extends GuiScreen {
     private int readOriginalMaxFromNBT(NBTTagCompound nbt, String id) {
         if (nbt == null) return 0;
 
-        // 读取所有变体的最大值
+        // 读取所有变体的最大值（兼容旧数据）
         int originalMax = Math.max(
-                nbt.getInteger("OriginalMax_" + id),
+                nbt.getInteger(UpgradeKeys.kOriginalMax(id)),
                 Math.max(
-                        nbt.getInteger("OriginalMax_" + up(id)),
-                        nbt.getInteger("OriginalMax_" + lo(id))
+                        nbt.getInteger(UpgradeKeys.kOriginalMax(up(id))),
+                        nbt.getInteger(UpgradeKeys.kOriginalMax(lo(id)))
                 )
         );
 
@@ -107,10 +107,10 @@ public class MechanicalCoreGui extends GuiScreen {
             for (String wid : WATERPROOF_IDS) {
                 originalMax = Math.max(originalMax,
                         Math.max(
-                                nbt.getInteger("OriginalMax_" + wid),
+                                nbt.getInteger(UpgradeKeys.kOriginalMax(wid)),
                                 Math.max(
-                                        nbt.getInteger("OriginalMax_" + up(wid)),
-                                        nbt.getInteger("OriginalMax_" + lo(wid))
+                                        nbt.getInteger(UpgradeKeys.kOriginalMax(up(wid))),
+                                        nbt.getInteger(UpgradeKeys.kOriginalMax(lo(wid)))
                                 )
                         )
                 );
@@ -231,17 +231,17 @@ public class MechanicalCoreGui extends GuiScreen {
 
         // ✅ 优先检查是否被惩罚过（DAMAGED 优先级最高）
         boolean wasPunished = nbt.getBoolean(UpgradeKeys.kWasPunished(id)) ||
-                nbt.getBoolean("WasPunished_" + up(id)) ||
-                nbt.getBoolean("WasPunished_" + lo(id));
+                nbt.getBoolean(UpgradeKeys.kWasPunished(up(id))) ||
+                nbt.getBoolean(UpgradeKeys.kWasPunished(lo(id)));
 
         if (wasPunished && ownedMax < itemMax) {
             return UpgradeStatus.DAMAGED;
         }
 
-        // 然后检查暂停状态
-        boolean isPaused = nbt.getBoolean("IsPaused_" + id) ||
-                nbt.getBoolean("IsPaused_" + up(id)) ||
-                nbt.getBoolean("IsPaused_" + lo(id));
+        // 然后检查暂停状态（兼容旧数据）
+        boolean isPaused = nbt.getBoolean(UpgradeKeys.kPaused(id)) ||
+                nbt.getBoolean(UpgradeKeys.kPaused(up(id))) ||
+                nbt.getBoolean(UpgradeKeys.kPaused(lo(id)));
 
         if (isPaused && currentLevel == 0) {
             return UpgradeStatus.PAUSED;
@@ -269,19 +269,21 @@ public class MechanicalCoreGui extends GuiScreen {
         boolean nbtHasKey = false;
 
         if (nbt != null) {
-            if (nbt.getBoolean("IsPaused_" + id) ||
-                    nbt.getBoolean("IsPaused_" + up(id)) ||
-                    nbt.getBoolean("IsPaused_" + lo(id))) {
+            // 检查暂停状态（兼容旧数据）
+            if (nbt.getBoolean(UpgradeKeys.kPaused(id)) ||
+                    nbt.getBoolean(UpgradeKeys.kPaused(up(id))) ||
+                    nbt.getBoolean(UpgradeKeys.kPaused(lo(id)))) {
                 return 0;
             }
 
-            if (nbt.hasKey("upgrade_" + id) ||
-                    nbt.hasKey("upgrade_" + up(id)) ||
-                    nbt.hasKey("upgrade_" + lo(id))) {
+            // 检查升级键（兼容旧数据）
+            if (nbt.hasKey(UpgradeKeys.kUpgrade(id)) ||
+                    nbt.hasKey(UpgradeKeys.kUpgrade(up(id))) ||
+                    nbt.hasKey(UpgradeKeys.kUpgrade(lo(id)))) {
                 nbtHasKey = true;
-                nbtLevel = Math.max(nbt.getInteger("upgrade_" + id),
-                        Math.max(nbt.getInteger("upgrade_" + up(id)),
-                                nbt.getInteger("upgrade_" + lo(id))));
+                nbtLevel = Math.max(nbt.getInteger(UpgradeKeys.kUpgrade(id)),
+                        Math.max(nbt.getInteger(UpgradeKeys.kUpgrade(up(id))),
+                                nbt.getInteger(UpgradeKeys.kUpgrade(lo(id)))));
             }
         }
 
@@ -328,8 +330,8 @@ public class MechanicalCoreGui extends GuiScreen {
                 int level = getUpgradeLevelAcross(coreStack, id);
                 int ownedMaxLevel = getOwnedMaxFromNBT(nbt, id);
                 int lastLevel = getLastLevelFromNBT(nbt, id);
-                boolean hasMark = nbt.getBoolean("HasUpgrade_" + id) ||
-                        nbt.getBoolean("HasUpgrade_" + up(id));
+                boolean hasMark = nbt.getBoolean(UpgradeKeys.kHasUpgrade(id)) ||
+                        nbt.getBoolean(UpgradeKeys.kHasUpgrade(up(id)));
 
                 boolean hasUpgrade = ownedMaxLevel > 0 || hasMark || level > 0 || lastLevel > 0;
                 if (!hasUpgrade) continue;
@@ -361,11 +363,9 @@ public class MechanicalCoreGui extends GuiScreen {
                     System.out.println("[GUI-Init] 最终兜底使用 OwnedMax: " + id + " = " + itemMaxLevel);
                 }
 
-                // ✅ 立即写入 OriginalMax
+                // ✅ 立即写入 OriginalMax（仅写入规范键）
                 if (itemMaxLevel > 0) {
                     nbt.setInteger(UpgradeKeys.kOriginalMax(id), itemMaxLevel);
-                    nbt.setInteger("OriginalMax_" + up(id), itemMaxLevel);
-                    nbt.setInteger("OriginalMax_" + lo(id), itemMaxLevel);
                     coreStack.setTagCompound(nbt);
                     System.out.println("[GUI-Init] 补救记录 OriginalMax: " + id + " = " + itemMaxLevel);
                 }
@@ -383,7 +383,7 @@ public class MechanicalCoreGui extends GuiScreen {
 
             entry.damageCount = EnergyPunishmentSystem.getDamageCount(coreStack, id);
             entry.wasPunished = nbt.getBoolean(UpgradeKeys.kWasPunished(id)) ||
-                    nbt.getBoolean("WasPunished_" + up(id));
+                    nbt.getBoolean(UpgradeKeys.kWasPunished(up(id)));
 
             entry.status = status;
             entry.isPaused = (status == UpgradeStatus.PAUSED);
@@ -446,11 +446,9 @@ public class MechanicalCoreGui extends GuiScreen {
                         System.out.println("[GUI-Init] 最终兜底使用 OwnedMax: " + id + " = " + itemMaxLevel);
                     }
 
-                    // ✅ 立即写入
+                    // ✅ 立即写入（仅写入规范键）
                     if (itemMaxLevel > 0) {
                         nbt.setInteger(UpgradeKeys.kOriginalMax(id), itemMaxLevel);
-                        nbt.setInteger("OriginalMax_" + up(id), itemMaxLevel);
-                        nbt.setInteger("OriginalMax_" + lo(id), itemMaxLevel);
                         coreStack.setTagCompound(nbt);
                         System.out.println("[GUI-Init] 补救记录 OriginalMax: " + id + " = " + itemMaxLevel);
                     }
@@ -468,7 +466,7 @@ public class MechanicalCoreGui extends GuiScreen {
 
                 entry.damageCount = EnergyPunishmentSystem.getDamageCount(coreStack, id);
                 entry.wasPunished = nbt.getBoolean(UpgradeKeys.kWasPunished(id)) ||
-                        nbt.getBoolean("WasPunished_" + up(id));
+                        nbt.getBoolean(UpgradeKeys.kWasPunished(up(id)));
 
                 entry.status = status;
                 entry.isPaused = (status == UpgradeStatus.PAUSED);
@@ -490,16 +488,16 @@ public class MechanicalCoreGui extends GuiScreen {
 
     private int getOwnedMaxFromNBT(NBTTagCompound nbt, String id) {
         if (nbt == null) return 0;
-        return Math.max(nbt.getInteger("OwnedMax_" + id),
-                Math.max(nbt.getInteger("OwnedMax_" + up(id)),
-                        nbt.getInteger("OwnedMax_" + lo(id))));
+        return Math.max(nbt.getInteger(UpgradeKeys.kOwnedMax(id)),
+                Math.max(nbt.getInteger(UpgradeKeys.kOwnedMax(up(id))),
+                        nbt.getInteger(UpgradeKeys.kOwnedMax(lo(id)))));
     }
 
     private int getLastLevelFromNBT(NBTTagCompound nbt, String id) {
         if (nbt == null) return 0;
-        return Math.max(nbt.getInteger("LastLevel_" + id),
-                Math.max(nbt.getInteger("LastLevel_" + up(id)),
-                        nbt.getInteger("LastLevel_" + lo(id))));
+        return Math.max(nbt.getInteger(UpgradeKeys.kLastLevel(id)),
+                Math.max(nbt.getInteger(UpgradeKeys.kLastLevel(up(id))),
+                        nbt.getInteger(UpgradeKeys.kLastLevel(lo(id)))));
     }// ===== ✅ 修复：更新升级状态（不再修改 itemMaxLevel） =====
 
     private void updateUpgradeStates() {
@@ -537,7 +535,7 @@ public class MechanicalCoreGui extends GuiScreen {
 
                 e.damageCount = EnergyPunishmentSystem.getDamageCount(coreStack, id);
                 e.wasPunished = nbt.getBoolean(UpgradeKeys.kWasPunished(id)) ||
-                        nbt.getBoolean("WasPunished_" + up(id));
+                        nbt.getBoolean(UpgradeKeys.kWasPunished(up(id)));
                 e.isPaused = (e.status == UpgradeStatus.PAUSED);
             } catch (Throwable ignored) {}
         }
