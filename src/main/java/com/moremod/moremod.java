@@ -488,6 +488,11 @@ public class moremod {
     public void init(FMLInitializationEvent event) {
         System.out.println("[moremod] ========== 开始初始化 ==========");
         UnlockableSlotsInit.init(event);
+
+        // 打印槽位解锁配置
+        com.moremod.accessorybox.unlock.UnlockableSlotsConfig.printConfig();
+
+        // 初始化解锁规则系统
         RuleChecker.initialize();
         GemSystemInit.init(event);
         // 注册维度类型
