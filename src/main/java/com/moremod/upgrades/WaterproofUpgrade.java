@@ -2,6 +2,7 @@ package com.moremod.upgrades;
 
 import com.moremod.item.ItemMechanicalCore;
 import com.moremod.potion.ModPotions;
+import com.moremod.util.UpgradeKeys;
 
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
@@ -649,7 +650,7 @@ public class WaterproofUpgrade {
         if (nbt == null) return false;
 
         for (String id : WATERPROOF_IDS) {
-            if (nbt.getBoolean("Disabled_" + id)) return true;
+            if (nbt.getBoolean(UpgradeKeys.kDisabled(id))) return true;
         }
         return false;
     }
@@ -660,11 +661,11 @@ public class WaterproofUpgrade {
         if (nbt == null) return 0;
 
         int level = 0;
+        // 使用 UpgradeKeys 统一读取（自动处理多变体兼容）
         for (String id : WATERPROOF_IDS) {
-            level = Math.max(level, nbt.getInteger("upgrade_" + id));
-            level = Math.max(level, nbt.getInteger("upgrade_" + id.toLowerCase()));
-            level = Math.max(level, nbt.getInteger("upgrade_" + id.toUpperCase()));
+            level = Math.max(level, UpgradeKeys.getLevel(coreStack, id));
         }
+        // 兼容旧的直接键
         level = Math.max(level, nbt.getInteger("waterproofLevel"));
 
         return Math.min(level, MAX_LEVEL);
@@ -676,12 +677,12 @@ public class WaterproofUpgrade {
             nbt = new NBTTagCompound();
             coreStack.setTagCompound(nbt);
         }
+        // 使用 UpgradeKeys 统一写入（仅写规范键）
         for (String id : WATERPROOF_IDS) {
-            nbt.setInteger("upgrade_" + id, level);
-            nbt.setInteger("upgrade_" + id.toLowerCase(), level);
-            nbt.setInteger("upgrade_" + id.toUpperCase(), level);
-            nbt.setBoolean("HasUpgrade_" + id, level > 0);
+            nbt.setInteger(UpgradeKeys.kUpgrade(id), level);
+            nbt.setBoolean(UpgradeKeys.kHasUpgrade(id), level > 0);
         }
+        // 保留旧的直接键用于兼容
         nbt.setInteger("waterproofLevel", level);
         nbt.setBoolean("hasWaterproofModule", level > 0);
     }
@@ -692,8 +693,9 @@ public class WaterproofUpgrade {
             nbt = new NBTTagCompound();
             coreStack.setTagCompound(nbt);
         }
+        // 使用 UpgradeKeys 统一写入禁用状态
         for (String id : WATERPROOF_IDS) {
-            nbt.setBoolean("Disabled_" + id, disabled);
+            nbt.setBoolean(UpgradeKeys.kDisabled(id), disabled);
         }
         if (DEBUG_MODE) System.out.println("[WaterproofUpgrade] disabled=" + disabled);
     }
