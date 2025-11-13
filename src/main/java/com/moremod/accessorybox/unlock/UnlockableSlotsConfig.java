@@ -96,6 +96,7 @@ public class UnlockableSlotsConfig {
      */
     public static boolean isSlotDefaultLocked(int slotId) {
         if (!enableUnlockSystem) {
+            System.out.println("[UnlockableSlots] 槽位 " + slotId + " - 系统禁用，返回false");
             return false; // 系统禁用，所有槽位可用
         }
 
@@ -106,16 +107,25 @@ public class UnlockableSlotsConfig {
         // 根据槽位ID判断类型和索引
         SlotInfo info = getSlotInfo(slotId);
         if (info == null) {
+            System.out.println("[UnlockableSlots] ⚠️ 槽位 " + slotId + " - getSlotInfo()返回null，默认可用");
             return false; // 未知槽位，默认可用
         }
 
         // 获取对应配置数组
         boolean[] locks = getLockArrayForType(info.type);
-        if (locks == null || info.extraIndex >= locks.length) {
+        if (locks == null) {
+            System.out.println("[UnlockableSlots] ⚠️ 槽位 " + slotId + " (" + info.type + ":" + info.extraIndex + ") - getLockArrayForType()返回null");
+            return false;
+        }
+
+        if (info.extraIndex >= locks.length) {
+            System.out.println("[UnlockableSlots] ⚠️ 槽位 " + slotId + " (" + info.type + ":" + info.extraIndex + ") - 索引越界，数组长度=" + locks.length);
             return false; // 配置不足，默认可用
         }
 
-        return locks[info.extraIndex];
+        boolean result = locks[info.extraIndex];
+        System.out.println("[UnlockableSlots] 槽位 " + slotId + " (" + info.type + ":" + info.extraIndex + ") - locks[" + info.extraIndex + "]=" + result);
+        return result;
     }
 
     /**
@@ -149,7 +159,7 @@ public class UnlockableSlotsConfig {
     public static void printConfig() {
         System.out.println("========== 可解锁槽位配置 ==========");
         System.out.println("系统状态: " + (enableUnlockSystem ? "启用" : "禁用"));
-        
+
         if (enableUnlockSystem) {
             System.out.println("\n锁定配置:");
             printLocks("项链", extraAmuletLocks);
@@ -159,9 +169,27 @@ public class UnlockableSlotsConfig {
             printLocks("身体", extraBodyLocks);
             printLocks("挂饰", extraCharmLocks);
             printLocks("万能", extraTrinketLocks);
+
+            // 额外调试：测试具体槽位
+            System.out.println("\n槽位映射测试:");
+            testSlotMapping(7, "AMULET:0");
+            testSlotMapping(8, "AMULET:1");
+            testSlotMapping(9, "RING:0");
+            testSlotMapping(10, "RING:1");
         }
-        
+
         System.out.println("======================================");
+    }
+
+    private static void testSlotMapping(int slotId, String expectedName) {
+        SlotInfo info = getSlotInfo(slotId);
+        if (info == null) {
+            System.out.println("  槽位 " + slotId + " (" + expectedName + ") → getSlotInfo()返回null ⚠️");
+        } else {
+            boolean locked = isSlotDefaultLocked(slotId);
+            System.out.println("  槽位 " + slotId + " (" + expectedName + ") → " +
+                info.type + ":" + info.extraIndex + " → " + (locked ? "🔒锁定" : "🔓解锁"));
+        }
     }
 
     /**

@@ -49,16 +49,35 @@ public class SlotUnlockManager {
         if (slotId < 7) return true;
 
         // 配置默认解锁
-        if (!UnlockableSlotsConfig.isSlotDefaultLocked(slotId)) return true;
+        boolean defaultLocked = UnlockableSlotsConfig.isSlotDefaultLocked(slotId);
+        if (!defaultLocked) {
+            if (UnlockRulesConfig.debugMode) {
+                System.out.println("[SlotUnlock] 槽位 " + slotId + " 配置为默认解锁，直接返回true");
+            }
+            return true;
+        }
 
         // 永久解锁
         Set<Integer> permanent = permanentUnlocks.get(playerUUID);
-        if (permanent != null && permanent.contains(slotId)) return true;
+        if (permanent != null && permanent.contains(slotId)) {
+            if (UnlockRulesConfig.debugMode) {
+                System.out.println("[SlotUnlock] 槽位 " + slotId + " 在永久解锁列表中");
+            }
+            return true;
+        }
 
         // 临时解锁
         Set<Integer> temporary = temporaryUnlocks.get(playerUUID);
-        if (temporary != null && temporary.contains(slotId)) return true;
+        if (temporary != null && temporary.contains(slotId)) {
+            if (UnlockRulesConfig.debugMode) {
+                System.out.println("[SlotUnlock] 槽位 " + slotId + " 在临时解锁列表中");
+            }
+            return true;
+        }
 
+        if (UnlockRulesConfig.debugMode) {
+            System.out.println("[SlotUnlock] 槽位 " + slotId + " 锁定（defaultLocked=" + defaultLocked + ", permanent=null, temporary=null）");
+        }
         return false;
     }
 
