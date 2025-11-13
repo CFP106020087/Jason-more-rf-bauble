@@ -99,16 +99,19 @@ public class RuleChecker {
 
         EntityPlayer player = event.player;
         UUID uuid = player.getUniqueID();
-        
+
         // 增加计数器
         int ticks = playerTickers.getOrDefault(uuid, 0) + 1;
-        
+
         // 达到检查间隔时执行检查
         if (ticks >= UnlockRulesConfig.checkInterval) {
+            if (UnlockRulesConfig.debugMode) {
+                System.out.println("[RuleChecker] 定期检查玩家: " + player.getName() + " (间隔: " + UnlockRulesConfig.checkInterval + " ticks)");
+            }
             checkAndUnlockSlots(player);
             ticks = 0;
         }
-        
+
         playerTickers.put(uuid, ticks);
     }
 
@@ -154,6 +157,9 @@ public class RuleChecker {
         }
         
         // ⭐ 更新临时解锁状态（会自动处理失效的槽位）
+        if (UnlockRulesConfig.debugMode) {
+            System.out.println("[RuleChecker] 当前临时解锁槽位: " + currentTempUnlocks);
+        }
         SlotUnlockManager.getInstance().updateTemporaryUnlocks(player, currentTempUnlocks);
     }
 

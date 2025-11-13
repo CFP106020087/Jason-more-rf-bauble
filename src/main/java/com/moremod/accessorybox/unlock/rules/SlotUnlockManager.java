@@ -124,9 +124,24 @@ public class SlotUnlockManager {
         UUID uuid = player.getUniqueID();
         Set<Integer> previous = temporaryUnlocks.getOrDefault(uuid, Collections.emptySet());
 
+        if (UnlockRulesConfig.debugMode) {
+            System.out.println("[SlotUnlock] 更新临时解锁 - 玩家: " + player.getName());
+            System.out.println("[SlotUnlock]   之前临时解锁: " + previous);
+            System.out.println("[SlotUnlock]   现在临时解锁: " + tempUnlocks);
+        }
+
         // 找出失效的临时槽位
         Set<Integer> lost = new HashSet<>(previous);
         lost.removeAll(tempUnlocks);
+
+        // 找出新增的临时槽位
+        Set<Integer> gained = new HashSet<>(tempUnlocks);
+        gained.removeAll(previous);
+
+        if (UnlockRulesConfig.debugMode && (!lost.isEmpty() || !gained.isEmpty())) {
+            System.out.println("[SlotUnlock]   失效槽位: " + lost);
+            System.out.println("[SlotUnlock]   新增槽位: " + gained);
+        }
 
         // 处理失效的临时槽位
         boolean hasLostSlots = false;
