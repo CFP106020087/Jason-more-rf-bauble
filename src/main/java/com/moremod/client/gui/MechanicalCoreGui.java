@@ -10,6 +10,7 @@ import com.moremod.item.ItemMechanicalCoreExtended;
 import com.moremod.network.NetworkHandler;
 import com.moremod.network.PacketMechanicalCoreUpdate;
 import com.moremod.upgrades.energy.EnergyDepletionManager;
+import com.moremod.util.UpgradeKeys;
 
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
@@ -229,7 +230,7 @@ public class MechanicalCoreGui extends GuiScreen {
         }
 
         // ✅ 优先检查是否被惩罚过（DAMAGED 优先级最高）
-        boolean wasPunished = nbt.getBoolean("WasPunished_" + id) ||
+        boolean wasPunished = nbt.getBoolean(UpgradeKeys.kWasPunished(id)) ||
                 nbt.getBoolean("WasPunished_" + up(id)) ||
                 nbt.getBoolean("WasPunished_" + lo(id));
 
@@ -339,7 +340,7 @@ public class MechanicalCoreGui extends GuiScreen {
 
             if (ownedMaxLevel <= 0 && level > 0) {
                 ownedMaxLevel = level;
-                nbt.setInteger("OwnedMax_" + id, ownedMaxLevel);
+                nbt.setInteger(UpgradeKeys.kOwnedMax(id), ownedMaxLevel);
                 coreStack.setTagCompound(nbt);
             }
 
@@ -362,7 +363,7 @@ public class MechanicalCoreGui extends GuiScreen {
 
                 // ✅ 立即写入 OriginalMax
                 if (itemMaxLevel > 0) {
-                    nbt.setInteger("OriginalMax_" + id, itemMaxLevel);
+                    nbt.setInteger(UpgradeKeys.kOriginalMax(id), itemMaxLevel);
                     nbt.setInteger("OriginalMax_" + up(id), itemMaxLevel);
                     nbt.setInteger("OriginalMax_" + lo(id), itemMaxLevel);
                     coreStack.setTagCompound(nbt);
@@ -381,7 +382,7 @@ public class MechanicalCoreGui extends GuiScreen {
                     itemMaxLevel);  // ← 现在是正确的值了
 
             entry.damageCount = EnergyPunishmentSystem.getDamageCount(coreStack, id);
-            entry.wasPunished = nbt.getBoolean("WasPunished_" + id) ||
+            entry.wasPunished = nbt.getBoolean(UpgradeKeys.kWasPunished(id)) ||
                     nbt.getBoolean("WasPunished_" + up(id));
 
             entry.status = status;
@@ -413,7 +414,7 @@ public class MechanicalCoreGui extends GuiScreen {
                     int level = getUpgradeLevelAcross(coreStack, id);
                     int ownedMaxLevel = getOwnedMaxFromNBT(nbt, id);
                     int lastLevel = getLastLevelFromNBT(nbt, id);
-                    boolean hasMark = nbt.getBoolean("HasUpgrade_" + id);
+                    boolean hasMark = nbt.getBoolean(UpgradeKeys.kHasUpgrade(id));
 
                     boolean hasUpgrade = ownedMaxLevel > 0 || hasMark || level > 0 || lastLevel > 0;
                     if (!hasUpgrade) continue;
@@ -424,7 +425,7 @@ public class MechanicalCoreGui extends GuiScreen {
 
                 if (ownedMaxLevel <= 0 && level > 0) {
                     ownedMaxLevel = level;
-                    nbt.setInteger("OwnedMax_" + id, ownedMaxLevel);
+                    nbt.setInteger(UpgradeKeys.kOwnedMax(id), ownedMaxLevel);
                     coreStack.setTagCompound(nbt);
                 }
 
@@ -447,7 +448,7 @@ public class MechanicalCoreGui extends GuiScreen {
 
                     // ✅ 立即写入
                     if (itemMaxLevel > 0) {
-                        nbt.setInteger("OriginalMax_" + id, itemMaxLevel);
+                        nbt.setInteger(UpgradeKeys.kOriginalMax(id), itemMaxLevel);
                         nbt.setInteger("OriginalMax_" + up(id), itemMaxLevel);
                         nbt.setInteger("OriginalMax_" + lo(id), itemMaxLevel);
                         coreStack.setTagCompound(nbt);
@@ -466,7 +467,7 @@ public class MechanicalCoreGui extends GuiScreen {
                         itemMaxLevel);  // ← 现在是正确的值了
 
                 entry.damageCount = EnergyPunishmentSystem.getDamageCount(coreStack, id);
-                entry.wasPunished = nbt.getBoolean("WasPunished_" + id) ||
+                entry.wasPunished = nbt.getBoolean(UpgradeKeys.kWasPunished(id)) ||
                         nbt.getBoolean("WasPunished_" + up(id));
 
                 entry.status = status;
@@ -527,7 +528,7 @@ public class MechanicalCoreGui extends GuiScreen {
                     e.ownedMaxLevel = ownedMax;
                 } else if (e.currentLevel > 0 && e.ownedMaxLevel <= 0) {
                     e.ownedMaxLevel = e.currentLevel;
-                    nbt.setInteger("OwnedMax_" + id, e.currentLevel);
+                    nbt.setInteger(UpgradeKeys.kOwnedMax(id), e.currentLevel);
                     coreStack.setTagCompound(nbt);
                 }
 
@@ -535,7 +536,7 @@ public class MechanicalCoreGui extends GuiScreen {
                 // itemMaxLevel 是 final 的，无法修改，只在初始化时设置
 
                 e.damageCount = EnergyPunishmentSystem.getDamageCount(coreStack, id);
-                e.wasPunished = nbt.getBoolean("WasPunished_" + id) ||
+                e.wasPunished = nbt.getBoolean(UpgradeKeys.kWasPunished(id)) ||
                         nbt.getBoolean("WasPunished_" + up(id));
                 e.isPaused = (e.status == UpgradeStatus.PAUSED);
             } catch (Throwable ignored) {}
@@ -1296,10 +1297,10 @@ public class MechanicalCoreGui extends GuiScreen {
 
                     // 确保 OriginalMax 已记录
                     String upperId = up(upgradeId);
-                    if (!nbt.hasKey("OriginalMax_" + upperId)) {
+                    if (!nbt.hasKey(UpgradeKeys.kOriginalMax(upperId))) {
                         int originalMax = entry.itemMaxLevel > 0 ? entry.itemMaxLevel : old;
-                        nbt.setInteger("OriginalMax_" + upperId, originalMax);
-                        nbt.setInteger("OriginalMax_" + upgradeId, originalMax);
+                        nbt.setInteger(UpgradeKeys.kOriginalMax(upperId), originalMax);
+                        nbt.setInteger(UpgradeKeys.kOriginalMax(upgradeId), originalMax);
                     }
                 } else {
                     // 正常模块：设置为暂停状态
@@ -1366,14 +1367,14 @@ public class MechanicalCoreGui extends GuiScreen {
         if (isWaterproofUpgrade(upgradeId)) {
             for (String wid : WATERPROOF_IDS) {
                 String U = up(wid), L = lo(wid);
-                nbt.setInteger("upgrade_" + wid, newLevel);
-                nbt.setInteger("upgrade_" + U, newLevel);
-                nbt.setInteger("upgrade_" + L, newLevel);
+                nbt.setInteger(UpgradeKeys.kUpgrade(wid), newLevel);
+                nbt.setInteger(UpgradeKeys.kUpgrade(U), newLevel);
+                nbt.setInteger(UpgradeKeys.kUpgrade(L), newLevel);
 
                 if (newLevel > 0) {
-                    nbt.setBoolean("HasUpgrade_" + wid, true);
-                    nbt.setBoolean("HasUpgrade_" + U, true);
-                    nbt.setBoolean("HasUpgrade_" + L, true);
+                    nbt.setBoolean(UpgradeKeys.kHasUpgrade(wid), true);
+                    nbt.setBoolean(UpgradeKeys.kHasUpgrade(U), true);
+                    nbt.setBoolean(UpgradeKeys.kHasUpgrade(L), true);
                 }
 
                 try {
@@ -1392,14 +1393,14 @@ public class MechanicalCoreGui extends GuiScreen {
             } catch (Exception ignored) {}
         } else {
             String U = up(upgradeId), L = lo(upgradeId);
-            nbt.setInteger("upgrade_" + upgradeId, newLevel);
-            nbt.setInteger("upgrade_" + U, newLevel);
-            nbt.setInteger("upgrade_" + L, newLevel);
+            nbt.setInteger(UpgradeKeys.kUpgrade(upgradeId), newLevel);
+            nbt.setInteger(UpgradeKeys.kUpgrade(U), newLevel);
+            nbt.setInteger(UpgradeKeys.kUpgrade(L), newLevel);
 
             if (newLevel > 0) {
-                nbt.setBoolean("HasUpgrade_" + upgradeId, true);
-                nbt.setBoolean("HasUpgrade_" + U, true);
-                nbt.setBoolean("HasUpgrade_" + L, true);
+                nbt.setBoolean(UpgradeKeys.kHasUpgrade(upgradeId), true);
+                nbt.setBoolean(UpgradeKeys.kHasUpgrade(U), true);
+                nbt.setBoolean(UpgradeKeys.kHasUpgrade(L), true);
             }
 
             try {
@@ -1435,31 +1436,31 @@ public class MechanicalCoreGui extends GuiScreen {
 
                     int ownedMax = getOwnedMaxFromNBT(nbt, wid);
                     if (ownedMax < lastLevel) {
-                        nbt.setInteger("OwnedMax_" + wid, lastLevel);
-                        nbt.setInteger("OwnedMax_" + U, lastLevel);
-                        nbt.setInteger("OwnedMax_" + L, lastLevel);
+                        nbt.setInteger(UpgradeKeys.kOwnedMax(wid), lastLevel);
+                        nbt.setInteger(UpgradeKeys.kOwnedMax(U), lastLevel);
+                        nbt.setInteger(UpgradeKeys.kOwnedMax(L), lastLevel);
                     }
 
-                    nbt.setBoolean("HasUpgrade_" + wid, true);
-                    nbt.setBoolean("HasUpgrade_" + U, true);
-                    nbt.setBoolean("HasUpgrade_" + L, true);
+                    nbt.setBoolean(UpgradeKeys.kHasUpgrade(wid), true);
+                    nbt.setBoolean(UpgradeKeys.kHasUpgrade(U), true);
+                    nbt.setBoolean(UpgradeKeys.kHasUpgrade(L), true);
                 }
-                nbt.setBoolean("IsPaused_" + wid, paused);
-                nbt.setBoolean("IsPaused_" + U, paused);
-                nbt.setBoolean("IsPaused_" + L, paused);
+                nbt.setBoolean(UpgradeKeys.kPaused(wid), paused);
+                nbt.setBoolean(UpgradeKeys.kPaused(U), paused);
+                nbt.setBoolean(UpgradeKeys.kPaused(L), paused);
             }
         } else {
             String U = up(upgradeId), L = lo(upgradeId);
             if (paused && lastLevel > 0) {
                 for (String k : Arrays.asList(upgradeId, U, L)) {
                     nbt.setInteger("LastLevel_" + k, lastLevel);
-                    if (nbt.getInteger("OwnedMax_" + k) < lastLevel)
-                        nbt.setInteger("OwnedMax_" + k, lastLevel);
-                    nbt.setBoolean("HasUpgrade_" + k, true);
+                    if (nbt.getInteger(UpgradeKeys.kOwnedMax(k)) < lastLevel)
+                        nbt.setInteger(UpgradeKeys.kOwnedMax(k), lastLevel);
+                    nbt.setBoolean(UpgradeKeys.kHasUpgrade(k), true);
                 }
             }
             for (String k : Arrays.asList(upgradeId, U, L)) {
-                nbt.setBoolean("IsPaused_" + k, paused);
+                nbt.setBoolean(UpgradeKeys.kPaused(k), paused);
             }
         }
     }
