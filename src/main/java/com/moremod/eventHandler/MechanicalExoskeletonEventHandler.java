@@ -8,6 +8,7 @@ import com.moremod.item.ItemMechanicalCoreExtended;
 import com.moremod.item.ItemMechanicalCoreExtended.UpgradeInfo;
 import com.moremod.item.ItemMechanicalExoskeleton;
 import com.moremod.upgrades.energy.EnergyDepletionManager;
+import com.moremod.util.UpgradeKeys;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.SoundEvents;
 import net.minecraft.item.ItemStack;
@@ -176,7 +177,7 @@ public class MechanicalExoskeletonEventHandler {
     private static boolean isPaused(ItemStack core, String id) {
         NBTTagCompound nbt = core.getTagCompound();
         if (nbt == null) return false;
-        return nbt.getBoolean("IsPaused_" + id) || nbt.getBoolean("IsPaused_" + U(id));
+        return nbt.getBoolean(UpgradeKeys.kPaused(id)) || nbt.getBoolean(UpgradeKeys.kPaused(U(id)));
     }
 
     private static boolean isGenerator(String id) {

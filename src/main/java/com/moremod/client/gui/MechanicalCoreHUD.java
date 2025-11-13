@@ -8,6 +8,7 @@ import com.moremod.upgrades.energy.EnergyDepletionManager;
 import com.moremod.upgrades.WaterproofUpgrade;
 import com.moremod.upgrades.WetnessSystem;
 import com.moremod.system.FleshRejectionSystem;
+import com.moremod.util.UpgradeKeys;
 import com.moremod.config.MechanicalCoreHUDConfig;
 import com.moremod.config.FleshRejectionConfig;
 import net.minecraft.client.Minecraft;
@@ -466,7 +467,7 @@ public class MechanicalCoreHUD extends Gui {
                 String upgradeId = type.name();
                 int level = getUpgradeLevel(coreStack, upgradeId);
 
-                if (level > 0 && !nbt.getBoolean("Disabled_" + upgradeId)) {
+                if (level > 0 && !nbt.getBoolean(UpgradeKeys.kDisabled(upgradeId))) {
                     String upgradeText = checkAndGetUpgradeStatus(type, level, nbt, player, energyStatus,
                             canUseAllFeatures, canUseImportantFeatures, canUseEssentialFeatures);
 
@@ -477,7 +478,7 @@ public class MechanicalCoreHUD extends Gui {
             }
 
             if (canUseImportantFeatures &&
-                    !nbt.getBoolean("Disabled_FLIGHT_MODULE") &&
+                    !nbt.getBoolean(UpgradeKeys.kDisabled("FLIGHT_MODULE")) &&
                     nbt.getBoolean("FlightModuleEnabled") &&
                     player.capabilities.isFlying) {
                 String flightText = TextFormatting.LIGHT_PURPLE + "✈ 飞行";
@@ -780,7 +781,7 @@ public class MechanicalCoreHUD extends Gui {
             if (nbt == null) nbt = new NBTTagCompound();
 
             int kineticLevel = getUpgradeLevel(coreStack, "KINETIC_GENERATOR");
-            if (kineticLevel > 0 && !nbt.getBoolean("Disabled_KINETIC_GENERATOR")) {
+            if (kineticLevel > 0 && !nbt.getBoolean(UpgradeKeys.kDisabled("KINETIC_GENERATOR"))) {
                 double speed = Math.sqrt(player.motionX * player.motionX + player.motionZ * player.motionZ);
                 if (speed > 0.05) {
                     int baseGen = 20 + (kineticLevel - 1) * 15;
@@ -793,14 +794,14 @@ public class MechanicalCoreHUD extends Gui {
 
             int solarLevel = getUpgradeLevel(coreStack, "SOLAR_GENERATOR");
             if (solarLevel > 0 &&
-                    !nbt.getBoolean("Disabled_SOLAR_GENERATOR") &&
+                    !nbt.getBoolean(UpgradeKeys.kDisabled("SOLAR_GENERATOR")) &&
                     mc.world.isDaytime() &&
                     mc.world.canSeeSky(player.getPosition())) {
                 details.generation += 40 + (solarLevel - 1) * 30;
             }
 
             int voidLevel = getUpgradeLevel(coreStack, "VOID_ENERGY");
-            if (voidLevel > 0 && !nbt.getBoolean("Disabled_VOID_ENERGY")) {
+            if (voidLevel > 0 && !nbt.getBoolean(UpgradeKeys.kDisabled("VOID_ENERGY"))) {
                 if (player.dimension == 1) {
                     details.generation += 80 + (voidLevel - 1) * 60;
                 } else if (player.posY < 30) {
@@ -810,7 +811,7 @@ public class MechanicalCoreHUD extends Gui {
 
             int combatLevel = getUpgradeLevel(coreStack, "COMBAT_CHARGER");
             if (combatLevel > 0 &&
-                    !nbt.getBoolean("Disabled_COMBAT_CHARGER") &&
+                    !nbt.getBoolean(UpgradeKeys.kDisabled("COMBAT_CHARGER")) &&
                     player.getLastAttackedEntityTime() < 100) {
                 details.generation += 50 + (combatLevel - 1) * 25;
             }
@@ -820,7 +821,7 @@ public class MechanicalCoreHUD extends Gui {
                 details.consumption += 5 + totalUpgrades;
             }
 
-            if (!nbt.getBoolean("Disabled_FLIGHT_MODULE") &&
+            if (!nbt.getBoolean(UpgradeKeys.kDisabled("FLIGHT_MODULE")) &&
                     nbt.getBoolean("FlightModuleEnabled") &&
                     player.capabilities.isFlying) {
                 int flightLevel = getUpgradeLevel(coreStack, "FLIGHT_MODULE");
@@ -830,40 +831,40 @@ public class MechanicalCoreHUD extends Gui {
             }
 
             if (player.getAbsorptionAmount() > 0) {
-                if (!nbt.getBoolean("Disabled_YELLOW_SHIELD") ||
-                        !nbt.getBoolean("Disabled_SHIELD_GENERATOR")) {
+                if (!nbt.getBoolean(UpgradeKeys.kDisabled("YELLOW_SHIELD")) ||
+                        !nbt.getBoolean(UpgradeKeys.kDisabled("SHIELD_GENERATOR"))) {
                     details.consumption += 10;
                 }
             }
 
-            if (!nbt.getBoolean("Disabled_STEALTH") &&
+            if (!nbt.getBoolean(UpgradeKeys.kDisabled("STEALTH")) &&
                     (nbt.getBoolean("StealthActive") || player.getEntityData().getBoolean("MechanicalCoreStealth"))) {
                 details.consumption += 25;
             }
 
-            if (!nbt.getBoolean("Disabled_ORE_VISION") &&
+            if (!nbt.getBoolean(UpgradeKeys.kDisabled("ORE_VISION")) &&
                     nbt.getBoolean("OreVisionActive")) {
                 details.consumption += 10;
             }
 
             if (player.getHealth() < player.getMaxHealth()) {
-                if (!nbt.getBoolean("Disabled_REGENERATION") ||
-                        !nbt.getBoolean("Disabled_HEALTH_REGEN")) {
+                if (!nbt.getBoolean(UpgradeKeys.kDisabled("REGENERATION")) ||
+                        !nbt.getBoolean(UpgradeKeys.kDisabled("HEALTH_REGEN"))) {
                     details.consumption += 5;
                 }
             }
 
-            if (!nbt.getBoolean("Disabled_TEMPERATURE_CONTROL") &&
+            if (!nbt.getBoolean(UpgradeKeys.kDisabled("TEMPERATURE_CONTROL")) &&
                     isInExtremeTemperature(player)) {
                 details.consumption += 8;
             }
 
-            if (!nbt.getBoolean("Disabled_WATERPROOF_MODULE") &&
+            if (!nbt.getBoolean(UpgradeKeys.kDisabled("WATERPROOF_MODULE")) &&
                     (player.isInWater() || player.isWet())) {
                 details.consumption += 3;
             }
 
-            if (!nbt.getBoolean("Disabled_ENERGY_EFFICIENCY")) {
+            if (!nbt.getBoolean(UpgradeKeys.kDisabled("ENERGY_EFFICIENCY"))) {
                 int efficiencyLevel = getUpgradeLevel(coreStack, "ENERGY_EFFICIENCY");
                 if (efficiencyLevel > 0) {
                     int efficiencyPercent = efficiencyLevel * 15;
@@ -908,7 +909,7 @@ public class MechanicalCoreHUD extends Gui {
 
             for (UpgradeType type : UpgradeType.values()) {
                 String key = type.name();
-                if (!nbt.getBoolean("Disabled_" + key)) {
+                if (!nbt.getBoolean(UpgradeKeys.kDisabled(key))) {
                     total += getUpgradeLevel(stack, key);
                 }
             }
@@ -987,7 +988,7 @@ public class MechanicalCoreHUD extends Gui {
     private int renderEfficiencyInfo(int x, int y, ItemStack coreStack, FontRenderer font) {
         try {
             NBTTagCompound nbt = coreStack.getTagCompound();
-            if (nbt != null && !nbt.getBoolean("Disabled_ENERGY_EFFICIENCY")) {
+            if (nbt != null && !nbt.getBoolean(UpgradeKeys.kDisabled("ENERGY_EFFICIENCY"))) {
                 int efficiencyLevel = getUpgradeLevel(coreStack, "ENERGY_EFFICIENCY");
                 if (efficiencyLevel > 0) {
                     int efficiencyPercent = efficiencyLevel * 15;

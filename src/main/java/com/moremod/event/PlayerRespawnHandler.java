@@ -2,6 +2,7 @@ package com.moremod.event;
 
 import com.moremod.item.ItemMechanicalCore;
 import com.moremod.event.EnergyPunishmentSystem;
+import com.moremod.util.UpgradeKeys;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -215,8 +216,8 @@ public class PlayerRespawnHandler {
     /** 读取升级等级：兼容 upgrade_ID / upgrade_id / 直接 ID */
     private static int readLevelCompat(NBTTagCompound nbt, String id) {
         String U = canon(id), L = lower(id);
-        int a = nbt.getInteger("upgrade_" + U);
-        int b = nbt.getInteger("upgrade_" + L);
+        int a = nbt.getInteger(UpgradeKeys.kUpgrade(U));
+        int b = nbt.getInteger(UpgradeKeys.kUpgrade(L));
         int c = nbt.getInteger(U); // 某些旧代码可能直接存上去了
         return Math.max(a, Math.max(b, c));
     }

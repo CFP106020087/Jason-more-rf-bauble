@@ -4,6 +4,7 @@ import baubles.api.BaublesApi;
 import baubles.api.cap.IBaublesItemHandler;
 import com.moremod.client.model.MechanicalCoreModel;
 import com.moremod.item.ItemMechanicalCore;
+import com.moremod.util.UpgradeKeys;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.entity.layers.LayerRenderer;
@@ -102,10 +103,10 @@ public class RenderLayerMechanicalCore implements LayerRenderer<EntityLivingBase
         if (max > 0) energyRatio = (float) stored / (float) max;
 
         boolean hasAnyGenerator = stack.hasTagCompound() && (
-                stack.getTagCompound().getInteger("upgrade_KINETIC_GENERATOR") > 0
-                        || stack.getTagCompound().getInteger("upgrade_SOLAR_GENERATOR")   > 0
-                        || stack.getTagCompound().getInteger("upgrade_VOID_ENERGY")       > 0
-                        || stack.getTagCompound().getInteger("upgrade_COMBAT_CHARGER")    > 0
+                stack.getTagCompound().getInteger(UpgradeKeys.kUpgrade("KINETIC_GENERATOR")) > 0
+                        || stack.getTagCompound().getInteger(UpgradeKeys.kUpgrade("SOLAR_GENERATOR"))   > 0
+                        || stack.getTagCompound().getInteger(UpgradeKeys.kUpgrade("VOID_ENERGY"))       > 0
+                        || stack.getTagCompound().getInteger(UpgradeKeys.kUpgrade("COMBAT_CHARGER"))    > 0
         );
 
         isActive = hasEnergy || hasAnyGenerator;
