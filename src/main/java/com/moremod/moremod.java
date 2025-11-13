@@ -640,6 +640,7 @@ public class moremod {
         event.registerServerCommand(new CommandLootDebug());
         event.registerServerCommand(new CommandResetEquipTime());
         event.registerServerCommand(new com.moremod.accessorybox.unlock.commands.UnlockDebugCommand());
+        event.registerServerCommand(new com.moremod.accessorybox.unlock.commands.ListBaublesCommand());
 
         ModConfig.updateEnergyBalanceConfig();
         System.out.println("[moremod] ✅ 服务器配置已加载");
