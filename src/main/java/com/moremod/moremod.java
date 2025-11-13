@@ -639,6 +639,7 @@ public class moremod {
         System.out.println("[moremod] ========== 服务器启动中 ==========");
         event.registerServerCommand(new CommandLootDebug());
         event.registerServerCommand(new CommandResetEquipTime());
+        event.registerServerCommand(new com.moremod.accessorybox.unlock.commands.UnlockDebugCommand());
 
         ModConfig.updateEnergyBalanceConfig();
         System.out.println("[moremod] ✅ 服务器配置已加载");

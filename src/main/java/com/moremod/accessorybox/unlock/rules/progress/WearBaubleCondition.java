@@ -32,10 +32,7 @@ public class WearBaubleCondition implements UnlockCondition {
         Item targetItem = Item.REGISTRY.getObject(new ResourceLocation(modId, itemName));
         if (targetItem == null) return false;
 
-        // ⭐ 只检查原版7个槽位（0-6），避免循环依赖
-        // 如果检查所有槽位，玩家可以把触发物品放入临时解锁的槽位，导致条件永远为真
-        int maxSlot = Math.min(7, handler.getSlots());
-        for (int i = 0; i < maxSlot; i++) {
+        for (int i = 0; i < handler.getSlots(); i++) {
             ItemStack stack = handler.getStackInSlot(i);
             if (!stack.isEmpty() && stack.getItem() == targetItem) {
                 if (meta < 0 || stack.getMetadata() == meta) {
