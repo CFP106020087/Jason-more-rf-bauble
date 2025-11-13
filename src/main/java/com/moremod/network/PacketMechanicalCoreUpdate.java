@@ -17,6 +17,7 @@ import com.moremod.item.ItemMechanicalCore;
 import com.moremod.item.ItemMechanicalCoreExtended;
 import com.moremod.event.EnergyPunishmentSystem;
 import com.moremod.util.BaublesSyncUtil;
+import com.moremod.util.UpgradeKeys;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -69,14 +70,6 @@ public class PacketMechanicalCoreUpdate implements IMessage {
     }
 
     public static class Handler implements IMessageHandler<PacketMechanicalCoreUpdate, IMessage> {
-
-        private static final String K_ORIGINAL_MAX = "OriginalMax_";
-        private static final String K_OWNED_MAX = "OwnedMax_";
-        private static final String K_DAMAGE_COUNT = "DamageCount_";
-        private static final String K_WAS_PUNISHED = "WasPunished_";
-        private static final String K_LAST_LEVEL = "LastLevel_";
-        private static final String K_IS_PAUSED = "IsPaused_";
-        private static final String K_UPGRADE = "upgrade_";
 
         private static final Set<String> WATERPROOF_ALIASES = new HashSet<>(Arrays.asList(
                 "WATERPROOF_MODULE","WATERPROOF","waterproof_module","waterproof"
@@ -174,9 +167,9 @@ public class PacketMechanicalCoreUpdate implements IMessage {
 
                         int originalMax = getOriginalMax(nbt, id);
                         if (requested > originalMax) {
-                            nbt.setInteger(K_ORIGINAL_MAX + id, requested);
-                            nbt.setInteger(K_ORIGINAL_MAX + up(id), requested);
-                            nbt.setInteger(K_ORIGINAL_MAX + lo(id), requested);
+                            nbt.setInteger(UpgradeKeys.kOriginalMax + id, requested);
+                            nbt.setInteger(UpgradeKeys.kOriginalMax + up(id), requested);
+                            nbt.setInteger(UpgradeKeys.kOriginalMax + lo(id), requested);
                         }
                     }
 
@@ -203,8 +196,8 @@ public class PacketMechanicalCoreUpdate implements IMessage {
 
                 // ✅ 验证写入结果
                 int finalLevel = getActualLevel(nbt, id);
-                boolean finalPaused = nbt.getBoolean(K_IS_PAUSED + id);
-                int finalLastLevel = nbt.getInteger(K_LAST_LEVEL + id);
+                boolean finalPaused = nbt.getBoolean(UpgradeKeys.kPaused + id);
+                int finalLastLevel = nbt.getInteger(UpgradeKeys.kLastLevel + id);
 
                 System.out.println("[服务器] 最终状态 - 等级: " + finalLevel +
                         ", 暂停: " + finalPaused +
@@ -225,9 +218,9 @@ public class PacketMechanicalCoreUpdate implements IMessage {
             if (nbt == null) return 0;
 
             int lv = 0;
-            lv = Math.max(lv, nbt.getInteger(K_UPGRADE + id));
-            lv = Math.max(lv, nbt.getInteger(K_UPGRADE + up(id)));
-            lv = Math.max(lv, nbt.getInteger(K_UPGRADE + lo(id)));
+            lv = Math.max(lv, nbt.getInteger(UpgradeKeys.kUpgrade + id));
+            lv = Math.max(lv, nbt.getInteger(UpgradeKeys.kUpgrade + up(id)));
+            lv = Math.max(lv, nbt.getInteger(UpgradeKeys.kUpgrade + lo(id)));
 
             return lv;
         }
@@ -241,14 +234,14 @@ public class PacketMechanicalCoreUpdate implements IMessage {
             String[] variants = {id, up(id), lo(id)};
 
             for (String variant : variants) {
-                nbt.setBoolean(K_IS_PAUSED + variant, false);
+                nbt.setBoolean(UpgradeKeys.kPaused + variant, false);
             }
 
             if (isWaterproofId(id)) {
                 for (String wid : WATERPROOF_ALIASES) {
                     String[] wvariants = {wid, up(wid), lo(wid)};
                     for (String wv : wvariants) {
-                        nbt.setBoolean(K_IS_PAUSED + wv, false);
+                        nbt.setBoolean(UpgradeKeys.kPaused + wv, false);
                     }
                 }
             }
@@ -264,10 +257,10 @@ public class PacketMechanicalCoreUpdate implements IMessage {
 
             for (String variant : variants) {
                 if (paused && lastLevel > 0) {
-                    nbt.setInteger(K_LAST_LEVEL + variant, lastLevel);
+                    nbt.setInteger(UpgradeKeys.kLastLevel + variant, lastLevel);
                     nbt.setBoolean("HasUpgrade_" + variant, true);
                 }
-                nbt.setBoolean(K_IS_PAUSED + variant, paused);
+                nbt.setBoolean(UpgradeKeys.kPaused + variant, paused);
             }
 
             if (isWaterproofId(id)) {
@@ -275,10 +268,10 @@ public class PacketMechanicalCoreUpdate implements IMessage {
                     String[] wvariants = {wid, up(wid), lo(wid)};
                     for (String wv : wvariants) {
                         if (paused && lastLevel > 0) {
-                            nbt.setInteger(K_LAST_LEVEL + wv, lastLevel);
+                            nbt.setInteger(UpgradeKeys.kLastLevel + wv, lastLevel);
                             nbt.setBoolean("HasUpgrade_" + wv, true);
                         }
-                        nbt.setBoolean(K_IS_PAUSED + wv, paused);
+                        nbt.setBoolean(UpgradeKeys.kPaused + wv, paused);
                     }
                 }
             }
@@ -299,9 +292,9 @@ public class PacketMechanicalCoreUpdate implements IMessage {
             String upperId = up(upgradeId);
             String lowerId = lo(upgradeId);
 
-            boolean wasPunished = nbt.getBoolean(K_WAS_PUNISHED + upperId) ||
-                    nbt.getBoolean(K_WAS_PUNISHED + upgradeId) ||
-                    nbt.getBoolean(K_WAS_PUNISHED + lowerId);
+            boolean wasPunished = nbt.getBoolean(UpgradeKeys.kWasPunished + upperId) ||
+                    nbt.getBoolean(UpgradeKeys.kWasPunished + upgradeId) ||
+                    nbt.getBoolean(UpgradeKeys.kWasPunished + lowerId);
 
             if (!wasPunished) {
                 player.sendMessage(new TextComponentString(
@@ -337,33 +330,33 @@ public class PacketMechanicalCoreUpdate implements IMessage {
 
             int targetLevel = Math.min(ownedMax + 1, itemMax);
 
-            nbt.setInteger(K_OWNED_MAX + upgradeId, targetLevel);
-            nbt.setInteger(K_OWNED_MAX + upperId, targetLevel);
-            nbt.setInteger(K_OWNED_MAX + lowerId, targetLevel);
+            nbt.setInteger(UpgradeKeys.kOwnedMax + upgradeId, targetLevel);
+            nbt.setInteger(UpgradeKeys.kOwnedMax + upperId, targetLevel);
+            nbt.setInteger(UpgradeKeys.kOwnedMax + lowerId, targetLevel);
 
             int damageCount = Math.max(
-                    nbt.getInteger(K_DAMAGE_COUNT + upgradeId),
+                    nbt.getInteger(UpgradeKeys.kDamageCount + upgradeId),
                     Math.max(
-                            nbt.getInteger(K_DAMAGE_COUNT + upperId),
-                            nbt.getInteger(K_DAMAGE_COUNT + lowerId)
+                            nbt.getInteger(UpgradeKeys.kDamageCount + upperId),
+                            nbt.getInteger(UpgradeKeys.kDamageCount + lowerId)
                     )
             );
 
             if (damageCount > 0) {
                 int newDamageCount = Math.max(0, damageCount - 1);
-                nbt.setInteger(K_DAMAGE_COUNT + upgradeId, newDamageCount);
-                nbt.setInteger(K_DAMAGE_COUNT + upperId, newDamageCount);
-                nbt.setInteger(K_DAMAGE_COUNT + lowerId, newDamageCount);
+                nbt.setInteger(UpgradeKeys.kDamageCount + upgradeId, newDamageCount);
+                nbt.setInteger(UpgradeKeys.kDamageCount + upperId, newDamageCount);
+                nbt.setInteger(UpgradeKeys.kDamageCount + lowerId, newDamageCount);
             }
 
             if (targetLevel >= itemMax) {
-                nbt.removeTag(K_WAS_PUNISHED + upgradeId);
-                nbt.removeTag(K_WAS_PUNISHED + upperId);
-                nbt.removeTag(K_WAS_PUNISHED + lowerId);
+                nbt.removeTag(UpgradeKeys.kWasPunished + upgradeId);
+                nbt.removeTag(UpgradeKeys.kWasPunished + upperId);
+                nbt.removeTag(UpgradeKeys.kWasPunished + lowerId);
 
-                nbt.removeTag(K_DAMAGE_COUNT + upgradeId);
-                nbt.removeTag(K_DAMAGE_COUNT + upperId);
-                nbt.removeTag(K_DAMAGE_COUNT + lowerId);
+                nbt.removeTag(UpgradeKeys.kDamageCount + upgradeId);
+                nbt.removeTag(UpgradeKeys.kDamageCount + upperId);
+                nbt.removeTag(UpgradeKeys.kDamageCount + lowerId);
             }
 
             setLevelEverywhere(core, upgradeId, targetLevel);
@@ -397,13 +390,13 @@ public class PacketMechanicalCoreUpdate implements IMessage {
         private static Map<String, Object> backupRepairData(NBTTagCompound nbt, String upgradeId) {
             Map<String, Object> backup = new HashMap<>();
             String[] variants = {upgradeId, up(upgradeId), lo(upgradeId)};
-            String[] keys = {K_ORIGINAL_MAX, K_WAS_PUNISHED, K_DAMAGE_COUNT, "TotalDamageCount_"};
+            String[] keys = {UpgradeKeys.kOriginalMax, UpgradeKeys.kWasPunished, UpgradeKeys.kDamageCount, "TotalDamageCount_"};
 
             for (String variant : variants) {
                 for (String key : keys) {
                     String fullKey = key + variant;
                     if (nbt.hasKey(fullKey)) {
-                        if (key.equals(K_WAS_PUNISHED)) {
+                        if (key.equals(UpgradeKeys.kWasPunished)) {
                             backup.put(fullKey, nbt.getBoolean(fullKey));
                         } else {
                             backup.put(fullKey, nbt.getInteger(fullKey));
@@ -419,7 +412,7 @@ public class PacketMechanicalCoreUpdate implements IMessage {
                         for (String key : keys) {
                             String fullKey = key + wv;
                             if (nbt.hasKey(fullKey) && !backup.containsKey(fullKey)) {
-                                if (key.equals(K_WAS_PUNISHED)) {
+                                if (key.equals(UpgradeKeys.kWasPunished)) {
                                     backup.put(fullKey, nbt.getBoolean(fullKey));
                                 } else {
                                     backup.put(fullKey, nbt.getInteger(fullKey));
@@ -461,9 +454,9 @@ public class PacketMechanicalCoreUpdate implements IMessage {
 
         private static int getOriginalMax(NBTTagCompound nbt, String id) {
             int max = 0;
-            max = Math.max(max, nbt.getInteger(K_ORIGINAL_MAX + id));
-            max = Math.max(max, nbt.getInteger(K_ORIGINAL_MAX + up(id)));
-            max = Math.max(max, nbt.getInteger(K_ORIGINAL_MAX + lo(id)));
+            max = Math.max(max, nbt.getInteger(UpgradeKeys.kOriginalMax + id));
+            max = Math.max(max, nbt.getInteger(UpgradeKeys.kOriginalMax + up(id)));
+            max = Math.max(max, nbt.getInteger(UpgradeKeys.kOriginalMax + lo(id)));
             return max;
         }
 
@@ -476,9 +469,9 @@ public class PacketMechanicalCoreUpdate implements IMessage {
             if (isWaterproofId(upgradeId)) {
                 for (String wid : WATERPROOF_ALIASES) {
                     String U = up(wid), L = lo(wid);
-                    nbt.setInteger(K_UPGRADE + wid, newLevel);
-                    nbt.setInteger(K_UPGRADE + U,   newLevel);
-                    nbt.setInteger(K_UPGRADE + L,   newLevel);
+                    nbt.setInteger(UpgradeKeys.kUpgrade + wid, newLevel);
+                    nbt.setInteger(UpgradeKeys.kUpgrade + U,   newLevel);
+                    nbt.setInteger(UpgradeKeys.kUpgrade + L,   newLevel);
                     if (newLevel > 0) {
                         nbt.setBoolean("HasUpgrade_" + wid, true);
                         nbt.setBoolean("HasUpgrade_" + U,   true);
@@ -499,9 +492,9 @@ public class PacketMechanicalCoreUpdate implements IMessage {
                 } catch (Throwable ignored) {}
             } else {
                 String U = up(upgradeId), L = lo(upgradeId);
-                nbt.setInteger(K_UPGRADE + upgradeId, newLevel);
-                nbt.setInteger(K_UPGRADE + U,         newLevel);
-                nbt.setInteger(K_UPGRADE + L,         newLevel);
+                nbt.setInteger(UpgradeKeys.kUpgrade + upgradeId, newLevel);
+                nbt.setInteger(UpgradeKeys.kUpgrade + U,         newLevel);
+                nbt.setInteger(UpgradeKeys.kUpgrade + L,         newLevel);
                 if (newLevel > 0) {
                     nbt.setBoolean("HasUpgrade_" + upgradeId, true);
                     nbt.setBoolean("HasUpgrade_" + U,         true);
@@ -539,29 +532,29 @@ public class PacketMechanicalCoreUpdate implements IMessage {
                 for (String wid : WATERPROOF_ALIASES) {
                     String U = up(wid), L = lo(wid);
                     if (paused && lastLevel > 0) {
-                        nbt.setInteger(K_LAST_LEVEL + wid, lastLevel);
-                        nbt.setInteger(K_LAST_LEVEL + U,   lastLevel);
-                        nbt.setInteger(K_LAST_LEVEL + L,   lastLevel);
+                        nbt.setInteger(UpgradeKeys.kLastLevel + wid, lastLevel);
+                        nbt.setInteger(UpgradeKeys.kLastLevel + U,   lastLevel);
+                        nbt.setInteger(UpgradeKeys.kLastLevel + L,   lastLevel);
                         ensureOwnedMaxAtLeast(nbt, wid, lastLevel);
                         nbt.setBoolean("HasUpgrade_" + wid, true);
                         nbt.setBoolean("HasUpgrade_" + U,   true);
                         nbt.setBoolean("HasUpgrade_" + L,   true);
                     }
-                    nbt.setBoolean(K_IS_PAUSED + wid, paused);
-                    nbt.setBoolean(K_IS_PAUSED + U,   paused);
-                    nbt.setBoolean(K_IS_PAUSED + L,   paused);
+                    nbt.setBoolean(UpgradeKeys.kPaused + wid, paused);
+                    nbt.setBoolean(UpgradeKeys.kPaused + U,   paused);
+                    nbt.setBoolean(UpgradeKeys.kPaused + L,   paused);
                 }
             } else {
                 String U = up(upgradeId), L = lo(upgradeId);
                 if (paused && lastLevel > 0) {
                     for (String k : Arrays.asList(upgradeId, U, L)) {
-                        nbt.setInteger(K_LAST_LEVEL + k, lastLevel);
+                        nbt.setInteger(UpgradeKeys.kLastLevel + k, lastLevel);
                         ensureOwnedMaxAtLeast(nbt, k, lastLevel);
                         nbt.setBoolean("HasUpgrade_" + k, true);
                     }
                 }
                 for (String k : Arrays.asList(upgradeId, U, L)) {
-                    nbt.setBoolean(K_IS_PAUSED + k, paused);
+                    nbt.setBoolean(UpgradeKeys.kPaused + k, paused);
                 }
             }
         }
@@ -571,9 +564,9 @@ public class PacketMechanicalCoreUpdate implements IMessage {
             NBTTagCompound nbt = core.getTagCompound();
             if (nbt == null) return 0;
 
-            if (nbt.getBoolean(K_IS_PAUSED + id) ||
-                    nbt.getBoolean(K_IS_PAUSED + up(id)) ||
-                    nbt.getBoolean(K_IS_PAUSED + lo(id))) {
+            if (nbt.getBoolean(UpgradeKeys.kPaused + id) ||
+                    nbt.getBoolean(UpgradeKeys.kPaused + up(id)) ||
+                    nbt.getBoolean(UpgradeKeys.kPaused + lo(id))) {
                 return 0;
             }
 
@@ -583,17 +576,17 @@ public class PacketMechanicalCoreUpdate implements IMessage {
         private static int getOwnedMax(NBTTagCompound nbt, String id) {
             if (nbt == null) return 0;
             int v = 0;
-            v = Math.max(v, nbt.getInteger(K_OWNED_MAX + id));
-            v = Math.max(v, nbt.getInteger(K_OWNED_MAX + up(id)));
-            v = Math.max(v, nbt.getInteger(K_OWNED_MAX + lo(id)));
+            v = Math.max(v, nbt.getInteger(UpgradeKeys.kOwnedMax + id));
+            v = Math.max(v, nbt.getInteger(UpgradeKeys.kOwnedMax + up(id)));
+            v = Math.max(v, nbt.getInteger(UpgradeKeys.kOwnedMax + lo(id)));
             return v;
         }
 
         private static void ensureOwnedMaxAtLeast(NBTTagCompound nbt, String id, int atLeast) {
             if (nbt == null) return;
             for (String k : Arrays.asList(id, up(id), lo(id))) {
-                if (nbt.getInteger(K_OWNED_MAX + k) < atLeast) {
-                    nbt.setInteger(K_OWNED_MAX + k, atLeast);
+                if (nbt.getInteger(UpgradeKeys.kOwnedMax + k) < atLeast) {
+                    nbt.setInteger(UpgradeKeys.kOwnedMax + k, atLeast);
                 }
             }
         }

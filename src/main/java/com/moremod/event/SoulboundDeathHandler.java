@@ -36,12 +36,6 @@ public class SoulboundDeathHandler {
     private static final String K_CORE_IN_BAUBLES = "moremod_CoreInBaubles";
     private static final String K_CORE_SLOT = "moremod_CoreSlot";
 
-    // ===== 修复系统键（与 EnergyPunishmentSystem 统一） =====
-    private static final String K_ORIGINAL_MAX = "OriginalMax_";
-    private static final String K_OWNED_MAX = "OwnedMax_";
-    private static final String K_DAMAGE_COUNT = "DamageCount_";
-    private static final String K_WAS_PUNISHED = "WasPunished_";
-
     // 发电模块保护列表
     private static final Set<String> GENERATORS = new HashSet<>(Arrays.asList(
             "SOLAR_GENERATOR","KINETIC_GENERATOR","THERMAL_GENERATOR","VOID_ENERGY","COMBAT_CHARGER"
@@ -228,54 +222,23 @@ public class SoulboundDeathHandler {
             setOwnedMaxEverywhere(core, target, currentOwnedMax);
         }
 
-        // 2. 如果是第一次损坏，立即记录 OriginalMax
-        if (!nbt.hasKey(K_ORIGINAL_MAX + upperId) && currentOwnedMax > 0) {
-            // 记录降级前的值（所有变体）
-            nbt.setInteger(K_ORIGINAL_MAX + upperId, currentOwnedMax);
-            nbt.setInteger(K_ORIGINAL_MAX + target, currentOwnedMax);
-            nbt.setInteger(K_ORIGINAL_MAX + lowerId, currentOwnedMax);
-
-            // 防水别名也记录
-            if (isWaterproof(target)) {
-                for (String wid : WATERPROOF_IDS) {
-                    nbt.setInteger(K_ORIGINAL_MAX + wid, currentOwnedMax);
-                    nbt.setInteger(K_ORIGINAL_MAX + wid.toUpperCase(Locale.ROOT), currentOwnedMax);
-                    nbt.setInteger(K_ORIGINAL_MAX + wid.toLowerCase(Locale.ROOT), currentOwnedMax);
-                }
-            }
+        // 2. 记录 OriginalMax（使用 UpgradeKeys 自动处理所有变体和别名）
+        if (currentOwnedMax > 0) {
+            UpgradeKeys.setOriginalMax(core, target, currentOwnedMax);
         }
 
-        // 3. 设置惩罚标记
-        nbt.setBoolean(K_WAS_PUNISHED + upperId, true);
-        nbt.setBoolean(K_WAS_PUNISHED + target, true);
-        nbt.setBoolean(K_WAS_PUNISHED + lowerId, true);
+        // 3. 设置惩罚标记（使用 UpgradeKeys）
+        UpgradeKeys.markWasPunished(core, target, true);
 
-        if (isWaterproof(target)) {
-            for (String wid : WATERPROOF_IDS) {
-                nbt.setBoolean(K_WAS_PUNISHED + wid, true);
-                nbt.setBoolean(K_WAS_PUNISHED + wid.toUpperCase(Locale.ROOT), true);
-                nbt.setBoolean(K_WAS_PUNISHED + wid.toLowerCase(Locale.ROOT), true);
-            }
-        }
-
-        // 4. 增加损坏计数
-        int damageCount = nbt.getInteger(K_DAMAGE_COUNT + upperId);
-        nbt.setInteger(K_DAMAGE_COUNT + upperId, damageCount + 1);
-        nbt.setInteger(K_DAMAGE_COUNT + target, damageCount + 1);
-        nbt.setInteger(K_DAMAGE_COUNT + lowerId, damageCount + 1);
-
-        // 累计总损坏次数
-        int totalDamageCount = nbt.getInteger("TotalDamageCount_" + upperId);
-        nbt.setInteger("TotalDamageCount_" + upperId, totalDamageCount + 1);
-        nbt.setInteger("TotalDamageCount_" + target, totalDamageCount + 1);
-        nbt.setInteger("TotalDamageCount_" + lowerId, totalDamageCount + 1);
+        // 4. 增加损坏计数（使用 UpgradeKeys，自动更新 DamageCount 和 TotalDamageCount）
+        UpgradeKeys.incrementDamageCount(core, target);
 
         // 5. 然后才降级（在记录之后）
         int newOwnedMax = Math.max(0, currentOwnedMax - 1);
         setOwnedMaxSafe(core, target, newOwnedMax);
 
         // 6. 验证 OriginalMax 是否被保留（静默校验，不输出日志）
-        int verifyOriginalMax = nbt.getInteger(K_ORIGINAL_MAX + upperId);
+        int verifyOriginalMax = UpgradeKeys.getOriginalMax(core, target);
         if (verifyOriginalMax != currentOwnedMax && verifyOriginalMax > 0) {
             // 若不一致，这里保持静默（可在未来接入可开关的调试系统）
         }
@@ -286,7 +249,7 @@ public class SoulboundDeathHandler {
         }
 
         // 获取 OriginalMax 用于显示
-        int originalMax = nbt.getInteger(K_ORIGINAL_MAX + upperId);
+        int originalMax = UpgradeKeys.getOriginalMax(core, target);
         if (originalMax <= 0) originalMax = currentOwnedMax;
 
         // 发送消息

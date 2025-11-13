@@ -28,10 +28,6 @@ import java.util.Map;
  */
 public class SmartUpgradeHandler {
 
-    // ✅ 添加常量
-    private static final String K_ORIGINAL_MAX = "OriginalMax_";
-    private static final String K_OWNED_MAX = "OwnedMax_";
-
     @SubscribeEvent(priority = EventPriority.HIGH)
     public void onPlayerRightClick(PlayerInteractEvent.RightClickItem event) {
         if (event.getWorld().isRemote) return;
@@ -78,46 +74,8 @@ public class SmartUpgradeHandler {
      * 3. 永不降低 OriginalMax
      */
     private void recordOriginalMax(ItemStack coreStack, String upgradeId, int newLevel) {
-        NBTTagCompound nbt = UpgradeKeys.getOrCreate(coreStack);
-
-        String upperId = upgradeId.toUpperCase();
-        String lowerId = upgradeId.toLowerCase();
-        String[] variants = {upgradeId, upperId, lowerId};
-
-        // 获取当前的 OriginalMax
-        int currentOriginalMax = 0;
-        for (String variant : variants) {
-            int val = nbt.getInteger(K_ORIGINAL_MAX + variant);
-            currentOriginalMax = Math.max(currentOriginalMax, val);
-        }
-
-        // ✅ 只在新等级更高时更新
-        if (newLevel > currentOriginalMax) {
-            System.out.println("[RecordOriginalMax] 更新历史最高值: " + upgradeId);
-            System.out.println("  旧值: " + currentOriginalMax);
-            System.out.println("  新值: " + newLevel);
-
-            // 写入所有三个变体
-            nbt.setInteger(K_ORIGINAL_MAX + upgradeId, newLevel);
-            nbt.setInteger(K_ORIGINAL_MAX + upperId, newLevel);
-            nbt.setInteger(K_ORIGINAL_MAX + lowerId, newLevel);
-        } else if (currentOriginalMax > 0) {
-            System.out.println("[RecordOriginalMax] 保持历史最高值: " + upgradeId + " = " + currentOriginalMax);
-        } else {
-            // 第一次记录
-            System.out.println("[RecordOriginalMax] 首次记录: " + upgradeId + " = " + newLevel);
-            nbt.setInteger(K_ORIGINAL_MAX + upgradeId, newLevel);
-            nbt.setInteger(K_ORIGINAL_MAX + upperId, newLevel);
-            nbt.setInteger(K_ORIGINAL_MAX + lowerId, newLevel);
-        }
-
-        // ✅ 验证写入成功
-        int verify = nbt.getInteger(K_ORIGINAL_MAX + upperId);
-        if (verify < newLevel) {
-            System.err.println("[RecordOriginalMax] ⚠️ 警告：写入验证失败！");
-            System.err.println("  预期: " + newLevel);
-            System.err.println("  实际: " + verify);
-        }
+        // 使用 UpgradeKeys 统一管理，自动处理所有变体
+        UpgradeKeys.setOriginalMax(coreStack, upgradeId, newLevel);
     }
 
     // ================= 升级验证 =================

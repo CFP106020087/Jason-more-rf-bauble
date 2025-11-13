@@ -53,21 +53,8 @@ public class EnergyPunishmentSystem {
             "void_energy","combat_charger"
     ));
 
-    // NBT键
-    private static final String K_LAST_DOT           = "Punish_LastDot";
-    private static final String K_LAST_DEGRADE       = "Punish_LastDegrade";
-    private static final String K_LAST_DURABILITY    = "Punish_LastDur";
-    private static final String K_CRITICAL_SINCE     = "Punish_CriticalSince";
-    private static final String K_SELF_DESTRUCT_DONE = "Punish_SelfDestructDone";
-    private static final String K_WARNING_10S        = "Punish_Warning10s";
-    private static final String K_WARNING_5S         = "Punish_Warning5s";
+    // 特殊标记（非升级相关）
     private static final String K_SPECIAL_DEATH_FLAG = "MechanicalCoreDeath";
-
-    // 修复系统键
-    private static final String K_ORIGINAL_MAX = "OriginalMax_";
-    private static final String K_OWNED_MAX = "OwnedMax_";
-    private static final String K_DAMAGE_COUNT = "DamageCount_";
-    private static final String K_WAS_PUNISHED = "WasPunished_";
 
     public static class EnergyDepletionDamage extends DamageSource {
         public EnergyDepletionDamage() {
@@ -109,19 +96,19 @@ public class EnergyPunishmentSystem {
         long time = player.world.getTotalWorldTime();
 
         if (status == EnergyDepletionManager.EnergyStatus.CRITICAL) {
-            if (!nbt.hasKey(K_CRITICAL_SINCE)) {
-                nbt.setLong(K_CRITICAL_SINCE, time);
-                nbt.removeTag(K_WARNING_10S);
-                nbt.removeTag(K_WARNING_5S);
-                nbt.removeTag(K_SELF_DESTRUCT_DONE);
+            if (!nbt.hasKey(UpgradeKeys.K_CRITICAL_SINCE)) {
+                nbt.setLong(UpgradeKeys.K_CRITICAL_SINCE, time);
+                nbt.removeTag(UpgradeKeys.K_WARNING_10S);
+                nbt.removeTag(UpgradeKeys.K_WARNING_5S);
+                nbt.removeTag(UpgradeKeys.K_SELF_DESTRUCT_DONE);
             }
             handleSelfDestructCountdown(core, player, nbt, time);
         } else {
-            if (nbt.hasKey(K_CRITICAL_SINCE)) {
-                nbt.removeTag(K_CRITICAL_SINCE);
-                nbt.removeTag(K_WARNING_10S);
-                nbt.removeTag(K_WARNING_5S);
-                nbt.removeTag(K_SELF_DESTRUCT_DONE);
+            if (nbt.hasKey(UpgradeKeys.K_CRITICAL_SINCE)) {
+                nbt.removeTag(UpgradeKeys.K_CRITICAL_SINCE);
+                nbt.removeTag(UpgradeKeys.K_WARNING_10S);
+                nbt.removeTag(UpgradeKeys.K_WARNING_5S);
+                nbt.removeTag(UpgradeKeys.K_SELF_DESTRUCT_DONE);
                 player.sendStatusMessage(new TextComponentString(
                         TextFormatting.GREEN + "✓ 自毁序列已取消"), true);
             }
@@ -131,11 +118,11 @@ public class EnergyPunishmentSystem {
     }
 
     private static void handleSelfDestructCountdown(ItemStack core, EntityPlayer player, NBTTagCompound nbt, long time) {
-        long criticalStart = nbt.getLong(K_CRITICAL_SINCE);
+        long criticalStart = nbt.getLong(UpgradeKeys.K_CRITICAL_SINCE);
         long elapsed = time - criticalStart;
 
-        if (elapsed >= TICK_10S && !nbt.getBoolean(K_WARNING_10S)) {
-            nbt.setBoolean(K_WARNING_10S, true);
+        if (elapsed >= TICK_10S && !nbt.getBoolean(UpgradeKeys.K_WARNING_10S)) {
+            nbt.setBoolean(UpgradeKeys.K_WARNING_10S, true);
             player.sendMessage(new TextComponentString(
                     TextFormatting.DARK_RED + "⚠⚠⚠ 核心自毁倒计时：10秒 ⚠⚠⚠"));
             player.sendMessage(new TextComponentString(
@@ -144,8 +131,8 @@ public class EnergyPunishmentSystem {
                     SoundEvents.BLOCK_NOTE_BASS, SoundCategory.PLAYERS, 1.0f, 0.5f);
         }
 
-        if (elapsed >= TICK_15S && !nbt.getBoolean(K_WARNING_5S)) {
-            nbt.setBoolean(K_WARNING_5S, true);
+        if (elapsed >= TICK_15S && !nbt.getBoolean(UpgradeKeys.K_WARNING_5S)) {
+            nbt.setBoolean(UpgradeKeys.K_WARNING_5S, true);
             player.sendMessage(new TextComponentString(
                     TextFormatting.DARK_RED + "☠☠☠ 核心自毁倒计时：5秒！！！ ☠☠☠"));
             player.world.playSound(null, player.posX, player.posY, player.posZ,
@@ -171,9 +158,9 @@ public class EnergyPunishmentSystem {
             }
         }
 
-        if (elapsed >= TICK_20S && !nbt.getBoolean(K_SELF_DESTRUCT_DONE)) {
+        if (elapsed >= TICK_20S && !nbt.getBoolean(UpgradeKeys.K_SELF_DESTRUCT_DONE)) {
             selfDestructSafe(core, player);
-            nbt.setBoolean(K_SELF_DESTRUCT_DONE, true);
+            nbt.setBoolean(UpgradeKeys.K_SELF_DESTRUCT_DONE, true);
         }
     }
 
@@ -182,9 +169,9 @@ public class EnergyPunishmentSystem {
                                          NBTTagCompound nbt, long time) {
 
         if (status == EnergyDepletionManager.EnergyStatus.CRITICAL) {
-            if (checkCooldown(nbt, K_LAST_DOT, time, TICK_1S)) {
+            if (checkCooldown(nbt, UpgradeKeys.K_LAST_DOT, time, TICK_1S)) {
                 player.attackEntityFrom(ENERGY_DEPLETION, DOT_DAMAGE_PER_TICK);
-                nbt.setLong(K_LAST_DOT, time);
+                nbt.setLong(UpgradeKeys.K_LAST_DOT, time);
                 player.world.spawnParticle(EnumParticleTypes.DAMAGE_INDICATOR,
                         player.posX, player.posY + player.height / 2, player.posZ,
                         0.0, 0.0, 0.0);
@@ -192,16 +179,16 @@ public class EnergyPunishmentSystem {
         }
 
         if (status == EnergyDepletionManager.EnergyStatus.CRITICAL) {
-            if (checkCooldown(nbt, K_LAST_DURABILITY, time, TICK_10S)) {
+            if (checkCooldown(nbt, UpgradeKeys.K_LAST_DURABILITY, time, TICK_10S)) {
                 damageDurability(player);
-                nbt.setLong(K_LAST_DURABILITY, time);
+                nbt.setLong(UpgradeKeys.K_LAST_DURABILITY, time);
             }
         }
 
         if (status == EnergyDepletionManager.EnergyStatus.CRITICAL) {
-            if (checkCooldown(nbt, K_LAST_DEGRADE, time, TICK_10S)) {
+            if (checkCooldown(nbt, UpgradeKeys.K_LAST_DEGRADE, time, TICK_10S)) {
                 degradeRandomModules(core, player);
-                nbt.setLong(K_LAST_DEGRADE, time);
+                nbt.setLong(UpgradeKeys.K_LAST_DEGRADE, time);
             }
         }
     }
@@ -238,33 +225,20 @@ public class EnergyPunishmentSystem {
             // 获取当前的拥有等级
             int currentOwnedMax = getOwnedMax(core, moduleId);
 
-            // 第一次损坏时记录原始等级
-            if (!nbt.hasKey(K_ORIGINAL_MAX + upperId)) {
-                nbt.setInteger(K_ORIGINAL_MAX + upperId, currentOwnedMax);
-                nbt.setInteger(K_ORIGINAL_MAX + moduleId, currentOwnedMax);
-                nbt.setInteger(K_ORIGINAL_MAX + lowerId, currentOwnedMax);
+            // 记录原始等级（使用 UpgradeKeys 自动处理所有变体）
+            if (currentOwnedMax > 0) {
+                UpgradeKeys.setOriginalMax(core, moduleId, currentOwnedMax);
             }
 
-            // 关键修复：移到 if 外面，每次降级都写入 WasPunished
-            nbt.setBoolean(K_WAS_PUNISHED + upperId, true);
-            nbt.setBoolean(K_WAS_PUNISHED + moduleId, true);
-            nbt.setBoolean(K_WAS_PUNISHED + lowerId, true);
+            // 设置惩罚标记（使用 UpgradeKeys）
+            UpgradeKeys.markWasPunished(core, moduleId, true);
 
             // 降级
             int newOwnedMax = Math.max(0, currentOwnedMax - 1);
             setOwnedMaxSafe(core, moduleId, newOwnedMax);
 
-            // 增加损坏计数
-            int damageCount = nbt.getInteger(K_DAMAGE_COUNT + upperId);
-            nbt.setInteger(K_DAMAGE_COUNT + upperId, damageCount + 1);
-            nbt.setInteger(K_DAMAGE_COUNT + moduleId, damageCount + 1);
-            nbt.setInteger(K_DAMAGE_COUNT + lowerId, damageCount + 1);
-
-            // 累计总损坏次数（用于修复成本计算）
-            int totalDamage = nbt.getInteger("TotalDamageCount_" + upperId);
-            nbt.setInteger("TotalDamageCount_" + upperId, totalDamage + 1);
-            nbt.setInteger("TotalDamageCount_" + moduleId, totalDamage + 1);
-            nbt.setInteger("TotalDamageCount_" + lowerId, totalDamage + 1);
+            // 增加损坏计数（使用 UpgradeKeys，自动更新 DamageCount 和 TotalDamageCount）
+            UpgradeKeys.incrementDamageCount(core, moduleId);
 
             // 调整当前等级
             int currentLevel = getCurrentLevel(core, moduleId);
@@ -272,14 +246,8 @@ public class EnergyPunishmentSystem {
                 setLevel(core, moduleId, newOwnedMax);
             }
 
-            // 获取原始最大等级用于显示
-            int originalMax = Math.max(
-                    nbt.getInteger(K_ORIGINAL_MAX + upperId),
-                    Math.max(
-                            nbt.getInteger(K_ORIGINAL_MAX + moduleId),
-                            nbt.getInteger(K_ORIGINAL_MAX + lowerId)
-                    )
-            );
+            // 获取原始最大等级用于显示（使用 UpgradeKeys）
+            int originalMax = UpgradeKeys.getOriginalMax(core, moduleId);
 
             // 通知
             if (newOwnedMax <= 0) {
@@ -758,13 +726,13 @@ public class EnergyPunishmentSystem {
         if (!ItemMechanicalCore.isMechanicalCore(core)) return;
 
         NBTTagCompound nbt = UpgradeKeys.getOrCreate(core);
-        nbt.removeTag(K_SELF_DESTRUCT_DONE);
-        nbt.removeTag(K_CRITICAL_SINCE);
-        nbt.removeTag(K_WARNING_10S);
-        nbt.removeTag(K_WARNING_5S);
-        nbt.removeTag(K_LAST_DOT);
-        nbt.removeTag(K_LAST_DEGRADE);
-        nbt.removeTag(K_LAST_DURABILITY);
+        nbt.removeTag(UpgradeKeys.K_SELF_DESTRUCT_DONE);
+        nbt.removeTag(UpgradeKeys.K_CRITICAL_SINCE);
+        nbt.removeTag(UpgradeKeys.K_WARNING_10S);
+        nbt.removeTag(UpgradeKeys.K_WARNING_5S);
+        nbt.removeTag(UpgradeKeys.K_LAST_DOT);
+        nbt.removeTag(UpgradeKeys.K_LAST_DEGRADE);
+        nbt.removeTag(UpgradeKeys.K_LAST_DURABILITY);
         nbt.removeTag(K_SPECIAL_DEATH_FLAG);
     }
 }
