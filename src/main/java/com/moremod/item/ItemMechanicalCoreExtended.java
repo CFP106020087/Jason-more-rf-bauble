@@ -3,6 +3,7 @@ package com.moremod.item;
 import java.util.*;
 import javax.annotation.Nullable;
 
+import com.moremod.util.UpgradeKeys;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -125,33 +126,9 @@ public class ItemMechanicalCoreExtended {
 
     private static boolean blockedByPauseOrDisable(ItemStack stack, String id) {
         if (stack == null || stack.isEmpty() || id == null) return false;
-        NBTTagCompound nbt = stack.getTagCompound();
-        if (nbt == null) return false;
 
-        // 规范ID + 所有别名 + 三种大小写键都检查
-        Set<String> keys = new LinkedHashSet<>();
-        String canon = canonical(id);
-        keys.add(canon); keys.add(canon.toUpperCase()); keys.add(canon.toLowerCase());
-
-        // 防水：把所有别名一起检查
-        if (WP_ALIASES.contains(id) || WP_ALIASES.contains(canon) || canon.contains("WATERPROOF")) {
-            for (String a : WP_ALIASES) {
-                String na = norm(a);
-                keys.add(na); keys.add(na.toUpperCase()); keys.add(na.toLowerCase());
-            }
-        }
-        // 别名映射表里的同族别名
-        for (Map.Entry<String,String> e : ALIAS_TO_CANON.entrySet()) {
-            if (e.getValue().equals(canon)) {
-                String a = e.getKey();
-                keys.add(a); keys.add(a.toUpperCase()); keys.add(a.toLowerCase());
-            }
-        }
-
-        for (String k : keys) {
-            if (nbt.getBoolean("Disabled_" + k) || nbt.getBoolean("IsPaused_" + k)) return true;
-        }
-        return false;
+        // 使用 UpgradeKeys 统一管理，自动处理所有变体和别名
+        return UpgradeKeys.isDisabled(stack, id) || UpgradeKeys.isPaused(stack, id);
     }
 
     /* ===================== 基础访问器 ===================== */
@@ -166,76 +143,43 @@ public class ItemMechanicalCoreExtended {
 
     /**
      * 获取原始等级（不考虑主核心能量门槛），但会把 GUI 暂停/禁用视作0
-     * 会在 NBT 中按 规范ID + 别名 + 三种大小写 的 "upgrade_*" 取最大值
+     * 使用 UpgradeKeys 统一管理，自动处理规范ID + 别名 + 三种大小写
      */
     public static int getUpgradeLevel(ItemStack stack, String upgradeId) {
         if (stack == null || stack.isEmpty() || upgradeId == null) return 0;
-        NBTTagCompound nbt = stack.getTagCompound();
-        if (nbt == null) return 0;
 
-        String canon = canonical(upgradeId);
-        int level = 0;
-
-        // 规范ID 三种大小写
-        level = Math.max(level, nbt.getInteger("upgrade_" + canon));
-        level = Math.max(level, nbt.getInteger("upgrade_" + canon.toUpperCase()));
-        level = Math.max(level, nbt.getInteger("upgrade_" + canon.toLowerCase()));
-
-        // 全部别名 三种大小写
-        for (Map.Entry<String,String> e : ALIAS_TO_CANON.entrySet()) {
-            if (e.getValue().equals(canon)) {
-                String a = e.getKey();
-                level = Math.max(level, nbt.getInteger("upgrade_" + a));
-                level = Math.max(level, nbt.getInteger("upgrade_" + a.toUpperCase()));
-                level = Math.max(level, nbt.getInteger("upgrade_" + a.toLowerCase()));
-            }
-        }
+        // 使用 UpgradeKeys 获取等级（自动处理所有变体和别名）
+        int level = UpgradeKeys.getLevel(stack, upgradeId);
 
         // GUI 暂停/禁用 → 强制0
-        if (level > 0 && blockedByPauseOrDisable(stack, canon)) return 0;
+        if (level > 0 && blockedByPauseOrDisable(stack, upgradeId)) return 0;
         return level;
     }
 
-    /** 设置等级（只写“规范ID”的键；读取时仍能兼容别名） */
+    /** 设置等级（使用 UpgradeKeys 统一管理） */
     public static void setUpgradeLevel(ItemStack stack, String upgradeId, int level) {
         String canon = canonical(upgradeId);
-        NBTTagCompound nbt = stack.getTagCompound();
-        if (nbt == null) { nbt = new NBTTagCompound(); stack.setTagCompound(nbt); }
 
+        // 限制在最大等级范围内
         UpgradeInfo info = getUpgradeInfo(canon);
-        if (info != null) level = Math.max(0, Math.min(level, info.maxLevel)); else level = Math.max(0, level);
+        if (info != null) level = Math.max(0, Math.min(level, info.maxLevel));
+        else level = Math.max(0, level);
 
-        nbt.setInteger("upgrade_" + canon, level);
-        if (level > 0) nbt.setBoolean("HasUpgrade_" + canon, true);
-    }
-
-    /** 启/禁用（只写规范键；读取兼容别名） */
-    public static void setUpgradeDisabled(ItemStack stack, String upgradeId, boolean disabled) {
-        String canon = canonical(upgradeId);
-        NBTTagCompound nbt = stack.getTagCompound();
-        if (nbt == null) { nbt = new NBTTagCompound(); stack.setTagCompound(nbt); }
-        nbt.setBoolean("Disabled_" + canon, disabled);
-    }
-
-    /** 是否禁用（规范 + 别名 都算禁用） */
-    public static boolean isUpgradeDisabled(ItemStack stack, String upgradeId) {
-        if (!stack.hasTagCompound()) return false;
-        NBTTagCompound nbt = stack.getTagCompound();
-        String canon = canonical(upgradeId);
-
-        if (nbt.getBoolean("Disabled_" + canon)) return true;
-        if (nbt.getBoolean("Disabled_" + canon.toUpperCase())) return true;
-        if (nbt.getBoolean("Disabled_" + canon.toLowerCase())) return true;
-
-        for (Map.Entry<String,String> e : ALIAS_TO_CANON.entrySet()) {
-            if (e.getValue().equals(canon)) {
-                String a = e.getKey();
-                if (nbt.getBoolean("Disabled_" + a)) return true;
-                if (nbt.getBoolean("Disabled_" + a.toUpperCase())) return true;
-                if (nbt.getBoolean("Disabled_" + a.toLowerCase())) return true;
-            }
+        // 使用 UpgradeKeys 统一写入
+        UpgradeKeys.setLevel(stack, canon, level);
+        if (level > 0) {
+            UpgradeKeys.markOwnedActive(stack, canon, level);
         }
-        return false;
+    }
+
+    /** 启/禁用（使用 UpgradeKeys 统一管理） */
+    public static void setUpgradeDisabled(ItemStack stack, String upgradeId, boolean disabled) {
+        UpgradeKeys.setDisabled(stack, upgradeId, disabled);
+    }
+
+    /** 是否禁用（使用 UpgradeKeys，自动处理规范ID + 别名） */
+    public static boolean isUpgradeDisabled(ItemStack stack, String upgradeId) {
+        return UpgradeKeys.isDisabled(stack, upgradeId);
     }
 
     /** 是否真正激活：等级>0 & 未禁用/暂停 & 主核心允许（能量/状态） */
