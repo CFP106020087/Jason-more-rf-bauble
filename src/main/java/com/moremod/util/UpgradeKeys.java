@@ -81,6 +81,9 @@ public final class UpgradeKeys {
     /** 记录最大拥有等级（大写ID） */
     public static String kOwnedMax(String cid)   { return "OwnedMax_" + canon(cid); }
 
+    /** 原始最大等级（历史最高值，用于修复系统）（大写ID） */
+    public static String kOriginalMax(String cid) { return "OriginalMax_" + canon(cid); }
+
     /** 暂停前的等级（大写ID） */
     public static String kLastLevel(String cid)  { return "LastLevel_" + canon(cid); }
 
@@ -95,6 +98,72 @@ public final class UpgradeKeys {
 
     /** 破坏时间戳（大写ID） */
     public static String kDestroyTime(String cid) { return "DestroyTime_" + canon(cid); }
+
+    // ===== 修复/惩罚系统键名 =====
+
+    /** 是否被惩罚过（大写ID） */
+    public static String kWasPunished(String cid) { return "WasPunished_" + canon(cid); }
+
+    /** 损坏次数（当前周期）（大写ID） */
+    public static String kDamageCount(String cid) { return "DamageCount_" + canon(cid); }
+
+    /** 总损坏次数（累计）（大写ID） */
+    public static String kTotalDamageCount(String cid) { return "TotalDamageCount_" + canon(cid); }
+
+    /** 惩罚上限等级（大写ID） */
+    public static String kPenaltyCap(String cid) { return "PenaltyCap_" + canon(cid); }
+
+    /** 惩罚过期时间戳（大写ID） */
+    public static String kPenaltyExpire(String cid) { return "PenaltyExpire_" + canon(cid); }
+
+    /** 惩罚层级（大写ID） */
+    public static String kPenaltyTier(String cid) { return "PenaltyTier_" + canon(cid); }
+
+    /** 惩罚能量债务（FE）（大写ID） */
+    public static String kPenaltyDebtFE(String cid) { return "PenaltyDebtFE_" + canon(cid); }
+
+    /** 惩罚经验债务（XP）（大写ID） */
+    public static String kPenaltyDebtXP(String cid) { return "PenaltyDebtXP_" + canon(cid); }
+
+    // ===== 能量耗尽惩罚系统的时间戳键（全局） =====
+
+    /** 上次DoT伤害时间 */
+    public static final String K_LAST_DOT = "Punish_LastDot";
+
+    /** 上次降级时间 */
+    public static final String K_LAST_DEGRADE = "Punish_LastDegrade";
+
+    /** 上次耐久损耗时间 */
+    public static final String K_LAST_DURABILITY = "Punish_LastDur";
+
+    /** 进入临界状态的时间戳 */
+    public static final String K_CRITICAL_SINCE = "Punish_CriticalSince";
+
+    /** 10秒警告已触发标记 */
+    public static final String K_WARNING_10S = "Punish_Warning10s";
+
+    /** 5秒警告已触发标记 */
+    public static final String K_WARNING_5S = "Punish_Warning5s";
+
+    /** 自毁已执行标记 */
+    public static final String K_SELF_DESTRUCT_DONE = "Punish_SelfDestruct";
+
+    // ===== 能量状态标记（全局） =====
+
+    /** 省电模式标记 */
+    public static final String K_POWER_SAVING_MODE = "PowerSavingMode";
+
+    /** 紧急模式标记 */
+    public static final String K_EMERGENCY_MODE = "EmergencyMode";
+
+    /** 临界模式标记 */
+    public static final String K_CRITICAL_MODE = "CriticalMode";
+
+    /** 核心自毁标记 */
+    public static final String K_CORE_DESTROYED = "CoreDestroyed";
+
+    /** 上一次能量状态 */
+    public static final String K_PREVIOUS_ENERGY_STATUS = "PreviousEnergyStatus";
 
     // ===== 读取方法 =====
 
@@ -139,6 +208,38 @@ public final class UpgradeKeys {
         return nbt.getInteger(kLastLevel(cid));
     }
 
+    /** 获取原始最大等级（历史最高值） */
+    public static int getOriginalMax(ItemStack stack, String id) {
+        NBTTagCompound nbt = stack.getTagCompound();
+        if (nbt == null) return 0;
+        String cid = canon(id);
+        return nbt.getInteger(kOriginalMax(cid));
+    }
+
+    /** 获取损坏次数 */
+    public static int getDamageCount(ItemStack stack, String id) {
+        NBTTagCompound nbt = stack.getTagCompound();
+        if (nbt == null) return 0;
+        String cid = canon(id);
+        return nbt.getInteger(kDamageCount(cid));
+    }
+
+    /** 获取总损坏次数（累计） */
+    public static int getTotalDamageCount(ItemStack stack, String id) {
+        NBTTagCompound nbt = stack.getTagCompound();
+        if (nbt == null) return 0;
+        String cid = canon(id);
+        return nbt.getInteger(kTotalDamageCount(cid));
+    }
+
+    /** 检查是否被惩罚过 */
+    public static boolean wasPunished(ItemStack stack, String id) {
+        NBTTagCompound nbt = stack.getTagCompound();
+        if (nbt == null) return false;
+        String cid = canon(id);
+        return nbt.getBoolean(kWasPunished(cid));
+    }
+
     // ===== 写入方法 =====
 
     /** 写入等级（只写规范键） */
@@ -174,6 +275,51 @@ public final class UpgradeKeys {
         nbt.setInteger(kUpgrade(cid), 0);
         nbt.setBoolean(kPaused(cid), true);
         nbt.setBoolean(kHasUpgrade(cid), true);
+    }
+
+    // ===== 修复/惩罚系统写入方法 =====
+
+    /** 设置原始最大等级（只在更高时更新） */
+    public static void setOriginalMax(ItemStack stack, String id, int maxLevel) {
+        NBTTagCompound nbt = getOrCreate(stack);
+        String cid = canon(id);
+        int current = nbt.getInteger(kOriginalMax(cid));
+        if (maxLevel > current) {
+            nbt.setInteger(kOriginalMax(cid), maxLevel);
+        }
+    }
+
+    /** 设置拥有最大等级 */
+    public static void setOwnedMax(ItemStack stack, String id, int maxLevel) {
+        NBTTagCompound nbt = getOrCreate(stack);
+        String cid = canon(id);
+        nbt.setInteger(kOwnedMax(cid), maxLevel);
+    }
+
+    /** 标记为被惩罚过 */
+    public static void markWasPunished(ItemStack stack, String id, boolean punished) {
+        NBTTagCompound nbt = getOrCreate(stack);
+        String cid = canon(id);
+        nbt.setBoolean(kWasPunished(cid), punished);
+    }
+
+    /** 增加损坏次数 */
+    public static void incrementDamageCount(ItemStack stack, String id) {
+        NBTTagCompound nbt = getOrCreate(stack);
+        String cid = canon(id);
+        int current = nbt.getInteger(kDamageCount(cid));
+        nbt.setInteger(kDamageCount(cid), current + 1);
+
+        // 同时更新总损坏次数
+        int total = nbt.getInteger(kTotalDamageCount(cid));
+        nbt.setInteger(kTotalDamageCount(cid), total + 1);
+    }
+
+    /** 重置损坏次数（当前周期） */
+    public static void resetDamageCount(ItemStack stack, String id) {
+        NBTTagCompound nbt = getOrCreate(stack);
+        String cid = canon(id);
+        nbt.setInteger(kDamageCount(cid), 0);
     }
 
     // ===== 锁定/解锁方法 =====
@@ -396,7 +542,7 @@ public final class UpgradeKeys {
         }
 
         // 检查核心自毁（但发电模块除外）
-        if (nbt.getBoolean("CoreDestroyed") && !isGenerator(id)) {
+        if (nbt.getBoolean(K_CORE_DESTROYED) && !isGenerator(id)) {
             return true;
         }
 
