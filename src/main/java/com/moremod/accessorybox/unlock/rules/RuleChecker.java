@@ -48,10 +48,19 @@ public class RuleChecker {
         
         System.out.println("[RuleChecker] 加载了 " + allRules.size() + " 条规则");
         System.out.println("[RuleChecker] 涉及 " + rulesBySlot.size() + " 个槽位");
-        
+
         if (UnlockRulesConfig.debugMode) {
+            System.out.println("[RuleChecker] === 规则详情 ===");
+            for (UnlockRule rule : allRules) {
+                int slotId = rule.getTarget().getSlotId();
+                boolean isTemp = rule.getCondition().isTemporary();
+                System.out.println("[RuleChecker]   " + rule.getTarget() +
+                    " -> " + rule.getCondition().getDescription() +
+                    " [" + (isTemp ? "临时" : "永久") + "]");
+            }
+            System.out.println("[RuleChecker] === 按槽位分组 ===");
             for (Map.Entry<Integer, List<UnlockRule>> entry : rulesBySlot.entrySet()) {
-                System.out.println("[RuleChecker]   槽位 " + entry.getKey() + ": " 
+                System.out.println("[RuleChecker]   槽位 " + entry.getKey() + ": "
                     + entry.getValue().size() + " 条规则");
             }
         }
@@ -180,7 +189,14 @@ public class RuleChecker {
         for (UnlockRule rule : rules) {
             UnlockCondition condition = rule.getCondition();
             boolean satisfied = condition.check(player);
-            
+
+            if (UnlockRulesConfig.debugMode) {
+                System.out.println("[RuleChecker]     规则: " + rule.getTarget() +
+                    " | " + condition.getDescription() +
+                    " | 满足=" + satisfied +
+                    " | 类型=" + (condition.isTemporary() ? "临时" : "永久"));
+            }
+
             if (condition.isTemporary()) {
                 hasTemporary = true;
                 if (satisfied) {
