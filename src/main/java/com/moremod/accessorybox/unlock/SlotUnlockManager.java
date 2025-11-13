@@ -143,9 +143,24 @@ public class SlotUnlockManager {
         UUID uuid = player.getUniqueID();
         Set<Integer> previous = temporaryUnlocks.getOrDefault(uuid, Collections.emptySet());
 
+        if (UnlockRulesConfig.debugMode) {
+            System.out.println("[SlotUnlock] 更新臨時解鎖 - 玩家: " + player.getName());
+            System.out.println("[SlotUnlock]   之前臨時解鎖: " + previous);
+            System.out.println("[SlotUnlock]   現在臨時解鎖: " + tempUnlocks);
+        }
+
         // 找出失效的临时槽位
         Set<Integer> lost = new HashSet<>(previous);
         lost.removeAll(tempUnlocks);
+
+        // 找出新增的临时槽位
+        Set<Integer> gained = new HashSet<>(tempUnlocks);
+        gained.removeAll(previous);
+
+        if (UnlockRulesConfig.debugMode && (!lost.isEmpty() || !gained.isEmpty())) {
+            System.out.println("[SlotUnlock]   失效槽位: " + lost);
+            System.out.println("[SlotUnlock]   新增槽位: " + gained);
+        }
 
         // 处理失效的临时槽位
         boolean hasLostSlots = false;
@@ -163,6 +178,9 @@ public class SlotUnlockManager {
 
         // 同步到客户端
         if (player instanceof EntityPlayerMP) {
+            if (UnlockRulesConfig.debugMode) {
+                System.out.println("[SlotUnlock] 正在同步到客戶端...");
+            }
             syncToClient((EntityPlayerMP) player);
         }
 
@@ -328,6 +346,12 @@ public class SlotUnlockManager {
 
     public void syncToClient(EntityPlayerMP player) {
         Set<Integer> allUnlocked = getAvailableSlots(player.getUniqueID());
+
+        if (UnlockRulesConfig.debugMode) {
+            System.out.println("[SlotUnlock] [服務器] 同步到客戶端: " + player.getName());
+            System.out.println("[SlotUnlock] [服務器]   發送槽位: " + allUnlocked);
+        }
+
         PacketSyncUnlockedSlots packet = new PacketSyncUnlockedSlots(allUnlocked);
         ModNetworkHandler.INSTANCE.sendTo(packet, player);
     }
@@ -335,10 +359,13 @@ public class SlotUnlockManager {
     public void receiveSync(UUID playerUUID, Set<Integer> unlockedSlotIds) {
         // 客户端接收同步数据（包含永久+临时）
         // 注意：客户端不区分永久/临时，统一存储
+        Set<Integer> oldSlots = permanentUnlocks.get(playerUUID);
         permanentUnlocks.put(playerUUID, new HashSet<>(unlockedSlotIds));
 
         if (UnlockRulesConfig.debugMode) {
-            System.out.println("[SlotUnlock] 客户端同步: " + unlockedSlotIds.size() + " 个解锁槽位");
+            System.out.println("[SlotUnlock] [客戶端] 接收同步數據");
+            System.out.println("[SlotUnlock] [客戶端]   舊槽位: " + oldSlots);
+            System.out.println("[SlotUnlock] [客戶端]   新槽位: " + unlockedSlotIds);
         }
     }
 
