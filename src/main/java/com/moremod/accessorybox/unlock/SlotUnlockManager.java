@@ -98,8 +98,13 @@ public class SlotUnlockManager {
             }
 
             if (UnlockRulesConfig.debugMode) {
-                System.out.println("[SlotUnlock] 永久解锁槽位 " + slotId +
+                System.out.println("[SlotUnlock] ⚠️ 永久解锁槽位 " + slotId +
                         " for " + player.getName());
+                System.out.println("[SlotUnlock] 调用堆栈:");
+                StackTraceElement[] trace = Thread.currentThread().getStackTrace();
+                for (int i = 2; i < Math.min(10, trace.length); i++) {
+                    System.out.println("[SlotUnlock]   " + trace[i]);
+                }
             }
         }
         return added;
