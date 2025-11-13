@@ -61,14 +61,15 @@ public class TileEntitySwordUpgradeStationMaterial extends TileEntity {
             return;
         }
 
-        SwordUpgradeRegistry.Recipe r = SwordUpgradeRegistry.getRecipe(mat.getItem());
-        if (r == null || r.target == null) {
+        // 使用NBT匹配的配方查找：传递完整ItemStack
+        SwordUpgradeRegistry.Recipe r = SwordUpgradeRegistry.getRecipe(base, mat.getItem());
+        if (r == null || r.targetSword == null) {
             items.setStackInSlot(SLOT_OUT, ItemStack.EMPTY);
             markDirty();
             return;
         }
 
-        ItemStack out = new ItemStack(r.target);
+        ItemStack out = new ItemStack(r.targetSword);
         if (out.isEmpty()) {
             items.setStackInSlot(SLOT_OUT, ItemStack.EMPTY);
             markDirty();

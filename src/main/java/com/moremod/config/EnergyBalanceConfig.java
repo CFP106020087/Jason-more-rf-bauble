@@ -359,6 +359,7 @@ public class EnergyBalanceConfig {
 
             case "EXP_AMPLIFIER": return ExtendedUpgrades.EXP_AMPLIFIER * level;
             case "ITEM_MAGNET": return ExtendedUpgrades.ITEM_MAGNET * level;
+            case "NEURAL_SYNCHRONIZER": return 50;  // 固定50 RF/s
 
             // 发电模块
             case "KINETIC_GENERATOR": return ExtendedUpgrades.KINETIC_GENERATOR * level;

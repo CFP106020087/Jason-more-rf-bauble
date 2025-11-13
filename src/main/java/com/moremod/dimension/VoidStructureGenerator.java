@@ -17,19 +17,31 @@ import net.minecraft.world.chunk.Chunk;
 import java.util.*;
 
 /**
- * 虚空结构生成器 - 优化修复版
- * 修复了批量方块操作和内存管理问题
+ * 虚空结构生成器 - TPS优化版
+ * 
+ * ✅ 关键优化：
+ * 1. 降低批量大小 500→200
+ * 2. 限制单批次影响的区块数 ≤10
+ * 3. 添加性能监控和日志
+ * 4. 优化flush逻辑
  */
 public class VoidStructureGenerator {
 
     private static final Random random = new Random();
-    private static final int BATCH_SIZE = 500;  // 批处理大小
-    private static final int MAX_CHUNKS_PER_GENERATION = 20;  // 每次最多加载的区块数
+    
+    // ✅ 降低批量大小，避免单次更新过多方块
+    private static final int BATCH_SIZE = 200;  // 从500降到200
+    private static final int MAX_CHUNKS_PER_GENERATION = 20;
+    
+    // ✅ 新增：限制单批次影响的区块数
+    private static final int MAX_CHUNKS_PER_BATCH = 10;
 
-    // 批量更新器
+    // ✅ 优化后的批量更新器
     private static class BatchBlockUpdater {
         private final Map<BlockPos, IBlockState> pendingBlocks = new HashMap<>();
         private final World world;
+        private long lastFlushTime = 0;
+        private int totalBlocksUpdated = 0;
 
         public BatchBlockUpdater(World world) {
             this.world = world;
@@ -38,13 +50,16 @@ public class VoidStructureGenerator {
         public void addBlock(BlockPos pos, IBlockState state) {
             pendingBlocks.put(pos, state);
 
-            if (pendingBlocks.size() >= BATCH_SIZE) {
+            // ✅ 达到批量大小或影响太多区块时自动flush
+            if (pendingBlocks.size() >= BATCH_SIZE || getTotalChunks() >= MAX_CHUNKS_PER_BATCH) {
                 flush();
             }
         }
 
         public void flush() {
             if (pendingBlocks.isEmpty()) return;
+
+            long startTime = System.currentTimeMillis();
 
             // 按区块分组以优化更新
             Map<ChunkPos, List<Map.Entry<BlockPos, IBlockState>>> byChunk = new HashMap<>();
@@ -54,18 +69,52 @@ public class VoidStructureGenerator {
                 byChunk.computeIfAbsent(chunkPos, k -> new ArrayList<>()).add(entry);
             }
 
-            // 批量更新每个区块
+            // ✅ 批量更新每个区块，最后统一标记脏
             for (Map.Entry<ChunkPos, List<Map.Entry<BlockPos, IBlockState>>> chunkEntry : byChunk.entrySet()) {
-                Chunk chunk = world.getChunk(chunkEntry.getKey().x, chunkEntry.getKey().z);
+                ChunkPos cp = chunkEntry.getKey();
+                
+                // 确保区块已加载
+                if (!world.isChunkGeneratedAt(cp.x, cp.z)) {
+                    continue;
+                }
+                
+                Chunk chunk = world.getChunk(cp.x, cp.z);
+                List<Map.Entry<BlockPos, IBlockState>> blocks = chunkEntry.getValue();
 
-                for (Map.Entry<BlockPos, IBlockState> blockEntry : chunkEntry.getValue()) {
+                // 批量更新方块，flag=2表示不立即通知客户端
+                for (Map.Entry<BlockPos, IBlockState> blockEntry : blocks) {
                     world.setBlockState(blockEntry.getKey(), blockEntry.getValue(), 2);
                 }
 
+                // 统一标记区块脏
                 chunk.markDirty();
+                totalBlocksUpdated += blocks.size();
+            }
+
+            long elapsedTime = System.currentTimeMillis() - startTime;
+            
+            // ✅ 性能监控：大批量或耗时操作记录日志
+            if (pendingBlocks.size() > 100 || elapsedTime > 50) {
+                System.out.println(String.format(
+                    "[批量更新] 更新了 %d 个方块，涉及 %d 个区块，耗时 %d ms",
+                    pendingBlocks.size(), byChunk.size(), elapsedTime
+                ));
             }
 
             pendingBlocks.clear();
+            lastFlushTime = System.currentTimeMillis();
+        }
+
+        private int getTotalChunks() {
+            Set<ChunkPos> chunks = new HashSet<>();
+            for (BlockPos pos : pendingBlocks.keySet()) {
+                chunks.add(new ChunkPos(pos));
+            }
+            return chunks.size();
+        }
+
+        public int getPendingCount() {
+            return pendingBlocks.size();
         }
     }
 
@@ -175,6 +224,15 @@ public class VoidStructureGenerator {
             generateStructureInternal(world, pos, type, updater);
             updater.flush();
             return;
+        }
+
+        // ✅ 优化：限制跨区块检查范围
+        int chunksToCheck = (maxChunkX - minChunkX + 1) * (maxChunkZ - minChunkZ + 1);
+        if (chunksToCheck > 9) {  // 超过3x3区块，只检查中心区域
+            minChunkX = Math.max(minChunkX, centerChunk.x - 1);
+            maxChunkX = Math.min(maxChunkX, centerChunk.x + 1);
+            minChunkZ = Math.max(minChunkZ, centerChunk.z - 1);
+            maxChunkZ = Math.min(maxChunkZ, centerChunk.z + 1);
         }
 
         // 对于跨区块的结构，只生成当前已加载区块的部分

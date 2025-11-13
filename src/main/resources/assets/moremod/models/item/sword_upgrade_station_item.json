@@ -1,6 +1,0 @@
-{
-  "parent": "minecraft:block/cube_all",
-  "textures": {
-    "all": "moremod:blocks/sword_upgrade_station"
-  }
-}

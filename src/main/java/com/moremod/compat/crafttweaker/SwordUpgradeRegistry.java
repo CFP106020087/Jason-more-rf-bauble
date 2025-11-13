@@ -1,4 +1,4 @@
-package com.moremod.recipe;
+package com.moremod.compat.crafttweaker;
 
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;

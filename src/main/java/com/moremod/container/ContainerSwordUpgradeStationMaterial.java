@@ -88,9 +88,10 @@ public class ContainerSwordUpgradeStationMaterial extends Container {
             if (out.isEmpty()) return false;
 
             int needXp = 0;
+            ItemStack base = tile.getStackInSlot(TileEntitySwordUpgradeStationMaterial.SLOT_BASE);
             ItemStack mat = tile.getStackInSlot(TileEntitySwordUpgradeStationMaterial.SLOT_MAT);
-            if (!mat.isEmpty()) {
-                SwordUpgradeRegistry.Recipe r = SwordUpgradeRegistry.getRecipe(mat.getItem());
+            if (!base.isEmpty() && !mat.isEmpty()) {
+                SwordUpgradeRegistry.Recipe r = SwordUpgradeRegistry.getRecipe(base, mat.getItem());
                 needXp = (r == null) ? 0 : r.xpCost;
             }
             return getPlayerTotalXp(player) >= needXp;
@@ -99,9 +100,10 @@ public class ContainerSwordUpgradeStationMaterial extends Container {
         @Override
         public ItemStack onTake(EntityPlayer player, ItemStack stack) {
             int needXp = 0;
+            ItemStack base = tile.getStackInSlot(TileEntitySwordUpgradeStationMaterial.SLOT_BASE);
             ItemStack mat = tile.getStackInSlot(TileEntitySwordUpgradeStationMaterial.SLOT_MAT);
-            if (!mat.isEmpty()) {
-                SwordUpgradeRegistry.Recipe r = SwordUpgradeRegistry.getRecipe(mat.getItem());
+            if (!base.isEmpty() && !mat.isEmpty()) {
+                SwordUpgradeRegistry.Recipe r = SwordUpgradeRegistry.getRecipe(base, mat.getItem());
                 needXp = (r == null) ? 0 : r.xpCost;
             }
             if (needXp > 0) player.addExperience(-needXp);

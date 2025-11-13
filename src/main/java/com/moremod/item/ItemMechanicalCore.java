@@ -24,6 +24,8 @@ import com.moremod.config.EquipmentTimeConfig;
 import com.moremod.creativetab.moremodCreativeTab;
 import com.moremod.event.EquipmentTimeTracker;
 import com.moremod.upgrades.UpgradeEffectManager;
+import com.moremod.upgrades.WaterproofUpgrade;
+import com.moremod.upgrades.WetnessSystem;
 import com.moremod.upgrades.auxiliary.AuxiliaryUpgradeManager;
 import com.moremod.upgrades.combat.CombatUpgradeManager;
 import com.moremod.upgrades.energy.EnergyDepletionManager;
@@ -978,8 +980,14 @@ public class ItemMechanicalCore extends Item implements IBauble {
         if (!(entity instanceof EntityPlayer) || entity.world.isRemote) return;
         EntityPlayer player = (EntityPlayer) entity;
 
-        // 电池供能（无音效）
+        // 電池供能（無音效）
         applyBatteryGeneration(itemstack, player);
+
+        // ✨ 新增：更新潮濕值系統（只在裝備核心時運作）
+        WetnessSystem.updateWetness(player, itemstack);
+
+        // 檢查防水模塊（現有）
+        WaterproofUpgrade.applyWaterproofEffect(player, itemstack);
 
         if (entity.world.getTotalWorldTime() % 20 == 0) {
             EnergyDepletionManager.handleEnergyDepletion(itemstack, player);
@@ -989,7 +997,7 @@ public class ItemMechanicalCore extends Item implements IBauble {
                 handleInsufficientEnergy(itemstack, player, passive);
             }
 
-            // 显示电池充电状态（文本提示，不发声）
+            // 顯示電池充電狀態（文本提示，不發聲）
             if (entity.world.getTotalWorldTime() % 100 == 0) {
                 displayBatteryChargingStatus(player, itemstack);
             }

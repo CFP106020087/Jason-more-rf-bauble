@@ -1,12 +1,13 @@
 package com.moremod.eventHandler;
 
 import com.moremod.item.ItemMechanicalCore;
-
 import baubles.api.BaublesApi;
 import baubles.api.cap.IBaublesItemHandler;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraftforge.event.entity.item.ItemTossEvent;
@@ -14,251 +15,236 @@ import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingDropsEvent;
 import net.minecraftforge.event.entity.player.PlayerDropsEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
-import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerRespawnEvent;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
-
-/**
- * 加强版机械核心掉落保护器
- * 专门处理Baubles API的掉落机制
- */
 public class CoreDropProtection {
 
     private static final boolean BAUBLES_LOADED = Loader.isModLoaded("baubles");
+    private static final String PERSISTED = "PlayerPersisted";
+    private static final String K_CORE_NBT = "moremod_SavedCore";
+    private static final String K_CORE_SLOT = "moremod_SavedSlot";
+    private static final String K_IN_BAUBLES = "moremod_InBaubles";
+    private static final String K_RESTORE_PENDING = "moremod_RestorePending";
 
-    // 存储玩家死亡时的机械核心，用于复活时恢复
-    private static final Map<UUID, ItemStack> savedCores = new HashMap<>();
-    private static final Map<UUID, Integer> savedCoreSlots = new HashMap<>();
-
-    /**
-     * 在玩家死亡前保存机械核心
-     */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void onPlayerDeath(LivingDeathEvent event) {
         if (!(event.getEntityLiving() instanceof EntityPlayer)) return;
-
         EntityPlayer player = (EntityPlayer) event.getEntityLiving();
+        if (player.world.isRemote) return;
 
-        // 保存Baubles槽位中的机械核心
-        if (BAUBLES_LOADED) {
-            try {
-                IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(player);
-                if (baubles != null) {
-                    for (int i = 0; i < baubles.getSlots(); i++) {
-                        ItemStack stack = baubles.getStackInSlot(i);
-                        if (!stack.isEmpty() && ItemMechanicalCore.isMechanicalCore(stack)) {
-                            // 保存核心和槽位
-                            savedCores.put(player.getUniqueID(), stack.copy());
-                            savedCoreSlots.put(player.getUniqueID(), i);
+        NBTTagCompound entityData = player.getEntityData();
+        if (!entityData.hasKey(PERSISTED, 10)) {
+            entityData.setTag(PERSISTED, new NBTTagCompound());
+        }
+        NBTTagCompound persisted = entityData.getCompoundTag(PERSISTED);
 
-                            // 立即清空槽位，防止掉落
-                            baubles.setStackInSlot(i, ItemStack.EMPTY);
+        persisted.removeTag(K_CORE_NBT);
+        persisted.removeTag(K_CORE_SLOT);
+        persisted.removeTag(K_IN_BAUBLES);
+        persisted.setBoolean(K_RESTORE_PENDING, false);
 
-                            System.out.println("[moremod] 💾 保存了玩家 " + player.getName() + " 的机械核心");
-                            break;
-                        }
+        boolean saved = false;
+        if (BAUBLES_LOADED) saved = saveCoreFromBaubles(player, persisted);
+        if (!saved) saveCoreFromInventory(player, persisted);
+    }
+
+    private boolean saveCoreFromBaubles(EntityPlayer player, NBTTagCompound persisted) {
+        try {
+            IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(player);
+            if (baubles != null) {
+                for (int i = 0; i < baubles.getSlots(); i++) {
+                    ItemStack stack = baubles.getStackInSlot(i);
+                    if (!stack.isEmpty() && ItemMechanicalCore.isMechanicalCore(stack)) {
+                        NBTTagCompound coreNbt = new NBTTagCompound();
+                        stack.writeToNBT(coreNbt);
+                        persisted.setTag(K_CORE_NBT, coreNbt);
+                        persisted.setInteger(K_CORE_SLOT, i);
+                        persisted.setBoolean(K_IN_BAUBLES, true);
+                        persisted.setBoolean(K_RESTORE_PENDING, true);
+                        baubles.setStackInSlot(i, ItemStack.EMPTY);
+                        return true;
                     }
                 }
-            } catch (Exception e) {
-                System.err.println("[moremod] ❌ 保存机械核心失败: " + e.getMessage());
             }
-        }
+        } catch (Exception ignored) {}
+        return false;
+    }
 
-        // 同时检查普通物品栏
+    private boolean saveCoreFromInventory(EntityPlayer player, NBTTagCompound persisted) {
         for (int i = 0; i < player.inventory.getSizeInventory(); i++) {
             ItemStack stack = player.inventory.getStackInSlot(i);
             if (!stack.isEmpty() && ItemMechanicalCore.isMechanicalCore(stack)) {
-                savedCores.put(player.getUniqueID(), stack.copy());
-                savedCoreSlots.put(player.getUniqueID(), -1); // -1 表示在普通物品栏
+                NBTTagCompound coreNbt = new NBTTagCompound();
+                stack.writeToNBT(coreNbt);
+                persisted.setTag(K_CORE_NBT, coreNbt);
+                persisted.setInteger(K_CORE_SLOT, i);
+                persisted.setBoolean(K_IN_BAUBLES, false);
+                persisted.setBoolean(K_RESTORE_PENDING, true);
                 player.inventory.setInventorySlotContents(i, ItemStack.EMPTY);
-                System.out.println("[moremod] 💾 保存了玩家 " + player.getName() + " 物品栏中的机械核心");
-                break;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public void onPlayerDrops(PlayerDropsEvent event) {
+        event.getDrops().removeIf(item -> ItemMechanicalCore.isMechanicalCore(item.getItem()));
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public void onLivingDrops(LivingDropsEvent event) {
+        if (event.getEntityLiving() instanceof EntityPlayer) {
+            event.getDrops().removeIf(item -> ItemMechanicalCore.isMechanicalCore(item.getItem()));
+        }
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public void onItemToss(ItemTossEvent event) {
+        ItemStack tossed = event.getEntityItem().getItem();
+        if (ItemMechanicalCore.isMechanicalCore(tossed)) {
+            event.setCanceled(true);
+            if (event.getPlayer() != null && !event.getPlayer().world.isRemote) {
+                event.getPlayer().sendMessage(new TextComponentString(
+                        TextFormatting.DARK_RED + "⚠ 机械核心与你的灵魂绑定，无法丢弃。"
+                ));
             }
         }
     }
 
-    /**
-     * 玩家复活时恢复机械核心
-     */
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public void onItemSpawn(net.minecraftforge.event.entity.EntityJoinWorldEvent event) {
+        if (event.getEntity() instanceof EntityItem) {
+            EntityItem item = (EntityItem) event.getEntity();
+            ItemStack stack = item.getItem();
+            if (ItemMechanicalCore.isMechanicalCore(stack)) {
+                if (!isAnyoneRestoring(event.getWorld().getMinecraftServer())) {
+                    event.setCanceled(true);
+                }
+            }
+        }
+    }
+
+    private boolean isAnyoneRestoring(MinecraftServer server) {
+        if (server == null) return false;
+        for (EntityPlayer player : server.getPlayerList().getPlayers()) {
+            NBTTagCompound persisted = player.getEntityData().getCompoundTag(PERSISTED);
+            if (persisted.getBoolean(K_RESTORE_PENDING)) return true;
+        }
+        return false;
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public void onPlayerClone(PlayerEvent.Clone event) {
+        if (!event.isWasDeath()) return;
+        EntityPlayer oldPlayer = event.getOriginal();
+        EntityPlayer newPlayer = event.getEntityPlayer();
+        NBTTagCompound oldPersisted = oldPlayer.getEntityData().getCompoundTag(PERSISTED);
+        if (oldPersisted.hasKey(K_CORE_NBT)) {
+            NBTTagCompound newEntityData = newPlayer.getEntityData();
+            if (!newEntityData.hasKey(PERSISTED, 10)) {
+                newEntityData.setTag(PERSISTED, new NBTTagCompound());
+            }
+            NBTTagCompound newPersisted = newEntityData.getCompoundTag(PERSISTED);
+            newPersisted.setTag(K_CORE_NBT, oldPersisted.getCompoundTag(K_CORE_NBT));
+            newPersisted.setInteger(K_CORE_SLOT, oldPersisted.getInteger(K_CORE_SLOT));
+            newPersisted.setBoolean(K_IN_BAUBLES, oldPersisted.getBoolean(K_IN_BAUBLES));
+            newPersisted.setBoolean(K_RESTORE_PENDING, oldPersisted.getBoolean(K_RESTORE_PENDING));
+        }
+    }
+
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void onPlayerRespawn(PlayerRespawnEvent event) {
         EntityPlayer player = event.player;
-        UUID playerId = player.getUniqueID();
+        if (player.world.isRemote) return;
+        NBTTagCompound persisted = player.getEntityData().getCompoundTag(PERSISTED);
+        if (!persisted.hasKey(K_CORE_NBT)) return;
+        if (!persisted.getBoolean(K_RESTORE_PENDING)) return;
+        MinecraftServer server = player.getServer();
+        if (server == null) return;
+        server.addScheduledTask(() -> restoreCore(player));
+    }
 
-        if (savedCores.containsKey(playerId)) {
-            ItemStack savedCore = savedCores.get(playerId);
-            Integer slotIndex = savedCoreSlots.get(playerId);
+    private void restoreCore(EntityPlayer player) {
+        NBTTagCompound persisted = player.getEntityData().getCompoundTag(PERSISTED);
+        if (!persisted.hasKey(K_CORE_NBT)) return;
 
-            boolean restored = false;
+        NBTTagCompound coreNbt = persisted.getCompoundTag(K_CORE_NBT);
+        ItemStack core = new ItemStack(coreNbt);
+        int slot = persisted.getInteger(K_CORE_SLOT);
+        boolean inBaubles = persisted.getBoolean(K_IN_BAUBLES);
+        persisted.setBoolean(K_RESTORE_PENDING, false);
 
-            // 尝试恢复到原来的槽位
-            if (BAUBLES_LOADED && slotIndex != null && slotIndex >= 0) {
-                try {
-                    IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(player);
-                    if (baubles != null && slotIndex < baubles.getSlots()) {
-                        baubles.setStackInSlot(slotIndex, savedCore);
-                        restored = true;
-                        System.out.println("[moremod] ✅ 恢复机械核心到Baubles槽位 " + slotIndex);
-                    }
-                } catch (Exception e) {
-                    System.err.println("[moremod] ❌ 恢复到Baubles槽位失败: " + e.getMessage());
-                }
+        if (core.isEmpty()) {
+            cleanupCoreData(persisted);
+            return;
+        }
+
+        boolean restored = false;
+        if (BAUBLES_LOADED && inBaubles && slot >= 0) {
+            restored = restoreToBaubles(player, core, slot);
+        }
+
+        if (!restored && !inBaubles && slot >= 0 && slot < player.inventory.getSizeInventory()) {
+            if (player.inventory.getStackInSlot(slot).isEmpty()) {
+                player.inventory.setInventorySlotContents(slot, core);
+                restored = true;
             }
+        }
 
-            // 如果无法恢复到原槽位，尝试放入物品栏
-            if (!restored) {
-                if (player.inventory.addItemStackToInventory(savedCore)) {
-                    System.out.println("[moremod] ✅ 恢复机械核心到物品栏");
-                } else {
-                    // 如果物品栏满了，强制放入第一个槽位
-                    player.inventory.setInventorySlotContents(0, savedCore);
-                    System.out.println("[moremod] ⚠️ 物品栏已满，强制恢复到第一个槽位");
-                }
+        if (!restored) {
+            if (player.inventory.addItemStackToInventory(core)) {
+                restored = true;
+            } else {
+                player.inventory.setInventorySlotContents(0, core);
+                restored = true;
             }
+        }
 
-            // 清理保存的数据
-            savedCores.remove(playerId);
-            savedCoreSlots.remove(playerId);
-
-            // 发送恢复消息
+        if (restored) {
+            cleanupCoreData(persisted);
             player.sendMessage(new TextComponentString(
-                    TextFormatting.DARK_AQUA + "⚙ 机械核心已自动恢复！它永远不会离开你。"
+                    TextFormatting.DARK_AQUA + "⚙ 机械核心已安全恢复" +
+                            (inBaubles ? "到饰品栏" : "到背包") + "。"
             ));
         }
     }
 
-    /**
-     * 阻止玩家死亡时掉落机械核心
-     */
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public void onPlayerDrops(PlayerDropsEvent event) {
-        // 移除所有机械核心掉落
-        event.getDrops().removeIf(entityItem -> {
-            boolean isCore = ItemMechanicalCore.isMechanicalCore(entityItem.getItem());
-            if (isCore) {
-                System.out.println("[moremod] 🛡️ 移除了掉落的机械核心");
-            }
-            return isCore;
-        });
-    }
-
-    /**
-     * 阻止通过其他方式掉落机械核心
-     */
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public void onLivingDrops(LivingDropsEvent event) {
-        if (event.getEntityLiving() instanceof EntityPlayer) {
-            event.getDrops().removeIf(entityItem -> {
-                boolean isCore = ItemMechanicalCore.isMechanicalCore(entityItem.getItem());
-                if (isCore) {
-                    System.out.println("[moremod] 🛡️ LivingDrops保护生效");
-                }
-                return isCore;
-            });
-        }
-    }
-
-    /**
-     * 阻止玩家手动丢弃机械核心
-     */
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public void onItemToss(ItemTossEvent event) {
-        ItemStack tossedItem = event.getEntityItem().getItem();
-
-        if (ItemMechanicalCore.isMechanicalCore(tossedItem)) {
-            event.setCanceled(true);
-
-            if (event.getPlayer() != null) {
-                event.getPlayer().sendMessage(new TextComponentString(
-                        TextFormatting.DARK_RED + "⚠ 机械核心彻底消失，已经无法找回。"
-                ));
-            }
-
-        }
-    }
-
-    /**
-     * 终极保护：监控世界中的机械核心掉落物并清除
-     */
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public void onItemSpawn(net.minecraftforge.event.entity.EntityJoinWorldEvent event) {
-        if (event.getEntity() instanceof EntityItem) {
-            EntityItem entityItem = (EntityItem) event.getEntity();
-            ItemStack stack = entityItem.getItem();
-
-            if (ItemMechanicalCore.isMechanicalCore(stack)) {
-                event.setCanceled(true);
-                System.out.println("[moremod] 🛡️ 终极保护：阻止了机械核心掉落物生成");
-            }
-        }
-    }
-
-    /**
-     * 玩家克隆事件（用于模组兼容）
-     */
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public void onPlayerClone(PlayerEvent.Clone event) {
-        if (event.isWasDeath()) {
-            EntityPlayer oldPlayer = event.getOriginal();
-            EntityPlayer newPlayer = event.getEntityPlayer();
-
-            // 检查旧玩家的Baubles槽位
-            if (BAUBLES_LOADED) {
-                try {
-                    IBaublesItemHandler oldBaubles = BaublesApi.getBaublesHandler(oldPlayer);
-                    IBaublesItemHandler newBaubles = BaublesApi.getBaublesHandler(newPlayer);
-
-                    if (oldBaubles != null && newBaubles != null) {
-                        for (int i = 0; i < oldBaubles.getSlots(); i++) {
-                            ItemStack stack = oldBaubles.getStackInSlot(i);
-                            if (!stack.isEmpty() && ItemMechanicalCore.isMechanicalCore(stack)) {
-                                newBaubles.setStackInSlot(i, stack.copy());
-                                System.out.println("[moremod] 📋 通过Clone事件恢复了机械核心");
-                                break;
-                            }
+    private boolean restoreToBaubles(EntityPlayer player, ItemStack core, int slot) {
+        try {
+            IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(player);
+            if (baubles != null && slot < baubles.getSlots()) {
+                if (baubles.getStackInSlot(slot).isEmpty()) {
+                    baubles.setStackInSlot(slot, core);
+                    return true;
+                } else {
+                    for (int i = 0; i < baubles.getSlots(); i++) {
+                        if (baubles.getStackInSlot(i).isEmpty() && baubles.isItemValidForSlot(i, core, player)) {
+                            baubles.setStackInSlot(i, core);
+                            return true;
                         }
                     }
-                } catch (Exception e) {
-                    System.err.println("[moremod] ❌ Clone事件处理失败: " + e.getMessage());
                 }
             }
-        }
+        } catch (Exception ignored) {}
+        return false;
     }
 
-    /**
-     * 清理离线玩家的保存数据
-     */
+    private void cleanupCoreData(NBTTagCompound persisted) {
+        persisted.removeTag(K_CORE_NBT);
+        persisted.removeTag(K_CORE_SLOT);
+        persisted.removeTag(K_IN_BAUBLES);
+        persisted.removeTag(K_RESTORE_PENDING);
+    }
+
     @SubscribeEvent
     public void onPlayerLogout(net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerLoggedOutEvent event) {
-        // 如果玩家退出游戏时还有保存的核心，清理掉避免内存泄漏
-        UUID playerId = event.player.getUniqueID();
-        if (savedCores.containsKey(playerId)) {
-            savedCores.remove(playerId);
-            savedCoreSlots.remove(playerId);
-            System.out.println("[moremod] 🧹 清理了离线玩家的保存数据");
-        }
+        // PlayerPersisted 自动保存，无需操作
     }
 
-    /**
-     * 调试：打印掉落事件信息
-     */
     @SubscribeEvent(priority = EventPriority.LOWEST)
-    public void debugDrops(PlayerDropsEvent event) {
-        if (event.getDrops().size() > 0) {
-            System.out.println("[moremod] 🔍 玩家掉落物调试:");
-            for (EntityItem item : event.getDrops()) {
-                ItemStack stack = item.getItem();
-                System.out.println("  - " + stack.getDisplayName() + " x" + stack.getCount());
-
-                if (ItemMechanicalCore.isMechanicalCore(stack)) {
-                    System.err.println("  ❌ 警告：发现机械核心在掉落列表中！");
-                }
-            }
-        }
-    }
+    public void debugDrops(PlayerDropsEvent event) {}
 }

@@ -5,6 +5,7 @@ import baubles.api.cap.IBaublesItemHandler;
 import com.moremod.item.ItemCrudeEnergyBarrier;
 import com.moremod.item.ItemBasicEnergyBarrier;
 import com.moremod.item.ItemadvEnergyBarrier;
+import ichttt.mods.firstaid.api.damagesystem.AbstractDamageablePart;
 import ichttt.mods.firstaid.api.damagesystem.AbstractPlayerDamageModel;
 import ichttt.mods.firstaid.api.event.FirstAidLivingDamageEvent;
 import net.minecraft.client.Minecraft;
@@ -28,7 +29,6 @@ import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,7 +36,6 @@ import java.util.Random;
 import java.util.UUID;
 
 import static com.moremod.eventHandler.EnergyBarrierEventHandler.getDamageTypeName;
-
 
 /**
  * 完整的护盾系统集成 - Minecraft 1.12.2 版本
@@ -270,7 +269,6 @@ public class IntegratedShieldSystem {
         AbstractPlayerDamageModel afterDamage = event.getAfterDamage();
         float undistributedDamage = event.getUndistributedDamage();
 
-        boolean shouldModify = false;
         String protectionMessage = "";
         TextFormatting messageColor = TextFormatting.WHITE;
 
@@ -282,7 +280,6 @@ public class IntegratedShieldSystem {
                         redistributeHeadDamage(afterDamage, beforeDamage, undistributedDamage);
                         protectionMessage = "头部防护触发！";
                         messageColor = TextFormatting.GRAY;
-                        shouldModify = true;
                     }
                 }
                 break;
@@ -310,20 +307,18 @@ public class IntegratedShieldSystem {
 
                 if (headProtected || bodyProtected) {
                     messageColor = TextFormatting.AQUA;
-                    shouldModify = true;
                 }
                 break;
 
             case ADVANCED:
-                // 高级：高概率无视要害伤害
+                // 高级：優先扣四肢，致命伤有 50% 概率被无视
                 prioritizeLimbDamage(afterDamage, beforeDamage, undistributedDamage, player, status);
 
-                // 检查是否触发了保护
                 float headReduction = beforeDamage.HEAD.currentHealth - afterDamage.HEAD.currentHealth;
                 float bodyReduction = beforeDamage.BODY.currentHealth - afterDamage.BODY.currentHealth;
 
                 if (headReduction > 0.1F || bodyReduction > 0.1F) {
-                    protectionMessage = "要害防护激活！伤害大幅减免";
+                    protectionMessage = "要害防护激活！优先转移伤害至四肢";
                     messageColor = TextFormatting.GOLD;
                 }
                 break;
@@ -409,8 +404,11 @@ public class IntegratedShieldSystem {
     }
 
     /**
-     * 高概率无视要害伤害 - 高级护盾（简化版）
-     * 直接减免头部和身体的伤害，避免复杂的转移导致假死
+     * 高级护盾：優先扣四肢，再扣要害，致命伤有 50% 概率被无视
+     *
+     * - 先把「頭 + 身體」的傷害盡量轉移到四肢（不讓四肢低於 LIMB_MIN_THRESHOLD）
+     * - 若轉移後仍導致頭/身體從 >0 → <=0，則有 50% 機率將其抬回 VITAL_MIN_HEALTH
+     * - 這樣可以有效避免假死，又符合「致命非致命都優先扣四肢」的設計
      */
     @Optional.Method(modid = "firstaid")
     private static void prioritizeLimbDamage(
@@ -420,85 +418,91 @@ public class IntegratedShieldSystem {
             EntityPlayer player,
             ShieldStatus status
     ) {
-        // 定义无视概率
-        final float HEAD_IGNORE_CHANCE = 0.9F;   // 90%无视头部伤害
-        final float BODY_IGNORE_CHANCE = 0.8F;   // 80%无视身体伤害
-        final float DAMAGE_REDUCTION = 0.1F;     // 剩余10-20%的伤害
+        // 1. 計算原本要害受到的傷害
+        float headDamage = Math.max(0.0F, beforeDamage.HEAD.currentHealth - afterDamage.HEAD.currentHealth);
+        float bodyDamage = Math.max(0.0F, beforeDamage.BODY.currentHealth - afterDamage.BODY.currentHealth);
+        float vitalDamage = headDamage + bodyDamage;
 
-        // 保存原始血量
-        float originalHeadHealth = beforeDamage.HEAD.currentHealth;
-        float originalBodyHealth = beforeDamage.BODY.currentHealth;
+        if (vitalDamage <= 0.0F) {
+            // 本次沒有打到要害，讓 FirstAid 原本分配邏輯處理即可
+            return;
+        }
 
-        // 计算各部位受到的伤害
-        float headDamage = Math.max(0, originalHeadHealth - afterDamage.HEAD.currentHealth);
-        float bodyDamage = Math.max(0, originalBodyHealth - afterDamage.BODY.currentHealth);
+        // 2. 計算四肢可以承受的「轉移傷害容量」
+        AbstractDamageablePart[] limbs = new AbstractDamageablePart[] {
+                afterDamage.LEFT_ARM,
+                afterDamage.RIGHT_ARM,
+                afterDamage.LEFT_LEG,
+                afterDamage.RIGHT_LEG
+        };
 
-        boolean headProtected = false;
-        boolean bodyProtected = false;
-        String protectionMessage = "";
-
-        // 处理头部伤害
-        if (headDamage > 0) {
-            if (random.nextFloat() < HEAD_IGNORE_CHANCE) {
-                // 90%概率大幅减免头部伤害
-                afterDamage.HEAD.currentHealth = originalHeadHealth - (headDamage * DAMAGE_REDUCTION);
-                headProtected = true;
-
-                // 确保不会因为浮点误差进入假死
-                if (afterDamage.HEAD.currentHealth > 0 && afterDamage.HEAD.currentHealth < VITAL_MIN_HEALTH) {
-                    afterDamage.HEAD.currentHealth = VITAL_MIN_HEALTH;
-                }
+        float limbCapacity = 0.0F;
+        for (AbstractDamageablePart limb : limbs) {
+            float canTake = limb.currentHealth - LIMB_MIN_THRESHOLD;
+            if (canTake > 0.0F) {
+                limbCapacity += canTake;
             }
         }
 
-        // 处理身体伤害
-        if (bodyDamage > 0) {
-            if (random.nextFloat() < BODY_IGNORE_CHANCE) {
-                // 80%概率大幅减免身体伤害
-                afterDamage.BODY.currentHealth = originalBodyHealth - (bodyDamage * DAMAGE_REDUCTION);
-                bodyProtected = true;
+        // 3. 實際能從要害轉移出的傷害量
+        float shift = Math.min(vitalDamage, limbCapacity);
 
-                // 确保不会因为浮点误差进入假死
-                if (afterDamage.BODY.currentHealth > 0 && afterDamage.BODY.currentHealth < VITAL_MIN_HEALTH) {
-                    afterDamage.BODY.currentHealth = VITAL_MIN_HEALTH;
-                }
+        if (shift > 0.0F) {
+            // 3-1. 依照 head/body 原本受傷比例，把部分傷害「退回」給要害
+            float headShare = headDamage / vitalDamage;
+            float bodyShare = bodyDamage / vitalDamage;
+
+            afterDamage.HEAD.currentHealth += shift * headShare;
+            afterDamage.BODY.currentHealth += shift * bodyShare;
+
+            // 不允許超過原本血量（避免被「治療」）
+            if (afterDamage.HEAD.currentHealth > beforeDamage.HEAD.currentHealth) {
+                afterDamage.HEAD.currentHealth = beforeDamage.HEAD.currentHealth;
+            }
+            if (afterDamage.BODY.currentHealth > beforeDamage.BODY.currentHealth) {
+                afterDamage.BODY.currentHealth = beforeDamage.BODY.currentHealth;
+            }
+
+            // 3-2. 把這批 shift 傷害實際打在四肢上（順序吃完）
+            float remaining = shift;
+            for (AbstractDamageablePart limb : limbs) {
+                if (remaining <= 0.0F) break;
+                float canTake = limb.currentHealth - LIMB_MIN_THRESHOLD;
+                if (canTake <= 0.0F) continue;
+
+                float taken = Math.min(canTake, remaining);
+                limb.currentHealth -= taken;
+                remaining -= taken;
             }
         }
 
-        // 构建保护消息
-        if (headProtected && bodyProtected) {
-            protectionMessage = "要害完全保护！伤害减免90%";
-        } else if (headProtected) {
-            protectionMessage = "头部保护激活！伤害减免90%";
-        } else if (bodyProtected) {
-            protectionMessage = "躯干保护激活！伤害减免90%";
-        }
+        // 4. 檢查是否仍然導致「致命」：頭或身體從 >0 -> <=0
+        boolean headFatal = beforeDamage.HEAD.currentHealth > 0.0F && afterDamage.HEAD.currentHealth <= 0.0F;
+        boolean bodyFatal = beforeDamage.BODY.currentHealth > 0.0F && afterDamage.BODY.currentHealth <= 0.0F;
 
-        // 如果有保护触发，显示效果
-        if (!protectionMessage.isEmpty() && !player.world.isRemote) {
-            player.sendStatusMessage(new TextComponentString(
-                    TextFormatting.GOLD + "[高级护盾] " + protectionMessage
-            ), true);
+        if ((headFatal || bodyFatal) && random.nextFloat() < 0.5F) {
+            // 50% 機率無視這次致命傷，直接把要害抬回 VITAL_MIN_HEALTH
+            if (headFatal) {
+                afterDamage.HEAD.currentHealth = Math.max(afterDamage.HEAD.currentHealth, VITAL_MIN_HEALTH);
+            }
+            if (bodyFatal) {
+                afterDamage.BODY.currentHealth = Math.max(afterDamage.BODY.currentHealth, VITAL_MIN_HEALTH);
+            }
 
-            // 特殊情况：如果原本会致命但被保护
-            if ((headDamage > originalHeadHealth * 0.8F && headProtected) ||
-                    (bodyDamage > originalBodyHealth * 0.8F && bodyProtected)) {
-
-                // 给予少量黄心作为奖励
-                float absorption = 2.0F;
-                player.setAbsorptionAmount(player.getAbsorptionAmount() + absorption);
-                player.sendStatusMessage(new TextComponentString(
-                        TextFormatting.YELLOW + "致命伤害吸收 +" + absorption + " 黄心"
-                ), true);
+            if (!player.world.isRemote) {
+                player.sendStatusMessage(
+                        new TextComponentString(
+                                TextFormatting.GOLD + "[高级护盾] 致命伤害被护盾抵消！"
+                        ),
+                        true
+                );
             }
         }
-
-        // 对四肢的伤害保持正常（不处理）
-        // 这样四肢仍会正常受伤，但要害得到强力保护
+        // 其餘情況交給外層 handleCooldownPartProtection 的保底邏輯處理（< VITAL_MIN_HEALTH 時抬到下限）
     }
 
     /**
-     * 检查是否发生了伤害转移
+     * 检查是否发生了伤害转移（目前保留，暫未使用）
      */
     @Optional.Method(modid = "firstaid")
     private static boolean checkDamageTransfer(
@@ -654,7 +658,7 @@ public class IntegratedShieldSystem {
             double dz = entity.posZ - player.posZ;
             double distance = Math.sqrt(dx * dx + dz * dz);
             if (distance > 0) {
-                entity.knockBack(player, 1.5F, -dx/distance, -dz/distance);
+                entity.knockBack(player, 1.5F, -dx / distance, -dz / distance);
                 entity.attackEntityFrom(DamageSource.causePlayerDamage(player), damage * 0.5F);
             }
         }
@@ -744,7 +748,7 @@ public class IntegratedShieldSystem {
             long cooldown
     ) {
         String shieldName = getShieldName(type);
-        int cooldownSec = (int)(cooldown / 1000L);
+        int cooldownSec = (int) (cooldown / 1000L);
 
         player.sendStatusMessage(new TextComponentString(
                 getShieldColor(type) + "[" + shieldName + "] " +
@@ -787,28 +791,40 @@ public class IntegratedShieldSystem {
 
     private static long getCooldownTime(ShieldType type) {
         switch (type) {
-            case CRUDE: return CRUDE_COOLDOWN;
-            case BASIC: return BASIC_COOLDOWN;
-            case ADVANCED: return ADVANCED_COOLDOWN;
-            default: return 0L;
+            case CRUDE:
+                return CRUDE_COOLDOWN;
+            case BASIC:
+                return BASIC_COOLDOWN;
+            case ADVANCED:
+                return ADVANCED_COOLDOWN;
+            default:
+                return 0L;
         }
     }
 
     private static int getEnergyCost(ShieldType type) {
         switch (type) {
-            case CRUDE: return CRUDE_ENERGY_COST;
-            case BASIC: return BASIC_ENERGY_COST;
-            case ADVANCED: return ADVANCED_ENERGY_COST;
-            default: return 0;
+            case CRUDE:
+                return CRUDE_ENERGY_COST;
+            case BASIC:
+                return BASIC_ENERGY_COST;
+            case ADVANCED:
+                return ADVANCED_ENERGY_COST;
+            default:
+                return 0;
         }
     }
 
     private static int getShieldEnergy(ItemStack stack, ShieldType type) {
         switch (type) {
-            case CRUDE: return ItemCrudeEnergyBarrier.getEnergyStored(stack);
-            case BASIC: return ItemBasicEnergyBarrier.getEnergyStored(stack);
-            case ADVANCED: return ItemadvEnergyBarrier.getEnergyStored(stack);
-            default: return 0;
+            case CRUDE:
+                return ItemCrudeEnergyBarrier.getEnergyStored(stack);
+            case BASIC:
+                return ItemBasicEnergyBarrier.getEnergyStored(stack);
+            case ADVANCED:
+                return ItemadvEnergyBarrier.getEnergyStored(stack);
+            default:
+                return 0;
         }
     }
 
@@ -832,19 +848,27 @@ public class IntegratedShieldSystem {
 
     private static String getShieldName(ShieldType type) {
         switch (type) {
-            case CRUDE: return "粗劣护盾";
-            case BASIC: return "基础护盾";
-            case ADVANCED: return "高级护盾";
-            default: return "未知护盾";
+            case CRUDE:
+                return "粗劣护盾";
+            case BASIC:
+                return "基础护盾";
+            case ADVANCED:
+                return "高级护盾";
+            default:
+                return "未知护盾";
         }
     }
 
     private static TextFormatting getShieldColor(ShieldType type) {
         switch (type) {
-            case CRUDE: return TextFormatting.GRAY;
-            case BASIC: return TextFormatting.AQUA;
-            case ADVANCED: return TextFormatting.GOLD;
-            default: return TextFormatting.WHITE;
+            case CRUDE:
+                return TextFormatting.GRAY;
+            case BASIC:
+                return TextFormatting.AQUA;
+            case ADVANCED:
+                return TextFormatting.GOLD;
+            default:
+                return TextFormatting.WHITE;
         }
     }
 
@@ -1010,11 +1034,6 @@ public class IntegratedShieldSystem {
             }
         }
     }
-
-    /**
-     * 低生命值心跳效果免疫
-     * 护盾激活时减轻低血量视觉效果
-
 
     /**
      * 检查客户端是否需要导入EnhancedVisuals类

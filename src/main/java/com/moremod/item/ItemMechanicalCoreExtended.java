@@ -65,6 +65,7 @@ public class ItemMechanicalCoreExtended {
 
     static {
         registerUpgrades();
+
     }
 
     /** 仅注册“扩展升级” —— 基础升级不要在这里登记，避免和主核心重复统计 */
@@ -90,6 +91,7 @@ public class ItemMechanicalCoreExtended {
         register("NIGHT_VISION",    "夜视",       TextFormatting.YELLOW,      1, UpgradeCategory.AUXILIARY);
         register("WATER_BREATHING", "水下呼吸",   TextFormatting.AQUA,        1, UpgradeCategory.AUXILIARY);
         register("ITEM_MAGNET",     "物品磁铁",   TextFormatting.LIGHT_PURPLE,3, UpgradeCategory.AUXILIARY);
+        register("NEURAL_SYNCHRONIZER", "神经同步器", TextFormatting.AQUA, 1, UpgradeCategory.AUXILIARY); // 第86行
 
         // ===== 战斗类 =====
         register("DAMAGE_BOOST",    "力量增幅",   TextFormatting.DARK_RED,    5, UpgradeCategory.COMBAT);

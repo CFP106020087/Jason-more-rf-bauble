@@ -86,42 +86,8 @@ public class IdentifiedAffix {
         return "§7"; // 灰色 - 普通
     }
 
-    /**
-     * 应用词条效果到武器数据
-     *
-     * @param weaponData 武器数据
-     */
-    public void applyToWeapon(UpgradeMaterial weaponData) {
-        switch (affix.getType()) {
-            case ATTACK_SPEED:
-                weaponData.attackSpeed += value;
-                break;
 
-            case FLAT_DAMAGE:
-                weaponData.attackDamage += value;
-                break;
 
-            case ATTRIBUTE_BONUS:
-                String attrName = (String) affix.getParameters().get("attribute");
-                if (attrName != null) {
-                    weaponData.extraAttributes.put(attrName, (double) value);
-                }
-                break;
-
-            case DAMAGE_CONVERSION:
-            case DAMAGE_MULTIPLIER:
-            case SPECIAL_EFFECT:
-                // 这些需要在伤害计算时处理,存储到extraAttributes
-                String key = affix.getType().getId() + "_" + affix.getId();
-                weaponData.extraAttributes.put(key, (double) value);
-                break;
-
-            case CUSTOM:
-                // 自定义类型,通过parameters处理
-                weaponData.extraAttributes.put(affix.getId(), (double) value);
-                break;
-        }
-    }
 
     @Override
     public String toString() {

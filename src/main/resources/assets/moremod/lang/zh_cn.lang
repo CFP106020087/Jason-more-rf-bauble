@@ -1,5 +1,16 @@
 #PARSE_ESCAPES
 #items\
+item.identify_scroll.name=宝石鉴定卷轴
+# 方块
+tile.extraction_station.name=提取站
+tile.moremodpurification_altar.name=净化祭坛
+tile.transfer_station.name=转移站
+
+tooltip.moremod.identifyscroll.desc=一卷蕴含古老魔力的羊皮卷，可揭示宝石的真实之力。
+tooltip.moremod.identifyscroll.usage_title=使用方法：
+tooltip.moremod.identifyscroll.usage_1=1. 副手持有未鉴定的宝石
+tooltip.moremod.identifyscroll.usage_2=2. 右键使用卷轴以进行鉴定
+tile.bottling_machine.name=自动装瓶器
 item.sword_chengyue.name=澄月
 item.resource_magnet_ring.name=資源磁化戒指
 tile.sword_upgrade_station_material.name=材质变化台

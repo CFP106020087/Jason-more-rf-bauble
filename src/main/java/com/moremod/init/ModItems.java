@@ -18,6 +18,10 @@ import com.moremod.item.ItemSwordChengYue;
 // 💎 添加宝石系统导入
 import com.moremod.item.ItemGem;
 import com.moremod.item.ItemIdentifyScroll;
+// 🧬 添加机械核心升级系统导入
+import com.moremod.item.upgrades.ItemNeuralSynchronizer;
+import com.moremod.item.ItemBioStabilizer;
+import com.moremod.item.ItemTowel;
 
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.item.EnumRarity;
@@ -76,6 +80,11 @@ public final class ModItems {
     // 💎 宝石系统
     public static ItemGem GEM;                      // 宝石（支持品质颜色）
     public static Item IDENTIFY_SCROLL;             // 鉴定卷轴
+
+    // 🧬 机械核心升级与维护系统
+    public static Item NEURAL_SYNCHRONIZER;     // 神经同步器
+    public static Item BIO_STABILIZER;          // 生物稳定剂
+    public static Item TOWEL;                   // 毛巾
 
     @SubscribeEvent
     public static void onRegisterItems(RegistryEvent.Register<Item> e) {
@@ -142,6 +151,16 @@ public final class ModItems {
 
         IDENTIFY_SCROLL = reg(e, new ItemIdentifyScroll());
         System.out.println("[MoreMod] 📜 鉴定卷轴已注册");
+
+        // 🧬 注册机械核心升级与维护系统
+        NEURAL_SYNCHRONIZER = reg(e, new ItemNeuralSynchronizer());
+        System.out.println("[MoreMod] 🧬 神经同步器已注册");
+
+        BIO_STABILIZER = reg(e, new ItemBioStabilizer());
+        System.out.println("[MoreMod] 💉 生物稳定剂已注册");
+
+        TOWEL = reg(e, new ItemTowel());
+        System.out.println("[MoreMod] 🧴 毛巾已注册");
     }
 
     private static Item reg(RegistryEvent.Register<Item> e, Item item) {
@@ -213,6 +232,16 @@ public final class ModItems {
 
         bindModel(IDENTIFY_SCROLL, "identify_scroll");
         System.out.println("[MoreMod] 📜 鉴定卷轴模型已注册");
+
+        // 🧬 绑定机械核心升级与维护系统模型
+        bindModel(NEURAL_SYNCHRONIZER, "neural_synchronizer");
+        System.out.println("[MoreMod] 🧬 神经同步器模型已注册");
+
+        bindModel(BIO_STABILIZER, "bio_stabilizer");
+        System.out.println("[MoreMod] 💉 生物稳定剂模型已注册");
+
+        bindModel(TOWEL, "towel");
+        System.out.println("[MoreMod] 🧴 毛巾模型已注册");
     }
 
     private static void bindModel(Item item, String path) {

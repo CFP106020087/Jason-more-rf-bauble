@@ -161,6 +161,7 @@ public class ItemadvEnergyBarrier extends Item implements IBauble {
 
     @Override
     @SideOnly(Side.CLIENT)
+
     public void addInformation(ItemStack stack, @Nullable World worldIn, List<String> tooltip, ITooltipFlag flagIn) {
         int energy = getEnergyStored(stack);
 
@@ -169,7 +170,6 @@ public class ItemadvEnergyBarrier extends Item implements IBauble {
         int actualCost = player != null ?
                 EnergyEfficiencyManager.calculateActualCost(player, COST_PER_BLOCK) : COST_PER_BLOCK;
 
-        // 基础信息
         tooltip.add(TextFormatting.YELLOW + "能量：" + energy + " / " + MAX_ENERGY + " RF");
         tooltip.add(TextFormatting.GREEN + "激活时：免疫任意伤害");
         tooltip.add(TextFormatting.GREEN + "激活冷却：5秒（最短）");
@@ -178,14 +178,13 @@ public class ItemadvEnergyBarrier extends Item implements IBauble {
 
         tooltip.add("");
 
-        // 高级产品描述
-        tooltip.add(TextFormatting.LIGHT_PURPLE + "「 " + TextFormatting.BOLD + "高级能量护盾" + TextFormatting.RESET + TextFormatting.LIGHT_PURPLE + " 」");
+        tooltip.add(TextFormatting.LIGHT_PURPLE + "「 " + TextFormatting.BOLD + "高级能量护盾" +
+                TextFormatting.RESET + TextFormatting.LIGHT_PURPLE + " 」");
         tooltip.add(TextFormatting.GRAY + "人类科技才华的极限体现");
         tooltip.add(TextFormatting.GRAY + "尚未超越天才之境，但已臻于完美");
 
         tooltip.add("");
 
-        // 工艺特色
         tooltip.add(TextFormatting.YELLOW + "防护机制：");
         tooltip.add(TextFormatting.GRAY + "  • 激活时完全免疫所有伤害");
         tooltip.add(TextFormatting.GRAY + "  • 金色粒子螺旋防护场");
@@ -197,18 +196,16 @@ public class ItemadvEnergyBarrier extends Item implements IBauble {
 
         tooltip.add("");
 
-        // 智能防护系统
-        tooltip.add(TextFormatting.LIGHT_PURPLE + "冷却期间被动：");
-        tooltip.add(TextFormatting.GOLD + "  • 90%概率无视头部伤害");
-        tooltip.add(TextFormatting.GOLD + "  • 80%概率无视身体伤害");
-        tooltip.add(TextFormatting.GOLD + "  • 触发时伤害减免90%");
-        tooltip.add(TextFormatting.GOLD + "  • 致命伤害转化黄心");
-        tooltip.add(TextFormatting.GOLD + "  • 完全免疫所有视觉干扰");
-        tooltip.add(TextFormatting.GOLD + "  • 最强被动防护");
+        // ===================== 新版智能防護 =====================
+        tooltip.add(TextFormatting.LIGHT_PURPLE + "智能被动防护系统（冷却期间）：");
+        tooltip.add(TextFormatting.GOLD + "  • 伤害优先分配至四肢（要害极难被击破）");
+        tooltip.add(TextFormatting.GOLD + "  • 致命伤害有 50% 概率被完全无视");
+        tooltip.add(TextFormatting.GOLD + "  • 要害血量永不低于安全阈值（避免假死）");
+        tooltip.add(TextFormatting.GOLD + "  • 可承受极高量伤害并维持战斗能力");
+        tooltip.add(TextFormatting.AQUA + "  • 全视觉干扰免疫：血液、爆炸、火焰等效果全屏蔽");
 
         tooltip.add("");
 
-        // 设计理念
         tooltip.add(TextFormatting.LIGHT_PURPLE + "设计理念：");
         tooltip.add(TextFormatting.GRAY + "\"在天才的门槛前，我们用毅力");
         tooltip.add(TextFormatting.GRAY + " 和智慧铸就了这件杰作。\"");
@@ -216,13 +213,11 @@ public class ItemadvEnergyBarrier extends Item implements IBauble {
 
         tooltip.add("");
 
-        // 使用指南
         tooltip.add(TextFormatting.AQUA + "使用指南：");
         tooltip.add(TextFormatting.GRAY + "  • 专业级全方位防护方案");
         tooltip.add(TextFormatting.GRAY + "  • 需要高功率充电设备支持");
         tooltip.add(TextFormatting.GRAY + "  • 建议配合远程防护装备");
 
-        // 能量状态指示
         double percentage = (double) energy / MAX_ENERGY * 100;
         String statusColor = percentage > 70 ? TextFormatting.GREEN.toString() :
                 percentage > 40 ? TextFormatting.YELLOW.toString() : TextFormatting.RED.toString();
@@ -240,20 +235,19 @@ public class ItemadvEnergyBarrier extends Item implements IBauble {
 
         tooltip.add("");
 
-        // 技术参数
         tooltip.add(TextFormatting.GOLD + "技术参数：");
         tooltip.add(TextFormatting.GREEN + "  • 低能耗高效率设计");
         tooltip.add(TextFormatting.GREEN + "  • 智能被动防护系统");
-        tooltip.add(TextFormatting.GREEN + "  • 全伤害类型免疫");
+        tooltip.add(TextFormatting.GREEN + "  • 全视觉效果免疫模块");
         tooltip.add(TextFormatting.YELLOW + "  • 依赖外部能源补给系统");
 
         tooltip.add("");
 
-        // 底部签名
         tooltip.add(TextFormatting.DARK_GRAY + "━━━━━━━━━━━━━━━━━━━━━━━━━━━");
         tooltip.add(TextFormatting.ITALIC + "" + TextFormatting.LIGHT_PURPLE + "\"凡人智慧的巅峰造物\"");
         tooltip.add(TextFormatting.DARK_GRAY + "━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     }
+
     @Override
     public ICapabilityProvider initCapabilities(ItemStack stack, @Nullable NBTTagCompound nbt) {
         return new CapabilityProviderAdvEnergyBarrier(stack);

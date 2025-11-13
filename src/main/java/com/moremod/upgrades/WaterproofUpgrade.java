@@ -508,6 +508,15 @@ public class WaterproofUpgrade {
      * 清除故障效果
      */
     private static void clearMalfunctionEffects(EntityPlayer player) {
+        // ✨ 新逻辑：检查是否有潮湿值故障
+        int wetness = WetnessSystem.getWetness(player);
+
+        // 如果潮湿值达到故障阈值，不要清除故障（让潮湿系统管理）
+        if (wetness >= 80) {
+            return;
+        }
+
+        // 只有在确定没有潮湿故障时，才清除水接触故障
         if (player.isPotionActive(ModPotions.MALFUNCTION)) {
             player.removePotionEffect(ModPotions.MALFUNCTION);
         }

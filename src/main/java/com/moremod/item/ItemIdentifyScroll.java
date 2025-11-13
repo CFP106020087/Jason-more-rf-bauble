@@ -1,6 +1,7 @@
 package com.moremod.item;
 
 import com.moremod.compat.crafttweaker.GemNBTHelper;
+import com.moremod.creativetab.moremodCreativeTab;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.player.EntityPlayer;
@@ -28,10 +29,10 @@ public class ItemIdentifyScroll extends Item {
 
     public ItemIdentifyScroll() {
         super();
-        setRegistryName("identifyscroll");
-        setTranslationKey("identifyscroll");
+        setRegistryName("identify_scroll");
+        setTranslationKey("identify_scroll");
         setMaxStackSize(64);
-        setCreativeTab(net.minecraft.creativetab.CreativeTabs.MISC);
+        this.setCreativeTab(moremodCreativeTab.moremod_TAB);
     }
 
     @Override
@@ -95,10 +96,11 @@ public class ItemIdentifyScroll extends Item {
 
     @Override
     public void addInformation(ItemStack stack, @Nullable World world, List<String> tooltip, ITooltipFlag flag) {
-        tooltip.add(TextFormatting.GRAY + "用于鉴定未知宝石");
+        tooltip.add(TextFormatting.GOLD + I18n.format("tooltip.moremod.identifyscroll.desc"));
         tooltip.add("");
-        tooltip.add(TextFormatting.YELLOW + "使用方法：");
-        tooltip.add(TextFormatting.GRAY + "1. 副手持有未鉴定宝石");
-        tooltip.add(TextFormatting.GRAY + "2. 右键使用卷轴");
+        tooltip.add(TextFormatting.YELLOW + I18n.format("tooltip.moremod.identifyscroll.usage_title"));
+        tooltip.add(TextFormatting.GRAY + I18n.format("tooltip.moremod.identifyscroll.usage_1"));
+        tooltip.add(TextFormatting.GRAY + I18n.format("tooltip.moremod.identifyscroll.usage_2"));
     }
+
 }

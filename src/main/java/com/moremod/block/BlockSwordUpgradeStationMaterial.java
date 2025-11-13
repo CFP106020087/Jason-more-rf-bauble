@@ -1,4 +1,3 @@
-
 package com.moremod.block;
 
 import com.moremod.moremod;

@@ -476,10 +476,7 @@ public class moremod {
         System.out.println("[moremod] ✅ 网络包初始化");
     }
 
-    @Mod.EventHandler
-    public void onLoadComplete(net.minecraftforge.fml.common.event.FMLLoadCompleteEvent event) {
-        UpgradeConfig.loadConfigs();  // 建立/載入 moremod/sword_upgrades/*.json
-    }
+
 
     /**
      * 初始化阶段
@@ -741,7 +738,6 @@ public class moremod {
         // 1. 机械心脏系统
         MinecraftForge.EVENT_BUS.register(new MechanicalHeartEventHandler());
         System.out.println("[moremod] 💓 机械心脏事件处理器注册成功");
-        MinecraftForge.EVENT_BUS.register(new SwordUpgradeEventHandler());
         MinecraftForge.EVENT_BUS.register(new PotionCoreCompatEnhanced());
 // 在主类/代理类中
         MinecraftForge.EVENT_BUS.register(new ChengYueEventHandler());

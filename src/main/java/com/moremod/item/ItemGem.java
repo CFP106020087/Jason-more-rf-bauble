@@ -15,10 +15,9 @@ import java.util.List;
 /**
  * 宝石物品 - 可镶嵌到装备上的词条载体
  *
- * 特性：
- * - 未鉴定：显示等级和词条数量
- * - 已鉴定：显示所有词条效果
- * - ✨ 动态稀有度：根据等级期望值显示相对品质
+ * ✅ 修复：使用绝对品质映射，符合玩家直觉
+ * - 低等级宝石自然显示低劣颜色
+ * - 高等级宝石自然显示高级颜色
  */
 public class ItemGem extends Item {
 
@@ -33,7 +32,7 @@ public class ItemGem extends Item {
     }
 
     /**
-     * ✨ 注册动态品质属性
+     * ✅ 注册动态品质属性（绝对品质映射版）
      */
     private void registerQualityProperty() {
         if (net.minecraftforge.fml.common.FMLCommonHandler.instance().getSide().isServer()) {
@@ -54,84 +53,93 @@ public class ItemGem extends Item {
                 return 0.0F;
             }
 
-            // 计算平均品质
-            int totalQuality = 0;
+            // 分离布尔和数值词条
+            int numericQualitySum = 0;
+            int numericCount = 0;
+            int booleanCount = 0;
+            
             for (IdentifiedAffix affix : affixes) {
-                totalQuality += affix.getQuality();
+                int quality = affix.getQuality();
+                
+                // 检测布尔词条（极端值）
+                if (quality <= 5 || quality >= 95) {
+                    booleanCount++;
+                } else {
+                    numericQualitySum += quality;
+                    numericCount++;
+                }
             }
-            int avgQuality = totalQuality / affixes.size();
-
-            // 获取宝石等级
-            int gemLevel = GemNBTHelper.getGemLevel(stack);
-
-            // ✨ 使用相对品质映射
-            return getRelativeQualityColor(avgQuality, gemLevel);
+            
+            // 根据词条组成决定计算方式
+            if (numericCount == 0) {
+                // 全是布尔词条 - 按数量给予固定稀有度
+                return getBooleanGemQuality(booleanCount, affixes.size());
+            }
+            
+            // 有数值词条 - 使用数值词条的平均品质
+            int avgQuality = numericQualitySum / numericCount;
+            
+            // 布尔词条加成：每个布尔词条给 +5% 品质加成
+            int booleanBonus = booleanCount * 5;
+            avgQuality = Math.min(100, avgQuality + booleanBonus);
+            
+            // ⭐ 使用绝对品质映射
+            return getAbsoluteQualityColor(avgQuality);
         });
     }
 
     /**
-     * ✨ 根据等级期望计算相对品质，返回对应的贴图索引
-     *
-     * 设计理念：
-     * - 每个等级的宝石都能看到所有6种稀有度
-     * - 品质相对于期望值的偏差决定稀有度
-     * - 保证稀有度分布平衡
-     *
-     * @param actualQuality 实际品质 (0-100)
-     * @param gemLevel 宝石等级 (1-100)
-     * @return 贴图索引 (0.0, 0.2, 0.4, 0.6, 0.8, 1.0)
+     * 纯布尔词条宝石的品质计算
      */
-    private float getRelativeQualityColor(int actualQuality, int gemLevel) {
-        // 1. 计算该等级的期望品质
-        float expectedQuality = calculateExpectedQuality(gemLevel);
-
-        // 2. 计算实际品质与期望的差距（标准差）
-        float deviation = actualQuality - expectedQuality;
-
-        // 3. 标准化偏差（除以期望值，转换为百分比）
-        float normalizedDeviation = deviation / Math.max(expectedQuality, 20); // 防止除以0
-
-        // 4. 根据标准化偏差分配稀有度
-        // 使用更宽松的阈值，确保所有颜色都能出现
-
-        if (normalizedDeviation < -0.40) {
-            return 0.0F; // 灰色 - 远低于期望（垃圾）
-        } else if (normalizedDeviation < -0.20) {
-            return 0.2F; // 白色 - 低于期望（较差）
-        } else if (normalizedDeviation < -0.05) {
-            return 0.4F; // 绿色 - 略低于期望（普通）
-        } else if (normalizedDeviation < 0.15) {
-            return 0.6F; // 蓝色 - 接近期望（良好）
-        } else if (normalizedDeviation < 0.35) {
-            return 0.8F; // 紫色 - 高于期望（优秀）
+    private float getBooleanGemQuality(int booleanCount, int totalCount) {
+        // 布尔词条比较特殊，根据数量直接给稀有度
+        if (totalCount >= 5) {
+            return 1.0F; // 金色 - 5+个布尔词条极其稀有
+        } else if (totalCount >= 4) {
+            return 0.8F; // 紫色 - 4个布尔词条
+        } else if (totalCount >= 3) {
+            return 0.6F; // 蓝色 - 3个布尔词条
+        } else if (totalCount >= 2) {
+            return 0.4F; // 绿色 - 2个布尔词条
         } else {
-            return 1.0F; // 金色 - 远高于期望（完美）
+            return 0.2F; // 白色 - 1个布尔词条
         }
     }
 
     /**
-     * ✨ 计算指定等级宝石的期望品质
+     * ✅ 绝对品质映射（符合直觉）
+     * 
+     * 设计理念：
+     * - 品质分段固定，不随等级变化
+     * - 低等级宝石因为品质范围低，自然大部分是低劣颜色
+     * - 高等级宝石因为品质范围高，自然大部分是高级颜色
+     * - 符合玩家"低级=垃圾，高级=极品"的直觉
      *
-     * 公式：考虑等级加成 + 规则保底（平均）
+     * 品质分段（可调整）：
+     * - 0-14%:   灰色（垃圾）
+     * - 15-29%:  白色（较差）
+     * - 30-49%:  绿色（普通）
+     * - 50-69%:  蓝色（良好）
+     * - 70-84%:  紫色（优秀）
+     * - 85-100%: 金色（完美）
      *
-     * 假设：
-     * - 无规则保底时，均匀分布在 [levelBonus, 100] 范围
-     * - 期望值 = (levelBonus + 100) / 2
-     *
-     * @param gemLevel 宝石等级
-     * @return 期望品质 (0-100)
+     * @param actualQuality 实际品质 (0-100)
+     * @return 贴图索引 (0.0, 0.2, 0.4, 0.6, 0.8, 1.0)
      */
-    private float calculateExpectedQuality(int gemLevel) {
-        // 等级加成公式（与GemNBTHelper中一致）
-        float levelBonus = gemLevel * 0.003f; // 每级 +0.3%
-
-        // 转换为百分比
-        float levelBonusPercent = levelBonus * 100;
-
-        // 计算期望值（假设在 [levelBonus, 100] 之间均匀分布）
-        float expectedQuality = (levelBonusPercent + 100) / 2.0f;
-
-        return expectedQuality;
+    private float getAbsoluteQualityColor(int actualQuality) {
+        if (actualQuality < 15) {
+            return 0.0F; // 灰色
+        } else if (actualQuality < 30) {
+            return 0.2F; // 白色
+        } else if (actualQuality < 50) {
+            return 0.4F; // 绿色
+        } else if (actualQuality < 70) {
+            return 0.6F; // 蓝色
+        } else if (actualQuality < 85) {
+            return 0.8F; // 紫色
+        } else {
+            return 1.0F; // 金色
+        }
     }
 
     @Override
