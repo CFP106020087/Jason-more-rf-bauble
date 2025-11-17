@@ -20,6 +20,10 @@ public class CTGemLootRules {
 
     @ZenMethod
     public static void setupAllRules() {
+        // ⭐ 清空所有内建规则，使用下面的自定义规则
+        GemLootRuleManager.clearRules();
+        CraftTweakerAPI.logInfo("[GemRules] ✅ 已清空内建规则，开始配置自定义规则");
+
         // Champions
         championTier1();
         championTier2();
@@ -112,12 +116,12 @@ public class CTGemLootRules {
     @ZenMethod
     public static void championGrowthBonus() {
         GemLootRuleManager.LootRule rule = new GemLootRuleManager.LootRule(
-                "champion_growth_bonus", 1, 100, 1, 6, 0.01f, 0.1f, 1
+                "champion_growth_bonus", 1, 30, 1, 3, 0.01f, 0.1f, 1
         );
         rule.matchModId("champions");
         rule.setGrowthFactorBonus(true);
         GemLootRuleManager.addRule(rule);
-        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：Champion成长因子奖励");
+        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：Champion成长因子奖励（平衡调整，Lv1-30）");
     }
 
     // ==========================================
