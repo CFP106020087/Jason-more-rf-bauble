@@ -11,7 +11,7 @@ buildscript {
 
 apply plugin: 'net.minecraftforge.gradle.forge'
 
-version = "3.2.1"
+version = "3.2.2"
 group = "com.moremod"
 archivesBaseName = "Jasons-more-rf-bauble"
 
@@ -73,12 +73,13 @@ dependencies {
     compileOnly name: 'lycanitesmobs-1.12.2-2.0.8.10'
     compileOnly name: 'CraftTweaker2-1.12-4.1.20.703'
     compileOnly name: 'firstaid-1.6.22'
-    compileOnly name:'SoManyEnchantments-1.0.3-indev'
     // FermiumBooter - 本地文件
     runtimeOnly name: '`FermiumBooter-1.2.0'
     compileOnly name: '`FermiumBooter-1.2.0'
     compileOnly name: 'EnhancedVisuals_v1.4.4_mc1.12.2'
+    compileOnly name: 'PotionCore-1.9_for_1.12.2'
     // Mixin
+
     compileOnly 'org.spongepowered:mixin:0.8.5'
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 }

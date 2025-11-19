@@ -99,6 +99,7 @@ public class ItemMechanicalCoreExtended {
         register("RANGE_EXTENSION", "范围拓展",   TextFormatting.BLUE,        3, UpgradeCategory.COMBAT);
         register("PURSUIT",         "追击系统",   TextFormatting.LIGHT_PURPLE,3, UpgradeCategory.COMBAT);
         register("CRITICAL_STRIKE", "暴击",       TextFormatting.GOLD,        3, UpgradeCategory.COMBAT);
+        register("MAGIC_ABSORB", "魔力吸收模块", TextFormatting.DARK_PURPLE, 3, UpgradeCategory.COMBAT);
 
         // ===== 能源类 =====
         register("KINETIC_GENERATOR","动能发电",  TextFormatting.GRAY,        3, UpgradeCategory.ENERGY);
@@ -107,7 +108,7 @@ public class ItemMechanicalCoreExtended {
         register("COMBAT_CHARGER",   "战斗充能",  TextFormatting.RED,         3, UpgradeCategory.ENERGY);
     }
 
-    private static void register(String id, String name, TextFormatting color, int max, UpgradeCategory cat) {
+    public static void register(String id, String name, TextFormatting color, int max, UpgradeCategory cat) {
         String canon = norm(id);
         REGISTRY.put(canon, new UpgradeInfo(canon, name, color, max, cat));
     }

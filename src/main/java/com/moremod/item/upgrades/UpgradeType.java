@@ -17,7 +17,7 @@ public enum UpgradeType {
     SHIELD_GENERATOR("护盾生成", TextFormatting.YELLOW, UpgradeCategory.BASIC),
     FLIGHT_MODULE("飞行模块", TextFormatting.LIGHT_PURPLE, UpgradeCategory.AUXILIARY),
     TEMPERATURE_CONTROL("温度调节", TextFormatting.DARK_AQUA, UpgradeCategory.SURVIVAL),
-
+    MAGIC_ABSORB("魔力熔炉", TextFormatting.AQUA, UpgradeCategory.COMBAT),
     // ===== 生存類升級 =====
     YELLOW_SHIELD("黄条护盾", TextFormatting.YELLOW, UpgradeCategory.SURVIVAL),
     HEALTH_REGEN("生命恢复", TextFormatting.RED, UpgradeCategory.SURVIVAL),

@@ -65,7 +65,7 @@ public class EquippedItemCondition implements UnlockCondition {
 
     @Override
     public boolean isTemporary() {
-        return false;
+        return true;  // ⭐ 装备条件是临时的：取下装备后槽位重新锁定
     }
 
     @Override

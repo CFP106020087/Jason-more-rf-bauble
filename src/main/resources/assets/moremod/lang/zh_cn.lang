@@ -5,7 +5,26 @@ item.identify_scroll.name=宝石鉴定卷轴
 tile.extraction_station.name=提取站
 tile.moremodpurification_altar.name=净化祭坛
 tile.transfer_station.name=转移站
-
+item.bio_stabilizer.name=生物稳定剂
+item.bio_stabilizer.desc=抑制血肉对机械核心的排异反应
+item.towel.name=毛巾
+item.neural_synchronizer.name=神经同步模块
+item.curse_spread.name=扩散诅咒的烙印
+# tooltip.enigmaticlegacy.curse_spread
+tooltip.enigmaticlegacy.curse_spread1=将你承受的诅咒传播给周围的敌对生物
+tooltip.enigmaticlegacy.curse_spread2=诅咒越多，影响范围越大，效果越强
+tooltip.enigmaticlegacy.curse_spread5=只有承受七咒之戒的诅咒者才能装备
+tooltip.enigmaticlegacy.curse_spread_formula=成长曲线：
+tooltip.enigmaticlegacy.curse_spread_formula1=范围：每个诅咒 +0.25格
+tooltip.enigmaticlegacy.curse_spread_formula2=攻击削弱：随诅咒增加而提升
+tooltip.enigmaticlegacy.curse_spread_formula3=受伤增加：每50诅咒翻倍
+tooltip.enigmaticlegacy.curse_spread_examples=数值示例：
+tooltip.enigmaticlegacy.curse_spread_status=当前状态
+tooltip.enigmaticlegacy.curse_spread_curses=诅咒数量：
+tooltip.enigmaticlegacy.curse_spread_range=影响范围：
+tooltip.enigmaticlegacy.curse_spread_damage_mult_out=敌人攻击力：
+tooltip.enigmaticlegacy.curse_spread_damage_mult_in=敌人受到伤害：
+tooltip.enigmaticlegacy.blocks=格
 tooltip.moremod.identifyscroll.desc=一卷蕴含古老魔力的羊皮卷，可揭示宝石的真实之力。
 tooltip.moremod.identifyscroll.usage_title=使用方法：
 tooltip.moremod.identifyscroll.usage_1=1. 副手持有未鉴定的宝石

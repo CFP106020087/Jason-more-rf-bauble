@@ -164,7 +164,7 @@ public class PacketHandler {
             INSTANCE.registerMessage(
                     MessageAutoAttackTrigger.Handler.class,
                     MessageAutoAttackTrigger.class,
-                    nextID(),
+                    id++,
                     Side.SERVER
             );
 

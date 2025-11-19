@@ -9,6 +9,7 @@ import crafttweaker.api.minecraft.CraftTweakerMC;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.ItemSword;
+import net.minecraft.nbt.NBTTagCompound;
 import stanhebben.zenscript.annotations.ZenClass;
 import stanhebben.zenscript.annotations.ZenMethod;
 
@@ -352,7 +353,12 @@ public class CTSwordUpgradematerial {
                     CraftTweakerAPI.logInfo(String.format("  [Any] ANY_SWORD + %s -> %s (xp=%d)", mat, out, r.xpCost));
                     anyCount++;
                 } else if (r.requireNBT) {
-                    String nbtStr = r.inputRequirement.getTagCompound().copy().toString();
+                    // ✅ 修复：打印NBT时移除内部标记
+                    NBTTagCompound cleanTag = r.inputRequirement.getTagCompound().copy();
+                    cleanTag.removeTag("_upgrade_material");
+                    cleanTag.removeTag("_any_sword");
+                    String nbtStr = cleanTag.toString();
+                    
                     CraftTweakerAPI.logInfo(String.format("  [NBT] %s%s + %s -> %s (xp=%d)", 
                             r.inputRequirement.getItem().getRegistryName(), nbtStr, mat, out, r.xpCost));
                     nbtCount++;

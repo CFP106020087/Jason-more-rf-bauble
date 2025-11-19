@@ -468,7 +468,6 @@ public class GuiHandler implements IGuiHandler {
         System.out.println("[GuiHandler] ❌ 未识别的转移台 TE: " + (te == null ? "null" : te.getClass().getName()));
         return null;
     }
-
     @SideOnly(Side.CLIENT)
     private Object createTransferStationGui(EntityPlayer player, World world, int x, int y, int z) {
         BlockPos pos = new BlockPos(x, y, z);
@@ -476,11 +475,19 @@ public class GuiHandler implements IGuiHandler {
 
         if (te instanceof TileEntityTransferStation) {
             System.out.println("[GuiHandler] 打开转移台 GUI");
-            return new GuiTransferStationCodeDrawn(player.inventory, (ContainerTransferStation) createTransferStationContainer(player, world, x, y, z));
+
+            // ⭐ 正确：先创建 Container
+            ContainerTransferStation container =
+                    new ContainerTransferStation(player.inventory, (TileEntityTransferStation) te);
+
+            // ⭐ 再把 Container 传给 GUI（你最新版 GUI 的构造函数）
+            return new GuiTransferStationCodeDrawn(player.inventory, container);
         }
+
         System.out.println("[GuiHandler] ❌ 未识别的转移台 TE(客户端): " + (te == null ? "null" : te.getClass().getName()));
         return null;
     }
+
 
     // ---------- 工具方法 ----------
     public static int getAccessoryBoxGuiId(int tier) {

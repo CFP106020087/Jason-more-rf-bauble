@@ -741,8 +741,63 @@ public class moremodTransformer implements IClassTransformer {
     }
 
     private byte[] transformPotionFingersRing(byte[] bytes) {
-        // 实现类似的安全包装...
-        return bytes;
+        ClassNode cn = new ClassNode();
+        new ClassReader(bytes).accept(cn, ClassReader.EXPAND_FRAMES);
+        boolean modified = false;
+
+        System.out.println("[moremodTransformer] Patching PotionFingers ItemRing...");
+
+        for (MethodNode mn : cn.methods) {
+            // 找到 updatePotionStatus 方法
+            if (mn.name.equals("updatePotionStatus")) {
+                System.out.println("[moremodTransformer]   Found updatePotionStatus method");
+
+                // 查找 BaubleType.RING.getValidSlots() 调用
+                for (AbstractInsnNode n : mn.instructions.toArray()) {
+                    if (n.getOpcode() == Opcodes.INVOKEVIRTUAL) {
+                        MethodInsnNode min = (MethodInsnNode) n;
+
+                        if (min.name.equals("getValidSlots") && min.owner.equals("baubles/api/BaubleType")) {
+                            System.out.println("[moremodTransformer]     Found getValidSlots() call");
+
+                            // 在 getValidSlots() 后面插入过滤代码
+                            // 原始: int[] slots = BaubleType.RING.getValidSlots();
+                            // 修改: int[] slots = filterValidSlots(BaubleType.RING.getValidSlots(), handler);
+
+                            InsnList filter = new InsnList();
+
+                            // 加载 handler (局部变量)
+                            // 需要找到 handler 的局部变量索引
+                            filter.add(new VarInsnNode(Opcodes.ALOAD, 5)); // IBaublesItemHandler inv 通常在 slot 5
+
+                            // 调用我们的过滤方法
+                            filter.add(new MethodInsnNode(
+                                    Opcodes.INVOKESTATIC,
+                                    "com/moremod/compat/PotionFingersCompat",
+                                    "filterValidSlots",
+                                    "([ILbaubles/api/cap/IBaublesItemHandler;)[I",
+                                    false
+                            ));
+
+                            mn.instructions.insert(min, filter);
+                            modified = true;
+                            System.out.println("[moremodTransformer]     Inserted slot filter");
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!modified) {
+            System.out.println("[moremodTransformer]   WARNING: Could not patch PotionFingers!");
+            return bytes;
+        }
+
+        ClassWriter cw = new SafeClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
+        cn.accept(cw);
+        System.out.println("[moremodTransformer]   ✓ PotionFingers patched successfully");
+        return cw.toByteArray();
     }
 
     private byte[] transformELBaublesStackHandler(byte[] bytes) {

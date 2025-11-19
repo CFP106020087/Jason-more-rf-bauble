@@ -250,7 +250,7 @@ public class GemLootGenerator {
         // ==========================================
         
         // 3.1 EntityAmbientCreature - 环境生物（蝙蝠）
-        if (entity instanceof net.minecraft.entity.passive.EntityAmbientCreature) {
+        if (entity instanceof EntityAmbientCreature) {
             if (debugMode) {
                 System.out.println("[GemLoot-Exclude] 环境生物: " + entity.getName());
             }
@@ -258,7 +258,7 @@ public class GemLootGenerator {
         }
         
         // 3.2 EntityWaterMob - 水生生物（鱿鱼）
-        if (entity instanceof net.minecraft.entity.passive.EntityWaterMob) {
+        if (entity instanceof EntityWaterMob) {
             if (debugMode) {
                 System.out.println("[GemLoot-Exclude] 水生生物: " + entity.getName());
             }

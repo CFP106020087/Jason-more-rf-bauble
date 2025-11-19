@@ -1431,6 +1431,7 @@ public class ItemMechanicalCore extends Item implements IBauble {
             tooltip.add(TextFormatting.RED + "• 一旦装备永远无法摘下");
             tooltip.add(TextFormatting.RED + "• 死亡时不会掉落");
             tooltip.add(TextFormatting.YELLOW + "• 与 Enigmatic 系列模组物品互斥");
+            RejectionTooltipHelper.addRejectionInfo(tooltip, stack, worldIn);
 
         } else {
             tooltip.add(TextFormatting.DARK_PURPLE + "使用 Redstone Flux 驱动的机械核心");

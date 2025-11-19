@@ -40,6 +40,19 @@ public class FleshRejectionSystem {
     private static final String PLAYER_DATA_KEY = "MoreMod_RejectionData";
     private static final String NBT_DIRTY       = "Dirty"; // 是否需要同步到核心
 
+    // ─────────────────  ✅ 核心检查工具方法  ─────────────────
+
+    /**
+     * ✅ 检查玩家是否佩戴机械核心
+     * 用于其他系统判断是否应该处理排异逻辑
+     */
+    public static boolean hasMechanicalCore(EntityPlayer player) {
+        ItemStack core = ItemMechanicalCore.getCoreFromPlayer(player);
+        return !core.isEmpty();
+    }
+
+    // ─────────────────  内部数据存取方法  ─────────────────
+
     /**
      * ✅ 取得玩家的排異資料（主存）
      */
@@ -129,6 +142,15 @@ public class FleshRejectionSystem {
 
     public static float getAdaptationLevel(EntityPlayer player) {
         return getPlayerRejectionData(player).getFloat(NBT_ADAPTATION);
+    }
+    public static void setAdaptationLevel(EntityPlayer player, float value) {
+        // 检查是否佩戴核心
+        if (!hasMechanicalCore(player)) return;
+
+        NBTTagCompound playerData = getPlayerRejectionData(player);
+        float clamped = MathHelper.clamp(value, 0f, (float) FleshRejectionConfig.adaptationThreshold);
+        playerData.setFloat(NBT_ADAPTATION, clamped);
+        markDirty(playerData);
     }
 
     public static boolean hasTranscended(EntityPlayer player) {

@@ -25,7 +25,7 @@ public class moremodMixinPlugin implements IFMLLoadingPlugin {
             FermiumRegistryAPI.enqueueMixin(false, "mixins.moremod.element.json");
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.dummy.json");
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.bauble.json");
-            FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.enchantments.json");
+            FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.potioncore.json");
 
             System.out.println("[moremod] All mixins queued via FermiumBooter");
         } catch (Throwable e) {

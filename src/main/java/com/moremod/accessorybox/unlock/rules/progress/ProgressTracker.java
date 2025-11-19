@@ -1,5 +1,6 @@
 package com.moremod.accessorybox.unlock.rules.progress;
 
+import com.moremod.accessorybox.unlock.rules.UnlockRulesConfig;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.nbt.NBTTagCompound;
 
