@@ -1954,7 +1954,8 @@ public class ItemMechanicalCore extends Item implements IBauble {
 
     @Override
     public ICapabilityProvider initCapabilities(ItemStack stack, @Nullable NBTTagCompound nbt) {
-        return new MechanicalCoreEnergyProvider(stack);
+        // ✅ 使用修正版Provider（同时提供能量和数据能力）
+        return new com.moremod.core.capability.MechanicalCoreProviderFixed(stack);
     }
 
     public static void clearPlayerCache(EntityPlayer player) {

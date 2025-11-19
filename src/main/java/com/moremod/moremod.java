@@ -256,6 +256,12 @@ public class moremod {
         );
         System.out.println("[moremod] ✅ 时光之心Capability注册完成");
 
+        // ========== 机械核心 Capability 注册 ==========
+        System.out.println("[moremod] 🔧 注册机械核心 Capability...");
+        com.moremod.core.capability.MechanicalCoreCapability.register();
+        com.moremod.core.registry.UpgradeRegistry.init();
+        System.out.println("[moremod] ✅ 机械核心 Capability 注册完成（33个升级已注册）");
+
         // ========== Ritual 多方块：创建实例（不在这里注册）==========
         System.out.println("[moremod] 🔮 创建 Ritual 多方块实例...");
         RITUAL_CORE_BLOCK = new BlockRitualCore().setRegistryName(MODID, "ritual_core").setTranslationKey("ritual_core");
