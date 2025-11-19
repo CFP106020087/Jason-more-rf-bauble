@@ -1,4 +1,3 @@
-// com/moremod/item/upgrades/ItemNeuralSynchronizer.java
 package com.moremod.item.upgrades;
 
 import com.moremod.system.FleshRejectionSystem;
@@ -7,12 +6,11 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
+import net.minecraftforge.fml.relauncher.Side;           // ✅ 添加
+import net.minecraftforge.fml.relauncher.SideOnly;      // ✅ 添加
 
 import java.util.List;
 
-/**
- * 神经同步器升级模块
- */
 public class ItemNeuralSynchronizer extends com.moremod.item.upgrades.ItemUpgradeComponent {
 
     private static final String[] DESCRIPTIONS = new String[] {
@@ -25,24 +23,21 @@ public class ItemNeuralSynchronizer extends com.moremod.item.upgrades.ItemUpgrad
     };
 
     public ItemNeuralSynchronizer() {
-        // 使用字符串构造函数
         super("NEURAL_SYNCHRONIZER", DESCRIPTIONS, 1);
-
         setTranslationKey("neural_synchronizer");
         setRegistryName("neural_synchronizer");
         setMaxStackSize(1);
     }
 
     @Override
+    @SideOnly(Side.CLIENT)  // ✅ 添加这个注解
     public void addInformation(ItemStack stack, World worldIn, List<String> tooltip, ITooltipFlag flagIn) {
-        // 先调用父类的基础信息
         super.addInformation(stack, worldIn, tooltip, flagIn);
 
-        // 添加额外的状态信息
         tooltip.add("");
         tooltip.add(TextFormatting.GRAY + "能量消耗: 50 RF/s");
 
-        // 显示当前排异状态
+        // ✅ 现在这行代码不会在服务器端被加载
         EntityPlayer player = net.minecraft.client.Minecraft.getMinecraft().player;
         if (player != null) {
             FleshRejectionSystem.RejectionStatus status = FleshRejectionSystem.getStatus(player);
@@ -50,22 +45,17 @@ public class ItemNeuralSynchronizer extends com.moremod.item.upgrades.ItemUpgrad
                 tooltip.add("");
                 tooltip.add(TextFormatting.GRAY + "━━━ 当前状态 ━━━");
 
-                // 适应度
                 TextFormatting adaptColor = status.adaptation >= 120 ? TextFormatting.GREEN :
-                        status.adaptation >= 80 ? TextFormatting.YELLOW :
-                                TextFormatting.RED;
+                        status.adaptation >= 80 ? TextFormatting.YELLOW : TextFormatting.RED;
                 tooltip.add(TextFormatting.GRAY + "适应度: " + adaptColor +
                         String.format("%.0f", status.adaptation) + " / 120");
 
-                // 排异值
                 TextFormatting rejectColor = status.rejection >= 80 ? TextFormatting.DARK_RED :
                         status.rejection >= 60 ? TextFormatting.RED :
-                                status.rejection >= 40 ? TextFormatting.YELLOW :
-                                        TextFormatting.GREEN;
+                                status.rejection >= 40 ? TextFormatting.YELLOW : TextFormatting.GREEN;
                 tooltip.add(TextFormatting.GRAY + "排异值: " + rejectColor +
                         String.format("%.1f%%", status.rejection));
 
-                // 预测效果
                 if (!status.hasSynchronizer) {
                     float newAdaptation = status.adaptation + 100;
                     if (newAdaptation >= 120) {
@@ -91,11 +81,11 @@ public class ItemNeuralSynchronizer extends com.moremod.item.upgrades.ItemUpgrad
 
     @Override
     public net.minecraft.item.EnumRarity getRarity(ItemStack stack) {
-        return net.minecraft.item.EnumRarity.EPIC;  // 紫色
+        return net.minecraft.item.EnumRarity.EPIC;
     }
 
     @Override
     public boolean hasEffect(ItemStack stack) {
-        return true;  // 附魔光效
+        return true;
     }
 }

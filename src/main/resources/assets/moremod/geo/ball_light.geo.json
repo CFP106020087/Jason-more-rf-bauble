@@ -1,0 +1,24 @@
+{
+	"format_version": "1.12.0",
+	"minecraft:geometry": [
+		{
+			"description": {
+				"identifier": "geometry.ball_light",
+				"texture_width": 512,
+				"texture_height": 512,
+				"visible_bounds_width": 20,
+				"visible_bounds_height": 9,
+				"visible_bounds_offset": [0, 0.5, 0]
+			},
+			"bones": [
+				{
+					"name": "all",
+					"pivot": [0, 5, 0],
+					"cubes": [
+						{"origin": [-100, 5, -100], "size": [200, 0, 200], "uv": [-200, 0]}
+					]
+				}
+			]
+		}
+	]
+}

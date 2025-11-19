@@ -56,8 +56,8 @@ public class BlockExtractionStation extends Block implements ITileEntityProvider
             if (!tile.getInputStack().isEmpty()) {
                 spawnAsEntity(world, pos, tile.getInputStack());
             }
-            if (!tile.getOutputStack().isEmpty()) {
-                spawnAsEntity(world, pos, tile.getOutputStack());
+            if (!tile.getOutputStack(0).isEmpty()) {
+                spawnAsEntity(world, pos, tile.getOutputStack(0));
             }
         }
         super.breakBlock(world, pos, state);

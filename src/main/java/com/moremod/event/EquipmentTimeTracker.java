@@ -1,4 +1,4 @@
-// EquipmentTimeTracker.java - 修复静态调用错误
+// EquipmentTimeTracker.java - 完整修复版
 package com.moremod.event;
 
 import baubles.api.BaublesApi;
@@ -59,7 +59,6 @@ public class EquipmentTimeTracker {
     /**
      * 玩家登录事件
      */
-
     @SubscribeEvent
     public void onPlayerLogin(PlayerLoggedInEvent event) {
         if (!EquipmentTimeConfig.restriction.enabled) {
@@ -81,6 +80,15 @@ public class EquipmentTimeTracker {
 
             long currentTime = System.currentTimeMillis();
             boolean isFirstJoin = !persistentData.hasKey(NBT_FIRST_JOIN_TIME);
+
+            // ✅ 调试日志
+            System.out.println("========== 玩家登录数据检查 ==========");
+            System.out.println("玩家: " + player.getName());
+            System.out.println("是否首次加入: " + isFirstJoin);
+            System.out.println("首次加入时间: " + persistentData.getLong(NBT_FIRST_JOIN_TIME));
+            System.out.println("已佩戴标记: " + persistentData.getBoolean(NBT_EQUIPPED_IN_TIME));
+            System.out.println("封禁状态: " + persistentData.getBoolean(NBT_PERMANENTLY_BANNED));
+            System.out.println("==================================");
 
             if (isFirstJoin) {
                 persistentData.setLong(NBT_FIRST_JOIN_TIME, currentTime);
@@ -247,7 +255,7 @@ public class EquipmentTimeTracker {
         long elapsedSeconds = (currentTime - data.firstJoinTime) / 1000;
 
         if (elapsedSeconds > EquipmentTimeConfig.restriction.timeLimit) {
-            // 3B：超时了！即使此刻装备也已经晚了
+            // 超时了！即使此刻装备也已经晚了
             setBanned(player, true);
 
             if (!player.world.isRemote) {
@@ -264,7 +272,7 @@ public class EquipmentTimeTracker {
             return;
         }
 
-        // 3A：成功在时间内佩戴
+        // 成功在时间内佩戴
         setEquippedInTime(player, true);
 
         if (!player.world.isRemote) {
@@ -408,24 +416,37 @@ public class EquipmentTimeTracker {
     /**
      * 管理员重置玩家限制
      */
-
     public static boolean resetPlayerRestriction(EntityPlayer player) {
         if (!EquipmentTimeConfig.restriction.allowAdminReset) {
             return false;
         }
 
-        NBTTagCompound playerData = player.getEntityData();
-        NBTTagCompound persistentData = getOrCreatePersistentData(playerData);
+        try {
+            NBTTagCompound playerData = player.getEntityData();
+            NBTTagCompound persistentData = getOrCreatePersistentData(playerData);
 
-        // 清除所有相关NBT
-        persistentData.removeTag(NBT_FIRST_JOIN_TIME);
-        persistentData.removeTag(NBT_EQUIPPED_IN_TIME);
-        persistentData.removeTag(NBT_PERMANENTLY_BANNED);
+            // ✅ 重置为当前时间，给新的时间窗口
+            long currentTime = System.currentTimeMillis();
+            persistentData.setLong(NBT_FIRST_JOIN_TIME, currentTime);
+            persistentData.setBoolean(NBT_EQUIPPED_IN_TIME, false);
+            persistentData.setBoolean(NBT_PERMANENTLY_BANNED, false);
 
-        // 清除缓存
-        playerDataCache.remove(player.getUniqueID());
+            // 清除缓存
+            playerDataCache.remove(player.getUniqueID());
 
-        return true;
+            // ✅ 调试日志
+            System.out.println("========== 重置玩家数据 ==========");
+            System.out.println("玩家: " + player.getName());
+            System.out.println("新的首次加入时间: " + currentTime);
+            System.out.println("==================================");
+
+            return true;
+
+        } catch (Exception e) {
+            System.err.println("[EquipmentTimeTracker] 重置玩家限制失败: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
     }
 
     // ========== 私有辅助方法 ==========
@@ -454,6 +475,7 @@ public class EquipmentTimeTracker {
             e.printStackTrace();
         }
     }
+
     public static boolean checkHasMechanicalCore(EntityPlayer player) {
         if (player == null) return false;
 
@@ -507,6 +529,7 @@ public class EquipmentTimeTracker {
 
         return modId.contains("enigma") || itemPath.contains("enigma");
     }
+
     private static void setEquippedInTime(EntityPlayer player, boolean equipped) {
         NBTTagCompound playerData = player.getEntityData();
         NBTTagCompound persistentData = getOrCreatePersistentData(playerData);
@@ -529,16 +552,33 @@ public class EquipmentTimeTracker {
         }
     }
 
+    /**
+     * ✅ 修复：使用 ForgeData 存储数据
+     */
     private static NBTTagCompound getOrCreatePersistentData(NBTTagCompound playerData) {
         if (playerData == null) {
             return new NBTTagCompound();
         }
 
         try {
-            if (!playerData.hasKey(EntityPlayer.PERSISTED_NBT_TAG)) {
-                playerData.setTag(EntityPlayer.PERSISTED_NBT_TAG, new NBTTagCompound());
+            // ✅ 使用 ForgeData 标签（更可靠的持久化方式）
+            final String FORGE_DATA = "ForgeData";
+            final String MOREMOD_DATA = "moremod_equipment_time";
+
+            // 确保 ForgeData 存在
+            if (!playerData.hasKey(FORGE_DATA)) {
+                playerData.setTag(FORGE_DATA, new NBTTagCompound());
             }
-            return playerData.getCompoundTag(EntityPlayer.PERSISTED_NBT_TAG);
+
+            NBTTagCompound forgeData = playerData.getCompoundTag(FORGE_DATA);
+
+            // 确保我们的数据标签存在
+            if (!forgeData.hasKey(MOREMOD_DATA)) {
+                forgeData.setTag(MOREMOD_DATA, new NBTTagCompound());
+            }
+
+            return forgeData.getCompoundTag(MOREMOD_DATA);
+
         } catch (Exception e) {
             System.err.println("[EquipmentTimeTracker] 获取持久化数据失败: " + e.getMessage());
             return new NBTTagCompound();
@@ -546,7 +586,7 @@ public class EquipmentTimeTracker {
     }
 
     /**
-     * ✅ 改为静态方法：发送欢迎消息
+     * 发送欢迎消息
      */
     private static void sendWelcomeMessage(EntityPlayer player) {
         if (player == null) {
@@ -568,7 +608,7 @@ public class EquipmentTimeTracker {
             message = message.replace("{time}", timeStr);
 
             // 分割并发送每一行
-            String[] lines = message.split("\n");
+            String[] lines = message.split("\\\\n");
             for (String line : lines) {
                 if (line != null && !line.trim().isEmpty()) {
                     player.sendMessage(new TextComponentString(
@@ -590,7 +630,7 @@ public class EquipmentTimeTracker {
     }
 
     /**
-     * ✅ 改为静态方法：发送警告消息
+     * 发送警告消息
      */
     private static void sendWarningMessage(EntityPlayer player, long remainingSeconds) {
         if (player == null) {
@@ -613,7 +653,7 @@ public class EquipmentTimeTracker {
     }
 
     /**
-     * ✅ 改为静态方法：发送封禁消息
+     * 发送封禁消息
      */
     private static void sendBanMessage(EntityPlayer player) {
         if (player == null) {
@@ -629,7 +669,7 @@ public class EquipmentTimeTracker {
             }
 
             // 分割并发送每一行
-            String[] lines = message.split("\n");
+            String[] lines = message.split("\\\\n");
             for (String line : lines) {
                 if (line != null && !line.trim().isEmpty()) {
                     player.sendMessage(new TextComponentString(
@@ -650,7 +690,7 @@ public class EquipmentTimeTracker {
     }
 
     /**
-     * ✅ 改为静态方法：颜色代码转换
+     * 颜色代码转换
      */
     private static String translateColorCodes(String text) {
         if (text == null) {

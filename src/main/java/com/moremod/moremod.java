@@ -8,6 +8,7 @@ import com.moremod.client.ClientTickEvent;
 import com.moremod.client.JetpackKeyHandler;
 import com.moremod.client.KeyBindHandler;
 import com.moremod.client.RenderHandler;
+import com.moremod.client.render.debug.RenderDebugKeyHandler;
 import com.moremod.commands.CommandLootDebug;
 import com.moremod.commands.CommandResetEquipTime;
 import com.moremod.compat.PotionCoreCompatEnhanced;
@@ -58,6 +59,10 @@ import com.moremod.capability.*;
 
 // 机械核心系统导入
 import com.moremod.shields.integrated.EnhancedVisualsHandler;
+import com.moremod.system.FleshRejectionEnvironmentHandler;
+import com.moremod.system.FleshRejectionEventSystem;
+import com.moremod.system.RejectionPotionPenaltySystem;
+import com.moremod.system.RejectionSleepDecaySystem;
 import com.moremod.upgrades.MechanicalCoreNetworkHandler;
 import com.moremod.upgrades.auxiliary.AuxiliaryUpgradeManager;
 import com.moremod.upgrades.combat.CombatUpgradeManager;
@@ -133,7 +138,7 @@ public class moremod {
 
     public static final String MODID = "moremod";
     public static final String NAME = "More Mod";
-    public static final String VERSION = "3.2.1";
+    public static final String VERSION = "3.2.2";
 
     @Instance(MODID)
     public static moremod instance;
@@ -285,6 +290,7 @@ public class moremod {
         MinecraftForge.EVENT_BUS.register(MechanicalExoskeletonEventHandler.class);
         MinecraftForge.EVENT_BUS.register(new DimensionalRipperEventHandler());
         MinecraftForge.EVENT_BUS.register(new OtherworldAttackEvent());
+        MinecraftForge.EVENT_BUS.register(new CurseSpreadHandler());
 
         // 註冊飾品盒事件處理器
         System.out.println("[moremod] 📦 飾品盒事件處理器注册成功");
@@ -587,6 +593,7 @@ public class moremod {
         }
         RitualRecipeLoader.loadRecipes();
         DimensionLoomRecipeLoader.loadRecipes();  // 织机配方
+     //   MinecraftForge.EVENT_BUS.register(new RenderDebugKeyHandler());
 
         ModIntegration.postInit();
 
@@ -751,7 +758,10 @@ public class moremod {
         MinecraftForge.EVENT_BUS.register(PlayerTimeDataCapability.class);
         MinecraftForge.EVENT_BUS.register(ServerTickHandler.class);
         System.out.println("[moremod] 🕰️ 时光之心系统注册成功");
-
+        MinecraftForge.EVENT_BUS.register(new FleshRejectionEnvironmentHandler());
+        MinecraftForge.EVENT_BUS.register(new FleshRejectionEventSystem());
+        MinecraftForge.EVENT_BUS.register(new RejectionPotionPenaltySystem());
+        MinecraftForge.EVENT_BUS.register(new RejectionSleepDecaySystem());
         // 4. 升级管理器系统
         registerUpgradeManagers();
 

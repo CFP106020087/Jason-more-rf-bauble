@@ -327,8 +327,6 @@ public class CombatHelper {
         return true;
     }
 
-    /* ========================= AOE（真实伤害版） ========================= */
-
     /** 以 attacker 为圆心扫击真实伤害；bypassIFrames=true 时先清 i-frame+lastDamage（反射） */
     @ZenMethod
     public static int sweepTrue(IEntity attacker, double radius, float amount, boolean bypassIFrames) {
@@ -338,7 +336,9 @@ public class CombatHelper {
         World w = src.world;
 
         AxisAlignedBB box = src.getEntityBoundingBox().grow(radius);
-        List<EntityLivingBase> list = w.getEntitiesWithinAABB(EntityLivingBase.class, box, e -> e != src && e.isEntityAlive());
+        List<EntityLivingBase> list = w.getEntitiesWithinAABB(EntityLivingBase.class, box,
+                e -> e != src && e.isEntityAlive() && !(e instanceof EntityPlayer)  // 排除玩家
+        );
         int hits = 0;
         for (EntityLivingBase v : list) {
             if (bypassIFrames) {

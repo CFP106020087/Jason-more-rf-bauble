@@ -211,7 +211,7 @@ public class ItemTemperatureRegulator extends Item implements IBauble {
 
             if (needsRegulation && player.world.rand.nextInt(5) == 0) {
                 String mode = SIMPLE_DIFFICULTY_LOADED ? "[API备用]" : "[生物群系]";
-                sendMessage(player, "🌡️ " + mode + " 温度调节: " + action, TextFormatting.AQUA);
+                sendMessage(player,   mode + " 温度调节: " + action, TextFormatting.AQUA);
             }
 
             return needsRegulation;
@@ -474,7 +474,7 @@ public class ItemTemperatureRegulator extends Item implements IBauble {
         int maxEnergy = getMaxEnergyStored(stack);
         double percent = (double) energy / (double) maxEnergy * 100;
 
-        tooltip.add(TextFormatting.GOLD + "🌡️ 智能温度调节器");
+        tooltip.add(TextFormatting.GOLD + " 智能温度调节器");
         tooltip.add("");
 
         // 显示能量信息
@@ -519,14 +519,14 @@ public class ItemTemperatureRegulator extends Item implements IBauble {
     public void onEquipped(ItemStack itemstack, EntityLivingBase player) {
         if (!player.world.isRemote && player instanceof EntityPlayer) {
             String mode = SIMPLE_DIFFICULTY_LOADED ? "SimpleDifficulty集成" : "生物群系模式";
-            sendMessage((EntityPlayer) player, "🌡️ 温度调节器已激活 (" + mode + ")", TextFormatting.GREEN);
+            sendMessage((EntityPlayer) player, "温度调节器已激活 (" + mode + ")", TextFormatting.GREEN);
         }
     }
 
     @Override
     public void onUnequipped(ItemStack itemstack, EntityLivingBase player) {
         if (!player.world.isRemote && player instanceof EntityPlayer) {
-            sendMessage((EntityPlayer) player, "🌡️ 温度调节器已关闭", TextFormatting.YELLOW);
+            sendMessage((EntityPlayer) player, "温度调节器已关闭", TextFormatting.YELLOW);
         }
     }
 

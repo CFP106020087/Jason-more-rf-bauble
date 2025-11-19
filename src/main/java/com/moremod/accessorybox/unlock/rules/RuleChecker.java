@@ -99,16 +99,19 @@ public class RuleChecker {
 
         EntityPlayer player = event.player;
         UUID uuid = player.getUniqueID();
-        
+
         // 增加计数器
         int ticks = playerTickers.getOrDefault(uuid, 0) + 1;
-        
+
         // 达到检查间隔时执行检查
         if (ticks >= UnlockRulesConfig.checkInterval) {
+            if (UnlockRulesConfig.debugMode) {
+                System.out.println("[RuleChecker] 定期检查玩家: " + player.getName() + " (间隔: " + UnlockRulesConfig.checkInterval + " ticks)");
+            }
             checkAndUnlockSlots(player);
             ticks = 0;
         }
-        
+
         playerTickers.put(uuid, ticks);
     }
 
@@ -122,38 +125,32 @@ public class RuleChecker {
         boolean anyPermanentChange = false;
 
         // 遍历所有槽位的规则
+        // 在 RuleChecker.java 的 checkAndUnlockSlots 方法中
         for (Map.Entry<Integer, List<UnlockRule>> entry : rulesBySlot.entrySet()) {
             int slotId = entry.getKey();
             List<UnlockRule> rules = entry.getValue();
-            
-            // 检查槽位的所有规则
+
             RuleCheckResult result = checkSlotRules(player, rules);
-            
-            // ⭐ 处理永久解锁
-            if (result.shouldPermanentUnlock) {
-                boolean unlocked = SlotUnlockManager.getInstance()
-                    .unlockSlotPermanent(player, slotId);
-                
-                if (unlocked) {
-                    anyPermanentChange = true;
-                    
-                    if (UnlockRulesConfig.debugMode) {
-                        System.out.println("[RuleChecker] 永久解锁槽位 " + slotId + 
-                            " for " + player.getName());
-                    }
-                    
-                    // 发送提示消息（可选）
-                    sendUnlockMessage(player, slotId, false);
-                }
-            }
-            
-            // ⭐ 收集临时解锁
+
+            // ⭐ 修复：临时解锁优先级高于永久解锁
             if (result.shouldTemporaryUnlock) {
                 currentTempUnlocks.add(slotId);
+                // 临时解锁时不执行永久解锁
+            } else if (result.shouldPermanentUnlock) {
+                // 只有在没有临时条件时才永久解锁
+                boolean unlocked = SlotUnlockManager.getInstance()
+                        .unlockSlotPermanent(player, slotId);
+
+                if (unlocked && UnlockRulesConfig.debugMode) {
+                    System.out.println("[RuleChecker] 永久解锁槽位 " + slotId);
+                }
             }
         }
         
         // ⭐ 更新临时解锁状态（会自动处理失效的槽位）
+        if (UnlockRulesConfig.debugMode) {
+            System.out.println("[RuleChecker] 当前临时解锁槽位: " + currentTempUnlocks);
+        }
         SlotUnlockManager.getInstance().updateTemporaryUnlocks(player, currentTempUnlocks);
     }
 
@@ -165,16 +162,16 @@ public class RuleChecker {
         if (rules.isEmpty()) {
             return new RuleCheckResult(false, false);
         }
-        
+
         boolean hasPermanent = false;
         boolean permSatisfied = false;
         boolean hasTemporary = false;
         boolean tempSatisfied = false;
-        
+
         for (UnlockRule rule : rules) {
             UnlockCondition condition = rule.getCondition();
             boolean satisfied = condition.check(player);
-            
+
             if (condition.isTemporary()) {
                 hasTemporary = true;
                 if (satisfied) {
@@ -187,16 +184,20 @@ public class RuleChecker {
                 }
             }
         }
-        
-        // OR模式: 满足任意条件即可
-        if (UnlockRulesConfig.ruleOrMode) {
-            return new RuleCheckResult(permSatisfied, tempSatisfied);
+
+        // ⭐ 修复：如果有临时条件满足，只返回临时解锁
+        if (tempSatisfied) {
+            return new RuleCheckResult(false, true);  // 只临时，不永久
         }
-        
-        // AND模式: 必须满足所有类型的条件
+
+        // 只有在没有临时条件满足时，才考虑永久解锁
+        if (UnlockRulesConfig.ruleOrMode) {
+            return new RuleCheckResult(permSatisfied, false);
+        }
+
+        // AND模式
         boolean perm = !hasPermanent || permSatisfied;
-        boolean temp = !hasTemporary || tempSatisfied;
-        return new RuleCheckResult(perm && hasPermanent, temp && hasTemporary);
+        return new RuleCheckResult(perm && hasPermanent, false);
     }
 
     /**

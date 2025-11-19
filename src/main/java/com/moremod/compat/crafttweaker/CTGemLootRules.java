@@ -20,6 +20,10 @@ public class CTGemLootRules {
 
     @ZenMethod
     public static void setupAllRules() {
+        // ⭐ 清空所有内建规则，使用下面的自定义规则
+        GemLootRuleManager.clearRules();
+        CraftTweakerAPI.logInfo("[GemRules] ✅ 已清空内建规则，开始配置自定义规则");
+
         // Champions
         championTier1();
         championTier2();
@@ -66,57 +70,58 @@ public class CTGemLootRules {
     @ZenMethod
     public static void championTier1() {
         GemLootRuleManager.LootRule rule = new GemLootRuleManager.LootRule(
-                "champion_tier1", 10, 25, 1, 2, 0.08f, 0.2f, 1
+                "champion_tier1", 5, 15, 1, 2, 0.08f, 0.2f, 1
         );
         rule.matchModId("champions");
         rule.setChampionTier(1);
         GemLootRuleManager.addRule(rule);
-        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：Champion Tier 1");
+        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：Champion Tier 1（平衡调整，Lv5-15）");
     }
 
     @ZenMethod
     public static void championTier2() {
         GemLootRuleManager.LootRule rule = new GemLootRuleManager.LootRule(
-                "champion_tier2", 20, 40, 2, 3, 0.15f, 0.3f, 1
+                "champion_tier2", 10, 25, 2, 3, 0.15f, 0.3f, 1
         );
         rule.matchModId("champions");
         rule.setChampionTier(2);
         GemLootRuleManager.addRule(rule);
-        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：Champion Tier 2");
+        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：Champion Tier 2（平衡调整，Lv10-25）");
     }
 
     @ZenMethod
     public static void championTier3() {
         GemLootRuleManager.LootRule rule = new GemLootRuleManager.LootRule(
-                "champion_tier3", 35, 60, 3, 4, 0.25f, 0.4f, 1
+                "champion_tier3", 20, 40, 3, 4, 0.25f, 0.4f, 1
         );
         rule.matchModId("champions");
         rule.setChampionTier(3);
-        rule.setRandomDropCount(1, 2);
+        rule.setRandomDropCount(1, 1);
         GemLootRuleManager.addRule(rule);
-        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：Champion Tier 3");
+        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：Champion Tier 3（平衡调整，Lv20-40）");
     }
 
     @ZenMethod
     public static void championTier4() {
         GemLootRuleManager.LootRule rule = new GemLootRuleManager.LootRule(
-                "champion_tier4", 50, 80, 4, 5, 0.4f, 0.5f, 2
+                "champion_tier4", 30, 55, 4, 5, 0.4f, 0.5f, 2
         );
         rule.matchModId("champions");
         rule.setChampionTier(4);
+        rule.setRandomDropCount(1, 1);
         GemLootRuleManager.addRule(rule);
-        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：Champion Tier 4");
+        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：Champion Tier 4（平衡调整，Lv30-55）");
     }
 
     @ZenMethod
     public static void championGrowthBonus() {
         GemLootRuleManager.LootRule rule = new GemLootRuleManager.LootRule(
-                "champion_growth_bonus", 1, 100, 1, 6, 0.01f, 0.1f, 1
+                "champion_growth_bonus", 1, 30, 1, 3, 0.01f, 0.1f, 1
         );
         rule.matchModId("champions");
         rule.setGrowthFactorBonus(true);
         GemLootRuleManager.addRule(rule);
-        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：Champion成长因子奖励");
+        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：Champion成长因子奖励（平衡调整，Lv1-30）");
     }
 
     // ==========================================
@@ -126,20 +131,20 @@ public class CTGemLootRules {
     @ZenMethod
     public static void dragonYoung() {
         GemLootRuleManager.LootRule rule = new GemLootRuleManager.LootRule(
-                "dragon_young", 10, 20, 1, 1, 0.02f, 0.1f, 1
+                "dragon_young", 3, 8, 1, 1, 0.02f, 0.1f, 1
         );
         rule.matchClassName("EntityFireDragon");
         rule.matchClassName("EntityIceDragon");
         rule.matchClassName("EntityLightningDragon");
         rule.setMaxHealth(299);
         GemLootRuleManager.addRule(rule);
-        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：幼龙掉落规则");
+        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：幼龙掉落规则（平衡调整，Lv3-8）");
     }
 
     @ZenMethod
     public static void dragonStage3() {
         GemLootRuleManager.LootRule rule = new GemLootRuleManager.LootRule(
-                "dragon_stage3", 25, 45, 2, 3, 0.15f, 0.3f, 1
+                "dragon_stage3", 25, 30, 2, 3, 0.15f, 0.3f, 1
         );
         rule.matchClassName("EntityFireDragon");
         rule.matchClassName("EntityIceDragon");
@@ -147,36 +152,36 @@ public class CTGemLootRules {
         rule.setMinHealth(300);
         rule.setMaxHealth(399);
         GemLootRuleManager.addRule(rule);
-        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：阶段3龙掉落规则");
+        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：阶段3龙掉落规则（平衡调整，Lv25-30）");
     }
 
     @ZenMethod
     public static void dragonStage4() {
         GemLootRuleManager.LootRule rule = new GemLootRuleManager.LootRule(
-                "dragon_stage4", 40, 65, 3, 4, 0.3f, 0.45f, 1
+                "dragon_stage4", 40, 50, 3, 4, 0.3f, 0.45f, 1
         );
         rule.matchClassName("EntityFireDragon");
         rule.matchClassName("EntityIceDragon");
         rule.matchClassName("EntityLightningDragon");
         rule.setMinHealth(400);
         rule.setMaxHealth(499);
-        rule.setRandomDropCount(1, 2);
+        rule.setRandomDropCount(1, 1);
         GemLootRuleManager.addRule(rule);
-        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：阶段4龙掉落规则");
+        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：阶段4龙掉落规则（平衡调整，Lv40-50）");
     }
 
     @ZenMethod
     public static void dragonStage5() {
         GemLootRuleManager.LootRule rule = new GemLootRuleManager.LootRule(
-                "dragon_stage5", 60, 90, 4, 5, 0.5f, 0.6f, 2
+                "dragon_stage5", 60, 75, 4, 5, 0.5f, 0.6f, 2
         );
         rule.matchClassName("EntityFireDragon");
         rule.matchClassName("EntityIceDragon");
         rule.matchClassName("EntityLightningDragon");
         rule.setMinHealth(500);
-        rule.setRandomDropCount(2, 3);
+        rule.setRandomDropCount(1, 1);
         GemLootRuleManager.addRule(rule);
-        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：阶段5成年龙掉落规则");
+        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：阶段5成年龙掉落规则（平衡调整，Lv60-75）");
     }
 
     // ==========================================
@@ -198,9 +203,9 @@ public class CTGemLootRules {
     public static void infernalElite() {
         GemLootRuleManager.LootRule rule = new GemLootRuleManager.LootRule(
                 "infernal_elite",
-                10, 25,              // 宝石等级10-25（提升上限）
-                2, 3,                // 2-3词条（提升）
-                0.50f,               // 50%掉落率（大幅提升）
+                5, 18,               // 宝石等级5-18（平衡调整）
+                2, 3,                // 2-3词条
+                0.50f,               // 50%掉落率
                 0.2f,                // 20%最低品质
                 2                    // 2次重roll
         );
@@ -220,18 +225,17 @@ public class CTGemLootRules {
     /**
      * Infernal Ultra (6-10个修饰词)
      *
-     * 修复内容：
-     * - ✅ 提升掉落率从20%到75%
-     * - ✅ 提升宝石等级和词条数
-     * - ✅ 增加掉落数量1-2个
+     * 平衡调整：
+     * - ✅ 75%掉落率
+     * - ✅ 降低掉落数量为1个
      */
     @ZenMethod
     public static void infernalUltra() {
         GemLootRuleManager.LootRule rule = new GemLootRuleManager.LootRule(
                 "infernal_ultra",
-                25, 45,              // 宝石等级25-45（提升）
-                3, 4,                // 3-4词条（提升）
-                0.75f,               // 75%掉落率（大幅提升）
+                15, 35,              // 宝石等级15-35（平衡调整）
+                3, 4,                // 3-4词条
+                0.75f,               // 75%掉落率
                 0.3f,                // 30%最低品质
                 3                    // 3次重roll
         );
@@ -243,27 +247,26 @@ public class CTGemLootRules {
         rule.setDynamicDropRate(true);
         rule.setDynamicLevel(true);
 
-        // Ultra有机会掉落多个宝石
-        rule.setRandomDropCount(1, 2);
+        // Ultra掉落1个宝石（平衡调整）
+        rule.setRandomDropCount(1, 1);
 
         GemLootRuleManager.addRule(rule);
-        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：Infernal Ultra规则（修复版，6-10 mods，75%掉落）");
+        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：Infernal Ultra规则（平衡版，6-10 mods，75%掉落1个）");
     }
 
     /**
      * Infernal Inferno (11+个修饰词)
      *
-     * 修复内容：
-     * - ✅ 掉落率提升到100%（必掉）
-     * - ✅ 提升宝石等级和词条数
-     * - ✅ 增加掉落数量2-3个
+     * 平衡调整：
+     * - ✅ 100%掉落率（必掉）
+     * - ✅ 降低掉落数量为1个
      */
     @ZenMethod
     public static void infernalInferno() {
         GemLootRuleManager.LootRule rule = new GemLootRuleManager.LootRule(
                 "infernal_inferno",
-                45, 70,              // 宝石等级45-70（提升）
-                4, 6,                // 4-6词条（大幅提升）
+                30, 55,              // 宝石等级30-55（平衡调整）
+                4, 6,                // 4-6词条
                 1.0f,                // 100%掉落率（必掉）
                 0.5f,                // 50%最低品质
                 4                    // 4次重roll
@@ -276,11 +279,11 @@ public class CTGemLootRules {
         rule.setDynamicDropRate(true);
         rule.setDynamicLevel(true);
 
-        // Inferno必掉2-3个宝石
-        rule.setRandomDropCount(2, 3);
+        // Inferno掉落1个宝石（平衡调整）
+        rule.setRandomDropCount(1, 1);
 
         GemLootRuleManager.addRule(rule);
-        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：Infernal Inferno规则（修复版，11+ mods，100%掉落）");
+        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：Infernal Inferno规则（平衡版，11+ mods，必掉1个）");
     }
 
     // ==========================================
@@ -288,12 +291,12 @@ public class CTGemLootRules {
     // ==========================================
 
     /**
-     * Lycanites普通生物 - 提升掉落率
+     * Lycanites普通生物 - 平衡调整
      */
     @ZenMethod
     public static void lycanitesNormal() {
         GemLootRuleManager.LootRule rule = new GemLootRuleManager.LootRule(
-                "lycanites_normal", 15, 30, 1, 2, 0.05f, 0.2f, 1
+                "lycanites_normal", 8, 18, 1, 2, 0.05f, 0.2f, 1
         );
         rule.matchModId("lycanitesmobs");
         rule.excludeInterface("IGroupBoss");
@@ -301,16 +304,16 @@ public class CTGemLootRules {
         rule.setMaxHealth(80);
         rule.requireHostile(true);  // ⭐ 只匹配敌对生物（排除驯服坐骑/宠物）
         GemLootRuleManager.addRule(rule);
-        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：Lycanites普通生物规则（增强）");
+        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：Lycanites普通生物规则（平衡调整，Lv8-18）");
     }
 
     /**
-     * Lycanites稀有生物 - 提升掉落率
+     * Lycanites稀有生物 - 平衡调整
      */
     @ZenMethod
     public static void lycanitesRare() {
         GemLootRuleManager.LootRule rule = new GemLootRuleManager.LootRule(
-                "lycanites_rare", 30, 50, 2, 3, 0.15f, 0.3f, 1
+                "lycanites_rare", 18, 35, 2, 3, 0.15f, 0.3f, 1
         );
         rule.matchModId("lycanitesmobs");
         rule.excludeInterface("IGroupBoss");
@@ -318,37 +321,37 @@ public class CTGemLootRules {
         rule.setMinHealth(80);
         rule.requireHostile(true);  // ⭐ 只匹配敌对生物（排除驯服坐骑/宠物）
         GemLootRuleManager.addRule(rule);
-        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：Lycanites稀有生物规则（增强）");
+        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：Lycanites稀有生物规则（平衡调整，Lv18-35）");
     }
 
     /**
-     * Lycanites精英/MiniBoss - 大幅提升
+     * Lycanites精英/MiniBoss - 平衡调整
      */
     @ZenMethod
     public static void lycanitesMiniBoss() {
         GemLootRuleManager.LootRule rule = new GemLootRuleManager.LootRule(
-                "lycanites_miniboss", 45, 65, 3, 4, 0.35f, 0.4f, 2
+                "lycanites_miniboss", 60, 75, 3, 4, 0.35f, 0.4f, 2
         );
         rule.matchModId("lycanitesmobs");
         rule.matchInterface("IGroupHeavy");
-        rule.setRandomDropCount(1, 2);
+        rule.setRandomDropCount(1, 1);
         GemLootRuleManager.addRule(rule);
-        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：Lycanites MiniBoss规则（增强）");
+        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：Lycanites MiniBoss规则（平衡调整，Lv60-75）");
     }
 
     /**
-     * Lycanites普通Boss - 大幅提升
+     * Lycanites普通Boss - 平衡调整
      */
     @ZenMethod
     public static void lycanitesBoss() {
         GemLootRuleManager.LootRule rule = new GemLootRuleManager.LootRule(
-                "lycanites_boss", 60, 90, 4, 5, 0.7f, 0.55f, 2
+                "lycanites_boss", 40, 65, 4, 5, 0.7f, 0.55f, 2
         );
         rule.matchModId("lycanitesmobs");
         rule.matchInterface("IGroupBoss");
-        rule.setRandomDropCount(2, 4);
+        rule.setRandomDropCount(1, 1);
         GemLootRuleManager.addRule(rule);
-        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：Lycanites Boss规则（增强）");
+        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：Lycanites Boss规则（平衡调整，Lv40-65）");
     }
 
     /**
@@ -370,14 +373,14 @@ public class CTGemLootRules {
         rule.matchClassName("EntityAsmodeus");
         rule.matchClassName("EntityRahovart");
 
-        // 掉落3-5个宝石
-        rule.setRandomDropCount(3, 5);
+        // 掉落1个宝石
+        rule.setRandomDropCount(1, 1);
 
         // 最高优先级
         rule.setPriority(1000);
 
         GemLootRuleManager.addRule(rule);
-        CraftTweakerAPI.logInfo("[GemRules] ✅✅✅ 已添加：Lycanites三王规则（100级必掉）");
+        CraftTweakerAPI.logInfo("[GemRules] ✅✅✅ 已添加：Lycanites三王规则（固定Lv100必掉1个）");
     }
 
     /**
@@ -386,14 +389,14 @@ public class CTGemLootRules {
     @ZenMethod
     public static void lycanitesSuperBoss() {
         GemLootRuleManager.LootRule rule = new GemLootRuleManager.LootRule(
-                "lycanites_superboss", 80, 100, 4, 6, 0.85f, 0.65f, 3
+                "lycanites_superboss", 55, 80, 4, 6, 0.85f, 0.65f, 3
         );
         rule.matchModId("lycanitesmobs");
         rule.matchInterface("IGroupBoss");
         rule.setMinHealth(500);
-        rule.setRandomDropCount(3, 5);
+        rule.setRandomDropCount(1, 1);
         GemLootRuleManager.addRule(rule);
-        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：Lycanites超级Boss规则（增强）");
+        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：Lycanites超级Boss规则（平衡调整，Lv55-80）");
     }
 
     // ==========================================

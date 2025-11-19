@@ -27,10 +27,11 @@ public class TileEntitySwordUpgradeStationMaterial extends TileEntity {
         public boolean isItemValid(int slot, ItemStack stack) {
             if (slot == SLOT_OUT) return false; // 输出槽禁止放
             if (slot == SLOT_BASE) return isSword(stack);
-            if (slot == SLOT_MAT)  return SwordUpgradeRegistry.getRecipe(stack.getItem()) != null;
+            // ✅ 修复：使用新的 isValidMaterial 方法检查材料
+            if (slot == SLOT_MAT)  return SwordUpgradeRegistry.isValidMaterial(stack.getItem());
             return true;
         }
-        // 可选增强：显式允许从输出槽提取，避免个别环境“模拟抽取”误判
+        // 可选增强：显式允许从输出槽提取，避免个别环境"模拟抽取"误判
         @Override
         public ItemStack extractItem(int slot, int amount, boolean simulate) {
             if (slot == SLOT_OUT) {
@@ -82,7 +83,7 @@ public class TileEntitySwordUpgradeStationMaterial extends TileEntity {
             out.setTagCompound(base.getTagCompound().copy());
         }
 
-        // 复制耐久“比例”
+        // 复制耐久"比例"
         if (base.isItemStackDamageable() && out.isItemStackDamageable()) {
             double ratio = base.getItemDamage() / (double) base.getMaxDamage();
             int newDamage = (int) Math.floor(ratio * out.getMaxDamage());

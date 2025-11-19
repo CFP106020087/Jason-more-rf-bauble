@@ -13,8 +13,16 @@ import com.moremod.item.ItemExplorerCompass;
 import com.moremod.item.ItemCausalGateband;
 // 🧠 添加行為分析晶片導入
 import com.moremod.item.ItemBehaviorAnalysisChip;
+// 👻 添加诅咒蔓延导入
+import com.moremod.item.ItemCurseSpread;
 // 🗡️ 添加澄月剑导入
 import com.moremod.item.ItemSwordChengYue;
+// 🌟 添加剑气测试器导入
+import com.moremod.item.ItemSwordBeamTester;
+// ⚔️ 添加锯刃剑导入
+import com.moremod.item.ItemSawBladeSword;
+// 🛡️ 添加勇者之剑导入
+import com.moremod.item.ItemHeroSword;
 // 💎 添加宝石系统导入
 import com.moremod.item.ItemGem;
 import com.moremod.item.ItemIdentifyScroll;
@@ -24,6 +32,7 @@ import com.moremod.item.ItemBioStabilizer;
 import com.moremod.item.ItemTowel;
 
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
+import net.minecraft.item.Item.ToolMaterial;
 import net.minecraft.item.EnumRarity;
 import net.minecraft.item.Item;
 import net.minecraftforge.client.event.ModelRegistryEvent;
@@ -31,6 +40,8 @@ import net.minecraftforge.client.model.ModelLoader;
 import net.minecraftforge.event.RegistryEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
 @Mod.EventBusSubscriber(modid = "moremod")
 public final class ModItems {
@@ -73,9 +84,13 @@ public final class ModItems {
     public static Item EXPLORER_COMPASS;        // 🧭 探险者罗盘
     public static Item CAUSAL_GATEBAND;         // ⭕ 因果闕帶（智能沉默）
     public static Item BEHAVIOR_ANALYSIS_CHIP;  // 🧠 行為分析晶片
+    public static Item CURSE_SPREAD;            // 👻 诅咒蔓延
 
     // 🗡️ 武器系列
-    public static ItemSwordChengYue SWORD_CHENGYUE;  // 澄月 - 成长性终极武器
+    public static ItemSwordChengYue SWORD_CHENGYUE;      // 澄月 - 成长性终极武器
+    public static Item SWORD_BEAM_TESTER;                // 🌟 剑气测试器 - 用于测试剑气渲染
+    public static ItemSawBladeSword SAW_BLADE_SWORD;     // ⚔️ 锯刃剑 - GeckoLib动画武器
+    public static ItemHeroSword HERO_SWORD;              // 🛡️ 勇者之剑 - GeckoLib动画武器
 
     // 💎 宝石系统
     public static ItemGem GEM;                      // 宝石（支持品质颜色）
@@ -141,9 +156,25 @@ public final class ModItems {
         BEHAVIOR_ANALYSIS_CHIP = reg(e, new ItemBehaviorAnalysisChip());
         System.out.println("[MoreMod] 行為分析晶片已註冊");
 
+        // 👻 注册诅咒蔓延
+        CURSE_SPREAD = reg(e, new ItemCurseSpread());
+        System.out.println("[MoreMod] 👻 诅咒蔓延已注册");
+
         // 🗡️ 注册澄月剑
         SWORD_CHENGYUE = (ItemSwordChengYue) reg(e, new ItemSwordChengYue());
         System.out.println("[MoreMod] ✨ 澄月剑已注册");
+
+        // ⚔️ 注册锯刃剑
+        SAW_BLADE_SWORD = (ItemSawBladeSword) reg(e, new ItemSawBladeSword(ToolMaterial.DIAMOND));
+        System.out.println("[MoreMod] ⚔️ 锯刃剑已注册");
+
+        // 🛡️ 注册勇者之剑
+        HERO_SWORD = (ItemHeroSword) reg(e, new ItemHeroSword(ToolMaterial.DIAMOND));
+        System.out.println("[MoreMod] 🛡️ 勇者之剑已注册");
+
+        // 🌟 注册剑气测试器
+        SWORD_BEAM_TESTER = reg(e, new ItemSwordBeamTester());
+        System.out.println("[MoreMod] 🌟 剑气测试器已注册");
 
         // 💎 注册宝石系统
         GEM = (ItemGem) reg(e, new ItemGem());
@@ -169,10 +200,11 @@ public final class ModItems {
     }
 
     @SubscribeEvent
+    @SideOnly(Side.CLIENT)
     public static void onModelRegister(ModelRegistryEvent e) {
         // 统一使用 item/generated
         bindModel(UNFORMED_FIBER, "unformed_fiber");
-        bindModel(UNFORMED_FABRIC, "unformed_fabric"); // ★ 新增绑定
+        bindModel(UNFORMED_FABRIC, "unformed_fabric");
 
         bindModel(FRGUARDIAN_STONE,      "frguardian_stone");
         bindModel(ANCIENT_CORE_FRAGMENT, "ancient_core_fragment");
@@ -222,9 +254,23 @@ public final class ModItems {
         bindModel(BEHAVIOR_ANALYSIS_CHIP, "behavior_analysis_chip");
         System.out.println("[MoreMod] 行為分析晶片模型已註冊");
 
+        // 👻 绑定诅咒蔓延模型
+        bindModel(CURSE_SPREAD, "curse_spread");
+        System.out.println("[MoreMod] 👻 诅咒蔓延模型已注册");
+
         // 🗡️ 绑定澄月剑模型
         bindModel(SWORD_CHENGYUE, "sword_chengyue");
         System.out.println("[MoreMod] ✨ 澄月剑模型已注册");
+
+        // ⚔️ 初始化锯刃剑TEISR渲染器
+        System.out.println("[MoreMod] ⚔️ 锯刃剑TEISR渲染器已初始化");
+
+        // 🛡️ 初始化勇者之剑TEISR渲染器
+        System.out.println("[MoreMod] 🛡️ 勇者之剑TEISR渲染器已初始化");
+
+        // 🌟 绑定剑气测试器模型
+        bindModel(SWORD_BEAM_TESTER, "sword_beam_tester");
+        System.out.println("[MoreMod] 🌟 剑气测试器模型已注册");
 
         // 💎 绑定宝石系统模型
         bindModel(GEM, "gem");
@@ -244,6 +290,7 @@ public final class ModItems {
         System.out.println("[MoreMod] 🧴 毛巾模型已注册");
     }
 
+    @SideOnly(Side.CLIENT)
     private static void bindModel(Item item, String path) {
         if (item != null) {
             ModelLoader.setCustomModelResourceLocation(item, 0,

@@ -23,11 +23,11 @@ import java.util.Random;
  * 转移台 TileEntity - 增强版
  * 支持配置化的转移符文系统
  *
- * 槽位分配：
- * 0 - 源宝石（精炼宝石，必须是单词条）
- * 1 - 目标宝石（已鉴定的宝石）
- * 2 - 材料槽（转移符文）
- * 3 - 输出槽（只读）
+ * 槽位分配（匹配Container布局）：
+ * 0 - 源宝石（左上，精炼宝石，必须是单词条）
+ * 1 - 输出槽（中心，只读）
+ * 2 - 目标宝石（右上，已鉴定的宝石）
+ * 3 - 符文槽（左下，转移符文）
  */
 public class TileEntityTransferStation extends TileEntity implements ITickable {
 
@@ -44,8 +44,8 @@ public class TileEntityTransferStation extends TileEntity implements ITickable {
                         world.getBlockState(pos), 3);
             }
 
-            // 如果改变了材料槽，更新符文信息
-            if (slot == 2) {
+            // 如果改变了符文槽，更新符文信息
+            if (slot == 3) {
                 updateRuneInfo();
             }
         }
@@ -55,18 +55,18 @@ public class TileEntityTransferStation extends TileEntity implements ITickable {
             if (stack.isEmpty()) return true;
 
             switch (slot) {
-                case 0: // 源宝石槽 - 必须是精炼宝石
+                case 0: // 源宝石槽（左上）- 必须是精炼宝石
                     return GemNBTHelper.isIdentified(stack) &&
                             GemExtractionHelper.isRefined(stack);
 
-                case 1: // 目标宝石槽 - 必须是已鉴定的宝石
+                case 1: // 输出槽（中心）- 不允许放入
+                    return false;
+
+                case 2: // 目标宝石槽（右上）- 必须是已鉴定的宝石
                     return GemNBTHelper.isIdentified(stack);
 
-                case 2: // 材料槽 - 检查是否是有效的转移符文
+                case 3: // 符文槽（左下）- 检查是否是有效的转移符文
                     return TransferRuneManager.isValidRune(stack);
-
-                case 3: // 输出槽 - 不允许放入
-                    return false;
 
                 default:
                     return false;
@@ -75,25 +75,19 @@ public class TileEntityTransferStation extends TileEntity implements ITickable {
 
         @Override
         public ItemStack extractItem(int slot, int amount, boolean simulate) {
-            // 修复：允许从所有槽位取出物品
-            // 输出槽（3）：正常取出
-            // 其他槽位（0,1,2）：只在非转移过程中可以取出
-            
-            if (slot == 3) {
-                // 输出槽总是可以取出
+            // 输出槽（1）总是可以取出
+            if (slot == 1) {
                 return super.extractItem(slot, amount, simulate);
             }
-            
-            // 对于输入槽位，在转移过程中不允许取出
-            // 这里可以添加一个标志位来控制，但为了简单起见，我们允许玩家随时取出
-            // 如果需要在转移过程中锁定，可以添加 isTransferring 标志
+
+            // 其他槽位也允许取出
             return super.extractItem(slot, amount, simulate);
         }
-        
+
         @Override
         public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
             // 输出槽不允许插入
-            if (slot == 3) {
+            if (slot == 1) {
                 return stack;
             }
             return super.insertItem(slot, stack, simulate);
@@ -132,9 +126,9 @@ public class TileEntityTransferStation extends TileEntity implements ITickable {
      * 更新转移状态
      */
     private void updateTransferStatus() {
-        ItemStack sourceGem = inventory.getStackInSlot(0);
-        ItemStack targetGem = inventory.getStackInSlot(1);
-        ItemStack material = inventory.getStackInSlot(2);
+        ItemStack sourceGem = inventory.getStackInSlot(0);   // 左上
+        ItemStack targetGem = inventory.getStackInSlot(2);   // 右上
+        ItemStack material = inventory.getStackInSlot(3);    // 左下
 
         // 重置状态
         canTransfer = false;
@@ -190,12 +184,8 @@ public class TileEntityTransferStation extends TileEntity implements ITickable {
         }
 
         // 检查是否有重复词条类型
-        // 注意：如果 GemExtractionHelper.hasAffixType() 方法不存在，
-        // 请注释掉下面这段代码或在 GemExtractionHelper 中添加该方法
         String sourceAffixType = GemExtractionHelper.getAffixTypeName(sourceGem);
         if (sourceAffixType != null && !sourceAffixType.isEmpty()) {
-            // TODO: 如果 hasAffixType 方法不存在，需要在 GemExtractionHelper 中添加
-            // 或者暂时注释掉这个检查
             try {
                 if (GemExtractionHelper.hasAffixType(targetGem, sourceAffixType)) {
                     errorMessage = "目标宝石已有此类型词条";
@@ -203,12 +193,11 @@ public class TileEntityTransferStation extends TileEntity implements ITickable {
                 }
             } catch (NoSuchMethodError e) {
                 // 如果方法不存在，跳过此检查
-                // 可以在日志中记录警告
             }
         }
 
         // 检查输出槽
-        if (!inventory.getStackInSlot(3).isEmpty()) {
+        if (!inventory.getStackInSlot(1).isEmpty()) {
             errorMessage = "请先取出输出槽物品";
             return;
         }
@@ -222,7 +211,7 @@ public class TileEntityTransferStation extends TileEntity implements ITickable {
      * 更新当前符文信息
      */
     private void updateRuneInfo() {
-        ItemStack material = inventory.getStackInSlot(2);
+        ItemStack material = inventory.getStackInSlot(3);  // 左下符文槽
         if (material.isEmpty()) {
             currentSuccessRate = 1.0f;
             currentXpCost = TransferRuneManager.getBaseXpCost();
@@ -255,9 +244,9 @@ public class TileEntityTransferStation extends TileEntity implements ITickable {
             return false;
         }
 
-        ItemStack sourceGem = inventory.getStackInSlot(0).copy();
-        ItemStack targetGem = inventory.getStackInSlot(1).copy();
-        ItemStack material = inventory.getStackInSlot(2);
+        ItemStack sourceGem = inventory.getStackInSlot(0).copy();  // 左上
+        ItemStack targetGem = inventory.getStackInSlot(2).copy();  // 右上
+        ItemStack material = inventory.getStackInSlot(3);          // 左下
 
         // 检查成功率
         boolean success = RANDOM.nextFloat() < currentSuccessRate;
@@ -271,8 +260,8 @@ public class TileEntityTransferStation extends TileEntity implements ITickable {
                 return false;
             }
 
-            // 成功：输出结果
-            inventory.setStackInSlot(3, result);
+            // 成功：输出结果到中心槽
+            inventory.setStackInSlot(1, result);
 
             // 播放成功音效
             playSuccessSound();
@@ -295,15 +284,15 @@ public class TileEntityTransferStation extends TileEntity implements ITickable {
         // 消耗材料
         material.shrink(1);
         if (material.isEmpty()) {
-            inventory.setStackInSlot(2, ItemStack.EMPTY);
+            inventory.setStackInSlot(3, ItemStack.EMPTY);
         }
 
         // 消耗经验
         player.addExperienceLevel(-currentXpCost);
 
         // 清空输入槽
-        inventory.setStackInSlot(0, ItemStack.EMPTY);
-        inventory.setStackInSlot(1, ItemStack.EMPTY);
+        inventory.setStackInSlot(0, ItemStack.EMPTY);  // 源
+        inventory.setStackInSlot(2, ItemStack.EMPTY);  // 目标
 
         return success;
     }
@@ -326,7 +315,7 @@ public class TileEntityTransferStation extends TileEntity implements ITickable {
         }
 
         // 目标宝石总是返还
-        ItemStack targetGem = inventory.getStackInSlot(1).copy();
+        ItemStack targetGem = inventory.getStackInSlot(2).copy();
         if (!player.inventory.addItemStackToInventory(targetGem)) {
             player.dropItem(targetGem, false);
         }
