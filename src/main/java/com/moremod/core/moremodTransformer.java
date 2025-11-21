@@ -318,6 +318,15 @@ public class moremodTransformer implements IClassTransformer {
                 }
             }
 
+            // ⭐ Hook isItemValidForSlot 方法来验证额外槽位的类型
+            else if (mn.name.equals("isItemValidForSlot") &&
+                     mn.desc.equals("(ILnet/minecraft/item/ItemStack;Lnet/minecraft/entity/player/EntityPlayer;)Z")) {
+                if (patchIsItemValidForSlot(mn)) {
+                    modified = true;
+                    System.out.println("[moremodTransformer]     - Hooked isItemValidForSlot for extra slot validation");
+                }
+            }
+
             // ⭐ 关键：修改所有方法中的硬编码 7
             else {
                 for (AbstractInsnNode n : mn.instructions.toArray()) {
@@ -350,6 +359,54 @@ public class moremodTransformer implements IClassTransformer {
         System.out.println("[moremodTransformer]   ✓ BaublesContainer patched dynamically");
         return cw.toByteArray();
     }
+
+    /**
+     * Hook BaublesContainer.isItemValidForSlot() 来验证额外槽位的类型
+     * 防止外部模组（如 Artifacts）通过右键装备绕过类型检查
+     */
+    private boolean patchIsItemValidForSlot(MethodNode mn) {
+        // 在所有 IRETURN 前注入检查
+        boolean modified = false;
+
+        for (AbstractInsnNode n : mn.instructions.toArray()) {
+            if (n.getOpcode() == Opcodes.IRETURN) {
+                InsnList inject = new InsnList();
+
+                // 栈顶是 boolean result (Baubles 原版的验证结果)
+                // 如果原版验证已经返回 false，直接返回，不需要额外检查
+                LabelNode skipCheck = new LabelNode();
+                inject.add(new InsnNode(Opcodes.DUP));  // [result, result]
+                inject.add(new JumpInsnNode(Opcodes.IFEQ, skipCheck));  // if result == false, skip
+
+                // 原版验证通过，pop 掉那个 result，调用我们的额外验证
+                inject.add(new InsnNode(Opcodes.POP));  // []
+
+                // 调用 AccessoryBoxHelper.isValidForExtraSlot(slot, stack, player)
+                // 参数: int slot (local 1), ItemStack stack (local 2), EntityPlayer player (local 3)
+                inject.add(new VarInsnNode(Opcodes.ILOAD, 1));   // [slot]
+                inject.add(new VarInsnNode(Opcodes.ALOAD, 2));   // [slot, stack]
+                inject.add(new VarInsnNode(Opcodes.ALOAD, 3));   // [slot, stack, player]
+
+                inject.add(new MethodInsnNode(
+                    Opcodes.INVOKESTATIC,
+                    "com/moremod/accessorybox/AccessoryBoxHelper",
+                    "isValidForExtraSlot",
+                    "(ILnet/minecraft/item/ItemStack;Lnet/minecraft/entity/EntityLivingBase;)Z",
+                    false
+                ));
+                // 现在栈顶是我们的验证结果
+
+                inject.add(skipCheck);
+                // 无论哪个分支，栈顶都是最终的 boolean 结果
+
+                mn.instructions.insertBefore(n, inject);
+                modified = true;
+            }
+        }
+
+        return modified;
+    }
+
     /**
      * ⭐ 新方法：修改方法中硬编码的槽位循环上限
      */
