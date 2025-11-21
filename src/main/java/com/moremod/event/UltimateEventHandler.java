@@ -32,7 +32,7 @@ import java.util.*;
 public class UltimateEventHandler {
 
     private static final Random RANDOM = new Random();
-    private static final boolean DEBUG = true;  // 调试开关
+    private static final boolean DEBUG = false;  // 调试开关
 
     // 连击追踪
     private static final Map<UUID, ComboTracker> COMBO_TRACKERS = new HashMap<>();

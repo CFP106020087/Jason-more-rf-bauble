@@ -21,6 +21,8 @@ import com.moremod.item.ItemHeroSword;
 import com.moremod.item.ItemMechanicalCore;
 import com.moremod.item.ItemSawBladeSword;
 import com.moremod.item.ItemSwordChengYue;
+// ✨ 新增导入：锯刃剑渲染层
+import com.moremod.item.sawblade.client.BloodEuphoriaRenderer;
 import com.moremod.moremod;
 import com.moremod.tile.TileEntityPedestal;
 import com.moremod.tile.TileEntityProtectionField;
@@ -124,6 +126,9 @@ public class ClientProxy extends CommonProxy {
         registerMechanicalCoreLayer();
         registerMechanicalExoskeletonLayer();
 
+        // ✨ 新增：注册锯刃剑鲜血欢愉渲染层
+        registerBloodEuphoriaLayer();
+
         ClientEventHandler.init(event);
     }
 
@@ -211,6 +216,47 @@ public class ClientProxy extends CommonProxy {
     }
 
     private static void registerMechanicalExoskeletonLayer() {}
+
+    // ✨ 新增：注册鲜血欢愉渲染层（玩家红色光晕）
+    /**
+     * 注册鲜血欢愉渲染层
+     * 为玩家添加红色光晕效果
+     */
+    private static void registerBloodEuphoriaLayer() {
+        try {
+            // 方法1：使用BloodEuphoriaRenderer的静态方法（推荐）
+            BloodEuphoriaRenderer.registerLayer();
+            System.out.println("[MoreMod] Blood Euphoria Renderer registered!");
+
+        } catch (Exception e) {
+            System.err.println("[MoreMod] Failed to register Blood Euphoria Renderer (method 1), trying fallback...");
+
+            // 方法2：手动注册（备用方案）
+            try {
+                Map<String, RenderPlayer> skinMap = Minecraft.getMinecraft().getRenderManager().getSkinMap();
+
+                // 注册到默认皮肤
+                RenderPlayer renderPlayerDefault = skinMap.get("default");
+                if (renderPlayerDefault != null) {
+                    renderPlayerDefault.addLayer(new BloodEuphoriaRenderer(renderPlayerDefault));
+                    System.out.println("[MoreMod] Blood Euphoria Renderer added to default skin");
+                }
+
+                // 注册到纤细皮肤
+                RenderPlayer renderPlayerSlim = skinMap.get("slim");
+                if (renderPlayerSlim != null) {
+                    renderPlayerSlim.addLayer(new BloodEuphoriaRenderer(renderPlayerSlim));
+                    System.out.println("[MoreMod] Blood Euphoria Renderer added to slim skin");
+                }
+
+                System.out.println("[MoreMod] Blood Euphoria Renderer registered (fallback method)!");
+
+            } catch (Exception e2) {
+                System.err.println("[MoreMod] CRITICAL: Failed to register Blood Euphoria Renderer!");
+                e2.printStackTrace();
+            }
+        }
+    }
 
     // ===== 模型注册 =====
     private static void registerBlockModelsSafe() {

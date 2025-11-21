@@ -16,6 +16,7 @@ import java.util.List;
  * 正面藥水效果 → 提升排異
  * 排異值越高 → 玩家可保留的正面藥水越少（平滑壓制）
  */
+
 public class RejectionPotionPenaltySystem {
 
     private static final PotionCategoryClassifier classifier = new PotionCategoryClassifier();

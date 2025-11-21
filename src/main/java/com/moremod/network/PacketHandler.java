@@ -30,6 +30,13 @@ public class PacketHandler {
                 Side.SERVER
         );
         INSTANCE.registerMessage(
+                PacketSyncRejectionData.Handler.class,
+                PacketSyncRejectionData.class,
+                id++,
+                Side.CLIENT
+        );
+
+        INSTANCE.registerMessage(
                 MessageJetpackSneaking.Handler.class,
                 MessageJetpackSneaking.class,
                 id++,

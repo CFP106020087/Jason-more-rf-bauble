@@ -1,6 +1,7 @@
 package com.moremod.eventHandler;
 
 import com.moremod.item.ItemMechanicalCore;
+import com.moremod.config.FleshRejectionConfig;
 import baubles.api.BaublesApi;
 import baubles.api.cap.IBaublesItemHandler;
 import net.minecraft.entity.item.EntityItem;
@@ -29,6 +30,14 @@ public class CoreDropProtection {
     private static final String K_IN_BAUBLES = "moremod_InBaubles";
     private static final String K_RESTORE_PENDING = "moremod_RestorePending";
 
+    // 排异系统NBT键
+    private static final String NBT_GROUP = "rejection";
+    private static final String NBT_REJECTION = "RejectionLevel";
+    private static final String NBT_ADAPTATION = "AdaptationLevel";
+    private static final String NBT_TRANSCENDED = "RejectionTranscended";
+    private static final String NBT_BLEEDING_TICKS = "BleedingTicks";
+    private static final String NBT_LAST_STABILIZER = "LastStabilizerUse";
+
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void onPlayerDeath(LivingDeathEvent event) {
         if (!(event.getEntityLiving() instanceof EntityPlayer)) return;
@@ -41,11 +50,13 @@ public class CoreDropProtection {
         }
         NBTTagCompound persisted = entityData.getCompoundTag(PERSISTED);
 
+        // 清理旧数据
         persisted.removeTag(K_CORE_NBT);
         persisted.removeTag(K_CORE_SLOT);
         persisted.removeTag(K_IN_BAUBLES);
         persisted.setBoolean(K_RESTORE_PENDING, false);
 
+        // 尝试保存核心
         boolean saved = false;
         if (BAUBLES_LOADED) saved = saveCoreFromBaubles(player, persisted);
         if (!saved) saveCoreFromInventory(player, persisted);
@@ -58,18 +69,27 @@ public class CoreDropProtection {
                 for (int i = 0; i < baubles.getSlots(); i++) {
                     ItemStack stack = baubles.getStackInSlot(i);
                     if (!stack.isEmpty() && ItemMechanicalCore.isMechanicalCore(stack)) {
+
+                        // 处理死亡排异衰减
+                        processDeathRejection(player, stack);
+
+                        // 保存核心NBT
                         NBTTagCompound coreNbt = new NBTTagCompound();
                         stack.writeToNBT(coreNbt);
                         persisted.setTag(K_CORE_NBT, coreNbt);
                         persisted.setInteger(K_CORE_SLOT, i);
                         persisted.setBoolean(K_IN_BAUBLES, true);
                         persisted.setBoolean(K_RESTORE_PENDING, true);
+
+                        // 移除核心
                         baubles.setStackInSlot(i, ItemStack.EMPTY);
                         return true;
                     }
                 }
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         return false;
     }
 
@@ -77,17 +97,75 @@ public class CoreDropProtection {
         for (int i = 0; i < player.inventory.getSizeInventory(); i++) {
             ItemStack stack = player.inventory.getStackInSlot(i);
             if (!stack.isEmpty() && ItemMechanicalCore.isMechanicalCore(stack)) {
+
+                // 处理死亡排异衰减
+                processDeathRejection(player, stack);
+
+                // 保存核心NBT
                 NBTTagCompound coreNbt = new NBTTagCompound();
                 stack.writeToNBT(coreNbt);
                 persisted.setTag(K_CORE_NBT, coreNbt);
                 persisted.setInteger(K_CORE_SLOT, i);
                 persisted.setBoolean(K_IN_BAUBLES, false);
                 persisted.setBoolean(K_RESTORE_PENDING, true);
+
+                // 移除核心
                 player.inventory.setInventorySlotContents(i, ItemStack.EMPTY);
                 return true;
             }
         }
         return false;
+    }
+
+    /**
+     * 处理死亡时的排异值衰减
+     */
+    private void processDeathRejection(EntityPlayer player, ItemStack core) {
+        if (!FleshRejectionConfig.enableRejectionSystem) return;
+        if (core.isEmpty()) return;
+
+        NBTTagCompound rejData = core.getOrCreateSubCompound(NBT_GROUP);
+
+        float oldRejection = rejData.getFloat(NBT_REJECTION);
+        float adaptation = rejData.getFloat(NBT_ADAPTATION);
+        boolean wasTranscended = rejData.getBoolean(NBT_TRANSCENDED);
+
+        // 突破状态处理
+        if (FleshRejectionConfig.keepTranscendenceOnDeath) {
+            if (wasTranscended) {
+                rejData.setFloat(NBT_REJECTION, 0f);
+            }
+        } else {
+            rejData.setBoolean(NBT_TRANSCENDED, false);
+        }
+
+        // 计算新的排异值
+        if (!wasTranscended || !FleshRejectionConfig.keepTranscendenceOnDeath) {
+            float newRejection = (float) (oldRejection * FleshRejectionConfig.deathRejectionRetention);
+            newRejection = Math.max(newRejection, (float) FleshRejectionConfig.minRejectionAfterDeath);
+            rejData.setFloat(NBT_REJECTION, newRejection);
+
+            // 记录衰减信息
+            if (oldRejection > FleshRejectionConfig.stabilizerMinRejection &&
+                    Math.abs(oldRejection - newRejection) > 0.01f) {
+                rejData.setFloat("PreDeathRejection", oldRejection);
+                rejData.setBoolean("DeathProcessed", true);
+            }
+        }
+
+        // 适应度保留
+        rejData.setFloat(NBT_ADAPTATION, adaptation);
+
+        // 清空临时状态
+        rejData.setInteger(NBT_BLEEDING_TICKS, 0);
+        rejData.setLong(NBT_LAST_STABILIZER, 0);
+
+        if (FleshRejectionConfig.debugMode && !player.world.isRemote) {
+            player.sendMessage(new TextComponentString(
+                    String.format("§7[死亡处理] 排异 %.1f → %.1f, 适应 %.1f",
+                            oldRejection, rejData.getFloat(NBT_REJECTION), adaptation)
+            ));
+        }
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
@@ -140,8 +218,10 @@ public class CoreDropProtection {
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void onPlayerClone(PlayerEvent.Clone event) {
         if (!event.isWasDeath()) return;
+
         EntityPlayer oldPlayer = event.getOriginal();
         EntityPlayer newPlayer = event.getEntityPlayer();
+
         NBTTagCompound oldPersisted = oldPlayer.getEntityData().getCompoundTag(PERSISTED);
         if (oldPersisted.hasKey(K_CORE_NBT)) {
             NBTTagCompound newEntityData = newPlayer.getEntityData();
@@ -149,6 +229,8 @@ public class CoreDropProtection {
                 newEntityData.setTag(PERSISTED, new NBTTagCompound());
             }
             NBTTagCompound newPersisted = newEntityData.getCompoundTag(PERSISTED);
+
+            // 复制保存的核心数据
             newPersisted.setTag(K_CORE_NBT, oldPersisted.getCompoundTag(K_CORE_NBT));
             newPersisted.setInteger(K_CORE_SLOT, oldPersisted.getInteger(K_CORE_SLOT));
             newPersisted.setBoolean(K_IN_BAUBLES, oldPersisted.getBoolean(K_IN_BAUBLES));
@@ -160,11 +242,14 @@ public class CoreDropProtection {
     public void onPlayerRespawn(PlayerRespawnEvent event) {
         EntityPlayer player = event.player;
         if (player.world.isRemote) return;
+
         NBTTagCompound persisted = player.getEntityData().getCompoundTag(PERSISTED);
         if (!persisted.hasKey(K_CORE_NBT)) return;
         if (!persisted.getBoolean(K_RESTORE_PENDING)) return;
+
         MinecraftServer server = player.getServer();
         if (server == null) return;
+
         server.addScheduledTask(() -> restoreCore(player));
     }
 
@@ -184,6 +269,8 @@ public class CoreDropProtection {
         }
 
         boolean restored = false;
+
+        // 尝试恢复到原位置
         if (BAUBLES_LOADED && inBaubles && slot >= 0) {
             restored = restoreToBaubles(player, core, slot);
         }
@@ -195,6 +282,7 @@ public class CoreDropProtection {
             }
         }
 
+        // 恢复到任意可用位置
         if (!restored) {
             if (player.inventory.addItemStackToInventory(core)) {
                 restored = true;
@@ -206,6 +294,25 @@ public class CoreDropProtection {
 
         if (restored) {
             cleanupCoreData(persisted);
+
+            // 显示死亡补偿信息
+            NBTTagCompound rejData = core.getOrCreateSubCompound(NBT_GROUP);
+            if (rejData.getBoolean("DeathProcessed")) {
+                float preDeathRej = rejData.getFloat("PreDeathRejection");
+                float currentRej = rejData.getFloat(NBT_REJECTION);
+
+                if (preDeathRej > FleshRejectionConfig.stabilizerMinRejection) {
+                    int lostPercent = (int)((preDeathRej - currentRej) / preDeathRej * 100);
+                    player.sendMessage(new TextComponentString(
+                            TextFormatting.YELLOW + "☠ 死亡使排异值降低了 " + lostPercent + "%"
+                    ));
+                }
+
+                // 清理临时标记
+                rejData.removeTag("PreDeathRejection");
+                rejData.removeTag("DeathProcessed");
+            }
+
             player.sendMessage(new TextComponentString(
                     TextFormatting.DARK_AQUA + "⚙ 机械核心已安全恢复" +
                             (inBaubles ? "到饰品栏" : "到背包") + "。"
@@ -221,15 +328,19 @@ public class CoreDropProtection {
                     baubles.setStackInSlot(slot, core);
                     return true;
                 } else {
+                    // 尝试其他槽位
                     for (int i = 0; i < baubles.getSlots(); i++) {
-                        if (baubles.getStackInSlot(i).isEmpty() && baubles.isItemValidForSlot(i, core, player)) {
+                        if (baubles.getStackInSlot(i).isEmpty() &&
+                                baubles.isItemValidForSlot(i, core, player)) {
                             baubles.setStackInSlot(i, core);
                             return true;
                         }
                     }
                 }
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         return false;
     }
 
@@ -239,12 +350,4 @@ public class CoreDropProtection {
         persisted.removeTag(K_IN_BAUBLES);
         persisted.removeTag(K_RESTORE_PENDING);
     }
-
-    @SubscribeEvent
-    public void onPlayerLogout(net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerLoggedOutEvent event) {
-        // PlayerPersisted 自动保存，无需操作
-    }
-
-    @SubscribeEvent(priority = EventPriority.LOWEST)
-    public void debugDrops(PlayerDropsEvent event) {}
 }
