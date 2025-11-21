@@ -141,6 +141,10 @@ public class GemLootRuleManager {
         private boolean excludeBoss = false;
         private boolean requireHostile = false;
 
+        // ⭐ Ice and Fire 龙阶段检查
+        private int minDragonStage = -1;   // 最小龙阶段 (1-5)
+        private int maxDragonStage = -1;   // 最大龙阶段 (1-5)
+
         // 掉落参数
         public int minLevel;
         public int maxLevel;
@@ -322,6 +326,24 @@ public class GemLootRuleManager {
             return this;
         }
 
+        // ⭐ 新增：Ice and Fire 龙阶段匹配
+        public LootRule setDragonStage(int stage) {
+            this.minDragonStage = stage;
+            this.maxDragonStage = stage;
+            this.priority += 200;  // 高优先级
+            return this;
+        }
+
+        public LootRule setMinDragonStage(int stage) {
+            this.minDragonStage = stage;
+            return this;
+        }
+
+        public LootRule setMaxDragonStage(int stage) {
+            this.maxDragonStage = stage;
+            return this;
+        }
+
         // ==========================================
         // 匹配逻辑（完整保留）
         // ==========================================
@@ -406,6 +428,11 @@ public class GemLootRuleManager {
             // Lycanites检查
             if (!requiredInterfaces.isEmpty() || !excludedInterfaces.isEmpty() || excludeBoss) {
                 if (!checkLycanites(entity)) return false;
+            }
+
+            // ⭐ Ice and Fire 龙阶段检查
+            if (minDragonStage > 0 || maxDragonStage > 0) {
+                if (!checkDragonStage(entity)) return false;
             }
 
             // 敌对性检查
@@ -602,6 +629,40 @@ public class GemLootRuleManager {
             }
 
             return true;
+        }
+
+        // ==========================================
+        // ⭐ Ice and Fire 龙阶段检查
+        // ==========================================
+
+        private boolean checkDragonStage(EntityLivingBase entity) {
+            String className = entity.getClass().getName();
+
+            // 只检查 Ice and Fire 的龙
+            if (!className.contains("iceandfire")) {
+                return false;
+            }
+
+            try {
+                // 使用反射获取 getDragonStage() 方法
+                java.lang.reflect.Method method = entity.getClass().getMethod("getDragonStage");
+                int stage = (int) method.invoke(entity);
+
+                // 检查阶段范围
+                if (minDragonStage > 0 && stage < minDragonStage) {
+                    return false;
+                }
+                if (maxDragonStage > 0 && stage > maxDragonStage) {
+                    return false;
+                }
+
+                return true;
+
+            } catch (Exception e) {
+                // 如果方法不存在或调用失败，返回 false
+                System.err.println("[GemLoot] 无法获取龙阶段: " + e.getMessage());
+                return false;
+            }
         }
 
         // ==========================================

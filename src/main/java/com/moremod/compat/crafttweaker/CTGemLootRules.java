@@ -125,9 +125,13 @@ public class CTGemLootRules {
     }
 
     // ==========================================
-    // Ice and Fire规则（保持不变）
+    // ⭐⭐⭐ Ice and Fire规则（接口判定版）⭐⭐⭐
     // ==========================================
 
+    /**
+     * 龙阶段 1-2 (幼年龙)
+     * 使用 getDragonStage() 接口精确判定
+     */
     @ZenMethod
     public static void dragonYoung() {
         GemLootRuleManager.LootRule rule = new GemLootRuleManager.LootRule(
@@ -136,11 +140,15 @@ public class CTGemLootRules {
         rule.matchClassName("EntityFireDragon");
         rule.matchClassName("EntityIceDragon");
         rule.matchClassName("EntityLightningDragon");
-        rule.setMaxHealth(249);  // Stage 1-2: 更严格的阈值
+        rule.setMaxDragonStage(2);  // ⭐ 使用接口判定：Stage 1-2
         GemLootRuleManager.addRule(rule);
-        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：幼龙掉落规则（血量≤249，Lv8-15）");
+        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：幼龙掉落规则（阶段1-2，Lv8-15）");
     }
 
+    /**
+     * 龙阶段 3 (三级龙)
+     * ⭐ 使用接口精确判定，不再依赖血量
+     */
     @ZenMethod
     public static void dragonStage3() {
         GemLootRuleManager.LootRule rule = new GemLootRuleManager.LootRule(
@@ -149,13 +157,14 @@ public class CTGemLootRules {
         rule.matchClassName("EntityFireDragon");
         rule.matchClassName("EntityIceDragon");
         rule.matchClassName("EntityLightningDragon");
-        rule.setMinHealth(250);  // ⭐ 修复：提高下限
-        rule.setMaxHealth(699);  // ⭐ 修复：大幅提高上限，覆盖Stage 3
-        rule.setPriority(100);   // ⭐ 提高优先级
+        rule.setDragonStage(3);  // ⭐ 精确匹配阶段 3
         GemLootRuleManager.addRule(rule);
-        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：阶段3龙掉落规则（血量250-699，Lv25-30）");
+        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：阶段3龙掉落规则（接口判定，Lv25-30）");
     }
 
+    /**
+     * 龙阶段 4 (四级龙)
+     */
     @ZenMethod
     public static void dragonStage4() {
         GemLootRuleManager.LootRule rule = new GemLootRuleManager.LootRule(
@@ -164,13 +173,15 @@ public class CTGemLootRules {
         rule.matchClassName("EntityFireDragon");
         rule.matchClassName("EntityIceDragon");
         rule.matchClassName("EntityLightningDragon");
-        rule.setMinHealth(700);  // ⭐ 修复：调整为700+
-        rule.setMaxHealth(999);  // Stage 4 范围
+        rule.setDragonStage(4);  // ⭐ 精确匹配阶段 4
         rule.setRandomDropCount(1, 1);
         GemLootRuleManager.addRule(rule);
-        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：阶段4龙掉落规则（血量700-999，Lv35-55）");
+        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：阶段4龙掉落规则（接口判定，Lv35-55）");
     }
 
+    /**
+     * 龙阶段 5 (古老龙)
+     */
     @ZenMethod
     public static void dragonStage5() {
         GemLootRuleManager.LootRule rule = new GemLootRuleManager.LootRule(
@@ -179,10 +190,10 @@ public class CTGemLootRules {
         rule.matchClassName("EntityFireDragon");
         rule.matchClassName("EntityIceDragon");
         rule.matchClassName("EntityLightningDragon");
-        rule.setMinHealth(1000);  // ⭐ 修复：只有真正的古老龙（1000+血）才掉高级宝石
+        rule.setDragonStage(5);  // ⭐ 精确匹配阶段 5
         rule.setRandomDropCount(1, 1);
         GemLootRuleManager.addRule(rule);
-        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：阶段5古老龙掉落规则（血量≥1000，Lv50-70）");
+        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：阶段5古老龙掉落规则（接口判定，Lv50-70）");
     }
 
     // ==========================================
