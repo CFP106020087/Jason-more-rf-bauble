@@ -4,6 +4,7 @@ import com.moremod.synergy.api.IInstalledModuleView;
 import com.moremod.synergy.api.IModuleProvider;
 import com.moremod.synergy.api.ISynergyCondition;
 import com.moremod.synergy.api.ISynergyEffect;
+import com.moremod.synergy.data.PlayerSynergyData;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraftforge.fml.common.eventhandler.Event;
 
@@ -71,6 +72,12 @@ public final class SynergyManager {
         List<SynergyDefinition> applicableSynergies =
                 SynergyRegistry.getInstance().findApplicableSynergies(installedIds);
 
+        // 过滤：只处理玩家已激活的 Synergy
+        PlayerSynergyData playerData = PlayerSynergyData.get(player);
+        applicableSynergies = applicableSynergies.stream()
+                .filter(s -> playerData.isSynergyActivated(s.getId()))
+                .collect(Collectors.toList());
+
         // 检测并触发
         for (SynergyDefinition synergy : applicableSynergies) {
             try {
@@ -107,6 +114,12 @@ public final class SynergyManager {
 
         List<SynergyDefinition> applicableSynergies =
                 SynergyRegistry.getInstance().findApplicableSynergies(installedIds);
+
+        // 过滤：只处理玩家已激活的 Synergy
+        PlayerSynergyData playerData = PlayerSynergyData.get(player);
+        applicableSynergies = applicableSynergies.stream()
+                .filter(s -> playerData.isSynergyActivated(s.getId()))
+                .collect(Collectors.toList());
 
         // 检测并触发（无事件）
         for (SynergyDefinition synergy : applicableSynergies) {
