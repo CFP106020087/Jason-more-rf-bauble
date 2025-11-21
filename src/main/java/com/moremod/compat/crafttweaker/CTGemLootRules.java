@@ -131,14 +131,14 @@ public class CTGemLootRules {
     @ZenMethod
     public static void dragonYoung() {
         GemLootRuleManager.LootRule rule = new GemLootRuleManager.LootRule(
-                "dragon_young", 3, 8, 1, 1, 0.02f, 0.1f, 1
+                "dragon_young", 8, 15, 1, 1, 0.02f, 0.1f, 1
         );
         rule.matchClassName("EntityFireDragon");
         rule.matchClassName("EntityIceDragon");
         rule.matchClassName("EntityLightningDragon");
-        rule.setMaxHealth(299);
+        rule.setMaxHealth(249);  // Stage 1-2: 更严格的阈值
         GemLootRuleManager.addRule(rule);
-        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：幼龙掉落规则（平衡调整，Lv3-8）");
+        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：幼龙掉落规则（血量≤249，Lv8-15）");
     }
 
     @ZenMethod
@@ -149,39 +149,40 @@ public class CTGemLootRules {
         rule.matchClassName("EntityFireDragon");
         rule.matchClassName("EntityIceDragon");
         rule.matchClassName("EntityLightningDragon");
-        rule.setMinHealth(300);
-        rule.setMaxHealth(399);
+        rule.setMinHealth(250);  // ⭐ 修复：提高下限
+        rule.setMaxHealth(699);  // ⭐ 修复：大幅提高上限，覆盖Stage 3
+        rule.setPriority(100);   // ⭐ 提高优先级
         GemLootRuleManager.addRule(rule);
-        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：阶段3龙掉落规则（平衡调整，Lv25-30）");
+        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：阶段3龙掉落规则（血量250-699，Lv25-30）");
     }
 
     @ZenMethod
     public static void dragonStage4() {
         GemLootRuleManager.LootRule rule = new GemLootRuleManager.LootRule(
-                "dragon_stage4", 40, 50, 3, 4, 0.3f, 0.45f, 1
+                "dragon_stage4", 35, 55, 3, 4, 0.3f, 0.45f, 1
         );
         rule.matchClassName("EntityFireDragon");
         rule.matchClassName("EntityIceDragon");
         rule.matchClassName("EntityLightningDragon");
-        rule.setMinHealth(400);
-        rule.setMaxHealth(499);
+        rule.setMinHealth(700);  // ⭐ 修复：调整为700+
+        rule.setMaxHealth(999);  // Stage 4 范围
         rule.setRandomDropCount(1, 1);
         GemLootRuleManager.addRule(rule);
-        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：阶段4龙掉落规则（平衡调整，Lv40-50）");
+        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：阶段4龙掉落规则（血量700-999，Lv35-55）");
     }
 
     @ZenMethod
     public static void dragonStage5() {
         GemLootRuleManager.LootRule rule = new GemLootRuleManager.LootRule(
-                "dragon_stage5", 60, 75, 4, 5, 0.5f, 0.6f, 2
+                "dragon_stage5", 50, 70, 4, 5, 0.5f, 0.6f, 2
         );
         rule.matchClassName("EntityFireDragon");
         rule.matchClassName("EntityIceDragon");
         rule.matchClassName("EntityLightningDragon");
-        rule.setMinHealth(500);
+        rule.setMinHealth(1000);  // ⭐ 修复：只有真正的古老龙（1000+血）才掉高级宝石
         rule.setRandomDropCount(1, 1);
         GemLootRuleManager.addRule(rule);
-        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：阶段5成年龙掉落规则（平衡调整，Lv60-75）");
+        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：阶段5古老龙掉落规则（血量≥1000，Lv50-70）");
     }
 
     // ==========================================
@@ -587,6 +588,90 @@ public class CTGemLootRules {
         );
         GemLootRuleManager.setDefaultRule(rule);
         CraftTweakerAPI.logInfo("[GemRules] ✅ 已设置默认规则");
+    }
+
+    // ==========================================
+    // 快速添加规则（便捷方法）
+    // ==========================================
+
+    /**
+     * 快速添加单个生物规则
+     *
+     * @param entityName 实体名称（支持类名或实体名，如 "zombie", "EntityZombie"）
+     * @param minLevel 最小等级
+     * @param maxLevel 最大等级
+     * @param minAffixes 最小词条数
+     * @param maxAffixes 最大词条数
+     * @param dropChance 掉落概率 (0.0-1.0)
+     *
+     * 使用示例：
+     * GemLootRules.add("zombie", 5, 15, 1, 2, 0.03);
+     * GemLootRules.add("EntityEnderDragon", 80, 100, 5, 6, 1.0);
+     */
+    @ZenMethod
+    public static void add(String entityName, int minLevel, int maxLevel,
+                          int minAffixes, int maxAffixes, double dropChance) {
+        GemLootRuleManager.LootRule rule = new GemLootRuleManager.LootRule(
+                "custom_" + entityName.toLowerCase(),
+                minLevel, maxLevel,
+                minAffixes, maxAffixes,
+                (float) dropChance,
+                0.2f,  // 默认20%最低品质
+                1      // 默认1次重roll
+        );
+
+        // 智能匹配：如果是Entity开头，按类名匹配；否则按实体名匹配
+        if (entityName.startsWith("Entity")) {
+            rule.matchClassName(entityName);
+        } else {
+            rule.matchEntityName(entityName);
+        }
+
+        GemLootRuleManager.addRule(rule);
+
+        CraftTweakerAPI.logInfo(String.format(
+                "[GemRules] ✅ 已添加自定义规则: %s (Lv%d-%d, %d-%d词条, %.1f%%掉落)",
+                entityName, minLevel, maxLevel, minAffixes, maxAffixes, dropChance * 100
+        ));
+    }
+
+    /**
+     * 快速添加单个生物规则（带品质和重roll参数）
+     *
+     * @param entityName 实体名称
+     * @param minLevel 最小等级
+     * @param maxLevel 最大等级
+     * @param minAffixes 最小词条数
+     * @param maxAffixes 最大词条数
+     * @param dropChance 掉落概率 (0.0-1.0)
+     * @param minQuality 最低品质 (0.0-1.0)
+     * @param rerollCount 重roll次数
+     */
+    @ZenMethod
+    public static void addAdvanced(String entityName, int minLevel, int maxLevel,
+                                   int minAffixes, int maxAffixes,
+                                   double dropChance, double minQuality, int rerollCount) {
+        GemLootRuleManager.LootRule rule = new GemLootRuleManager.LootRule(
+                "custom_" + entityName.toLowerCase(),
+                minLevel, maxLevel,
+                minAffixes, maxAffixes,
+                (float) dropChance,
+                (float) minQuality,
+                rerollCount
+        );
+
+        if (entityName.startsWith("Entity")) {
+            rule.matchClassName(entityName);
+        } else {
+            rule.matchEntityName(entityName);
+        }
+
+        GemLootRuleManager.addRule(rule);
+
+        CraftTweakerAPI.logInfo(String.format(
+                "[GemRules] ✅ 已添加高级自定义规则: %s (Lv%d-%d, 品质≥%.0f%%, roll×%d)",
+                entityName, minLevel, maxLevel, minQuality * 100, rerollCount
+        ));
     }
 
     // ==========================================
