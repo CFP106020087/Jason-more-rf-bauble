@@ -1,5 +1,6 @@
 package com.moremod.network;
 
+import com.moremod.synergy.network.PacketToggleSynergy;
 import net.minecraftforge.fml.common.network.NetworkRegistry;
 import net.minecraftforge.fml.common.network.simpleimpl.SimpleNetworkWrapper;
 import net.minecraftforge.fml.relauncher.Side;
@@ -167,6 +168,14 @@ public class PacketHandler {
                     id++,
                     Side.SERVER
             );
+
+        // 🔗 Synergy系统：切换Synergy激活状态
+        INSTANCE.registerMessage(
+                PacketToggleSynergy.Handler.class,
+                PacketToggleSynergy.class,
+                id++,
+                Side.SERVER
+        );
 
         System.out.println("[MoreMod] 网络包注册完成，共 " + id + " 个消息类型");
     }

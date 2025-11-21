@@ -1,5 +1,7 @@
 package com.moremod.synergy.block;
 
+import com.moremod.moremod;
+import com.moremod.client.gui.GuiHandler;
 import com.moremod.synergy.tile.TileEntitySynergyLinker;
 import net.minecraft.block.Block;
 import net.minecraft.block.ITileEntityProvider;
@@ -52,14 +54,8 @@ public class BlockSynergyLinker extends Block implements ITileEntityProvider {
                                     EntityPlayer playerIn, EnumHand hand, EnumFacing facing,
                                     float hitX, float hitY, float hitZ) {
         if (!worldIn.isRemote) {
-            // 注意：你需要在 GuiHandler 中定义 GUI_ID
-            // 例如：public static final int SYNERGY_LINKER_GUI = 29;
-            // 然后这里调用：
-            // playerIn.openGui(YourMod.instance, GuiHandler.SYNERGY_LINKER_GUI,
-            //         worldIn, pos.getX(), pos.getY(), pos.getZ());
-
-            // 临时示例代码（你需要替换为实际的 GUI ID）
-            // playerIn.openGui(moremod.instance, 29, worldIn, pos.getX(), pos.getY(), pos.getZ());
+            playerIn.openGui(moremod.instance, GuiHandler.SYNERGY_LINKER_GUI,
+                    worldIn, pos.getX(), pos.getY(), pos.getZ());
         }
         return true;
     }

@@ -661,11 +661,9 @@ public class GuiSynergyLinker extends GuiScreen {
 
     private void activateSynergy(String synergyId) {
         // 发送网络包到服务端
-        // NetworkHandler.INSTANCE.sendToServer(new PacketToggleSynergy(synergyId));
-
-        // 临时客户端处理
-        playerData.activateSynergy(synergyId);
-        playerData.saveToPlayer(player);
+        com.moremod.network.PacketHandler.INSTANCE.sendToServer(
+                new com.moremod.synergy.network.PacketToggleSynergy(synergyId)
+        );
 
         mc.player.playSound(net.minecraft.init.SoundEvents.ENTITY_PLAYER_LEVELUP, 0.7F, 1.5F);
         updateActivateButtons();

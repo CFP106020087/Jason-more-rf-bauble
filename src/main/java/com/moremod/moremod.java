@@ -165,6 +165,10 @@ public class moremod {
     private static boolean enableAutoBottlingRecipes = true;  // 配置选项
     /* ========================================================== */
 
+    /* ===================== Synergy链结器系统字段 ===================== */
+    public static Block SYNERGY_LINKER_BLOCK;
+    /* ========================================================== */
+
     /**
      * 构造阶段 - 加载可选的 Mixin 配置
      */
@@ -276,6 +280,22 @@ public class moremod {
         GameRegistry.registerTileEntity(TileEntityBottlingMachine.class,
                 new ResourceLocation(MODID, "bottling_machine"));
         System.out.println("[moremod] ✅ 装瓶机 TileEntity 注册完成");
+
+        // ========== Synergy链结器系统：创建实例和注册TileEntity ==========
+        System.out.println("[moremod] 🔗 创建 Synergy 链结器实例...");
+        SYNERGY_LINKER_BLOCK = new com.moremod.synergy.block.BlockSynergyLinker()
+                .setRegistryName(MODID, "synergy_linker")
+                .setTranslationKey("synergy_linker");
+
+        // 注册 Synergy 链结器 TileEntity
+        GameRegistry.registerTileEntity(com.moremod.synergy.tile.TileEntitySynergyLinker.class,
+                new ResourceLocation(MODID, "synergy_linker"));
+        System.out.println("[moremod] ✅ Synergy 链结器 TileEntity 注册完成");
+
+        // 初始化 Synergy 系统
+        System.out.println("[moremod] 🔗 初始化 Synergy 系统...");
+        com.moremod.synergy.init.SynergyBootstrap.initialize();
+        System.out.println("[moremod] ✅ Synergy 系统初始化完成");
 
         // ========== 客户端专用注册 ==========
         if (event.getSide().isClient()) {
@@ -453,6 +473,11 @@ public class moremod {
         System.out.println("[moremod] 🏭 注册装瓶机方块...");
         event.getRegistry().register(BOTTLING_MACHINE_BLOCK);
         System.out.println("[moremod] ✅ 装瓶机方块注册完成");
+
+        // 注册 Synergy 链结器方块
+        System.out.println("[moremod] 🔗 注册 Synergy 链结器方块...");
+        event.getRegistry().register(SYNERGY_LINKER_BLOCK);
+        System.out.println("[moremod] ✅ Synergy 链结器方块注册完成");
     }
 
     /**
@@ -473,6 +498,13 @@ public class moremod {
                 new ItemBlock(BOTTLING_MACHINE_BLOCK).setRegistryName(BOTTLING_MACHINE_BLOCK.getRegistryName())
         );
         System.out.println("[moremod] ✅ 装瓶机方块物品注册完成");
+
+        // 注册 Synergy 链结器方块物品
+        System.out.println("[moremod] 🔗 注册 Synergy 链结器方块物品...");
+        event.getRegistry().register(
+                new ItemBlock(SYNERGY_LINKER_BLOCK).setRegistryName(SYNERGY_LINKER_BLOCK.getRegistryName())
+        );
+        System.out.println("[moremod] ✅ Synergy 链结器方块物品注册完成");
     }
 
     /**
@@ -731,6 +763,12 @@ public class moremod {
                     Item.getItemFromBlock(BOTTLING_MACHINE_BLOCK), 0,
                     new ModelResourceLocation(BOTTLING_MACHINE_BLOCK.getRegistryName(), "inventory"));
             System.out.println("[moremod] 🏭 装瓶机物品模型已绑定");
+
+            // 绑定 Synergy 链结器模型
+            ModelLoader.setCustomModelResourceLocation(
+                    Item.getItemFromBlock(SYNERGY_LINKER_BLOCK), 0,
+                    new ModelResourceLocation(SYNERGY_LINKER_BLOCK.getRegistryName(), "inventory"));
+            System.out.println("[moremod] 🔗 Synergy 链结器物品模型已绑定");
         } catch (Throwable t) {
             System.err.println("[moremod] ⚠️ 模型绑定失败： " + t.getMessage());
         }

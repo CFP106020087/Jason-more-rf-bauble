@@ -39,6 +39,11 @@ import com.moremod.tile.TileEntityPurificationAltar;
 import com.moremod.container.ContainerTransferStation;
 import com.moremod.tile.TileEntityTransferStation;
 
+// 🔗 Synergy链结器GUI导入
+import com.moremod.synergy.container.ContainerSynergyLinker;
+import com.moremod.synergy.gui.GuiSynergyLinker;
+import com.moremod.synergy.tile.TileEntitySynergyLinker;
+
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumHand;
@@ -77,6 +82,9 @@ public class GuiHandler implements IGuiHandler {
 
     // 🎨 转移台
     public static final int TRANSFER_STATION_GUI = 28;
+
+    // 🔗 Synergy链结器
+    public static final int SYNERGY_LINKER_GUI = 29;
 
     // ---------------- Server ----------------
     @Override
@@ -148,6 +156,10 @@ public class GuiHandler implements IGuiHandler {
                 }
                 case TRANSFER_STATION_GUI: { // 🎨 ID=28
                     result = createTransferStationContainer(player, world, x, y, z);
+                    break;
+                }
+                case SYNERGY_LINKER_GUI: { // 🔗 ID=29
+                    result = createSynergyLinkerContainer(player, world, x, y, z);
                     break;
                 }
                 default:
@@ -231,6 +243,10 @@ public class GuiHandler implements IGuiHandler {
                 }
                 case TRANSFER_STATION_GUI: { // 🎨 ID=28
                     result = createTransferStationGui(player, world, x, y, z);
+                    break;
+                }
+                case SYNERGY_LINKER_GUI: { // 🔗 ID=29
+                    result = createSynergyLinkerGui(player, world, x, y, z);
                     break;
                 }
                 default:
@@ -488,6 +504,16 @@ public class GuiHandler implements IGuiHandler {
         return null;
     }
 
+    // ====== 🔗 ID=29：Synergy链结器 ======
+    private Object createSynergyLinkerContainer(EntityPlayer player, World world, int x, int y, int z) {
+        return new ContainerSynergyLinker(player);
+    }
+
+    @SideOnly(Side.CLIENT)
+    private Object createSynergyLinkerGui(EntityPlayer player, World world, int x, int y, int z) {
+        System.out.println("[GuiHandler] 打开 Synergy 链结器 GUI");
+        return new GuiSynergyLinker(player);
+    }
 
     // ---------- 工具方法 ----------
     public static int getAccessoryBoxGuiId(int tier) {
