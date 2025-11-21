@@ -4,6 +4,7 @@ import com.moremod.synergy.condition.ModuleCombinationCondition;
 import com.moremod.synergy.condition.PlayerStateCondition;
 import com.moremod.synergy.core.ModuleChain;
 import com.moremod.synergy.core.SynergyDefinition;
+import com.moremod.synergy.effect.DebuffEffect;
 import com.moremod.synergy.effect.ShieldGrantEffect;
 
 /**
@@ -18,8 +19,11 @@ import com.moremod.synergy.effect.ShieldGrantEffect;
  * - YELLOW_SHIELD（护盾发生器）
  * - HEALTH_REGEN（生命恢复）
  *
- * 效果：
+ * 正面效果：
  * - 生命值 < 50% 时，每秒授予 1.0 点护盾（最多 10.0 点）
+ *
+ * 负面效果（Drawback）：
+ * - 持续承受饥饿 I 效果（消耗饱食度）
  */
 public class SurvivalShieldSynergy {
 
@@ -28,7 +32,7 @@ public class SurvivalShieldSynergy {
     public static SynergyDefinition create() {
         return new SynergyDefinition.Builder(ID)
                 .displayName("生存护盾")
-                .description("护盾发生器 + 生命恢复 → 低血量时自动授予护盾")
+                .description("护盾发生器 + 生命恢复 → 低血量时护盾 | Drawback: 饥饿 I")
 
                 // 所需模块链
                 .chain(ModuleChain.linear(
@@ -46,12 +50,18 @@ public class SurvivalShieldSynergy {
                 // 条件2：生命值低于 50%
                 .condition(PlayerStateCondition.healthBelow(0.5f))
 
-                // 效果：授予 1.0 点护盾（叠加，最多 10.0）
+                // 正面效果：授予 1.0 点护盾（叠加，最多 10.0）
                 .effect(new ShieldGrantEffect(
                         1.0f,   // 每次授予 1.0 点
                         false,  // 叠加模式
                         10.0f,  // 最多 10.0 点
                         true    // 显示消息
+                ))
+
+                // 负面效果（Drawback）：持续承受饥饿 I
+                .effect(DebuffEffect.hunger(
+                        0,       // 饥饿 I
+                        10       // 持续 10 秒
                 ))
 
                 .priority(50) // 高优先级，尽早授予护盾

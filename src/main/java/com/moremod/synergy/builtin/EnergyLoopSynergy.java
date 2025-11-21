@@ -3,6 +3,7 @@ package com.moremod.synergy.builtin;
 import com.moremod.synergy.condition.ModuleCombinationCondition;
 import com.moremod.synergy.core.ModuleChain;
 import com.moremod.synergy.core.SynergyDefinition;
+import com.moremod.synergy.effect.EnergyDrainEffect;
 import com.moremod.synergy.effect.EnergyRefundEffect;
 
 /**
@@ -17,8 +18,11 @@ import com.moremod.synergy.effect.EnergyRefundEffect;
  * - ENERGY_EFFICIENCY（能量效率）
  * - KINETIC_GENERATOR（动能发电）
  *
- * 效果：
+ * 正面效果：
  * - 20% 概率退还 50 RF 能量
+ *
+ * 负面效果（Drawback）：
+ * - 每秒消耗 10 RF 维持能量循环回路
  */
 public class EnergyLoopSynergy {
 
@@ -27,7 +31,7 @@ public class EnergyLoopSynergy {
     public static SynergyDefinition create() {
         return new SynergyDefinition.Builder(ID)
                 .displayName("能量循环")
-                .description("能量效率 + 动能发电 → 消耗能量时有概率退还")
+                .description("能量效率 + 动能发电 → 20% 概率退还能量 | Drawback: -10 RF/s")
 
                 // 所需模块组合
                 .chain(ModuleChain.linear(
@@ -42,11 +46,19 @@ public class EnergyLoopSynergy {
                         "KINETIC_GENERATOR"
                 ))
 
-                // 效果：20% 概率退还 50 RF
+                // 正面效果：20% 概率退还 50 RF
                 .effect(new EnergyRefundEffect(
                         50,      // 固定退还 50 RF
                         0.2f,    // 20% 概率
                         true     // 显示消息
+                ))
+
+                // 负面效果（Drawback）：每秒消耗 10 RF
+                .effect(new EnergyDrainEffect(
+                        10,      // 每秒 10 RF
+                        20,      // 每 20 tick（1秒）触发
+                        false,   // 不显示消息
+                        true     // 能量耗尽时停止
                 ))
 
                 .priority(100)

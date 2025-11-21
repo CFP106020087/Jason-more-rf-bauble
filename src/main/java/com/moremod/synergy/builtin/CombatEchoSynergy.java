@@ -5,6 +5,7 @@ import com.moremod.synergy.condition.ModuleCombinationCondition;
 import com.moremod.synergy.core.ModuleChain;
 import com.moremod.synergy.core.SynergyDefinition;
 import com.moremod.synergy.effect.DamageModifierEffect;
+import com.moremod.synergy.effect.EnergyDrainEffect;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 
 /**
@@ -19,8 +20,11 @@ import net.minecraftforge.event.entity.living.LivingHurtEvent;
  * - DAMAGE_BOOST（伤害提升）
  * - ATTACK_SPEED（攻击速度）
  *
- * 效果：
+ * 正面效果：
  * - 伤害 +25%
+ *
+ * 负面效果（Drawback）：
+ * - 每秒消耗 15 RF 维持战斗回响状态
  */
 public class CombatEchoSynergy {
 
@@ -29,7 +33,7 @@ public class CombatEchoSynergy {
     public static SynergyDefinition create() {
         return new SynergyDefinition.Builder(ID)
                 .displayName("战斗回响")
-                .description("伤害提升 + 攻击速度 → 额外造成 25% 回响伤害")
+                .description("伤害提升 + 攻击速度 → 伤害 +25% | Drawback: -15 RF/s")
 
                 // 所需模块链（强调顺序：先提升伤害，再提升速度）
                 .chain(ModuleChain.linear(
@@ -44,14 +48,22 @@ public class CombatEchoSynergy {
                         "ATTACK_SPEED"
                 ))
 
-                // 条件2：只在 LivingHurtEvent 中触发
+                // 条件2：只在 LivingHurtEvent 中触发伤害加成
                 .condition(new EventTypeCondition(LivingHurtEvent.class))
 
-                // 效果：伤害 +25%
+                // 正面效果：伤害 +25%
                 .effect(new DamageModifierEffect(
                         1.25f,  // 伤害倍率 1.25x
                         0f,     // 无固定加成
                         true    // 显示消息
+                ))
+
+                // 负面效果（Drawback）：每秒消耗 15 RF
+                .effect(new EnergyDrainEffect(
+                        15,      // 每秒 15 RF
+                        20,      // 每 20 tick（1秒）触发
+                        false,   // 不显示消息
+                        true     // 能量耗尽时停止
                 ))
 
                 .priority(150) // 较高优先级，在其他伤害加成之后
