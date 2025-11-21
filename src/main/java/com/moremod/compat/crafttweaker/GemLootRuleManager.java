@@ -23,7 +23,7 @@ import java.util.regex.Pattern;
 public class GemLootRuleManager {
 
     private static final List<LootRule> RULES = new ArrayList<>();
-    
+
     // ⭐ v2.4：提高默认掉落率 1% → 10%
     private static LootRule DEFAULT_RULE = new LootRule(
             "default",
@@ -36,121 +36,13 @@ public class GemLootRuleManager {
 
     static {
         // ==========================================
-        // ⭐ 内建规则：Ice and Fire（龙）- 200血门槛+血量加成
+        // ⭐⭐⭐ 内建规则已禁用 ⭐⭐⭐
+        // 所有规则改由 CTGemLootRules.setupAllRules() 配置
         // ==========================================
-        
-        System.out.println("[GemLootRuleManager] 正在注册Ice and Fire规则...");
-        
-        // 火龙 - 200血门槛，血量动态加成
-        addRule(new LootRule("iceandfire_fire_dragon", 50, 80, 4, 6, 0.9f, 0.6f, 3)
-                .matchModId("iceandfire")
-                .matchClassName("EntityFireDragon")
-                .setHealthScaling(true)           // ⭐ 启用血量加成
-                .setHealthScalingThreshold(200.0f) // ⭐ 200血门槛
-                .setRandomDropCount(1, 1)
-                .setPriority(200));
-        
-        // 冰龙 - 200血门槛，血量动态加成
-        addRule(new LootRule("iceandfire_ice_dragon", 50, 80, 4, 6, 0.9f, 0.6f, 3)
-                .matchModId("iceandfire")
-                .matchClassName("EntityIceDragon")
-                .setHealthScaling(true)           // ⭐ 启用血量加成
-                .setHealthScalingThreshold(200.0f) // ⭐ 200血门槛
-                .setRandomDropCount(1, 1)
-                .setPriority(200));
-        
-        // 闪电龙 - 200血门槛，血量动态加成
-        addRule(new LootRule("iceandfire_lightning_dragon", 50, 80, 4, 6, 0.9f, 0.6f, 3)
-                .matchModId("iceandfire")
-                .matchClassName("EntityLightningDragon")
-                .setHealthScaling(true)           // ⭐ 启用血量加成
-                .setHealthScalingThreshold(200.0f) // ⭐ 200血门槛
-                .setRandomDropCount(1, 1)
-                .setPriority(200));
-        
-        // 通用龙规则（兜底）- 200血门槛，血量动态加成
-        addRule(new LootRule("iceandfire_dragon", 45, 75, 4, 6, 0.85f, 0.5f, 3)
-                .matchModId("iceandfire")
-                .matchClassPattern("Dragon")
-                .setHealthScaling(true)           // ⭐ 启用血量加成
-                .setHealthScalingThreshold(200.0f) // ⭐ 200血门槛
-                .setRandomDropCount(1, 1)
-                .setPriority(100));
-        
-        // Ice and Fire其他Boss（九头蛇、独眼巨人等）- 200血门槛，血量动态加成
-        addRule(new LootRule("iceandfire_boss", 40, 70, 3, 5, 0.7f, 0.4f, 2)
-                .matchModId("iceandfire")
-                .setHealthScaling(true)           // ⭐ 启用血量加成
-                .setHealthScalingThreshold(200.0f) // ⭐ 200血门槛
-                .setRandomDropCount(1, 1)
-                .setPriority(80));
-        
-        System.out.println("[GemLootRuleManager] ✅ Ice and Fire规则注册完成 (5条，200血门槛+血量加成)");
 
-        // ==========================================
-        // 内建规则：Infernal Mobs
-        // ==========================================
-        
-        addRule(new LootRule("infernal", 20, 60, 3, 5, 0.6f, 0.4f, 2)
-                .setMinModCount(1)
-                .setDynamicLevel(true)
-                .setDynamicDropRate(true)
-                .setPriority(150));
-        
-        System.out.println("[GemLootRuleManager] ✅ Infernal Mobs规则注册完成");
-
-        // ==========================================
-        // 内建规则：Champions
-        // ==========================================
-        
-        // Epic (Tier 4-5)
-        addRule(new LootRule("champions_epic", 30, 70, 4, 6, 0.7f, 0.5f, 3)
-                .setMinChampionTier(4)
-                .setGrowthFactorBonus(true)
-                .setPriority(150));
-        
-        // Elite (Tier 2-3)
-        addRule(new LootRule("champions_elite", 20, 50, 3, 4, 0.5f, 0.3f, 2)
-                .setMinChampionTier(2)
-                .setMaxModCount(3)
-                .setPriority(100));
-        
-        // Common (Tier 1)
-        addRule(new LootRule("champions_common", 10, 30, 2, 3, 0.3f, 0.2f, 1)
-                .setChampionTier(1)
-                .setPriority(50));
-        
-        System.out.println("[GemLootRuleManager] ✅ Champions规则注册完成 (3条)");
-        
-        // ==========================================
-        // ⭐ 内建规则：Lycanites Mobs - 200血门槛+血量加成
-        // ==========================================
-        
-        System.out.println("[GemLootRuleManager] 正在注册Lycanites规则...");
-        
-        // Boss级别 - 200血门槛，血量动态加成
-        addRule(new LootRule("lycanites_boss", 50, 90, 5, 7, 0.95f, 0.7f, 4)
-                .matchModId("lycanitesmobs")
-                .matchInterface("IGroupBoss")
-                .setHealthScaling(true)           // ⭐ 启用血量加成
-                .setHealthScalingThreshold(200.0f) // ⭐ 200血门槛
-                .setRandomDropCount(3, 5)
-                .setPriority(200));
-        
-        // 精英生物 - 200血门槛，血量动态加成
-        addRule(new LootRule("lycanites_elite", 30, 60, 3, 5, 0.6f, 0.4f, 2)
-                .matchModId("lycanitesmobs")
-                .setHealthScaling(true)           // ⭐ 启用血量加成
-                .setHealthScalingThreshold(200.0f) // ⭐ 200血门槛
-                .requireHostile(true)
-                .setPriority(100));
-        
-        System.out.println("[GemLootRuleManager] ✅ Lycanites规则注册完成 (2条，200血门槛+血量加成)");
-        
         System.out.println("[GemLootRuleManager] ========================================");
-        System.out.println("[GemLootRuleManager] 总计注册规则: " + RULES.size() + " 条");
-        System.out.println("[GemLootRuleManager] 默认掉落率: 10%");
-        System.out.println("[GemLootRuleManager] ⭐ Ice and Fire + Lycanites: 200血门槛+血量动态加成");
+        System.out.println("[GemLootRuleManager] 内建规则已禁用");
+        System.out.println("[GemLootRuleManager] 所有规则由 CTGemLootRules.setupAllRules() 配置");
         System.out.println("[GemLootRuleManager] ========================================");
     }
 
@@ -262,7 +154,7 @@ public class GemLootRuleManager {
         private boolean dynamicDropRate = false;
         private boolean dynamicLevel = false;
         public int priority = 0;
-        
+
         // ⭐ 新增：血量动态加成
         private boolean healthScaling = false;           // 是否启用血量加成
         private float healthScalingThreshold = 200.0f;   // 血量门槛（低于此值不掉落）
@@ -413,18 +305,18 @@ public class GemLootRuleManager {
             this.priority = priority;
             return this;
         }
-        
+
         // ⭐ 新增：血量动态加成配置
         public LootRule setHealthScaling(boolean enable) {
             this.healthScaling = enable;
             return this;
         }
-        
+
         public LootRule setHealthScalingThreshold(float threshold) {
             this.healthScalingThreshold = threshold;
             return this;
         }
-        
+
         public LootRule setHealthScalingFactor(float factor) {
             this.healthScalingFactor = factor;
             return this;
@@ -488,7 +380,7 @@ public class GemLootRuleManager {
             // === 第二步：血量检查 ===
             if (minHealth > 0 && health < minHealth) return false;
             if (maxHealth > 0 && health > maxHealth) return false;
-            
+
             // ⭐ 新增：血量动态加成门槛检查
             if (healthScaling && health < healthScalingThreshold) {
                 return false;  // 低于门槛不匹配
@@ -739,25 +631,25 @@ public class GemLootRuleManager {
                 if (health >= healthScalingThreshold) {
                     // 计算超出门槛的血量
                     float excessHealth = health - healthScalingThreshold;
-                    
+
                     // 等级加成：每100血 +5级
                     int levelBonus = (int) (excessHealth / 100.0f * 5);
                     adjusted.minLevel += levelBonus;
                     adjusted.maxLevel += levelBonus;
-                    
+
                     // 词条加成：每200血 +1词条
                     int affixBonus = (int) (excessHealth / 200.0f);
                     adjusted.minAffixes += affixBonus;
                     adjusted.maxAffixes += affixBonus;
-                    
+
                     // 掉落率加成：每100血 +2%
                     float dropBonus = (excessHealth / 100.0f) * 0.02f;
                     adjusted.dropChance += dropBonus;
-                    
+
                     // 品质加成：每300血 +5%
                     float qualityBonus = (excessHealth / 300.0f) * 0.05f;
                     adjusted.minQuality += qualityBonus;
-                    
+
                     System.out.println(String.format(
                             "[GemLoot-HealthScaling] %s (%.0f血): 等级+%d, 词条+%d, 掉落率+%.1f%%, 品质+%.1f%%",
                             entity.getName(),
