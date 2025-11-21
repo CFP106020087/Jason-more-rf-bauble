@@ -40,7 +40,7 @@ public class GuiSynergyLinker extends GuiScreen {
             new ResourceLocation("moremod", "textures/gui/synergy_linker.png");
 
     // 链结槽位数量
-    private static final int LINK_SLOTS = 4;
+    private static final int LINK_SLOTS = 8;
 
     private final EntityPlayer player;
     private final PlayerSynergyData playerData;
