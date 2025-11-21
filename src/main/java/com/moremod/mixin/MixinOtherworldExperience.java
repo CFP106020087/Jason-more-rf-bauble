@@ -42,7 +42,14 @@ public class MixinOtherworldExperience {
                 multiplier = (int)(multiplier * (1 + (insight / 25) * 0.5f));
             }
 
-            return amount * multiplier;
+            // 防止整数溢出：使用 long 计算，然后限制在 int 范围内
+            long result = (long) amount * multiplier;
+            if (result > Integer.MAX_VALUE) {
+                return Integer.MAX_VALUE;
+            } else if (result < Integer.MIN_VALUE) {
+                return Integer.MIN_VALUE;
+            }
+            return (int) result;
         }
 
         return amount;
@@ -62,8 +69,14 @@ public class MixinOtherworldExperience {
         int otherworldCount = FabricWeavingSystem.countPlayerFabric(player, UpdatedFabricPlayerData.FabricType.OTHERWORLD);
 
         if (otherworldCount > 0) {
-            // 等级增加也受到加成
-            return levels * (1 + otherworldCount);
+            // 防止整数溢出：使用 long 计算，然后限制在 int 范围内
+            long result = (long) levels * (1 + otherworldCount);
+            if (result > Integer.MAX_VALUE) {
+                return Integer.MAX_VALUE;
+            } else if (result < Integer.MIN_VALUE) {
+                return Integer.MIN_VALUE;
+            }
+            return (int) result;
         }
         return levels;
     }

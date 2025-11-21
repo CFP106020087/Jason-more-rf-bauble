@@ -65,8 +65,15 @@ public class MixinOtherworldXPOrb {
                         "§d禁忌的知识流入你的意识..."), true);
             }
 
-            // 修改经验值
-            this.xpValue = this.xpValue * (1 + bonusMultiplier);
+            // 修改经验值（防止整数溢出）
+            long newValue = (long) this.xpValue * (1 + bonusMultiplier);
+            if (newValue > Integer.MAX_VALUE) {
+                this.xpValue = Integer.MAX_VALUE;
+            } else if (newValue < Integer.MIN_VALUE) {
+                this.xpValue = Integer.MIN_VALUE;
+            } else {
+                this.xpValue = (int) newValue;
+            }
         }
 
         return player;
