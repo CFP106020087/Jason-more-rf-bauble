@@ -125,22 +125,30 @@ public class CTGemLootRules {
     }
 
     // ==========================================
-    // Ice and Fire规则（保持不变）
+    // ⭐⭐⭐ Ice and Fire规则（接口判定版）⭐⭐⭐
     // ==========================================
 
+    /**
+     * 龙阶段 1-2 (幼年龙)
+     * 使用 getDragonStage() 接口精确判定
+     */
     @ZenMethod
     public static void dragonYoung() {
         GemLootRuleManager.LootRule rule = new GemLootRuleManager.LootRule(
-                "dragon_young", 3, 8, 1, 1, 0.02f, 0.1f, 1
+                "dragon_young", 8, 15, 1, 1, 0.02f, 0.1f, 1
         );
         rule.matchClassName("EntityFireDragon");
         rule.matchClassName("EntityIceDragon");
         rule.matchClassName("EntityLightningDragon");
-        rule.setMaxHealth(299);
+        rule.setMaxDragonStage(2);  // ⭐ 使用接口判定：Stage 1-2
         GemLootRuleManager.addRule(rule);
-        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：幼龙掉落规则（平衡调整，Lv3-8）");
+        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：幼龙掉落规则（阶段1-2，Lv8-15）");
     }
 
+    /**
+     * 龙阶段 3 (三级龙)
+     * ⭐ 使用接口精确判定，不再依赖血量
+     */
     @ZenMethod
     public static void dragonStage3() {
         GemLootRuleManager.LootRule rule = new GemLootRuleManager.LootRule(
@@ -149,39 +157,43 @@ public class CTGemLootRules {
         rule.matchClassName("EntityFireDragon");
         rule.matchClassName("EntityIceDragon");
         rule.matchClassName("EntityLightningDragon");
-        rule.setMinHealth(300);
-        rule.setMaxHealth(399);
+        rule.setDragonStage(3);  // ⭐ 精确匹配阶段 3
         GemLootRuleManager.addRule(rule);
-        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：阶段3龙掉落规则（平衡调整，Lv25-30）");
+        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：阶段3龙掉落规则（接口判定，Lv25-30）");
     }
 
+    /**
+     * 龙阶段 4 (四级龙)
+     */
     @ZenMethod
     public static void dragonStage4() {
         GemLootRuleManager.LootRule rule = new GemLootRuleManager.LootRule(
-                "dragon_stage4", 40, 50, 3, 4, 0.3f, 0.45f, 1
+                "dragon_stage4", 35, 55, 3, 4, 0.3f, 0.45f, 1
         );
         rule.matchClassName("EntityFireDragon");
         rule.matchClassName("EntityIceDragon");
         rule.matchClassName("EntityLightningDragon");
-        rule.setMinHealth(400);
-        rule.setMaxHealth(499);
+        rule.setDragonStage(4);  // ⭐ 精确匹配阶段 4
         rule.setRandomDropCount(1, 1);
         GemLootRuleManager.addRule(rule);
-        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：阶段4龙掉落规则（平衡调整，Lv40-50）");
+        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：阶段4龙掉落规则（接口判定，Lv35-55）");
     }
 
+    /**
+     * 龙阶段 5 (古老龙)
+     */
     @ZenMethod
     public static void dragonStage5() {
         GemLootRuleManager.LootRule rule = new GemLootRuleManager.LootRule(
-                "dragon_stage5", 60, 75, 4, 5, 0.5f, 0.6f, 2
+                "dragon_stage5", 50, 70, 4, 5, 0.5f, 0.6f, 2
         );
         rule.matchClassName("EntityFireDragon");
         rule.matchClassName("EntityIceDragon");
         rule.matchClassName("EntityLightningDragon");
-        rule.setMinHealth(500);
+        rule.setDragonStage(5);  // ⭐ 精确匹配阶段 5
         rule.setRandomDropCount(1, 1);
         GemLootRuleManager.addRule(rule);
-        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：阶段5成年龙掉落规则（平衡调整，Lv60-75）");
+        CraftTweakerAPI.logInfo("[GemRules] ✅ 已添加：阶段5古老龙掉落规则（接口判定，Lv50-70）");
     }
 
     // ==========================================
@@ -587,6 +599,49 @@ public class CTGemLootRules {
         );
         GemLootRuleManager.setDefaultRule(rule);
         CraftTweakerAPI.logInfo("[GemRules] ✅ 已设置默认规则");
+    }
+
+    // ==========================================
+    // 快速添加规则（便捷方法）
+    // ==========================================
+
+    /**
+     * 快速添加单个生物规则（带品质和重roll参数）
+     *
+     * @param entityName 实体名称
+     * @param minLevel 最小等级
+     * @param maxLevel 最大等级
+     * @param minAffixes 最小词条数
+     * @param maxAffixes 最大词条数
+     * @param dropChance 掉落概率 (0.0-1.0)
+     * @param minQuality 最低品质 (0.0-1.0)
+     * @param rerollCount 重roll次数
+     */
+    @ZenMethod
+    public static void addAdvanced(String entityName, int minLevel, int maxLevel,
+                                   int minAffixes, int maxAffixes,
+                                   double dropChance, double minQuality, int rerollCount) {
+        GemLootRuleManager.LootRule rule = new GemLootRuleManager.LootRule(
+                "custom_" + entityName.toLowerCase(),
+                minLevel, maxLevel,
+                minAffixes, maxAffixes,
+                (float) dropChance,
+                (float) minQuality,
+                rerollCount
+        );
+
+        if (entityName.startsWith("Entity")) {
+            rule.matchClassName(entityName);
+        } else {
+            rule.matchEntityName(entityName);
+        }
+
+        GemLootRuleManager.addRule(rule);
+
+        CraftTweakerAPI.logInfo(String.format(
+                "[GemRules] ✅ 已添加高级自定义规则: %s (Lv%d-%d, 品质≥%.0f%%, roll×%d)",
+                entityName, minLevel, maxLevel, minQuality * 100, rerollCount
+        ));
     }
 
     // ==========================================

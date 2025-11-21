@@ -23,7 +23,7 @@ import net.minecraftforge.fml.common.gameevent.InputEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.lwjgl.input.Keyboard;
-
+import com.moremod.client.gui.SmartRejectionGuide;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -42,6 +42,9 @@ public class KeyBindHandler {
     public static KeyBinding detailInfoKey;
     public static KeyBinding scrollUpgradesKey;
     public static KeyBinding openVoidBackpackKey;  // 🌌 虚空背包按键
+    // 在 KeyBindHandler.java 的按键声明部分添加
+    public static KeyBinding rejectionStatusKey;
+
 
     // ===== 按键状态管理 =====
     private static boolean enchantBoostKeyPressed = false;
@@ -67,6 +70,15 @@ public class KeyBindHandler {
         toggleHudKey = new KeyBinding("切换机械核心HUD显示",
                 KeyConflictContext.IN_GAME, Keyboard.KEY_H, "机械核心HUD");
         ClientRegistry.registerKeyBinding(toggleHudKey);
+        // 在 registerKeybinds() 方法中添加
+        rejectionStatusKey = new KeyBinding("排异状态显示",
+                KeyConflictContext.IN_GAME,
+                Keyboard.KEY_K,
+                "机械核心HUD");
+        ClientRegistry.registerKeyBinding(rejectionStatusKey);
+
+// 在 onKeyInput 方法中添加
+
 
         // 机械核心
         openCoreGui = new KeyBinding("打开机械核心面板",
@@ -120,7 +132,9 @@ public class KeyBindHandler {
     public static void onKeyInput(InputEvent.KeyInputEvent event) {
         EntityPlayer player = Minecraft.getMinecraft().player;
         if (player == null || player.world == null) return;
-
+        if (rejectionStatusKey.isPressed()) {
+            SmartRejectionGuide.showDetailedStatus();
+        }
         handleKeyInput(player);
     }
 

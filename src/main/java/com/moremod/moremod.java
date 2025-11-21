@@ -8,6 +8,8 @@ import com.moremod.client.ClientTickEvent;
 import com.moremod.client.JetpackKeyHandler;
 import com.moremod.client.KeyBindHandler;
 import com.moremod.client.RenderHandler;
+import com.moremod.client.gui.EventHUDOverlay;
+import com.moremod.client.gui.SmartRejectionGuide;
 import com.moremod.client.render.debug.RenderDebugKeyHandler;
 import com.moremod.commands.CommandLootDebug;
 import com.moremod.commands.CommandResetEquipTime;
@@ -41,6 +43,7 @@ import com.moremod.integration.jei.JEIIntegrationManager;
 import com.moremod.item.ItemDimensionalRipper;
 import com.moremod.item.ItemMechanicalCore;
 import com.moremod.item.chengyue.ChengYueEventHandler;
+import com.moremod.item.sawblade.BleedEventHandler;
 import com.moremod.network.PacketCreateEnchantedBook;
 import com.moremod.network.PacketHandler;
 import com.moremod.network.NetworkHandler;
@@ -59,10 +62,7 @@ import com.moremod.capability.*;
 
 // 机械核心系统导入
 import com.moremod.shields.integrated.EnhancedVisualsHandler;
-import com.moremod.system.FleshRejectionEnvironmentHandler;
-import com.moremod.system.FleshRejectionEventSystem;
-import com.moremod.system.RejectionPotionPenaltySystem;
-import com.moremod.system.RejectionSleepDecaySystem;
+import com.moremod.system.*;
 import com.moremod.upgrades.MechanicalCoreNetworkHandler;
 import com.moremod.upgrades.auxiliary.AuxiliaryUpgradeManager;
 import com.moremod.upgrades.combat.CombatUpgradeManager;
@@ -521,6 +521,21 @@ public class moremod {
      */
     @EventHandler
     public void init(FMLInitializationEvent event) {
+// 在主模组类或ClientProxy中
+
+            // 注册事件处理器
+            MinecraftForge.EVENT_BUS.register(new FleshRejectionEnvironmentHandler());
+            MinecraftForge.EVENT_BUS.register(new FleshRejectionEventSystem());
+            MinecraftForge.EVENT_BUS.register(new RejectionSleepDecaySystem());
+            MinecraftForge.EVENT_BUS.register(new RejectionPotionPenaltySystem());
+            MinecraftForge.EVENT_BUS.register(new FleshRejectionFirstAidHooks());
+
+            // 客户端注册
+            if (event.getSide().isClient()) {
+                MinecraftForge.EVENT_BUS.register(new EventHUDOverlay());
+                MinecraftForge.EVENT_BUS.register(new SmartRejectionGuide());
+            }
+
         System.out.println("[moremod] ========== 开始初始化 ==========");
         UnlockableSlotsInit.init(event);
         RuleChecker.initialize();
@@ -784,6 +799,10 @@ public class moremod {
         MinecraftForge.EVENT_BUS.register(new MechanicalHeartEventHandler());
         System.out.println("[moremod] 💓 机械心脏事件处理器注册成功");
         MinecraftForge.EVENT_BUS.register(new PotionCoreCompatEnhanced());
+        MinecraftForge.EVENT_BUS.register(new BleedEventHandler());
+
+
+
 // 在主类/代理类中
         MinecraftForge.EVENT_BUS.register(new ChengYueEventHandler());
         // 2. 创造电池充电处理器
@@ -796,10 +815,8 @@ public class moremod {
         MinecraftForge.EVENT_BUS.register(PlayerTimeDataCapability.class);
         MinecraftForge.EVENT_BUS.register(ServerTickHandler.class);
         System.out.println("[moremod] 🕰️ 时光之心系统注册成功");
-        MinecraftForge.EVENT_BUS.register(new FleshRejectionEnvironmentHandler());
-        MinecraftForge.EVENT_BUS.register(new FleshRejectionEventSystem());
-        MinecraftForge.EVENT_BUS.register(new RejectionPotionPenaltySystem());
-        MinecraftForge.EVENT_BUS.register(new RejectionSleepDecaySystem());
+
+
         // 4. 升级管理器系统
         registerUpgradeManagers();
 

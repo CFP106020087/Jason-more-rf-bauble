@@ -32,7 +32,7 @@ public class FleshRejectionEventHandler {
 
         ItemStack core = ItemMechanicalCore.getCoreFromPlayer(player);
         if (!core.isEmpty()) {
-            FleshRejectionSystem.updateRejection(player, core);
+            FleshRejectionSystem.updateRejection(player);
         }
 
         // ✅ 修复：传入 core 参数，让方法自己检查

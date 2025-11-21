@@ -45,7 +45,7 @@ public class FleshRejectionConfig {
     })
     @Config.Name("模块适应度系数 | Adaptation Per Module")
     @Config.RangeDouble(min = 1.0, max = 50.0)
-    public static double adaptationPerModule = 12.0;
+    public static double adaptationPerModule = 10.0;
 
     @Config.Comment({
             "突破所需适应度阈值",

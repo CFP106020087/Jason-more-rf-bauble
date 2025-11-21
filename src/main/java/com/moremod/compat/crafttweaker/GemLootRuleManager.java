@@ -23,7 +23,7 @@ import java.util.regex.Pattern;
 public class GemLootRuleManager {
 
     private static final List<LootRule> RULES = new ArrayList<>();
-    
+
     // ⭐ v2.4：提高默认掉落率 1% → 10%
     private static LootRule DEFAULT_RULE = new LootRule(
             "default",
@@ -36,121 +36,13 @@ public class GemLootRuleManager {
 
     static {
         // ==========================================
-        // ⭐ 内建规则：Ice and Fire（龙）- 200血门槛+血量加成
+        // ⭐⭐⭐ 内建规则已禁用 ⭐⭐⭐
+        // 所有规则改由 CTGemLootRules.setupAllRules() 配置
         // ==========================================
-        
-        System.out.println("[GemLootRuleManager] 正在注册Ice and Fire规则...");
-        
-        // 火龙 - 200血门槛，血量动态加成
-        addRule(new LootRule("iceandfire_fire_dragon", 50, 80, 4, 6, 0.9f, 0.6f, 3)
-                .matchModId("iceandfire")
-                .matchClassName("EntityFireDragon")
-                .setHealthScaling(true)           // ⭐ 启用血量加成
-                .setHealthScalingThreshold(200.0f) // ⭐ 200血门槛
-                .setRandomDropCount(1, 1)
-                .setPriority(200));
-        
-        // 冰龙 - 200血门槛，血量动态加成
-        addRule(new LootRule("iceandfire_ice_dragon", 50, 80, 4, 6, 0.9f, 0.6f, 3)
-                .matchModId("iceandfire")
-                .matchClassName("EntityIceDragon")
-                .setHealthScaling(true)           // ⭐ 启用血量加成
-                .setHealthScalingThreshold(200.0f) // ⭐ 200血门槛
-                .setRandomDropCount(1, 1)
-                .setPriority(200));
-        
-        // 闪电龙 - 200血门槛，血量动态加成
-        addRule(new LootRule("iceandfire_lightning_dragon", 50, 80, 4, 6, 0.9f, 0.6f, 3)
-                .matchModId("iceandfire")
-                .matchClassName("EntityLightningDragon")
-                .setHealthScaling(true)           // ⭐ 启用血量加成
-                .setHealthScalingThreshold(200.0f) // ⭐ 200血门槛
-                .setRandomDropCount(1, 1)
-                .setPriority(200));
-        
-        // 通用龙规则（兜底）- 200血门槛，血量动态加成
-        addRule(new LootRule("iceandfire_dragon", 45, 75, 4, 6, 0.85f, 0.5f, 3)
-                .matchModId("iceandfire")
-                .matchClassPattern("Dragon")
-                .setHealthScaling(true)           // ⭐ 启用血量加成
-                .setHealthScalingThreshold(200.0f) // ⭐ 200血门槛
-                .setRandomDropCount(1, 1)
-                .setPriority(100));
-        
-        // Ice and Fire其他Boss（九头蛇、独眼巨人等）- 200血门槛，血量动态加成
-        addRule(new LootRule("iceandfire_boss", 40, 70, 3, 5, 0.7f, 0.4f, 2)
-                .matchModId("iceandfire")
-                .setHealthScaling(true)           // ⭐ 启用血量加成
-                .setHealthScalingThreshold(200.0f) // ⭐ 200血门槛
-                .setRandomDropCount(1, 1)
-                .setPriority(80));
-        
-        System.out.println("[GemLootRuleManager] ✅ Ice and Fire规则注册完成 (5条，200血门槛+血量加成)");
 
-        // ==========================================
-        // 内建规则：Infernal Mobs
-        // ==========================================
-        
-        addRule(new LootRule("infernal", 20, 60, 3, 5, 0.6f, 0.4f, 2)
-                .setMinModCount(1)
-                .setDynamicLevel(true)
-                .setDynamicDropRate(true)
-                .setPriority(150));
-        
-        System.out.println("[GemLootRuleManager] ✅ Infernal Mobs规则注册完成");
-
-        // ==========================================
-        // 内建规则：Champions
-        // ==========================================
-        
-        // Epic (Tier 4-5)
-        addRule(new LootRule("champions_epic", 30, 70, 4, 6, 0.7f, 0.5f, 3)
-                .setMinChampionTier(4)
-                .setGrowthFactorBonus(true)
-                .setPriority(150));
-        
-        // Elite (Tier 2-3)
-        addRule(new LootRule("champions_elite", 20, 50, 3, 4, 0.5f, 0.3f, 2)
-                .setMinChampionTier(2)
-                .setMaxModCount(3)
-                .setPriority(100));
-        
-        // Common (Tier 1)
-        addRule(new LootRule("champions_common", 10, 30, 2, 3, 0.3f, 0.2f, 1)
-                .setChampionTier(1)
-                .setPriority(50));
-        
-        System.out.println("[GemLootRuleManager] ✅ Champions规则注册完成 (3条)");
-        
-        // ==========================================
-        // ⭐ 内建规则：Lycanites Mobs - 200血门槛+血量加成
-        // ==========================================
-        
-        System.out.println("[GemLootRuleManager] 正在注册Lycanites规则...");
-        
-        // Boss级别 - 200血门槛，血量动态加成
-        addRule(new LootRule("lycanites_boss", 50, 90, 5, 7, 0.95f, 0.7f, 4)
-                .matchModId("lycanitesmobs")
-                .matchInterface("IGroupBoss")
-                .setHealthScaling(true)           // ⭐ 启用血量加成
-                .setHealthScalingThreshold(200.0f) // ⭐ 200血门槛
-                .setRandomDropCount(3, 5)
-                .setPriority(200));
-        
-        // 精英生物 - 200血门槛，血量动态加成
-        addRule(new LootRule("lycanites_elite", 30, 60, 3, 5, 0.6f, 0.4f, 2)
-                .matchModId("lycanitesmobs")
-                .setHealthScaling(true)           // ⭐ 启用血量加成
-                .setHealthScalingThreshold(200.0f) // ⭐ 200血门槛
-                .requireHostile(true)
-                .setPriority(100));
-        
-        System.out.println("[GemLootRuleManager] ✅ Lycanites规则注册完成 (2条，200血门槛+血量加成)");
-        
         System.out.println("[GemLootRuleManager] ========================================");
-        System.out.println("[GemLootRuleManager] 总计注册规则: " + RULES.size() + " 条");
-        System.out.println("[GemLootRuleManager] 默认掉落率: 10%");
-        System.out.println("[GemLootRuleManager] ⭐ Ice and Fire + Lycanites: 200血门槛+血量动态加成");
+        System.out.println("[GemLootRuleManager] 内建规则已禁用");
+        System.out.println("[GemLootRuleManager] 所有规则由 CTGemLootRules.setupAllRules() 配置");
         System.out.println("[GemLootRuleManager] ========================================");
     }
 
@@ -249,6 +141,10 @@ public class GemLootRuleManager {
         private boolean excludeBoss = false;
         private boolean requireHostile = false;
 
+        // ⭐ Ice and Fire 龙阶段检查
+        private int minDragonStage = -1;   // 最小龙阶段 (1-5)
+        private int maxDragonStage = -1;   // 最大龙阶段 (1-5)
+
         // 掉落参数
         public int minLevel;
         public int maxLevel;
@@ -262,7 +158,7 @@ public class GemLootRuleManager {
         private boolean dynamicDropRate = false;
         private boolean dynamicLevel = false;
         public int priority = 0;
-        
+
         // ⭐ 新增：血量动态加成
         private boolean healthScaling = false;           // 是否启用血量加成
         private float healthScalingThreshold = 200.0f;   // 血量门槛（低于此值不掉落）
@@ -413,20 +309,38 @@ public class GemLootRuleManager {
             this.priority = priority;
             return this;
         }
-        
+
         // ⭐ 新增：血量动态加成配置
         public LootRule setHealthScaling(boolean enable) {
             this.healthScaling = enable;
             return this;
         }
-        
+
         public LootRule setHealthScalingThreshold(float threshold) {
             this.healthScalingThreshold = threshold;
             return this;
         }
-        
+
         public LootRule setHealthScalingFactor(float factor) {
             this.healthScalingFactor = factor;
+            return this;
+        }
+
+        // ⭐ 新增：Ice and Fire 龙阶段匹配
+        public LootRule setDragonStage(int stage) {
+            this.minDragonStage = stage;
+            this.maxDragonStage = stage;
+            this.priority += 200;  // 高优先级
+            return this;
+        }
+
+        public LootRule setMinDragonStage(int stage) {
+            this.minDragonStage = stage;
+            return this;
+        }
+
+        public LootRule setMaxDragonStage(int stage) {
+            this.maxDragonStage = stage;
             return this;
         }
 
@@ -488,7 +402,7 @@ public class GemLootRuleManager {
             // === 第二步：血量检查 ===
             if (minHealth > 0 && health < minHealth) return false;
             if (maxHealth > 0 && health > maxHealth) return false;
-            
+
             // ⭐ 新增：血量动态加成门槛检查
             if (healthScaling && health < healthScalingThreshold) {
                 return false;  // 低于门槛不匹配
@@ -514,6 +428,11 @@ public class GemLootRuleManager {
             // Lycanites检查
             if (!requiredInterfaces.isEmpty() || !excludedInterfaces.isEmpty() || excludeBoss) {
                 if (!checkLycanites(entity)) return false;
+            }
+
+            // ⭐ Ice and Fire 龙阶段检查
+            if (minDragonStage > 0 || maxDragonStage > 0) {
+                if (!checkDragonStage(entity)) return false;
             }
 
             // 敌对性检查
@@ -713,8 +632,86 @@ public class GemLootRuleManager {
         }
 
         // ==========================================
+        // ⭐ Ice and Fire 龙阶段检查
+        // ==========================================
+
+        private boolean checkDragonStage(EntityLivingBase entity) {
+            String className = entity.getClass().getName();
+
+            // 只检查 Ice and Fire 的龙
+            if (!className.contains("iceandfire")) {
+                // ⭐ 修复：如果不是龙，但规则设置了龙阶段条件，说明此规则不适用于这个实体
+                return false;
+            }
+
+            try {
+                // ⭐ 尝试多个可能的方法名
+                java.lang.reflect.Method method = null;
+                int stage = -1;
+
+                // 方法1: getDragonStage()
+                try {
+                    method = entity.getClass().getMethod("getDragonStage");
+                    Object result = method.invoke(entity);
+                    stage = ((Number) result).intValue();
+                    System.out.println("[GemLoot-Debug] 龙阶段（getDragonStage）: " + stage);
+                } catch (NoSuchMethodException e1) {
+                    // 方法2: getLifeStage()
+                    try {
+                        method = entity.getClass().getMethod("getLifeStage");
+                        Object result = method.invoke(entity);
+                        stage = ((Number) result).intValue();
+                        System.out.println("[GemLoot-Debug] 龙阶段（getLifeStage）: " + stage);
+                    } catch (NoSuchMethodException e2) {
+                        // 方法3: 通过 getAgeInDays() 计算
+                        try {
+                            method = entity.getClass().getMethod("getAgeInDays");
+                            int ageInDays = (int) method.invoke(entity);
+                            // Ice and Fire 阶段计算：每25天一个阶段
+                            stage = Math.min(5, (ageInDays / 25) + 1);
+                            System.out.println("[GemLoot-Debug] 龙阶段（通过年龄计算）: " + stage + " (年龄: " + ageInDays + "天)");
+                        } catch (Exception e3) {
+                            System.err.println("[GemLoot] 无法获取龙阶段，所有方法都失败:");
+                            System.err.println("  - getDragonStage(): " + e1.getMessage());
+                            System.err.println("  - getLifeStage(): " + e2.getMessage());
+                            System.err.println("  - getAgeInDays(): " + e3.getMessage());
+                            return false;
+                        }
+                    }
+                }
+
+                if (stage < 0) {
+                    return false;
+                }
+
+                // 检查阶段范围
+                if (minDragonStage > 0 && stage < minDragonStage) {
+                    System.out.println("[GemLoot-Debug] 龙阶段不匹配: " + stage + " < " + minDragonStage);
+                    return false;
+                }
+                if (maxDragonStage > 0 && stage > maxDragonStage) {
+                    System.out.println("[GemLoot-Debug] 龙阶段不匹配: " + stage + " > " + maxDragonStage);
+                    return false;
+                }
+
+                System.out.println("[GemLoot-Debug] ✅ 龙阶段匹配: " + stage + " (范围: " + minDragonStage + "-" + maxDragonStage + ")");
+                return true;
+
+            } catch (Exception e) {
+                // 如果方法不存在或调用失败，返回 false
+                System.err.println("[GemLoot] 龙阶段检查异常: " + e.getMessage());
+                e.printStackTrace();
+                return false;
+            }
+        }
+
+        // ==========================================
         // 动态调整（完整保留）
         // ==========================================
+
+        // ==========================================
+// 动态调整（Champions与Infernal取较大值版本）
+// ==========================================
 
         public LootRule applyDynamicAdjustments(EntityLivingBase entity) {
             if (!dynamicDropRate && !dynamicLevel && !growthFactorBonus && !healthScaling) {
@@ -739,25 +736,25 @@ public class GemLootRuleManager {
                 if (health >= healthScalingThreshold) {
                     // 计算超出门槛的血量
                     float excessHealth = health - healthScalingThreshold;
-                    
+
                     // 等级加成：每100血 +5级
                     int levelBonus = (int) (excessHealth / 100.0f * 5);
                     adjusted.minLevel += levelBonus;
                     adjusted.maxLevel += levelBonus;
-                    
+
                     // 词条加成：每200血 +1词条
                     int affixBonus = (int) (excessHealth / 200.0f);
                     adjusted.minAffixes += affixBonus;
                     adjusted.maxAffixes += affixBonus;
-                    
+
                     // 掉落率加成：每100血 +2%
                     float dropBonus = (excessHealth / 100.0f) * 0.02f;
                     adjusted.dropChance += dropBonus;
-                    
+
                     // 品质加成：每300血 +5%
                     float qualityBonus = (excessHealth / 300.0f) * 0.05f;
                     adjusted.minQuality += qualityBonus;
-                    
+
                     System.out.println(String.format(
                             "[GemLoot-HealthScaling] %s (%.0f血): 等级+%d, 词条+%d, 掉落率+%.1f%%, 品质+%.1f%%",
                             entity.getName(),
@@ -770,35 +767,40 @@ public class GemLootRuleManager {
                 }
             }
 
+            // ==========================================
+            // ⭐ 分别计算Champions和Infernal加成，取较大值（不叠加）
+            // ==========================================
+            int championsLevelBonus = 0;
+            float championsDropBonus = 0.0f;
+            int infernalLevelBonus = 0;
+            float infernalDropBonus = 0.0f;
+
             // Champions动态调整
             if (growthFactorBonus && entity instanceof EntityLiving) {
                 try {
                     IChampionship chp = CapabilityChampionship.getChampionship((EntityLiving) entity);
                     if (chp != null && chp.getRank() != null) {
                         int growth = chp.getRank().getGrowthFactor();
-                        adjusted.dropChance += growth * 0.02f;
-                        adjusted.minLevel += growth * 2;
-                        adjusted.maxLevel += growth * 2;
+                        championsDropBonus += growth * 0.02f;
+                        championsLevelBonus += growth * 2;
                     }
                 } catch (Exception e) {
                     // 忽略
                 }
             }
 
-            // 基于词条数的动态调整
+            // Champions词条加成
             if (dynamicDropRate || dynamicLevel) {
-                // Champions词条
                 if (entity instanceof EntityLiving) {
                     try {
                         IChampionship chp = CapabilityChampionship.getChampionship((EntityLiving) entity);
                         if (chp != null) {
                             int affixCount = chp.getAffixes().size();
                             if (dynamicDropRate) {
-                                adjusted.dropChance += affixCount * 0.05f;
+                                championsDropBonus += affixCount * 0.05f;
                             }
                             if (dynamicLevel) {
-                                adjusted.minLevel += affixCount * 5;
-                                adjusted.maxLevel += affixCount * 5;
+                                championsLevelBonus += affixCount * 5;
                             }
                         }
                     } catch (Exception e) {
@@ -806,7 +808,7 @@ public class GemLootRuleManager {
                     }
                 }
 
-                // Infernal Mobs词条（使用NBT检测）
+                // Infernal Mobs词条加成
                 try {
                     NBTTagCompound nbt = entity.getEntityData();
                     String infernalTag = nbt.getString("InfernalMobsMod");
@@ -815,11 +817,10 @@ public class GemLootRuleManager {
                         int modSize = infernalTag.trim().split("\\s+").length;
 
                         if (dynamicDropRate) {
-                            adjusted.dropChance += modSize * 0.03f;
+                            infernalDropBonus += modSize * 0.03f;
                         }
                         if (dynamicLevel) {
-                            adjusted.minLevel += modSize * 3;
-                            adjusted.maxLevel += modSize * 3;
+                            infernalLevelBonus += modSize * 3;
                         }
                     } else {
                         // 备用：尝试API方式
@@ -828,11 +829,10 @@ public class GemLootRuleManager {
                             if (chain != null) {
                                 int modSize = chain.getModSize();
                                 if (dynamicDropRate) {
-                                    adjusted.dropChance += modSize * 0.03f;
+                                    infernalDropBonus += modSize * 0.03f;
                                 }
                                 if (dynamicLevel) {
-                                    adjusted.minLevel += modSize * 3;
-                                    adjusted.maxLevel += modSize * 3;
+                                    infernalLevelBonus += modSize * 3;
                                 }
                             }
                         }
@@ -842,7 +842,29 @@ public class GemLootRuleManager {
                 }
             }
 
+            // ⭐ 取Champions和Infernal中较大的加成值，避免叠加
+            int finalLevelBonus = Math.max(championsLevelBonus, infernalLevelBonus);
+            float finalDropBonus = Math.max(championsDropBonus, infernalDropBonus);
+
+            // 应用最终加成
+            adjusted.dropChance += finalDropBonus;
+            adjusted.minLevel += finalLevelBonus;
+            adjusted.maxLevel += finalLevelBonus;
+
+            // 调试信息
+            if (championsLevelBonus > 0 || infernalLevelBonus > 0) {
+                System.out.println(String.format(
+                        "[GemLoot-DynamicBonus] %s - Champions: +%d级/%.1f%%, Infernal: +%d级/%.1f%% → 最终: +%d级/%.1f%%",
+                        entity.getName(),
+                        championsLevelBonus, championsDropBonus * 100,
+                        infernalLevelBonus, infernalDropBonus * 100,
+                        finalLevelBonus, finalDropBonus * 100
+                ));
+            }
+
+            // ==========================================
             // 限制最大值
+            // ==========================================
             adjusted.dropChance = Math.min(adjusted.dropChance, 1.0f);
             adjusted.minLevel = Math.max(1, Math.min(adjusted.minLevel, 100));
             adjusted.maxLevel = Math.max(adjusted.minLevel, Math.min(adjusted.maxLevel, 100));

@@ -3,36 +3,37 @@ package com.moremod.compat.crafttweaker;
 import java.util.*;
 
 /**
- * 词条Tier映射器 - 最小入侵式设计（修复版）
+ * 词条Tier映射器 - 最小入侵式设计(修复版)
  *
- * 功能：根据宝石等级限制词条的roll范围（上下限）
- * 特点：
+ * 功能:根据宝石等级限制词条的roll范围(上下限)
+ * 特点:
  * - 不修改GemAffix类
  * - 不修改词条注册逻辑
  * - 完全向后兼容
  * - 可选启用/禁用
  *
- * ✅ 修复：现在会同时限制上限和下限，防止低级宝石出神装
+ * ✅ 修复:现在会同时限制上限和下限,防止低级宝石出神装
  */
 public class AffixTierMapper {
 
     private static boolean ENABLED = true;
     private static TierMode MODE = TierMode.BREAKPOINT; // 默认POE分段模式
+    private static boolean DEBUG_ENABLED = false; // Debug输出开关
 
     /**
      * Tier计算模式
      */
     public enum TierMode {
-        /** 线性：每级固定提升 */
+        /** 线性:每级固定提升 */
         LINEAR,
 
-        /** 平方根：前期快，后期慢 */
+        /** 平方根:前期快,后期慢 */
         SQRT,
 
-        /** 指数：前期慢，后期快 */
+        /** 指数:前期慢,后期快 */
         EXPONENTIAL,
 
-        /** 分段：明确的等级断点（POE风格，推荐） */
+        /** 分段:明确的等级断点(POE风格,推荐) */
         BREAKPOINT
     }
 
@@ -54,6 +55,13 @@ public class AffixTierMapper {
         MODE = mode;
     }
 
+    /**
+     * 启用/禁用Debug输出
+     */
+    public static void setDebugEnabled(boolean enabled) {
+        DEBUG_ENABLED = enabled;
+    }
+
     public static boolean isEnabled() {
         return ENABLED;
     }
@@ -62,15 +70,19 @@ public class AffixTierMapper {
         return MODE;
     }
 
+    public static boolean isDebugEnabled() {
+        return DEBUG_ENABLED;
+    }
+
     // ==========================================
-    // 核心方法：计算品质范围（上下限）
+    // 核心方法:计算品质范围(上下限)
     // ==========================================
 
     /**
-     * ✅ 修复：根据宝石等级计算品质范围（上下限）
+     * ✅ 修复:根据宝石等级计算品质范围(上下限)
      *
      * @param gemLevel 宝石等级 (1-100)
-     * @return [最小品质, 最大品质] 数组（0.0-1.0范围）
+     * @return [最小品质, 最大品质] 数组(0.0-1.0范围)
      */
     public static float[] calculateQualityRange(int gemLevel) {
         if (!ENABLED) {
@@ -92,7 +104,7 @@ public class AffixTierMapper {
     }
 
     /**
-     * 向后兼容：只返回下限（不推荐使用）
+     * 向后兼容:只返回下限(不推荐使用)
      */
     @Deprecated
     public static float calculateMinQuality(int gemLevel) {
@@ -100,13 +112,13 @@ public class AffixTierMapper {
     }
 
     // ==========================================
-    // Range计算方法（4种模式）
+    // Range计算方法(4种模式)
     // ==========================================
 
     /**
      * 线性模式Range
      *
-     * 特点：均匀成长
+     * 特点:均匀成长
      *
      * 1级:   0.6% - 20%
      * 25级:  15% - 45%
@@ -123,7 +135,7 @@ public class AffixTierMapper {
     /**
      * 平方根模式Range
      *
-     * 特点：前期提升快，后期趋于平缓
+     * 特点:前期提升快,后期趋于平缓
      *
      * 1级:   3% - 20%
      * 25级:  15% - 50%
@@ -143,7 +155,7 @@ public class AffixTierMapper {
     /**
      * 指数模式Range
      *
-     * 特点：前期慢，后期快速增长
+     * 特点:前期慢,后期快速增长
      *
      * 1级:   0.01% - 20%
      * 25级:  1.56% - 40%
@@ -154,19 +166,19 @@ public class AffixTierMapper {
     private static float[] calculateExponentialRange(int level) {
         float normalized = level / 100.0f;
 
-        // 下限：指数增长（二次方）
+        // 下限:指数增长(二次方)
         float minQuality = normalized * normalized * 0.25f;
 
-        // 上限：线性增长（从20%到100%）
+        // 上限:线性增长(从20%到100%)
         float maxQuality = 0.20f + (normalized * 0.80f);
 
         return new float[]{minQuality, maxQuality};
     }
 
     /**
-     * ⭐ POE分段模式Range（推荐）
+     * ⭐ POE分段模式Range(推荐)
      *
-     * 特点：明确的等级断点，清晰的Tier划分
+     * 特点:明确的等级断点,清晰的Tier划分
      *
      * 1-20级:  0% - 20%   (垃圾Tier - 只能出最差的)
      * 21-40级: 10% - 45%  (普通Tier - 最多中等)
@@ -189,7 +201,7 @@ public class AffixTierMapper {
     }
 
     // ==========================================
-    // 工具方法：应用Tier限制到roll范围
+    // 工具方法:应用Tier限制到roll范围
     // ==========================================
 
     /**
@@ -208,7 +220,7 @@ public class AffixTierMapper {
     }
 
     /**
-     * ✅ 新增：计算考虑Tier限制后的实际最大值
+     * ✅ 新增:计算考虑Tier限制后的实际最大值
      *
      * @param minValue 词条原始最小值
      * @param maxValue 词条原始最大值
@@ -223,7 +235,7 @@ public class AffixTierMapper {
     }
 
     /**
-     * 计算品质百分比（用于调试）
+     * 计算品质百分比(用于调试)
      *
      * @param value 实际roll的值
      * @param minValue 词条最小值
@@ -243,9 +255,11 @@ public class AffixTierMapper {
     // ==========================================
 
     /**
-     * 调试：打印当前使用的模式和配置
+     * 调试:打印当前使用的模式和配置
      */
     public static void debugPrintCurrentMode() {
+        if (!DEBUG_ENABLED) return;
+
         System.out.println("========================================");
         System.out.println("  AffixTierMapper 当前配置");
         System.out.println("========================================");
@@ -270,9 +284,11 @@ public class AffixTierMapper {
     }
 
     /**
-     * 调试：测试特定等级的品质范围
+     * 调试:测试特定等级的品质范围
      */
     public static void debugTestLevel(int gemLevel) {
+        if (!DEBUG_ENABLED) return;
+
         float[] range = calculateQualityRange(gemLevel);
         System.out.println(String.format(
                 "[AffixTier] 等级%d → 品质范围: %.1f%% - %.1f%% (模式: %s)",
@@ -281,11 +297,13 @@ public class AffixTierMapper {
     }
 
     /**
-     * 调试：打印所有模式在不同等级的品质范围对比
+     * 调试:打印所有模式在不同等级的品质范围对比
      */
     public static void debugPrintAllModes() {
+        if (!DEBUG_ENABLED) return;
+
         System.out.println("========================================");
-        System.out.println("  AffixTierMapper 品质范围对比（所有模式）");
+        System.out.println("  AffixTierMapper 品质范围对比(所有模式)");
         System.out.println("========================================");
         System.out.println(String.format("%-8s | %-15s | %-15s | %-15s | %-15s",
                 "等级", "LINEAR", "SQRT", "EXPO", "BREAKPOINT"));
@@ -312,9 +330,11 @@ public class AffixTierMapper {
     }
 
     /**
-     * 模拟roll分布（带上限限制）
+     * 模拟roll分布(带上限限制)
      */
     public static void debugSimulateRolls(int gemLevel, int rollCount) {
+        if (!DEBUG_ENABLED) return;
+
         Random random = new Random();
         float minValue = 10.0f;
         float maxValue = 100.0f;
@@ -361,7 +381,7 @@ public class AffixTierMapper {
     }
 
     /**
-     * 调试：验证特定宝石的品质是否在合法范围内
+     * 调试:验证特定宝石的品质是否在合法范围内
      */
     public static boolean validateQuality(int gemLevel, int actualQuality) {
         float[] range = calculateQualityRange(gemLevel);
@@ -370,7 +390,7 @@ public class AffixTierMapper {
 
         boolean valid = actualQuality >= minQuality && actualQuality <= maxQuality;
 
-        if (!valid) {
+        if (!valid && DEBUG_ENABLED) {
             System.err.println(String.format(
                     "[AffixTier] ❌ 品质异常！等级%d宝石的品质%d%%超出了合法范围[%d%% - %d%%]",
                     gemLevel, actualQuality, minQuality, maxQuality
