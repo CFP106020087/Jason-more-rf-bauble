@@ -6,8 +6,7 @@ import com.moremod.causal.CausalFieldManager;
 import com.moremod.causal.EnergyHelper;
 import com.moremod.creativetab.moremodCreativeTab;
 import atomicstryker.infernalmobs.common.InfernalMobsCore;
-import c4.champions.common.capability.CapabilityChampionship;
-import c4.champions.common.capability.IChampionship;
+import com.moremod.compat.ChampionReflectionHelper;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.*;
@@ -103,9 +102,10 @@ public class ItemCausalGateband extends Item implements IBauble {
             // Infernal
             if (InfernalMobsCore.getIsRareEntity(e)) return true;
             // Champions
-            if (e instanceof EntityLiving) {
-                IChampionship chp = CapabilityChampionship.getChampionship((EntityLiving) e);
-                if (chp != null && chp.getRank()!=null && chp.getRank().getTier()>0) return true;
+            if (e instanceof EntityLiving && ChampionReflectionHelper.isChampionsAvailable()) {
+                Object chp = ChampionReflectionHelper.getChampionship((EntityLiving) e);
+                Object rank = chp != null ? ChampionReflectionHelper.getRank(chp) : null;
+                if (rank != null && ChampionReflectionHelper.getTier(rank) > 0) return true;
             }
         }
         return false;

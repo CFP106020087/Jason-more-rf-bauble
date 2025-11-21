@@ -2,16 +2,12 @@ package com.moremod.causal;
 
 import atomicstryker.infernalmobs.common.InfernalMobsCore;
 import atomicstryker.infernalmobs.common.MobModifier;
-import c4.champions.common.capability.*;
-import c4.champions.common.rank.RankManager;
-import c4.champions.network.NetworkHandler;
-import c4.champions.network.PacketSyncAffix;
+import com.moremod.compat.ChampionReflectionHelper;
 import net.minecraft.entity.*;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.world.WorldServer;
-import net.minecraftforge.common.capabilities.Capability;
 
 import java.util.*;
 
@@ -80,26 +76,26 @@ public final class CombinedSuppressor {
     }
 
     private static void handleChampion(EntityLiving e, boolean in){
+        if (!ChampionReflectionHelper.isChampionsAvailable()) return;
+
         NBTTagCompound tag = e.getEntityData();
         boolean suppressed = tag.getBoolean(NBT_CH_SUPP);
 
-        Capability<IChampionship> cap = CapabilityChampionship.CHAMPION_CAP;
-        if (!e.hasCapability(cap, null)) return;
-
-        IChampionship chp = e.getCapability(cap, null);
+        Object chp = ChampionReflectionHelper.getChampionship(e);
         if (chp == null) return;
 
-        int tier = chp.getRank() != null ? chp.getRank().getTier() : 0;
+        Object rank = ChampionReflectionHelper.getRank(chp);
+        int tier = rank != null ? ChampionReflectionHelper.getTier(rank) : 0;
 
         if (in && !suppressed && tier > 0) {
             // 备份数据
             NBTTagCompound back = new NBTTagCompound();
             back.setInteger("tier", tier);
-            back.setString("name", chp.getName() == null ? "" : chp.getName());
+            back.setString("name", ChampionReflectionHelper.getName(chp));
 
             NBTTagCompound affixes = new NBTTagCompound();
-            for (String affixId : chp.getAffixes()) {
-                NBTTagCompound affixData = chp.getAffixData(affixId);
+            for (String affixId : ChampionReflectionHelper.getAffixes(chp)) {
+                NBTTagCompound affixData = ChampionReflectionHelper.getAffixData(chp, affixId);
                 affixes.setTag(affixId, affixData == null ? new NBTTagCompound() : affixData.copy());
             }
             back.setTag("affixes", affixes);
@@ -110,10 +106,10 @@ public final class CombinedSuppressor {
             System.out.println("[Champions] 压制: " + e.getName() + " (Tier " + tier + ", " + affixes.getKeySet().size() + " 词条)");
 
             // 【关键修复1】正确清空所有数据
-            chp.setRank(RankManager.getEmptyRank());
-            chp.setName("");
-            chp.setAffixes(new HashSet<>());           // 清空词条ID集合
-            chp.setAffixData(new HashMap<>());         // ← 关键：清空词条数据Map！
+            ChampionReflectionHelper.setRank(chp, ChampionReflectionHelper.getEmptyRank());
+            ChampionReflectionHelper.setName(chp, "");
+            ChampionReflectionHelper.setAffixes(chp, new HashSet<>());           // 清空词条ID集合
+            ChampionReflectionHelper.setAffixData(chp, new HashMap<>());         // ← 关键：清空词条数据Map！
 
             // 【关键修复2】强制同步到客户端
             syncChampionToClients(e, 0, new HashMap<>(), "");
@@ -125,8 +121,8 @@ public final class CombinedSuppressor {
                 int oldTier = back.getInteger("tier");
                 String oldName = back.getString("name");
 
-                chp.setRank(RankManager.getRankForTier(oldTier));
-                chp.setName(oldName);
+                ChampionReflectionHelper.setRank(chp, ChampionReflectionHelper.getRankForTier(oldTier));
+                ChampionReflectionHelper.setName(chp, oldName);
 
                 // 恢复词条数据
                 NBTTagCompound affixes = back.getCompoundTag("affixes");
@@ -138,8 +134,8 @@ public final class CombinedSuppressor {
                     affixDataMap.put(affixId, affixes.getCompoundTag(affixId));
                 }
 
-                chp.setAffixes(affixIds);                  // 设置词条ID集合
-                chp.setAffixData(affixDataMap);            // ← 关键：设置词条数据Map！
+                ChampionReflectionHelper.setAffixes(chp, affixIds);                  // 设置词条ID集合
+                ChampionReflectionHelper.setAffixData(chp, affixDataMap);            // ← 关键：设置词条数据Map！
 
                 System.out.println("[Champions] 恢复: " + e.getName() + " (Tier " + oldTier + ", " + affixIds.size() + " 词条)");
 
@@ -157,6 +153,7 @@ public final class CombinedSuppressor {
      * 使用 Champions 自己的同步包格式
      */
     private static void syncChampionToClients(EntityLiving entity, int tier, Map<String, NBTTagCompound> affixData, String name) {
+        if (!ChampionReflectionHelper.isChampionsAvailable()) return;
         if (!(entity.world instanceof WorldServer)) return;
 
         WorldServer world = (WorldServer) entity.world;
@@ -168,14 +165,14 @@ public final class CombinedSuppressor {
             for (EntityPlayer player : trackingPlayers) {
                 if (player instanceof EntityPlayerMP) {
                     // 创建同步包（格式与Champions完全一致）
-                    PacketSyncAffix packet = new PacketSyncAffix(
+                    Object packet = ChampionReflectionHelper.createPacketSyncAffix(
                             entity.getEntityId(),
                             tier,           // 压制时传0，恢复时传真实tier
                             affixData,      // 压制时传空Map，恢复时传真实数据
                             name            // 压制时传空字符串，恢复时传真实名字
                     );
 
-                    NetworkHandler.INSTANCE.sendTo(packet, (EntityPlayerMP) player);
+                    ChampionReflectionHelper.sendPacketToPlayer(packet, (EntityPlayerMP) player);
 
                     System.out.println(String.format(
                             "[Champions] 同步到客户端: %s (Tier=%d, Affixes=%d)",

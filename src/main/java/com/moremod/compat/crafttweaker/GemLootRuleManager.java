@@ -5,8 +5,7 @@ import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.nbt.NBTTagCompound;
 import atomicstryker.infernalmobs.common.InfernalMobsCore;
 import atomicstryker.infernalmobs.common.MobModifier;
-import c4.champions.common.capability.CapabilityChampionship;
-import c4.champions.common.capability.IChampionship;
+import com.moremod.compat.ChampionReflectionHelper;
 
 import java.util.*;
 import java.util.regex.Pattern;
@@ -464,13 +463,21 @@ public class GemLootRuleManager {
             }
 
             try {
-                IChampionship chp = CapabilityChampionship.getChampionship((EntityLiving) entity);
-
-                if (chp == null || chp.getRank() == null) {
+                if (!ChampionReflectionHelper.isChampionsAvailable()) {
                     return false;
                 }
 
-                int tier = chp.getRank().getTier();
+                Object chp = ChampionReflectionHelper.getChampionship((EntityLiving) entity);
+                if (chp == null) {
+                    return false;
+                }
+
+                Object rank = ChampionReflectionHelper.getRank(chp);
+                if (rank == null) {
+                    return false;
+                }
+
+                int tier = ChampionReflectionHelper.getTier(rank);
                 if (tier <= 0) {
                     return false;
                 }
@@ -485,7 +492,7 @@ public class GemLootRuleManager {
 
                 // 词条数检查
                 if (minAffixCount > 0 || maxAffixCount > 0) {
-                    int affixCount = chp.getAffixes().size();
+                    int affixCount = ChampionReflectionHelper.getAffixes(chp).size();
 
                     if (minAffixCount > 0 && affixCount < minAffixCount) {
                         return false;
@@ -776,11 +783,12 @@ public class GemLootRuleManager {
             float infernalDropBonus = 0.0f;
 
             // Champions动态调整
-            if (growthFactorBonus && entity instanceof EntityLiving) {
+            if (growthFactorBonus && entity instanceof EntityLiving && ChampionReflectionHelper.isChampionsAvailable()) {
                 try {
-                    IChampionship chp = CapabilityChampionship.getChampionship((EntityLiving) entity);
-                    if (chp != null && chp.getRank() != null) {
-                        int growth = chp.getRank().getGrowthFactor();
+                    Object chp = ChampionReflectionHelper.getChampionship((EntityLiving) entity);
+                    Object rank = chp != null ? ChampionReflectionHelper.getRank(chp) : null;
+                    if (rank != null) {
+                        int growth = ChampionReflectionHelper.getGrowthFactor(rank);
                         championsDropBonus += growth * 0.02f;
                         championsLevelBonus += growth * 2;
                     }
@@ -791,11 +799,11 @@ public class GemLootRuleManager {
 
             // Champions词条加成
             if (dynamicDropRate || dynamicLevel) {
-                if (entity instanceof EntityLiving) {
+                if (entity instanceof EntityLiving && ChampionReflectionHelper.isChampionsAvailable()) {
                     try {
-                        IChampionship chp = CapabilityChampionship.getChampionship((EntityLiving) entity);
+                        Object chp = ChampionReflectionHelper.getChampionship((EntityLiving) entity);
                         if (chp != null) {
-                            int affixCount = chp.getAffixes().size();
+                            int affixCount = ChampionReflectionHelper.getAffixes(chp).size();
                             if (dynamicDropRate) {
                                 championsDropBonus += affixCount * 0.05f;
                             }

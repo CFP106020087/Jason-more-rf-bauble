@@ -49,7 +49,7 @@ dependencies {
     // Mod dependencies
     compileOnly name:'MmmMmmMmmMmm-1.12-2.0.5'
     compileOnly name:'Ice and Fire-2.1.7'
-    compileOnly name:'champions-1.12.2-1.0.11.10'
+    // compileOnly name:'champions-1.12.2-1.0.11.10'  // 已改用反射，无需编译时依赖
     compileOnly name:'InfernalMobs-1.12.2'
     compileOnly name:'morerefinedstorage-2.3.2'
     compileOnly name:'Baubles-1.12-1.5.2'
