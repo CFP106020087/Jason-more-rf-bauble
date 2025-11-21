@@ -2,8 +2,10 @@ package com.moremod.synergy.init;
 
 import com.moremod.synergy.bridge.ExistingModuleBridge;
 import com.moremod.synergy.builtin.*;
+import com.moremod.synergy.command.CommandSynergy;
 import com.moremod.synergy.core.SynergyManager;
 import com.moremod.synergy.core.SynergyRegistry;
+import net.minecraftforge.fml.common.event.FMLServerStartingEvent;
 
 /**
  * Synergy 系统启动器
@@ -174,6 +176,33 @@ public final class SynergyBootstrap {
         }
 
         System.out.println("[SynergyBootstrap] Built-in synergies registered.");
+    }
+
+    /**
+     * 注册 Synergy 命令（可选）
+     *
+     * 说明：
+     * - 应该在 FMLServerStartingEvent 中调用
+     * - 提供 /synergy 命令用于激活/停用 Synergy
+     * - 临时方案：在 GUI 系统完成前使用
+     *
+     * 使用方式：
+     * <pre>
+     * {@code
+     * // 在你的主 mod 类的 serverStarting 事件中调用：
+     * @EventHandler
+     * public void serverStarting(FMLServerStartingEvent event) {
+     *     SynergyBootstrap.registerCommands(event);
+     * }
+     * }
+     * </pre>
+     *
+     * @param event FMLServerStartingEvent
+     */
+    public static void registerCommands(FMLServerStartingEvent event) {
+        System.out.println("[SynergyBootstrap] Registering Synergy commands...");
+        event.registerServerCommand(new CommandSynergy());
+        System.out.println("[SynergyBootstrap] Synergy commands registered successfully!");
     }
 
     /**
