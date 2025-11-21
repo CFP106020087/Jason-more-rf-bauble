@@ -1,9 +1,7 @@
 package com.moremod.synergy.init;
 
 import com.moremod.synergy.bridge.ExistingModuleBridge;
-import com.moremod.synergy.builtin.CombatEchoSynergy;
-import com.moremod.synergy.builtin.EnergyLoopSynergy;
-import com.moremod.synergy.builtin.SurvivalShieldSynergy;
+import com.moremod.synergy.builtin.*;
 import com.moremod.synergy.core.SynergyManager;
 import com.moremod.synergy.core.SynergyRegistry;
 
@@ -118,6 +116,60 @@ public final class SynergyBootstrap {
             System.out.println("[SynergyBootstrap] Registered: " + SurvivalShieldSynergy.ID);
         } catch (Exception e) {
             System.err.println("[SynergyBootstrap] Failed to register SurvivalShieldSynergy:");
+            e.printStackTrace();
+        }
+
+        // 注册玻璃大炮 Synergy
+        try {
+            registry.register(GlassCannonSynergy.create());
+            System.out.println("[SynergyBootstrap] Registered: " + GlassCannonSynergy.ID);
+        } catch (Exception e) {
+            System.err.println("[SynergyBootstrap] Failed to register GlassCannonSynergy:");
+            e.printStackTrace();
+        }
+
+        // 注册狂战士 Synergy
+        try {
+            registry.register(BerserkerSynergy.create());
+            System.out.println("[SynergyBootstrap] Registered: " + BerserkerSynergy.ID);
+        } catch (Exception e) {
+            System.err.println("[SynergyBootstrap] Failed to register BerserkerSynergy:");
+            e.printStackTrace();
+        }
+
+        // 注册奥术过载 Synergy
+        try {
+            registry.register(ArcaneOverloadSynergy.create());
+            System.out.println("[SynergyBootstrap] Registered: " + ArcaneOverloadSynergy.ID);
+        } catch (Exception e) {
+            System.err.println("[SynergyBootstrap] Failed to register ArcaneOverloadSynergy:");
+            e.printStackTrace();
+        }
+
+        // 注册速度恶魔 Synergy
+        try {
+            registry.register(SpeedDemonSynergy.create());
+            System.out.println("[SynergyBootstrap] Registered: " + SpeedDemonSynergy.ID);
+        } catch (Exception e) {
+            System.err.println("[SynergyBootstrap] Failed to register SpeedDemonSynergy:");
+            e.printStackTrace();
+        }
+
+        // 注册吸血鬼 Synergy
+        try {
+            registry.register(VampireSynergy.create());
+            System.out.println("[SynergyBootstrap] Registered: " + VampireSynergy.ID);
+        } catch (Exception e) {
+            System.err.println("[SynergyBootstrap] Failed to register VampireSynergy:");
+            e.printStackTrace();
+        }
+
+        // 注册堡垒 Synergy
+        try {
+            registry.register(FortressSynergy.create());
+            System.out.println("[SynergyBootstrap] Registered: " + FortressSynergy.ID);
+        } catch (Exception e) {
+            System.err.println("[SynergyBootstrap] Failed to register FortressSynergy:");
             e.printStackTrace();
         }
 
