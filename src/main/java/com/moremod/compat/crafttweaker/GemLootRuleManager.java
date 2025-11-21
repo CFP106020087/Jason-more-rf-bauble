@@ -640,27 +640,67 @@ public class GemLootRuleManager {
 
             // 只检查 Ice and Fire 的龙
             if (!className.contains("iceandfire")) {
+                // ⭐ 修复：如果不是龙，但规则设置了龙阶段条件，说明此规则不适用于这个实体
                 return false;
             }
 
             try {
-                // 使用反射获取 getDragonStage() 方法
-                java.lang.reflect.Method method = entity.getClass().getMethod("getDragonStage");
-                int stage = (int) method.invoke(entity);
+                // ⭐ 尝试多个可能的方法名
+                java.lang.reflect.Method method = null;
+                int stage = -1;
+
+                // 方法1: getDragonStage()
+                try {
+                    method = entity.getClass().getMethod("getDragonStage");
+                    Object result = method.invoke(entity);
+                    stage = ((Number) result).intValue();
+                    System.out.println("[GemLoot-Debug] 龙阶段（getDragonStage）: " + stage);
+                } catch (NoSuchMethodException e1) {
+                    // 方法2: getLifeStage()
+                    try {
+                        method = entity.getClass().getMethod("getLifeStage");
+                        Object result = method.invoke(entity);
+                        stage = ((Number) result).intValue();
+                        System.out.println("[GemLoot-Debug] 龙阶段（getLifeStage）: " + stage);
+                    } catch (NoSuchMethodException e2) {
+                        // 方法3: 通过 getAgeInDays() 计算
+                        try {
+                            method = entity.getClass().getMethod("getAgeInDays");
+                            int ageInDays = (int) method.invoke(entity);
+                            // Ice and Fire 阶段计算：每25天一个阶段
+                            stage = Math.min(5, (ageInDays / 25) + 1);
+                            System.out.println("[GemLoot-Debug] 龙阶段（通过年龄计算）: " + stage + " (年龄: " + ageInDays + "天)");
+                        } catch (Exception e3) {
+                            System.err.println("[GemLoot] 无法获取龙阶段，所有方法都失败:");
+                            System.err.println("  - getDragonStage(): " + e1.getMessage());
+                            System.err.println("  - getLifeStage(): " + e2.getMessage());
+                            System.err.println("  - getAgeInDays(): " + e3.getMessage());
+                            return false;
+                        }
+                    }
+                }
+
+                if (stage < 0) {
+                    return false;
+                }
 
                 // 检查阶段范围
                 if (minDragonStage > 0 && stage < minDragonStage) {
+                    System.out.println("[GemLoot-Debug] 龙阶段不匹配: " + stage + " < " + minDragonStage);
                     return false;
                 }
                 if (maxDragonStage > 0 && stage > maxDragonStage) {
+                    System.out.println("[GemLoot-Debug] 龙阶段不匹配: " + stage + " > " + maxDragonStage);
                     return false;
                 }
 
+                System.out.println("[GemLoot-Debug] ✅ 龙阶段匹配: " + stage + " (范围: " + minDragonStage + "-" + maxDragonStage + ")");
                 return true;
 
             } catch (Exception e) {
                 // 如果方法不存在或调用失败，返回 false
-                System.err.println("[GemLoot] 无法获取龙阶段: " + e.getMessage());
+                System.err.println("[GemLoot] 龙阶段检查异常: " + e.getMessage());
+                e.printStackTrace();
                 return false;
             }
         }
