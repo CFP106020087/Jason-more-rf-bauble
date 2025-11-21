@@ -52,7 +52,8 @@ public class BlockSwordUpgradeStationMaterial extends Block implements ITileEnti
         TileEntity te = worldIn.getTileEntity(pos);
         if (te instanceof TileEntitySwordUpgradeStationMaterial) {
             TileEntitySwordUpgradeStationMaterial tile = (TileEntitySwordUpgradeStationMaterial) te;
-            for (int i = 0; i < 3; i++) {
+            // 只掉落基底剑(0)和材料(1)，不掉落输出槽(2)的预览物品
+            for (int i = 0; i < 2; i++) {
                 ItemStack s = tile.getStackInSlot(i);
                 if (!s.isEmpty()) InventoryHelper.spawnItemStack(worldIn, pos.getX(), pos.getY(), pos.getZ(), s);
             }
