@@ -2,12 +2,12 @@
 
 ## 📊 迁移进度总览
 
-**已迁移**: 8/27 (29.6%)
-**待迁移**: 19/27 (70.4%)
+**已迁移**: 12/27 (44.4%)
+**待迁移**: 15/27 (55.6%)
 
 ---
 
-## ✅ 已迁移模块 (8)
+## ✅ 已迁移模块 (12)
 
 ### 核心模块 (5)
 1. **FlightModule** (`FLIGHT_MODULE`)
@@ -53,32 +53,35 @@
    - 功能: 自动灭火 (60/40/20 tick 冷却)
    - 文件: `capability/module/impl/FireExtinguishModule.java`
 
----
-
-## 🔄 待迁移模块 (19)
-
 ### 战斗类模块 (4)
-来源: `upgrades/combat/CombatUpgradeManager.java`
-
 9. **DamageBoostModule** (`DAMAGE_BOOST`)
    - 等级: Lv.1-5
-   - 功能: 伤害提升 + 暴击系统
-   - 旧实现: `CombatUpgradeManager.DamageBoostSystem`
+   - 功能: 伤害提升 (25%~125%) + 暴击系统 (10%~50%)
+   - 文件: `capability/module/impl/DamageBoostModule.java`
+   - 事件: `ModuleEventHandler.onLivingHurtLowest()`
 
 10. **AttackSpeedModule** (`ATTACK_SPEED`)
-    - 等级: Lv.1-5
-    - 功能: 攻击速度提升 + 连击系统
-    - 旧实现: `CombatUpgradeManager.AttackSpeedSystem`
+    - 等级: Lv.1-3
+    - 功能: 攻击速度提升 (20%/40%/60%) + 连击系统
+    - 文件: `capability/module/impl/AttackSpeedModule.java`
+    - 事件: `ModuleEventHandler.onAttackEntity()`
+    - 特性: 使用 AttributeModifier (ATTACK_SPEED)
 
 11. **RangeExtensionModule** (`RANGE_EXTENSION`)
     - 等级: Lv.1-3
-    - 功能: 攻击范围扩展
-    - 旧实现: `CombatUpgradeManager.RangeExtensionSystem`
+    - 功能: 攻击范围扩展 (+3/+6/+9 格)
+    - 文件: `capability/module/impl/RangeExtensionModule.java`
+    - 特性: 使用 AttributeModifier (REACH_DISTANCE)
 
 12. **PursuitModule** (`PURSUIT`)
-    - 等级: Lv.1-5
-    - 功能: 追击系统（对逃跑敌人造成额外伤害）
-    - 旧实现: `CombatUpgradeManager.PursuitSystem`
+    - 等级: Lv.1-3
+    - 功能: 追击系统 (2/4/6 层，每层 +10% 伤害) + 追击冲刺
+    - 文件: `capability/module/impl/PursuitModule.java`
+    - 事件: `ModuleEventHandler.onAttackEntity()`, `onLivingHurtLowest()`
+
+---
+
+## 🔄 待迁移模块 (15)
 
 ### 能量类模块 (5)
 来源: `upgrades/energy/EnergyUpgradeManager.java`

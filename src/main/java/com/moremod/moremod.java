@@ -75,6 +75,10 @@ import com.moremod.capability.module.impl.RegenerationModule;
 import com.moremod.capability.module.impl.HungerThirstModule;
 import com.moremod.capability.module.impl.ThornsModule;
 import com.moremod.capability.module.impl.FireExtinguishModule;
+import com.moremod.capability.module.impl.DamageBoostModule;
+import com.moremod.capability.module.impl.AttackSpeedModule;
+import com.moremod.capability.module.impl.RangeExtensionModule;
+import com.moremod.capability.module.impl.PursuitModule;
 
 // 飾品盒系統導入
 
@@ -295,7 +299,11 @@ public class moremod {
         ModuleRegistry.registerNew(HungerThirstModule.INSTANCE);
         ModuleRegistry.registerNew(ThornsModule.INSTANCE);
         ModuleRegistry.registerNew(FireExtinguishModule.INSTANCE);
-        System.out.println("[moremod] ✅ 机械核心模块注册完成（8 个模块）");
+        ModuleRegistry.registerNew(DamageBoostModule.INSTANCE);
+        ModuleRegistry.registerNew(AttackSpeedModule.INSTANCE);
+        ModuleRegistry.registerNew(RangeExtensionModule.INSTANCE);
+        ModuleRegistry.registerNew(PursuitModule.INSTANCE);
+        System.out.println("[moremod] ✅ 机械核心模块注册完成（12 个模块）");
 
         // ========== Ritual 多方块：创建实例（不在这里注册）==========
         System.out.println("[moremod] 🔮 创建 Ritual 多方块实例...");
