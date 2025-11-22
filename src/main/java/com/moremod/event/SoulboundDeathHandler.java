@@ -5,6 +5,9 @@ import baubles.api.cap.IBaublesItemHandler;
 import com.moremod.item.ItemMechanicalCore;
 import com.moremod.item.ItemMechanicalCoreExtended;
 import com.moremod.util.UpgradeKeys;
+import com.moremod.capability.IMechCoreData;
+import com.moremod.capability.module.IMechCoreModule;
+import com.moremod.upgrades.ModuleRegistry;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.SoundEvents;
 import net.minecraft.item.ItemStack;
@@ -305,6 +308,56 @@ public class SoulboundDeathHandler {
 
         player.world.playSound(null, player.posX, player.posY, player.posZ,
                 SoundEvents.ENTITY_ITEM_BREAK, SoundCategory.PLAYERS, 0.8f, 0.8f);
+
+        // ✅ 同步到新的 Capability 系统
+        syncToCapability(player, target, newOwnedMax);
+    }
+
+    /**
+     * ✅ 同步降级数据到 Capability 系统
+     *
+     * 确保死亡惩罚同时影响 NBT 和 Capability
+     */
+    private static void syncToCapability(EntityPlayer player, String moduleId, int newLevel) {
+        IMechCoreData data = player.getCapability(IMechCoreData.CAPABILITY, null);
+        if (data == null) {
+            return; // Capability 未附加
+        }
+
+        int oldLevel = data.getModuleLevel(moduleId);
+
+        // 更新 Capability 中的模块等级
+        data.setModuleLevel(moduleId, newLevel);
+
+        // 如果降到 0，停用模块
+        if (newLevel == 0 && oldLevel > 0) {
+            data.setModuleActive(moduleId, false);
+
+            // 触发模块的停用回调
+            IMechCoreModule module = ModuleRegistry.getNew(moduleId);
+            if (module != null) {
+                try {
+                    module.onDeactivate(player, data);
+                } catch (Exception e) {
+                    System.err.println("[SoulboundDeathHandler] 模块停用回调失败: " + moduleId);
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        // 触发等级变化回调
+        IMechCoreModule module = ModuleRegistry.getNew(moduleId);
+        if (module != null) {
+            try {
+                module.onLevelChanged(player, data, oldLevel, newLevel);
+            } catch (Exception e) {
+                System.err.println("[SoulboundDeathHandler] 模块等级变化回调失败: " + moduleId);
+                e.printStackTrace();
+            }
+        }
+
+        // 标记为需要同步到客户端
+        data.markDirty();
     }
 
     // ===== 应急充能（20%） =====
