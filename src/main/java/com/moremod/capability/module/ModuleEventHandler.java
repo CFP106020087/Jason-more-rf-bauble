@@ -8,9 +8,11 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
+import net.minecraft.entity.item.EntityXPOrb;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.player.AttackEntityEvent;
+import net.minecraftforge.event.entity.player.PlayerPickupXpEvent;
 import net.minecraftforge.event.world.BlockEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
@@ -173,11 +175,12 @@ public class ModuleEventHandler {
     }
 
     /**
-     * 处理实体死亡事件 - 战斗充能
+     * 处理实体死亡事件 - 战斗充能、经验放大
      *
-     * 优先级：NORMAL
+     * 优先级：HIGH
+     * 在其他 mod 处理前优先处理，确保经验系统正确工作
      */
-    @SubscribeEvent(priority = EventPriority.NORMAL)
+    @SubscribeEvent(priority = EventPriority.HIGH)
     public static void onEntityDeath(LivingDeathEvent event) {
         // 只处理玩家击杀
         if (!(event.getSource().getTrueSource() instanceof EntityPlayer)) {
@@ -197,5 +200,37 @@ public class ModuleEventHandler {
 
         // 战斗充能
         CombatChargerModule.INSTANCE.onEntityKill(player, data, event.getEntityLiving());
+
+        // 经验放大：击杀奖励
+        ExpAmplifierModule.INSTANCE.onEntityKill(player, data, event.getEntityLiving());
+    }
+
+    /**
+     * 处理经验球拾取事件 - 经验放大
+     *
+     * 优先级：HIGH
+     * 在经验值应用前修改经验球的值
+     */
+    @SubscribeEvent(priority = EventPriority.HIGH)
+    public static void onPlayerPickupXp(PlayerPickupXpEvent event) {
+        if (event.isCanceled()) return;
+
+        EntityPlayer player = event.getEntityPlayer();
+        if (player.world.isRemote) return;
+
+        // 获取机械核心
+        ItemStack coreStack = ItemMechanicalCore.getCoreFromPlayer(player);
+        if (coreStack.isEmpty()) return;
+
+        // 获取 Capability 数据
+        IMechCoreData data = player.getCapability(IMechCoreData.CAPABILITY, null);
+        if (data == null) return;
+
+        // 经验放大：拾取增幅
+        EntityXPOrb orb = event.getOrb();
+        int newValue = ExpAmplifierModule.INSTANCE.amplifyXpOrb(player, data, orb);
+
+        // 修改经验球的值
+        orb.xpValue = newValue;
     }
 }

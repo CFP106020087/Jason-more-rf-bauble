@@ -2,12 +2,12 @@
 
 ## 📊 迁移进度总览
 
-**已迁移**: 16/27 (59.3%)
-**待迁移**: 11/27 (40.7%)
+**已迁移**: 20/27 (74.1%)
+**待迁移**: 7/27 (25.9%)
 
 ---
 
-## ✅ 已迁移模块 (16)
+## ✅ 已迁移模块 (20)
 
 ### 核心模块 (5)
 1. **FlightModule** (`FLIGHT_MODULE`)
@@ -106,40 +106,47 @@
     - 事件: `ModuleEventHandler.onEntityDeath()`
     - 特性: Boss 倍率（3.0x），连杀系统（最大 2.0x），超时 6000 ticks
 
+### 辅助类模块 (4)
+17. **MovementSpeedModule** (`MOVEMENT_SPEED`)
+    - 等级: Lv.1-5
+    - 功能: 移动速度提升（20%/40%/60%/80%/100%）
+    - 文件: `capability/module/impl/MovementSpeedModule.java`
+    - 特性: 使用 AttributeModifier (MOVEMENT_SPEED)
+    - 能量: 8 * level RF/tick
+
+18. **StealthModule** (`STEALTH`)
+    - 等级: Lv.1-3
+    - 功能: 隐身系统（基础/高级/完美）
+    - 文件: `capability/module/impl/StealthModule.java`
+    - 特性: 持续时间（30s/45s/60s），冷却（20s/30s/45s），连续使用惩罚
+    - 能量: 50 - level*10 + consecutive*10 RF/tick
+
+19. **ExpAmplifierModule** (`EXP_AMPLIFIER`)
+    - 等级: Lv.1-5
+    - 功能: 经验放大（1.5x~3.5x）+ 附魔等级加成（5~25）
+    - 文件: `capability/module/impl/ExpAmplifierModule.java`
+    - 事件: `ModuleEventHandler.onEntityDeath()`, `onPlayerPickupXp()`
+    - 特性: 连杀系统（+0.1 per kill，最大 +1.0）
+    - 能量: Kill: baseExp*3 RF，Pickup: orbValue*2 RF
+
+20. **OreVisionModule** (`ORE_VISION`)
+    - 等级: Lv.1-5
+    - 功能: 矿物透视（8/16/24/32/40 格范围）
+    - 文件: `capability/module/impl/OreVisionModule.java`
+    - 特性: 矿物分类过滤，客户端渲染支持
+    - 能量: 激活 100 RF，维持 50+level*10 RF/s
+
 ---
 
-## 🔄 待迁移模块 (11)
+## 🔄 待迁移模块 (7)
 
 ### 能量类模块 (1)
 来源: `upgrades/energy/EnergyUpgradeManager.java`
 
-17. **EnergyEfficiencyModule** (`ENERGY_EFFICIENCY`)
+21. **EnergyEfficiencyModule** (`ENERGY_EFFICIENCY`)
     - 等级: Lv.1-5
     - 功能: 降低能量消耗
     - 旧实现: `EnergyEfficiencyManager.java`
-
-### 辅助类模块 (4)
-来源: `upgrades/auxiliary/AuxiliaryUpgradeManager.java`
-
-18. **OreVisionModule** (`ORE_VISION`)
-    - 等级: Lv.1-5
-    - 功能: 矿物透视（高亮显示矿石）
-    - 旧实现: `AuxiliaryUpgradeManager.OreVisionSystem`
-
-19. **MovementSpeedModule** (`MOVEMENT_SPEED`)
-    - 等级: Lv.1-5
-    - 功能: 移动速度提升
-    - 旧实现: `AuxiliaryUpgradeManager.MovementSpeedSystem`
-
-20. **StealthModule** (`STEALTH`)
-    - 等级: Lv.1-5
-    - 功能: 隐身系统（降低敌对生物检测范围）
-    - 旧实现: `AuxiliaryUpgradeManager.StealthSystem`
-
-21. **ExpAmplifierModule** (`EXP_AMPLIFIER`)
-    - 等级: Lv.1-5
-    - 功能: 经验放大器（增加经验获取）
-    - 旧实现: `AuxiliaryUpgradeManager.ExpAmplifierSystem`
 
 ### 特殊模块 (4)
 来源: `ItemMechanicalCore.UpgradeType` 和其他
