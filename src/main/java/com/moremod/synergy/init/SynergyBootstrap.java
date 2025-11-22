@@ -175,6 +175,15 @@ public final class SynergyBootstrap {
             e.printStackTrace();
         }
 
+        // 注册潮汐过载 Synergy（传奇级）
+        try {
+            registry.register(TidalOverloadSynergy.create());
+            System.out.println("[SynergyBootstrap] Registered: " + TidalOverloadSynergy.ID);
+        } catch (Exception e) {
+            System.err.println("[SynergyBootstrap] Failed to register TidalOverloadSynergy:");
+            e.printStackTrace();
+        }
+
         System.out.println("[SynergyBootstrap] Built-in synergies registered.");
     }
 
