@@ -239,4 +239,19 @@ public class ModuleDataStorage {
     public static boolean isModuleActive(ItemStack coreStack, String moduleId) {
         return loadState(coreStack, moduleId).isActive();
     }
+
+    /**
+     * 触摸模块（确保模块状态被初始化）
+     *
+     * 用于在升级物品时确保模块平台状态与旧系统同步。
+     * 如果模块状态不存在，会自动创建并从旧格式迁移数据。
+     *
+     * @param coreStack 核心物品
+     * @param moduleId 模块ID
+     */
+    public static void touchModule(ItemStack coreStack, String moduleId) {
+        ModuleState state = loadState(coreStack, moduleId);
+        // 保存状态以确保新格式被写入
+        saveState(coreStack, state);
+    }
 }

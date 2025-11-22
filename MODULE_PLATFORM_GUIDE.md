@@ -102,7 +102,49 @@ public void init(FMLInitializationEvent event) {
 }
 ```
 
-### 3. 集成到机械核心
+### 3. 创建模块物品（可选）
+
+如果需要让玩家通过物品升级模块，可以创建对应的物品类：
+
+```java
+package com.moremod.upgrades.custom;
+
+import com.moremod.upgrades.platform.ModuleUpgradeItem;
+import net.minecraft.util.text.TextFormatting;
+
+// 继承 ModuleUpgradeItem
+public class MyCustomModuleItem extends ModuleUpgradeItem {
+
+    public MyCustomModuleItem() {
+        // 关联到运行时模块，每个物品提供 1 级升级
+        super(MyCustomModule.INSTANCE, 1);
+
+        // 设置自定义描述（可选）
+        this.setDescriptions(
+            TextFormatting.GRAY + "我的自定义模块",
+            TextFormatting.GRAY + "提供强大的功能"
+        );
+    }
+}
+```
+
+然后在物品注册时注册这个物品：
+
+```java
+@Mod.EventBusSubscriber(modid = MoreMod.MODID)
+public class ModItems {
+    @SubscribeEvent
+    public static void registerItems(RegistryEvent.Register<Item> event) {
+        event.getRegistry().register(
+            new MyCustomModuleItem()
+                .setRegistryName("my_custom_module")
+                .setTranslationKey("my_custom_module")
+        );
+    }
+}
+```
+
+### 4. 集成到机械核心
 
 在 `ItemMechanicalCore` 中调用：
 
@@ -153,6 +195,12 @@ public void onUnequipped(ItemStack itemstack, EntityLivingBase entity) {
 ### 组件层次
 
 ```
+                物品层 (Item Layer)
+┌─────────────────────────────────────────────┐
+│       ModuleUpgradeItem (物品基类)           │  ← 你的物品继承这个
+└─────────────────────────────────────────────┘
+                      ↓ 关联
+               运行时层 (Runtime Layer)
 ┌─────────────────────────────────────────────┐
 │          ModulePlatform (入口)               │  ← 你只需调用这个
 ├─────────────────────────────────────────────┤
@@ -172,6 +220,7 @@ public void onUnequipped(ItemStack itemstack, EntityLivingBase entity) {
 
 | 组件 | 职责 | 你需要了解吗 |
 |------|------|-------------|
+| **ModuleUpgradeItem** | 模块升级物品基类 | ✅ 是（物品开发） |
 | **ModulePlatform** | 核心入口，管理所有模块 | ✅ 是（调用接口） |
 | **ModuleRegistry** | 模块注册表 | ✅ 是（注册模块） |
 | **ModuleDispatcher** | 分发tick和事件 | ❌ 否（自动） |
@@ -496,6 +545,77 @@ CoreModuleItemHelper.resumeModule(player, "MODULE_ID")
 CoreModuleItemHelper.debugPrintModules(player)
 ```
 
+### ModuleUpgradeItem（物品基类）
+
+用于创建模块升级物品，自动处理升级逻辑、tooltip、音效和粒子效果。
+
+```java
+// 基础用法
+public class MyModuleItem extends ModuleUpgradeItem {
+    public MyModuleItem() {
+        super(MyModule.INSTANCE, 1);  // 关联模块，提供1级升级
+
+        // 设置描述（可选）
+        this.setDescriptions(
+            TextFormatting.GRAY + "模块描述",
+            TextFormatting.GOLD + "特殊效果"
+        );
+    }
+}
+
+// 可重写的方法
+protected void addModuleDescription(List<String> tooltip) {
+    // 自定义tooltip描述
+}
+
+protected void addEnergyCostInfo(List<String> tooltip) {
+    // 自定义能量消耗信息显示
+}
+
+protected boolean canUpgrade(EntityPlayer player, ItemStack coreStack) {
+    // 添加升级前置条件检查
+    // 返回 false 阻止升级
+}
+
+protected void onUpgradeSuccess(EntityPlayer player, ItemStack coreStack, int newLevel) {
+    // 升级成功后的自定义逻辑（如发送特殊消息）
+}
+
+protected void playUpgradeEffect(World world, EntityPlayer player, ItemStack coreStack) {
+    // 自定义升级音效和粒子效果
+}
+```
+
+**关键特性**：
+- ✅ 自动关联运行时模块
+- ✅ 自动生成 tooltip（显示名称、类别、等级、能量消耗）
+- ✅ 自动处理升级逻辑（检查、应用、消耗物品）
+- ✅ 自动播放音效和粒子效果
+- ✅ 支持自定义描述和升级条件
+- ✅ 与旧系统完全兼容
+
+**使用示例**：
+```java
+// SpeedModuleItem.java - 速度模块物品
+public class SpeedModuleItem extends ModuleUpgradeItem {
+    public SpeedModuleItem() {
+        super(SpeedModule.INSTANCE, 1);
+        this.setDescriptions(
+            TextFormatting.GRAY + "提升玩家移动速度",
+            TextFormatting.GOLD + "• Lv.1-2: 速度 I",
+            TextFormatting.GOLD + "• Lv.3-4: 速度 II"
+        );
+    }
+}
+
+// 注册物品
+event.getRegistry().register(
+    new SpeedModuleItem()
+        .setRegistryName("speed_module")
+        .setTranslationKey("speed_module")
+);
+```
+
 ---
 
 ## 常见问题
@@ -624,6 +744,42 @@ CoreModuleItemHelper.debugPrintModules(player);
 System.out.println(context.toString());
 ```
 
+### Q8: 如何创建模块物品？
+
+**答**：继承 `ModuleUpgradeItem` 并关联到运行时模块。
+
+```java
+// 1. 创建物品类
+public class MyModuleItem extends ModuleUpgradeItem {
+    public MyModuleItem() {
+        super(MyModule.INSTANCE, 1);  // 关联模块，提供1级升级
+        this.setDescriptions(
+            TextFormatting.GRAY + "模块描述"
+        );
+    }
+}
+
+// 2. 注册物品
+@SubscribeEvent
+public static void registerItems(RegistryEvent.Register<Item> event) {
+    event.getRegistry().register(
+        new MyModuleItem()
+            .setRegistryName("my_module")
+            .setTranslationKey("my_module")
+    );
+}
+
+// 3. 玩家右键使用物品即可升级核心
+```
+
+**物品会自动**：
+- ✅ 显示模块信息的 tooltip
+- ✅ 检查核心是否装备
+- ✅ 检查是否可以升级
+- ✅ 应用升级并消耗物品
+- ✅ 播放音效和粒子效果
+- ✅ 发送升级成功消息
+
 ---
 
 ## 总结
@@ -633,28 +789,39 @@ System.out.println(context.toString());
 1. **创建模块类** → 继承 `BaseUpgradeModule`
 2. **实现核心逻辑** → 重写 `onModuleTick()`
 3. **配置能量消耗** → 重写 `getBaseEnergyCost()`
-4. **注册模块** → `ModuleRegistry.getInstance().register()`
-5. **初始化平台** → `ModulePlatform.getInstance().initialize()`
-6. **集成到核心** → 在 `onWornTick()` 中调用平台
+4. **创建物品类**（可选） → 继承 `ModuleUpgradeItem`
+5. **注册模块和物品** → `ModuleRegistry.getInstance().register()`
+6. **初始化平台** → `ModulePlatform.getInstance().initialize()`
+7. **集成到核心** → 在 `onWornTick()` 中调用平台
 
 ### 你只需要关心
 
 - ✅ 创建模块类（继承 `BaseUpgradeModule`）
+- ✅ 创建物品类（继承 `ModuleUpgradeItem`）
 - ✅ 实现 `onModuleTick()` 等方法
 - ✅ 使用 `ModuleContext` 访问信息
 - ❌ 不需要关心 NBT
 - ❌ 不需要关心能量消耗逻辑
 - ❌ 不需要关心状态管理
 - ❌ 不需要关心生命周期
+- ❌ 不需要关心升级物品的右键逻辑
 
 ### 包装层帮你处理
 
+**运行时系统**：
 - ✅ 所有 NBT 读写
 - ✅ 能量自动消耗
 - ✅ 状态自动管理
 - ✅ tick 和事件分发
 - ✅ 生命周期管理
 - ✅ 错误处理和日志
+
+**物品系统**：
+- ✅ Tooltip 自动生成（名称、类别、等级、能量消耗）
+- ✅ 升级检查和应用逻辑
+- ✅ 物品消耗处理
+- ✅ 音效和粒子效果
+- ✅ 玩家消息反馈
 
 ---
 
