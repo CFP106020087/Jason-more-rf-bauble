@@ -1,7 +1,7 @@
 package com.moremod.eventHandler;
 
-import com.moremod.util.WisdomFountainHelper;
 import com.moremod.tile.TileEntityWisdomFountain;
+import com.moremod.util.WisdomFountainHelper;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.entity.passive.EntityVillager;
 import net.minecraft.entity.player.EntityPlayer;
@@ -34,17 +34,16 @@ public class WisdomFountainEventHandler {
         EntityPlayer player = event.getEntityPlayer();
         EntityVillager villager = (EntityVillager) event.getTarget();
 
-        // 检查是否Shift+右键
+        // 必须 Shift+右键
         if (!player.isSneaking()) return;
 
         ItemStack mainHand = player.getHeldItem(EnumHand.MAIN_HAND);
         ItemStack offHand = player.getHeldItem(EnumHand.OFF_HAND);
 
-        // 检查是否已经是智慧守护者
+        // ================= 已是智慧守护者 =================
         if (WisdomFountainHelper.isWisdomKeeper(villager)) {
-            // 已转化的村民功能
 
-            // 功能1：合并两本附魔书（主手和副手各持一本）
+            // 功能1：合并两本附魔书（支持破限）
             if (mainHand.getItem() == Items.ENCHANTED_BOOK &&
                     offHand.getItem() == Items.ENCHANTED_BOOK) {
 
@@ -53,14 +52,14 @@ public class WisdomFountainEventHandler {
                 return;
             }
 
-            // 功能2：添加新的附魔交易（主手持附魔书，副手空）
+            // 功能2：为智慧守护者“学习”新的附魔（主手附魔书，副手空）
             if (mainHand.getItem() == Items.ENCHANTED_BOOK && offHand.isEmpty()) {
                 handleAddNewTrades(player, villager, mainHand);
                 event.setCanceled(true);
                 return;
             }
 
-            // 功能3：查询村民信息（空手）
+            // 功能3：查询村民信息（双手空）
             if (mainHand.isEmpty() && offHand.isEmpty()) {
                 showVillagerInfo(player, villager);
                 event.setCanceled(true);
@@ -70,16 +69,17 @@ public class WisdomFountainEventHandler {
             return;
         }
 
-        // 未转化的村民 - 原有的转化功能
+        // ================= 尚未转化为智慧守护者 =================
+
         if (mainHand.getItem() != Items.ENCHANTED_BOOK) return;
 
-        // 查找附近的智慧之泉
+        // 必须在激活的智慧之泉附近
         TileEntityWisdomFountain fountain = WisdomFountainHelper.findActiveNearbyFountain(
                 villager.world, villager.getPosition(), 10
         );
 
         if (fountain == null) {
-            player.sendMessage(new TextComponentString("§c需要在激活的神碑智慧之泉附近（10格内）！"));
+            player.sendMessage(new TextComponentString("§c需要在激活的智慧之泉附近（10格内）！"));
             return;
         }
 
@@ -97,17 +97,16 @@ public class WisdomFountainEventHandler {
         NBTTagList enchantments = ItemEnchantedBook.getEnchantments(mainHand);
         player.sendMessage(new TextComponentString("§a成功将村民转化为智慧守护者！"));
         player.sendMessage(new TextComponentString("§e该村民现在出售 §6" +
-                enchantments.tagCount() + " §e种不同的附魔书"));
+                enchantments.tagCount() + " §e种附魔（可破限等级）"));
 
         event.setCanceled(true);
     }
 
-    /**
-     * 处理附魔书合并
-     */
+    // ------------------------------------------------------------------------
+    //  1. 附魔书合并（调用破限版 Helper）
+    // ------------------------------------------------------------------------
     private void handleBookMerging(EntityPlayer player, EntityVillager villager,
                                    ItemStack book1, ItemStack book2) {
-        // 检查是否在智慧之泉附近
         TileEntityWisdomFountain fountain = WisdomFountainHelper.findActiveNearbyFountain(
                 villager.world, villager.getPosition(), 10
         );
@@ -117,44 +116,36 @@ public class WisdomFountainEventHandler {
             return;
         }
 
-        // 检查经验等级
-        int xpCost = 30; // 合并消耗5级经验
+        int xpCost = 30;
         if (!player.isCreative() && player.experienceLevel < xpCost) {
             player.sendMessage(new TextComponentString("§c合并附魔书需要 " + xpCost + " 级经验！"));
             return;
         }
 
-        // 合并附魔书
         ItemStack mergedBook = WisdomFountainHelper.mergeEnchantedBooks(book1, book2);
 
-        // 检查合并结果
         NBTTagList mergedEnchants = ItemEnchantedBook.getEnchantments(mergedBook);
         if (mergedEnchants.tagCount() == 0) {
             player.sendMessage(new TextComponentString("§c这两本书的附魔互相冲突，无法合并！"));
             return;
         }
 
-        // 消耗物品和经验
         if (!player.isCreative()) {
             book1.shrink(1);
             book2.shrink(1);
             player.addExperienceLevel(-xpCost);
         }
 
-        // 给予合并后的书
         if (!player.inventory.addItemStackToInventory(mergedBook)) {
             player.dropItem(mergedBook, false);
         }
 
-        // 播放效果
         playMergeEffects(villager);
 
-        // 显示结果
-        player.sendMessage(new TextComponentString("§a成功合并附魔书！"));
+        player.sendMessage(new TextComponentString("§a成功合并附魔书！（支持破限等级）"));
         player.sendMessage(new TextComponentString("§e合并后的附魔书包含 §6" +
                 mergedEnchants.tagCount() + " §e个附魔"));
 
-        // 显示附魔列表
         for (int i = 0; i < mergedEnchants.tagCount(); i++) {
             int id = mergedEnchants.getCompoundTagAt(i).getShort("id");
             int level = mergedEnchants.getCompoundTagAt(i).getShort("lvl");
@@ -166,25 +157,120 @@ public class WisdomFountainEventHandler {
         }
     }
 
-    /**
-     * 添加新的交易
-     */
+    // ------------------------------------------------------------------------
+    //  2. 为智慧守护者“学习”新的附魔并更新交易（真正实现“可学”）
+    // ------------------------------------------------------------------------
     private void handleAddNewTrades(EntityPlayer player, EntityVillager villager, ItemStack newBook) {
-        player.sendMessage(new TextComponentString("§e[功能开发中] 为智慧守护者添加新交易"));
-        player.sendMessage(new TextComponentString("§7提示：目前请重新转化一个新村民"));
+        // 必须在激活的智慧之泉附近
+        TileEntityWisdomFountain fountain = WisdomFountainHelper.findActiveNearbyFountain(
+                villager.world, villager.getPosition(), 10
+        );
+
+        if (fountain == null) {
+            player.sendMessage(new TextComponentString("§c为智慧守护者学习新附魔，需要在激活的智慧之泉附近！"));
+            return;
+        }
+
+        NBTTagList newEnchants = ItemEnchantedBook.getEnchantments(newBook);
+        if (newEnchants == null || newEnchants.tagCount() == 0) {
+            player.sendMessage(new TextComponentString("§c这本书没有任何附魔！"));
+            return;
+        }
+
+        NBTTagCompound data = villager.getEntityData();
+        NBTTagList storedEnchants;
+
+        if (data.hasKey("StoredEnchantments", 9)) { // 9 = List
+            storedEnchants = data.getTagList("StoredEnchantments", 10);
+        } else {
+            storedEnchants = new NBTTagList();
+        }
+
+        int added = 0;
+        int upgraded = 0;
+
+        // 将新书中的附魔合并进 WisdomKeeper 已掌握的列表（支持破限等级）
+        for (int i = 0; i < newEnchants.tagCount(); i++) {
+            NBTTagCompound newTag = newEnchants.getCompoundTagAt(i);
+            short newId = newTag.getShort("id");
+            short newLvl = newTag.getShort("lvl");
+            if (newLvl <= 0) continue;
+
+            boolean found = false;
+            for (int j = 0; j < storedEnchants.tagCount(); j++) {
+                NBTTagCompound oldTag = storedEnchants.getCompoundTagAt(j);
+                if (oldTag.getShort("id") == newId) {
+                    found = true;
+                    short oldLvl = oldTag.getShort("lvl");
+                    if (newLvl > oldLvl) {
+                        oldTag.setShort("lvl", newLvl);
+                        upgraded++;
+                    }
+                    break;
+                }
+            }
+
+            if (!found) {
+                storedEnchants.appendTag(newTag.copy());
+                added++;
+            }
+        }
+
+        data.setTag("StoredEnchantments", storedEnchants);
+
+        // 根据最新的 StoredEnchantments 重建交易列表（支持破限等级）
+        MerchantRecipeList newTrades = WisdomFountainHelper.createEnchantedBookTradesFromStoredList(storedEnchants);
+
+        try {
+            Field buyingListField = null;
+            for (Field field : EntityVillager.class.getDeclaredFields()) {
+                if (field.getType() == MerchantRecipeList.class) {
+                    buyingListField = field;
+                    break;
+                }
+            }
+
+            if (buyingListField != null) {
+                buyingListField.setAccessible(true);
+                buyingListField.set(villager, newTrades);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            player.sendMessage(new TextComponentString("§c更新智慧守护者交易失败：" + e.getMessage()));
+            return;
+        }
+
+        // 消耗书本
+        if (!player.isCreative()) {
+            newBook.shrink(1);
+        }
+
+        // 反馈信息
+        if (added == 0 && upgraded == 0) {
+            player.sendMessage(new TextComponentString("§7这本附魔书的内容，智慧守护者已经完全掌握了。"));
+        } else {
+            player.sendMessage(new TextComponentString("§a智慧守护者学习了新的知识！"));
+            if (added > 0) {
+                player.sendMessage(new TextComponentString("§e新增附魔种类: §6" + added));
+            }
+            if (upgraded > 0) {
+                player.sendMessage(new TextComponentString("§e提升已有附魔等级: §6" + upgraded));
+            }
+        }
+
+        // 一些简单的特效
+        playMergeEffects(villager);
     }
 
-    /**
-     * 显示村民信息
-     */
+    // ------------------------------------------------------------------------
+    //  3. 显示智慧守护者信息（会列出破限等级 + 价格）
+    // ------------------------------------------------------------------------
     private void showVillagerInfo(EntityPlayer player, EntityVillager villager) {
-        // 修复：正确获取 NBTTagList
         NBTTagCompound data = villager.getEntityData();
         NBTTagList storedEnchants = null;
 
-        // 尝试获取存储的附魔列表
-        if (data.hasKey("StoredEnchantments", 9)) { // 9 = NBTTagList
-            storedEnchants = data.getTagList("StoredEnchantments", 10); // 10 = NBTTagCompound
+        if (data.hasKey("StoredEnchantments", 9)) {
+            storedEnchants = data.getTagList("StoredEnchantments", 10);
         }
 
         player.sendMessage(new TextComponentString("§6=== 智慧守护者信息 ==="));
@@ -193,7 +279,6 @@ public class WisdomFountainEventHandler {
             player.sendMessage(new TextComponentString("§e出售的附魔种类：§6" +
                     storedEnchants.tagCount()));
 
-            // 显示附魔列表
             player.sendMessage(new TextComponentString("§e附魔列表："));
             for (int i = 0; i < storedEnchants.tagCount(); i++) {
                 NBTTagCompound enchTag = storedEnchants.getCompoundTagAt(i);
@@ -201,16 +286,17 @@ public class WisdomFountainEventHandler {
                 int level = enchTag.getShort("lvl");
                 Enchantment ench = Enchantment.getEnchantmentByID(enchId);
                 if (ench != null) {
+                    int cost = WisdomFountainHelper.calculateEmeraldCost(enchId, level);
                     player.sendMessage(new TextComponentString("  §7- " +
                             ench.getTranslatedName(level) + " §e价格: §6" +
-                            WisdomFountainHelper.calculateEmeraldCost(enchId, level) + " 绿宝石"));
+                            cost + " 绿宝石"));
                 }
             }
         } else {
             player.sendMessage(new TextComponentString("§c未找到附魔信息"));
         }
 
-        // 获取交易数量
+        // 交易数量（原逻辑保留）
         try {
             Field buyingListField = null;
             for (Field field : EntityVillager.class.getDeclaredFields()) {
@@ -228,27 +314,25 @@ public class WisdomFountainEventHandler {
                             trades.size()));
                 }
             }
-        } catch (Exception e) {
-            // 忽略错误
-        }
+        } catch (Exception ignored) {}
 
-        player.sendMessage(new TextComponentString("§7提示：主副手各持一本附魔书可以合并"));
+        player.sendMessage(new TextComponentString("§7提示："));
+        player.sendMessage(new TextComponentString("§7- 主副手各持一本附魔书：合并（可破限）"));
+        player.sendMessage(new TextComponentString("§7- 只拿附魔书：让智慧守护者学习新的附魔"));
     }
 
-    /**
-     * 播放合并特效
-     */
+    // ------------------------------------------------------------------------
+    //  4. 村民转化 / 视觉特效
+    // ------------------------------------------------------------------------
     private void playMergeEffects(EntityVillager villager) {
         World world = villager.world;
 
-        // 播放音效
         world.playSound(null, villager.posX, villager.posY, villager.posZ,
                 SoundEvents.BLOCK_ANVIL_USE, SoundCategory.NEUTRAL, 0.5F, 1.0F);
 
         world.playSound(null, villager.posX, villager.posY, villager.posZ,
                 SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.NEUTRAL, 1.0F, 1.5F);
 
-        // 生成粒子效果 - 螺旋上升
         for (int i = 0; i < 40; i++) {
             double angle = (Math.PI * 2) * i / 20;
             double radius = 0.5 + i * 0.02;
@@ -276,13 +360,13 @@ public class WisdomFountainEventHandler {
         try {
             NBTTagList enchantments = ItemEnchantedBook.getEnchantments(enchantedBook);
 
-            // 使用工具类创建交易
+            // 用“样本书上的附魔列表”生成交易（支持破限）
             MerchantRecipeList trades = WisdomFountainHelper.createEnchantedBookTrades(enchantedBook);
 
             // 设置职业为图书管理员
             villager.setProfession(1);
 
-            // 使用反射设置交易
+            // 设置交易列表
             Field buyingListField = null;
             for (Field field : EntityVillager.class.getDeclaredFields()) {
                 if (field.getType() == MerchantRecipeList.class) {
@@ -296,7 +380,7 @@ public class WisdomFountainEventHandler {
                 buyingListField.set(villager, trades);
             }
 
-            // 使用工具类标记村民
+            // 标记为智慧守护者（会记录 StoredEnchantments）
             WisdomFountainHelper.markAsWisdomKeeper(villager, enchantments);
 
         } catch (Exception e) {

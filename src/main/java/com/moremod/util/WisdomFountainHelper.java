@@ -3,7 +3,6 @@ package com.moremod.util;
 import com.moremod.init.ModBlocks;
 import com.moremod.tile.TileEntityWisdomFountain;
 import net.minecraft.enchantment.Enchantment;
-import net.minecraft.enchantment.EnchantmentData;
 import net.minecraft.entity.passive.EntityVillager;
 import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
@@ -22,13 +21,53 @@ import java.util.Map;
 
 public class WisdomFountainHelper {
 
+    // “无限”交易次数的上限（避免太夸张的溢出，给一个非常大的值就好）
+    private static final int UNLIMITED_TRADE_USES = 999999;
+
     /**
-     * 智能合并两本附魔书 - 完整版
+     * 低层工具：直接往附魔书写入 NBT（不做等级上限裁剪）
+     * - 不使用 EnchantmentData.addEnchantment 的封装逻辑，避免任何潜在的 clamp
+     */
+    public static void addStoredEnchantmentRaw(ItemStack book, int enchId, int level) {
+        if (book.isEmpty() || book.getItem() != Items.ENCHANTED_BOOK) return;
+        if (level <= 0) return;
+
+        NBTTagList list = ItemEnchantedBook.getEnchantments(book); // 读取已有 StoredEnchantments
+        boolean found = false;
+
+        for (int i = 0; i < list.tagCount(); i++) {
+            NBTTagCompound tag = list.getCompoundTagAt(i);
+            if (tag.getShort("id") == (short) enchId) {
+                // 同 ID，直接覆盖为新的等级（支持破限）
+                tag.setShort("lvl", (short) level);
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            NBTTagCompound tag = new NBTTagCompound();
+            tag.setShort("id", (short) enchId);
+            tag.setShort("lvl", (short) level);
+            list.appendTag(tag);
+        }
+
+        if (!book.hasTagCompound()) {
+            book.setTagCompound(new NBTTagCompound());
+        }
+        book.getTagCompound().setTag("StoredEnchantments", list);
+    }
+
+    // ------------------------------------------------------------------------
+    //  1. 附魔书合并：改为支持破限，不再被 getMaxLevel() 卡死
+    // ------------------------------------------------------------------------
+
+    /**
+     * 智能合并两本附魔书 - 破限版
      */
     public static ItemStack mergeEnchantedBooks(ItemStack book1, ItemStack book2) {
-        System.out.println("================== 开始合并附魔书 ==================");
+        System.out.println("================== 开始合并附魔书（破限版） ==================");
 
-        // 获取两本书的附魔
         NBTTagList enchants1 = ItemEnchantedBook.getEnchantments(book1);
         NBTTagList enchants2 = ItemEnchantedBook.getEnchantments(book2);
 
@@ -40,7 +79,7 @@ public class WisdomFountainHelper {
         System.out.println("[合并] 书1 附魔数: " + enchants1.tagCount());
         System.out.println("[合并] 书2 附魔数: " + enchants2.tagCount());
 
-        // 打印详细信息
+        // 打印详情（调试用）
         System.out.println("\n[书1详情]:");
         for (int i = 0; i < enchants1.tagCount(); i++) {
             NBTTagCompound tag = enchants1.getCompoundTagAt(i);
@@ -61,11 +100,11 @@ public class WisdomFountainHelper {
                     (ench != null ? ench.getName() : "未知") + " Lv" + lvl);
         }
 
-        // 使用Map存储合并后的附魔
+        // 使用 Map 存储合并结果（支持任意等级）
         Map<Integer, Integer> mergedEnchants = new HashMap<>();
         Map<Integer, Enchantment> enchantObjects = new HashMap<>();
 
-        // 第一步：添加第一本书的所有附魔
+        // 先加入书1
         System.out.println("\n[处理第一本书]:");
         for (int i = 0; i < enchants1.tagCount(); i++) {
             NBTTagCompound tag = enchants1.getCompoundTagAt(i);
@@ -73,15 +112,14 @@ public class WisdomFountainHelper {
             short level = tag.getShort("lvl");
             Enchantment ench = Enchantment.getEnchantmentByID(enchId);
 
-            if (ench != null) {
-                mergedEnchants.put((int)enchId, (int)level);
-                enchantObjects.put((int)enchId, ench);
-                System.out.println("  添加: " + ench.getName() + " Lv" + level +
-                        " (最大等级: " + ench.getMaxLevel() + ")");
+            if (ench != null && level > 0) {
+                mergedEnchants.put((int) enchId, (int) level);
+                enchantObjects.put((int) enchId, ench);
+                System.out.println("  添加: " + ench.getName() + " Lv" + level);
             }
         }
 
-        // 第二步：处理第二本书的附魔
+        // 再处理书2
         System.out.println("\n[处理第二本书]:");
         for (int i = 0; i < enchants2.tagCount(); i++) {
             NBTTagCompound tag = enchants2.getCompoundTagAt(i);
@@ -89,14 +127,14 @@ public class WisdomFountainHelper {
             short level = tag.getShort("lvl");
             Enchantment ench = Enchantment.getEnchantmentByID(enchId);
 
-            if (ench == null) {
-                System.out.println("  跳过无效附魔 ID:" + enchId);
+            if (ench == null || level <= 0) {
+                System.out.println("  跳过无效附魔 ID:" + enchId + " Lv:" + level);
                 continue;
             }
 
             System.out.println("\n  处理: " + ench.getName() + " Lv" + level);
 
-            // 检查是否与现有附魔冲突
+            // 冲突检查（保持原逻辑）
             boolean hasConflict = false;
             for (Map.Entry<Integer, Enchantment> entry : enchantObjects.entrySet()) {
                 Enchantment existingEnch = entry.getValue();
@@ -114,34 +152,35 @@ public class WisdomFountainHelper {
                 continue;
             }
 
-            // 处理附魔合并
-            Integer existingLevel = mergedEnchants.get((int)enchId);
+            // 合并逻辑：不再使用 getMaxLevel() 限制，支持破限
+            Integer existingLevel = mergedEnchants.get((int) enchId);
             if (existingLevel != null) {
                 System.out.println("    发现相同附魔!");
                 System.out.println("    现有等级: " + existingLevel);
                 System.out.println("    新书等级: " + level);
-                System.out.println("    最大等级: " + ench.getMaxLevel());
 
                 int newLevel;
                 if (existingLevel == level) {
-                    newLevel = Math.min(existingLevel + 1, ench.getMaxLevel());
+                    // 同级 → 直接 +1，不做上限限制
+                    newLevel = existingLevel + 1;
                     System.out.println("    >>> 同级合并: Lv" + existingLevel +
                             " + Lv" + level + " = Lv" + newLevel);
                 } else {
+                    // 不同等级 → 取更高的那个
                     newLevel = Math.max(existingLevel, level);
                     System.out.println("    >>> 不同级，取较高: Lv" + newLevel);
                 }
 
-                mergedEnchants.put((int)enchId, newLevel);
+                mergedEnchants.put((int) enchId, newLevel);
                 System.out.println("    最终等级: Lv" + newLevel);
             } else {
-                mergedEnchants.put((int)enchId, (int)level);
-                enchantObjects.put((int)enchId, ench);
+                mergedEnchants.put((int) enchId, (int) level);
+                enchantObjects.put((int) enchId, ench);
                 System.out.println("    新增附魔: " + ench.getName() + " Lv" + level);
             }
         }
 
-        // 创建结果书
+        // 生成结果书（使用 Raw NBT 写入，避免任何 clamp）
         ItemStack resultBook = new ItemStack(Items.ENCHANTED_BOOK);
 
         System.out.println("\n[创建结果书]:");
@@ -153,8 +192,7 @@ public class WisdomFountainHelper {
             Enchantment ench = Enchantment.getEnchantmentByID(enchId);
 
             if (ench != null && finalLevel > 0) {
-                ItemEnchantedBook.addEnchantment(resultBook,
-                        new EnchantmentData(ench, finalLevel));
+                addStoredEnchantmentRaw(resultBook, enchId, finalLevel);
                 System.out.println("  添加到结果: " + ench.getName() + " Lv" + finalLevel);
             }
         }
@@ -171,74 +209,82 @@ public class WisdomFountainHelper {
             System.out.println("  - " + (ench != null ? ench.getName() : "ID:" + id) + " Lv" + lvl);
         }
 
-        System.out.println("================== 合并完成 ==================\n");
+        System.out.println("================== 合并完成（破限版） ==================\n");
 
         return resultBook;
     }
 
+    // ------------------------------------------------------------------------
+    //  2. 村民交易：支持破限等级 + 无限次数
+    // ------------------------------------------------------------------------
+
     /**
-     * 创建附魔书交易列表
-     * ✅ 修改：无论输入的附魔书等级如何，村民只出售 Lv5 版本
+     * 从一本“样本附魔书”创建交易列表
+     * - 不再强制变成 Lv5
+     * - 直接使用样本书上记录的等级（可以是破限）
      */
     public static MerchantRecipeList createEnchantedBookTrades(ItemStack enchantedBook) {
-        MerchantRecipeList trades = new MerchantRecipeList();
         NBTTagList enchantments = ItemEnchantedBook.getEnchantments(enchantedBook);
+        return createEnchantedBookTradesFromStoredList(enchantments);
+    }
 
-        System.out.println("[交易] 创建附魔书交易，附魔数: " + enchantments.tagCount());
+    /**
+     * 从 NBTTagList（通常来自 StoredEnchantments）生成交易列表
+     * - 这是智慧守护者“可学习新附魔”时会调用的版本
+     */
+    public static MerchantRecipeList createEnchantedBookTradesFromStoredList(NBTTagList enchantments) {
+        MerchantRecipeList trades = new MerchantRecipeList();
 
-        // 为每个附魔创建独立的交易
+        if (enchantments == null) {
+            System.out.println("[交易] 无附魔信息，无法创建交易");
+            addBasicTrades(trades);
+            return trades;
+        }
+
+        System.out.println("[交易] 创建附魔书交易（破限版），附魔数: " + enchantments.tagCount());
+
         for (int i = 0; i < enchantments.tagCount(); i++) {
             NBTTagCompound enchTag = enchantments.getCompoundTagAt(i);
             short enchId = enchTag.getShort("id");
-            short originalLevel = enchTag.getShort("lvl");
+            short level = enchTag.getShort("lvl");
 
             Enchantment enchantment = Enchantment.getEnchantmentByID(enchId);
-            if (enchantment == null) continue;
+            if (enchantment == null || level <= 0) continue;
 
-            // ========== ✅ 核心修改：始终创建 Lv5 的附魔书 ==========
-            // 无论原始附魔书是什么等级，村民只出售 Lv5 版本
-            short tradeLevel = 5;  // ✅ 固定为等级 5
+            int tradeLevel = level; // 🚀 直接使用原始等级（支持破限）
+            String enchName = enchantment.getName();
 
-            // 如果附魔的最大等级小于5，则使用最大等级
-            int maxLevel = enchantment.getMaxLevel();
-            if (maxLevel < 5) {
-                tradeLevel = (short) maxLevel;
-                System.out.println("[交易] " + enchantment.getName() +
-                        " 最大等级为 " + maxLevel + "，使用最大等级");
-            }
-
-            // 创建 Lv5 (或最大等级) 的附魔书
+            // 创建只带一个附魔的书（Raw NBT 写入）
             ItemStack singleEnchantBook = new ItemStack(Items.ENCHANTED_BOOK);
-            ItemEnchantedBook.addEnchantment(singleEnchantBook,
-                    new EnchantmentData(enchantment, tradeLevel));
+            addStoredEnchantmentRaw(singleEnchantBook, enchId, tradeLevel);
 
-            // 计算价格 - 基于 Lv5 的价格
+            // 基于“真正等级”计算价格（内部会再 clamp 到 64）
             int emeraldCost = calculateEmeraldCost(enchId, tradeLevel);
 
-            // 交易方式1：绿宝石 + 书 -> 附魔书 Lv5
+            // 交易1：绿宝石 + 书 → 附魔书（无限次）
             MerchantRecipe recipe1 = new MerchantRecipe(
                     new ItemStack(Items.EMERALD, emeraldCost),
                     new ItemStack(Items.BOOK, 1),
                     singleEnchantBook.copy(),
-                    0, // 使用次数
-                    5  // ✅ 最大使用次数改为5次
+                    0,
+                    UNLIMITED_TRADE_USES
             );
             trades.add(recipe1);
 
-            // 交易方式2：仅绿宝石（价格稍高）
+            // 交易2：仅绿宝石（价格略高）
             if (emeraldCost < 60) {
                 MerchantRecipe recipe2 = new MerchantRecipe(
                         new ItemStack(Items.EMERALD, emeraldCost + 5),
                         ItemStack.EMPTY,
                         singleEnchantBook.copy(),
                         0,
-                        5  // ✅ 最大使用次数改为5次
+                        UNLIMITED_TRADE_USES
                 );
                 trades.add(recipe2);
             }
 
-            System.out.println("[交易] 添加: " + enchantment.getName() +
-                    " (原始 Lv" + originalLevel + " -> 出售 Lv" + tradeLevel + ")" +
+            System.out.println("[交易] 添加: " + enchName +
+                    " Lv" + tradeLevel +
                     " 价格: " + emeraldCost + " 绿宝石");
         }
 
@@ -250,7 +296,7 @@ public class WisdomFountainHelper {
     }
 
     /**
-     * 添加基础交易
+     * 添加基础交易（同样改为“几乎无限次”）
      */
     private static void addBasicTrades(MerchantRecipeList trades) {
         // 纸 -> 绿宝石
@@ -258,7 +304,7 @@ public class WisdomFountainHelper {
                 new ItemStack(Items.PAPER, 24),
                 ItemStack.EMPTY,
                 new ItemStack(Items.EMERALD, 1),
-                0, 5  // ✅ 统一改为5次
+                0, UNLIMITED_TRADE_USES
         ));
 
         // 书 -> 绿宝石
@@ -266,7 +312,7 @@ public class WisdomFountainHelper {
                 new ItemStack(Items.BOOK, 8),
                 ItemStack.EMPTY,
                 new ItemStack(Items.EMERALD, 1),
-                0, 5  // ✅ 统一改为5次
+                0, UNLIMITED_TRADE_USES
         ));
 
         // 绿宝石 -> 书架
@@ -274,7 +320,7 @@ public class WisdomFountainHelper {
                 new ItemStack(Items.EMERALD, 3),
                 ItemStack.EMPTY,
                 new ItemStack(Blocks.BOOKSHELF, 1),
-                0, 5  // ✅ 统一改为5次
+                0, UNLIMITED_TRADE_USES
         ));
 
         // 绿宝石 -> 经验瓶
@@ -282,62 +328,67 @@ public class WisdomFountainHelper {
                 new ItemStack(Items.EMERALD, 5),
                 ItemStack.EMPTY,
                 new ItemStack(Items.EXPERIENCE_BOTTLE, 3),
-                0, 5  // ✅ 统一改为5次
+                0, UNLIMITED_TRADE_USES
         ));
     }
 
     /**
      * 计算附魔书价格
-     * ✅ 基于 Lv5 计算价格
+     * - 现在真正根据“传入的 level”计算（可以是破限）
+     * - 但最终还是 clamp 到 [5, 64]，避免太离谱
      */
     public static int calculateEmeraldCost(int enchId, int level) {
         Enchantment ench = Enchantment.getEnchantmentByID(enchId);
         if (ench == null) return 5;
 
-        // 基础价格根据稀有度
+        if (level <= 0) level = 1;
+
         int baseCost;
         switch (ench.getRarity()) {
             case COMMON:
-                baseCost = 10;   // 普通附魔 Lv5 基础价格
+                baseCost = 10;
                 break;
             case UNCOMMON:
-                baseCost = 20;   // 罕见附魔 Lv5 基础价格
+                baseCost = 20;
                 break;
             case RARE:
-                baseCost = 30;   // 稀有附魔 Lv5 基础价格
+                baseCost = 30;
                 break;
             case VERY_RARE:
-                baseCost = 40;   // 非常稀有 Lv5 基础价格
+                baseCost = 40;
                 break;
             default:
                 baseCost = 15;
         }
 
-        // 特殊附魔调整
         String enchName = ench.getName().toLowerCase();
         if (enchName.contains("mending")) {
-            baseCost = 50; // 经验修补特殊价格
+            baseCost = 50;
         } else if (enchName.contains("fortune") || enchName.contains("looting")) {
-            baseCost += 15; // 时运/掠夺额外加价
+            baseCost += 15;
         } else if (enchName.contains("silk")) {
-            baseCost += 10; // 精准采集额外加价
+            baseCost += 10;
         }
 
-        // 等级加成（Lv5 的加成）
-        int levelBonus = (level - 1) * 3;  // 每级+3绿宝石
-        if (level == ench.getMaxLevel()) {
-            levelBonus += 5; // 满级额外奖励
+        // 等级加成：基础线性 + 破限部分
+        int maxLevel = ench.getMaxLevel();
+        int levelBonus = (level - 1) * 3;
+
+        if (level == maxLevel) {
+            levelBonus += 5; // 满级奖励
+        } else if (level > maxLevel) {
+            // 超出原版上限的额外加价（但最后仍然封顶 64）
+            levelBonus += (level - maxLevel) * 2;
         }
 
         int finalCost = baseCost + levelBonus;
-
-        // 限制价格范围（Lv5 的价格会更高）
         return Math.max(5, Math.min(64, finalCost));
     }
 
-    /**
-     * 查找附近激活的智慧之泉
-     */
+    // ------------------------------------------------------------------------
+    //  3. 智慧之泉查找 & WisdomKeeper 标记等辅助逻辑
+    // ------------------------------------------------------------------------
+
     public static TileEntityWisdomFountain findActiveNearbyFountain(World world, BlockPos pos, int range) {
         for (int x = -range; x <= range; x++) {
             for (int y = -5; y <= 5; y++) {
@@ -368,9 +419,6 @@ public class WisdomFountainHelper {
         return null;
     }
 
-    /**
-     * 检查村民是否已转化为智慧守护者
-     */
     public static boolean isWisdomKeeper(EntityVillager villager) {
         NBTTagCompound data = villager.getEntityData();
         return data.getBoolean("WisdomKeeper");
@@ -378,51 +426,36 @@ public class WisdomFountainHelper {
 
     /**
      * 标记村民为智慧守护者
-     * ✅ 修改：显示名称中标注出售的是 Lv5 版本
+     * - 现在不再写死 Lv5 文案，而是标注“可破限”
      */
     public static void markAsWisdomKeeper(EntityVillager villager, NBTTagList enchantments) {
         NBTTagCompound data = villager.getEntityData();
 
-        // 设置标记
         data.setBoolean("WisdomKeeper", true);
-
-        // 存储附魔信息
         data.setTag("StoredEnchantments", enchantments.copy());
 
-        // ✅ 设置显示名称 - 标注出售 Lv5 附魔
         String name = "§6智慧守护者";
         if (enchantments.tagCount() > 0) {
-            name += " §7(" + enchantments.tagCount() + "种附魔 §dLv5§7)";  // ✅ 改为Lv5
+            name += " §7(" + enchantments.tagCount() + "种附魔§7, §d可破限§7)";
         }
         villager.setCustomNameTag(name);
         villager.setAlwaysRenderNameTag(true);
-
-        // 防止村民消失
         villager.enablePersistence();
 
-        System.out.println("[标记] 村民已转化为智慧守护者（出售 Lv5 附魔）");
+        System.out.println("[标记] 村民已转化为智慧守护者（可出售破限附魔）");
     }
 
-    /**
-     * 检查两个附魔是否冲突
-     */
     public static boolean areEnchantmentsConflicting(Enchantment ench1, Enchantment ench2) {
         if (ench1 == null || ench2 == null) return false;
         if (Enchantment.getEnchantmentID(ench1) == Enchantment.getEnchantmentID(ench2)) return false;
         return !ench1.isCompatibleWith(ench2);
     }
 
-    /**
-     * 获取附魔的中文名称
-     */
     public static String getEnchantmentDisplayName(Enchantment ench, int level) {
         if (ench == null) return "未知附魔";
         return ench.getTranslatedName(level);
     }
 
-    /**
-     * 验证附魔书是否有效
-     */
     public static boolean isValidEnchantedBook(ItemStack stack) {
         if (stack.isEmpty() || stack.getItem() != Items.ENCHANTED_BOOK) {
             return false;
@@ -432,9 +465,6 @@ public class WisdomFountainHelper {
         return enchantments != null && enchantments.tagCount() > 0;
     }
 
-    /**
-     * 获取附魔书的描述信息
-     */
     public static String getEnchantedBookDescription(ItemStack book) {
         if (!isValidEnchantedBook(book)) {
             return "无效的附魔书";
