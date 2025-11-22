@@ -2,12 +2,12 @@
 
 ## 📊 迁移进度总览
 
-**已迁移**: 20/27 (74.1%)
-**待迁移**: 7/27 (25.9%)
+**已迁移**: 23/27 (85.2%)
+**待迁移**: 4/27 (14.8%)
 
 ---
 
-## ✅ 已迁移模块 (20)
+## ✅ 已迁移模块 (23)
 
 ### 核心模块 (5)
 1. **FlightModule** (`FLIGHT_MODULE`)
@@ -136,55 +136,60 @@
     - 特性: 矿物分类过滤，客户端渲染支持
     - 能量: 激活 100 RF，维持 50+level*10 RF/s
 
----
-
-## 🔄 待迁移模块 (7)
-
-### 能量类模块 (1)
-来源: `upgrades/energy/EnergyUpgradeManager.java`
-
-21. **EnergyEfficiencyModule** (`ENERGY_EFFICIENCY`)
-    - 等级: Lv.1-5
-    - 功能: 降低能量消耗
-    - 旧实现: `EnergyEfficiencyManager.java`
-
-### 特殊模块 (4)
-来源: `ItemMechanicalCore.UpgradeType` 和其他
-
-22. **WaterproofModule** (`WATERPROOF_MODULE`)
+### 特殊类模块 (3)
+21. **MagicAbsorbModule** (`MAGIC_ABSORB`)
     - 等级: Lv.1-3
-    - 功能: 防水系统（保护核心免受水损害）
-    - 旧实现: `WetnessSystem.java`
+    - 功能: 吸收魔法伤害转化为能量（30%/50%/70% 吸收率）
+    - 文件: `capability/module/impl/MagicAbsorbModule.java`
+    - 事件: `ModuleEventHandler.onPlayerHurt()`
+    - 能量转化: 20/30/40 RF/伤害点
+    - 特性: 统计吸收总量和能量获取
+
+22. **NeuralSynchronizerModule** (`NEURAL_SYNCHRONIZER`)
+    - 等级: Lv.1
+    - 功能: 神经同步器（提升适应度 +100，减少排异 -0.005/s）
+    - 文件: `capability/module/impl/NeuralSynchronizerModule.java`
+    - 依赖: FleshRejectionSystem（血肉排异系统）
+    - 能量: 3 RF/tick（50 RF/s）
+    - 特性: 清除负面效果，减缓出血
 
 23. **TemperatureControlModule** (`TEMPERATURE_CONTROL`)
     - 等级: Lv.1-5
-    - 功能: 温度调节（抗寒/抗热）
-    - 旧实现: 可能在 SurvivalUpgradeManager 中
+    - 功能: 温度控制（自动调节体温，抵抗极端温度）
+    - 文件: `capability/module/impl/TemperatureControlModule.java`
+    - 集成: SimpleDifficulty（反射）+ 生物群系备用
+    - 能量: 10 * level RF/tick
+    - 特性: Lv.2 抗火，Lv.3 极端温度抗性，Lv.4 水下呼吸，Lv.5 夜视+特殊环境增强
 
-24. **SpeedBoostModule** (`SPEED_BOOST`)
+---
+
+## 🔄 待迁移模块 (4)
+
+### 系统整合模块 (3)
+这些模块需要与系统层整合，而非作为独立模块
+
+24. **WaterproofModule** (`WATERPROOF_MODULE`) - Phase 3G
+    - 等级: Lv.1-3
+    - 功能: 防水系统（保护核心免受水损害）
+    - 旧实现: `WetnessSystem.java`
+    - 状态: 需要整合 WetnessSystem 到模块中
+
+25. **EnergyEfficiency** (系统级) - Phase 3H
     - 等级: Lv.1-5
-    - 功能: 速度提升（可能和 MOVEMENT_SPEED 重复）
-    - 旧实现: ItemMechanicalCore.UpgradeType
+    - 功能: 降低所有模块的能量消耗（全局倍率）
+    - 旧实现: `EnergyEfficiencyManager.java`
+    - 状态: 需要在能量消耗系统中全局应用
 
-### 扩展模块 (2)
-来源: `upgrades/module/`
+26. **EnergyPunishment** (系统级) - Phase 3I
+    - 功能: 能量惩罚系统
+    - 旧实现: `EnergyPunishmentSystem.java`
+    - 状态: 需要整合到能量系统中
 
-25. **MagicAbsorbModule** (`MAGIC_ABSORB`)
-    - 等级: Lv.1-5
-    - 功能: 魔法吸收（吸收魔法伤害转化为能量）
-    - 旧实现: `upgrades/module/MagicAbsorbModule.java`
-
-26. **NeuralSynchronizerModule** (`NEURAL_SYNCHRONIZER`)
-    - 等级: Lv.1-5
-    - 功能: 神经同步器（提升反应速度/降低冷却）
-    - 旧实现: `upgrades/module/NeuralSynchronizerModule.java`
-
-### 热能发电（可能存在）(1)
-
+### 可选模块 (1)
 27. **ThermalGeneratorModule** (`THERMAL_GENERATOR`)
     - 等级: Lv.1-5
     - 功能: 热能发电（在岩浆附近产能）
-    - 旧实现: 可能在 EnergyUpgradeManager 中
+    - 状态: 需要确认是否存在完整实现
 
 ---
 

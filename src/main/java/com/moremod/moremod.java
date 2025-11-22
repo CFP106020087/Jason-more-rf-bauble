@@ -87,6 +87,9 @@ import com.moremod.capability.module.impl.MovementSpeedModule;
 import com.moremod.capability.module.impl.StealthModule;
 import com.moremod.capability.module.impl.ExpAmplifierModule;
 import com.moremod.capability.module.impl.OreVisionModule;
+import com.moremod.capability.module.impl.MagicAbsorbModule;
+import com.moremod.capability.module.impl.NeuralSynchronizerModule;
+import com.moremod.capability.module.impl.TemperatureControlModule;
 
 // 飾品盒系統導入
 
@@ -319,7 +322,10 @@ public class moremod {
         ModuleRegistry.registerNew(StealthModule.INSTANCE);
         ModuleRegistry.registerNew(ExpAmplifierModule.INSTANCE);
         ModuleRegistry.registerNew(OreVisionModule.INSTANCE);
-        System.out.println("[moremod] ✅ 机械核心模块注册完成（20 个模块）");
+        ModuleRegistry.registerNew(MagicAbsorbModule.INSTANCE);
+        ModuleRegistry.registerNew(NeuralSynchronizerModule.INSTANCE);
+        ModuleRegistry.registerNew(TemperatureControlModule.INSTANCE);
+        System.out.println("[moremod] ✅ 机械核心模块注册完成（23 个模块）");
 
         // ========== Ritual 多方块：创建实例（不在这里注册）==========
         System.out.println("[moremod] 🔮 创建 Ritual 多方块实例...");

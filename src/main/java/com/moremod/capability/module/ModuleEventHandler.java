@@ -27,7 +27,7 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 public class ModuleEventHandler {
 
     /**
-     * 处理玩家受伤事件 - 反伤系统
+     * 处理玩家受伤事件 - 反伤系统、魔法吸收
      *
      * 优先级：NORMAL
      * 在伤害计算后、护盾耗尽检测前触发
@@ -49,6 +49,14 @@ public class ModuleEventHandler {
         // 获取 Capability 数据
         IMechCoreData data = player.getCapability(IMechCoreData.CAPABILITY, null);
         if (data == null) return;
+
+        float damage = event.getAmount();
+
+        // 检查是否为魔法伤害，如果是则尝试吸收
+        if (MagicAbsorbModule.isMagicDamage(event.getSource())) {
+            damage = MagicAbsorbModule.INSTANCE.absorbMagicDamage(player, data, damage);
+            event.setAmount(damage);
+        }
 
         // 检查攻击者
         if (event.getSource().getTrueSource() instanceof EntityLivingBase) {
