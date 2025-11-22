@@ -8,8 +8,10 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.player.AttackEntityEvent;
+import net.minecraftforge.event.world.BlockEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
@@ -145,5 +147,55 @@ public class ModuleEventHandler {
                 PursuitModule.INSTANCE.dashToTarget(player, data, event.getTarget());
             }
         }
+    }
+
+    /**
+     * 处理方块破坏事件 - 动能发电
+     *
+     * 优先级：NORMAL
+     */
+    @SubscribeEvent(priority = EventPriority.NORMAL)
+    public static void onBlockBreak(BlockEvent.BreakEvent event) {
+        EntityPlayer player = event.getPlayer();
+        if (player == null || player.world.isRemote) return;
+
+        // 获取机械核心
+        ItemStack coreStack = ItemMechanicalCore.getCoreFromPlayer(player);
+        if (coreStack.isEmpty()) return;
+
+        // 获取 Capability 数据
+        IMechCoreData data = player.getCapability(IMechCoreData.CAPABILITY, null);
+        if (data == null) return;
+
+        // 动能发电：挖掘产能
+        float hardness = event.getState().getBlockHardness(player.world, event.getPos());
+        KineticGeneratorModule.INSTANCE.generateFromBlockBreak(player, data, hardness);
+    }
+
+    /**
+     * 处理实体死亡事件 - 战斗充能
+     *
+     * 优先级：NORMAL
+     */
+    @SubscribeEvent(priority = EventPriority.NORMAL)
+    public static void onEntityDeath(LivingDeathEvent event) {
+        // 只处理玩家击杀
+        if (!(event.getSource().getTrueSource() instanceof EntityPlayer)) {
+            return;
+        }
+
+        EntityPlayer player = (EntityPlayer) event.getSource().getTrueSource();
+        if (player.world.isRemote) return;
+
+        // 获取机械核心
+        ItemStack coreStack = ItemMechanicalCore.getCoreFromPlayer(player);
+        if (coreStack.isEmpty()) return;
+
+        // 获取 Capability 数据
+        IMechCoreData data = player.getCapability(IMechCoreData.CAPABILITY, null);
+        if (data == null) return;
+
+        // 战斗充能
+        CombatChargerModule.INSTANCE.onEntityKill(player, data, event.getEntityLiving());
     }
 }

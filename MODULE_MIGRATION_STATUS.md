@@ -2,12 +2,12 @@
 
 ## 📊 迁移进度总览
 
-**已迁移**: 12/27 (44.4%)
-**待迁移**: 15/27 (55.6%)
+**已迁移**: 16/27 (59.3%)
+**待迁移**: 11/27 (40.7%)
 
 ---
 
-## ✅ 已迁移模块 (12)
+## ✅ 已迁移模块 (16)
 
 ### 核心模块 (5)
 1. **FlightModule** (`FLIGHT_MODULE`)
@@ -79,37 +79,44 @@
     - 文件: `capability/module/impl/PursuitModule.java`
     - 事件: `ModuleEventHandler.onAttackEntity()`, `onLivingHurtLowest()`
 
+### 能量类模块 (4)
+13. **KineticGeneratorModule** (`KINETIC_GENERATOR`)
+    - 等级: Lv.1-5
+    - 功能: 动能发电（移动 5+8*level RF/block，挖掘产能）
+    - 文件: `capability/module/impl/KineticGeneratorModule.java`
+    - 事件: `ModuleEventHandler.onBlockBreak()`
+    - 特性: 缓冲系统 + 移动速度倍率（冲刺 1.5x，鞘翅 2.0x）
+
+14. **SolarGeneratorModule** (`SOLAR_GENERATOR`)
+    - 等级: Lv.1-5
+    - 功能: 太阳能发电（40 RF/s * level）
+    - 文件: `capability/module/impl/SolarGeneratorModule.java`
+    - 特性: 高度加成（Y>100: 1.3x），天气影响（雨 0.4x，雷暴 0.2x）
+
+15. **VoidEnergyModule** (`VOID_ENERGY`)
+    - 等级: Lv.1-5
+    - 功能: 虚空能量（低层/末地产能）
+    - 文件: `capability/module/impl/VoidEnergyModule.java`
+    - 特性: 充能系统（100 charge → 25 RF），末地 1.5x，深层 3x（Y<20）
+
+16. **CombatChargerModule** (`COMBAT_CHARGER`)
+    - 等级: Lv.1-5
+    - 功能: 战斗充能（击杀产能 maxHP * 20 RF/HP * level）
+    - 文件: `capability/module/impl/CombatChargerModule.java`
+    - 事件: `ModuleEventHandler.onEntityDeath()`
+    - 特性: Boss 倍率（3.0x），连杀系统（最大 2.0x），超时 6000 ticks
+
 ---
 
-## 🔄 待迁移模块 (15)
+## 🔄 待迁移模块 (11)
 
-### 能量类模块 (5)
+### 能量类模块 (1)
 来源: `upgrades/energy/EnergyUpgradeManager.java`
 
-13. **EnergyEfficiencyModule** (`ENERGY_EFFICIENCY`)
+17. **EnergyEfficiencyModule** (`ENERGY_EFFICIENCY`)
     - 等级: Lv.1-5
     - 功能: 降低能量消耗
     - 旧实现: `EnergyEfficiencyManager.java`
-
-14. **KineticGeneratorModule** (`KINETIC_GENERATOR`)
-    - 等级: Lv.1-5
-    - 功能: 动能发电（移动/跳跃/挖掘产能）
-    - 旧实现: `EnergyUpgradeManager.KineticGeneratorSystem`
-
-15. **SolarGeneratorModule** (`SOLAR_GENERATOR`)
-    - 等级: Lv.1-5
-    - 功能: 太阳能发电
-    - 旧实现: `EnergyUpgradeManager.SolarGeneratorSystem`
-
-16. **VoidEnergyModule** (`VOID_ENERGY`)
-    - 等级: Lv.1-5
-    - 功能: 虚空能量（低电量时从虚空吸能）
-    - 旧实现: `EnergyUpgradeManager.VoidEnergySystem`
-
-17. **CombatChargerModule** (`COMBAT_CHARGER`)
-    - 等级: Lv.1-5
-    - 功能: 战斗充能（击杀敌人恢复能量）
-    - 旧实现: `EnergyUpgradeManager.CombatChargerSystem`
 
 ### 辅助类模块 (4)
 来源: `upgrades/auxiliary/AuxiliaryUpgradeManager.java`
