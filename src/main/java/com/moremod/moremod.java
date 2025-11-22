@@ -68,6 +68,10 @@ import com.moremod.upgrades.combat.CombatUpgradeManager;
 import com.moremod.upgrades.energy.EnergyUpgradeManager;
 import com.moremod.upgrades.survival.SurvivalUpgradeManager;
 import com.moremod.capability.module.impl.FlightModule;
+import com.moremod.capability.module.impl.ShieldGeneratorModule;
+import com.moremod.capability.module.impl.EnergyCapacityModule;
+import com.moremod.capability.module.impl.ArmorEnhancementModule;
+import com.moremod.capability.module.impl.RegenerationModule;
 
 // 飾品盒系統導入
 
@@ -279,8 +283,13 @@ public class moremod {
         ModuleRegistry.init();
 
         // 5. 注册所有模块
+        System.out.println("[moremod] 📦 注册机械核心模块...");
         ModuleRegistry.registerNew(FlightModule.INSTANCE);
-        System.out.println("[moremod] ✅ 机械核心模块注册完成");
+        ModuleRegistry.registerNew(ShieldGeneratorModule.INSTANCE);
+        ModuleRegistry.registerNew(EnergyCapacityModule.INSTANCE);
+        ModuleRegistry.registerNew(ArmorEnhancementModule.INSTANCE);
+        ModuleRegistry.registerNew(RegenerationModule.INSTANCE);
+        System.out.println("[moremod] ✅ 机械核心模块注册完成（5 个模块）");
 
         // ========== Ritual 多方块：创建实例（不在这里注册）==========
         System.out.println("[moremod] 🔮 创建 Ritual 多方块实例...");
