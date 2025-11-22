@@ -2,14 +2,14 @@
 
 ## 📊 迁移进度总览
 
-**已迁移**: 5/27 (18.5%)
-**待迁移**: 22/27 (81.5%)
+**已迁移**: 8/27 (29.6%)
+**待迁移**: 19/27 (70.4%)
 
 ---
 
-## ✅ 已迁移模块 (5)
+## ✅ 已迁移模块 (8)
 
-### 核心模块
+### 核心模块 (5)
 1. **FlightModule** (`FLIGHT_MODULE`)
    - 等级: Lv.1-3
    - 功能: 创造模式飞行 + 速度提升 + 悬停模式
@@ -35,27 +35,27 @@
    - 功能: 自动恢复生命值
    - 文件: `capability/module/impl/RegenerationModule.java`
 
----
-
-## 🔄 待迁移模块 (22)
-
 ### 生存类模块 (3)
-来源: `upgrades/survival/SurvivalUpgradeManager.java`
-
 6. **HungerThirstModule** (`HUNGER_THIRST`)
-   - 等级: Lv.1-5
-   - 功能: 饥饿/口渴管理
-   - 旧实现: `SurvivalUpgradeManager.HungerThirstSystem`
+   - 等级: Lv.1-3
+   - 功能: 饥饿/口渴管理 + SimpleDifficulty 集成
+   - 文件: `capability/module/impl/HungerThirstModule.java`
+   - 特性: 反射集成 SimpleDifficulty 口渴系统
 
 7. **ThornsModule** (`THORNS`)
-   - 等级: Lv.1-5
-   - 功能: 反伤荆棘
-   - 旧实现: `SurvivalUpgradeManager.ThornsSystem`
+   - 等级: Lv.1-3
+   - 功能: 反伤荆棘 (15%/30%/45%)
+   - 文件: `capability/module/impl/ThornsModule.java`
+   - 事件: `ModuleEventHandler.onPlayerHurt()`
 
 8. **FireExtinguishModule** (`FIRE_EXTINGUISH`)
    - 等级: Lv.1-3
-   - 功能: 自动灭火
-   - 旧实现: `SurvivalUpgradeManager.FireExtinguishSystem`
+   - 功能: 自动灭火 (60/40/20 tick 冷却)
+   - 文件: `capability/module/impl/FireExtinguishModule.java`
+
+---
+
+## 🔄 待迁移模块 (19)
 
 ### 战斗类模块 (4)
 来源: `upgrades/combat/CombatUpgradeManager.java`
