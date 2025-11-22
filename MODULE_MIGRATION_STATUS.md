@@ -2,12 +2,12 @@
 
 ## 📊 迁移进度总览
 
-**已迁移**: 23/27 (85.2%)
-**待迁移**: 4/27 (14.8%)
+**已迁移**: 24/27 (88.9%)
+**待迁移**: 3/27 (11.1%)
 
 ---
 
-## ✅ 已迁移模块 (23)
+## ✅ 已迁移模块 (24)
 
 ### 核心模块 (5)
 1. **FlightModule** (`FLIGHT_MODULE`)
@@ -161,18 +161,21 @@
     - 能量: 10 * level RF/tick
     - 特性: Lv.2 抗火，Lv.3 极端温度抗性，Lv.4 水下呼吸，Lv.5 夜视+特殊环境增强
 
----
-
-## 🔄 待迁移模块 (4)
-
-### 系统整合模块 (3)
-这些模块需要与系统层整合，而非作为独立模块
-
-24. **WaterproofModule** (`WATERPROOF_MODULE`) - Phase 3G
+24. **WaterproofModule** (`WATERPROOF_MODULE`)
     - 等级: Lv.1-3
     - 功能: 防水系统（保护核心免受水损害）
-    - 旧实现: `WetnessSystem.java`
-    - 状态: 需要整合 WetnessSystem 到模块中
+    - 文件: `capability/module/impl/WaterproofModule.java`
+    - 集成: WetnessSystem（潮湿值管理）
+    - 能量: 5 * level RF/tick
+    - 特性: Lv.1 50%减免，Lv.2 完全免疫，Lv.3 完全免疫+快速干燥
+    - 系统: 潮湿值 0-100，故障阈值 80，雨天 +4/s，干燥 -2/s
+
+---
+
+## 🔄 待迁移模块 (3)
+
+### 系统整合模块 (2)
+这些模块需要与系统层整合，而非作为独立模块
 
 25. **EnergyEfficiency** (系统级) - Phase 3H
     - 等级: Lv.1-5
