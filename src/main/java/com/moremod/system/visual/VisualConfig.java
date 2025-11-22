@@ -13,7 +13,6 @@ import net.minecraftforge.fml.relauncher.SideOnly;
  * 控制心跳音效和暗角效果的触发阈值
  */
 @Config(modid = "moremod", name = "MoreMod/RejectionVisuals", category = "visuals")
-@SideOnly(Side.CLIENT)
 public class VisualConfig {
 
     @Config.Comment("心跳音效开始阈值（排异%）")

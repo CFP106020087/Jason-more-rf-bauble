@@ -1,6 +1,5 @@
 package com.moremod;
 import com.moremod.accessorybox.unlock.rules.RuleChecker;
-import com.moremod.accessorybox.ExtraSlotsInit;
 import com.moremod.accessorybox.compat.SetBonusAccessoryBoxCompat;
 import com.moremod.accessorybox.unlock.UnlockableSlotsInit;
 import com.moremod.capabilities.autoattack.AutoAttackCapabilityHandler;
@@ -10,7 +9,6 @@ import com.moremod.client.KeyBindHandler;
 import com.moremod.client.RenderHandler;
 import com.moremod.client.gui.EventHUDOverlay;
 import com.moremod.client.gui.SmartRejectionGuide;
-import com.moremod.client.render.debug.RenderDebugKeyHandler;
 import com.moremod.commands.CommandLootDebug;
 import com.moremod.commands.CommandResetEquipTime;
 import com.moremod.compat.PotionCoreCompatEnhanced;
