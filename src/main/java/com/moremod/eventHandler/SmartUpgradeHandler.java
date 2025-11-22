@@ -6,6 +6,9 @@ import com.moremod.item.ItemMechanicalCore;
 import com.moremod.item.ItemMechanicalCoreExtended;
 import com.moremod.item.upgrades.ItemUpgradeComponent;
 import com.moremod.util.UpgradeKeys;
+import com.moremod.capability.IMechCoreData;
+import com.moremod.capability.module.IMechCoreModule;
+import com.moremod.upgrades.ModuleRegistry;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.SoundEvents;
 import net.minecraft.item.ItemStack;
@@ -400,6 +403,9 @@ public class SmartUpgradeHandler {
         UpgradeKeys.setLevel(coreStack, cid, newLv);
         UpgradeKeys.markOwnedActive(coreStack, cid, newLv);
 
+        // ✅ 同步到新的 Capability 系统
+        syncToCapability(player, cid, newLv);
+
         player.sendMessage(new TextComponentString(
                 TextFormatting.GREEN + "✓ " + enumType.getColor() + enumType.getDisplayName() +
                         TextFormatting.WHITE + " 升级至 Lv." + newLv +
@@ -443,6 +449,9 @@ public class SmartUpgradeHandler {
         UpgradeKeys.setLevel(coreStack, cid, newLv);
         UpgradeKeys.markOwnedActive(coreStack, cid, newLv);
 
+        // ✅ 同步到新的 Capability 系统
+        syncToCapability(player, cid, newLv);
+
         player.sendMessage(new TextComponentString(
                 TextFormatting.GREEN + "✓ " + info.color + info.displayName +
                         TextFormatting.WHITE + " 升级至 Lv." + newLv +
@@ -475,6 +484,9 @@ public class SmartUpgradeHandler {
         ItemMechanicalCoreExtended.setUpgradeLevel(coreStack, "FLIGHT_MODULE", target);
         UpgradeKeys.setLevel(coreStack, "FLIGHT_MODULE", target);
         UpgradeKeys.markOwnedActive(coreStack, "FLIGHT_MODULE", target);
+
+        // ✅ 同步到新的 Capability 系统
+        syncToCapability(player, "FLIGHT_MODULE", target);
 
         NBTTagCompound nbt = UpgradeKeys.getOrCreate(coreStack);
         nbt.setBoolean("FlightModuleEnabled", true);
@@ -521,6 +533,10 @@ public class SmartUpgradeHandler {
         recordOriginalMax(coreStack, "WATERPROOF", target);
 
         setWaterproofLevel(coreStack, target);
+
+        // ✅ 同步到新的 Capability 系统
+        syncToCapability(player, "WATERPROOF_MODULE", target);
+
         switch (target) {
             case 1:
                 msg(player, TextFormatting.AQUA + "💧 基础防水涂层已应用！" +
@@ -574,6 +590,7 @@ public class SmartUpgradeHandler {
         }
 
         // 应用：全部 +1 级
+        Map<String, Integer> upgradedModules = new HashMap<>();
         for (String u : targetList) {
             int newLevel = before.get(u) + 1;
 
@@ -581,7 +598,11 @@ public class SmartUpgradeHandler {
             recordOriginalMax(core, u, newLevel);
 
             applyUpgrade(core, u, newLevel);
+            upgradedModules.put(u, newLevel);
         }
+
+        // ✅ 批量同步到新的 Capability 系统
+        syncMultipleToCapability(player, upgradedModules);
 
         if (isSurvival) {
             msg(player, TextFormatting.GREEN + "✦ 生存强化套装已应用！", true);
@@ -756,5 +777,62 @@ public class SmartUpgradeHandler {
     private boolean msg(EntityPlayer p, String s, boolean ret) {
         p.sendMessage(new TextComponentString(s));
         return ret;
+    }
+
+    // ================= ✅ 新系统集成：同步到 Capability =================
+
+    /**
+     * 同步升级数据到 Capability 系统
+     *
+     * 桥接旧的 NBT 升级系统和新的 Capability 系统
+     *
+     * @param player 玩家
+     * @param moduleId 模块 ID（标准化大写格式）
+     * @param newLevel 新等级
+     */
+    private void syncToCapability(EntityPlayer player, String moduleId, int newLevel) {
+        IMechCoreData data = player.getCapability(IMechCoreData.CAPABILITY, null);
+        if (data == null) {
+            return; // Capability 未附加（不应该发生）
+        }
+
+        int oldLevel = data.getModuleLevel(moduleId);
+
+        // 更新 Capability 中的模块等级
+        data.setModuleLevel(moduleId, newLevel);
+
+        // 激活模块（如果之前未激活）
+        if (!data.isModuleActive(moduleId)) {
+            data.setModuleActive(moduleId, true);
+        }
+
+        // 触发新模块系统的回调
+        IMechCoreModule module = ModuleRegistry.getNew(moduleId);
+        if (module != null) {
+            try {
+                // 触发等级变化回调
+                module.onLevelChanged(player, data, oldLevel, newLevel);
+
+                // 如果是首次激活，触发激活回调
+                if (oldLevel == 0) {
+                    module.onActivate(player, data, newLevel);
+                }
+            } catch (Exception e) {
+                System.err.println("[SmartUpgradeHandler] 模块回调失败: " + moduleId);
+                e.printStackTrace();
+            }
+        }
+
+        // 标记为需要同步到客户端
+        data.markDirty();
+    }
+
+    /**
+     * 批量同步多个模块（用于套装升级）
+     */
+    private void syncMultipleToCapability(EntityPlayer player, Map<String, Integer> upgrades) {
+        for (Map.Entry<String, Integer> entry : upgrades.entrySet()) {
+            syncToCapability(player, entry.getKey(), entry.getValue());
+        }
     }
 }
