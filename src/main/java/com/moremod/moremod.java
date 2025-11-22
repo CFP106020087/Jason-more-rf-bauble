@@ -62,10 +62,12 @@ import com.moremod.capability.*;
 import com.moremod.shields.integrated.EnhancedVisualsHandler;
 import com.moremod.system.*;
 import com.moremod.upgrades.MechanicalCoreNetworkHandler;
+import com.moremod.upgrades.ModuleRegistry;
 import com.moremod.upgrades.auxiliary.AuxiliaryUpgradeManager;
 import com.moremod.upgrades.combat.CombatUpgradeManager;
 import com.moremod.upgrades.energy.EnergyUpgradeManager;
 import com.moremod.upgrades.survival.SurvivalUpgradeManager;
+import com.moremod.capability.module.impl.FlightModule;
 
 // 飾品盒系統導入
 
@@ -253,6 +255,32 @@ public class moremod {
                 PlayerTimeDataImpl::new
         );
         System.out.println("[moremod] ✅ 时光之心Capability注册完成");
+
+        // ========== 机械核心 Capability 系统 ==========
+        System.out.println("[moremod] ⚙️ 初始化机械核心 Capability 系统...");
+
+        // 1. 注册 IMechCoreData Capability
+        CapabilityManager.INSTANCE.register(
+                IMechCoreData.class,
+                new MechCoreDataStorage(),
+                MechCoreDataImpl::new
+        );
+        System.out.println("[moremod] ✅ IMechCoreData Capability 注册完成");
+
+        // 2. 注册 Capability 事件处理器
+        MinecraftForge.EVENT_BUS.register(new CapabilityEventHandler());
+        System.out.println("[moremod] ✅ Capability 事件处理器注册完成");
+
+        // 3. 注册模块 Tick 处理器
+        MinecraftForge.EVENT_BUS.register(new ModuleTickHandler());
+        System.out.println("[moremod] ✅ 模块 Tick 处理器注册完成");
+
+        // 4. 初始化模块注册中心
+        ModuleRegistry.init();
+
+        // 5. 注册所有模块
+        ModuleRegistry.registerNew(FlightModule.INSTANCE);
+        System.out.println("[moremod] ✅ 机械核心模块注册完成");
 
         // ========== Ritual 多方块：创建实例（不在这里注册）==========
         System.out.println("[moremod] 🔮 创建 Ritual 多方块实例...");

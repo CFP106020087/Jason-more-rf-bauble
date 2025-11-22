@@ -1,6 +1,6 @@
 package com.moremod.eventHandler;
 
-import com.moremod.MoreMod;
+import com.moremod.moremod;
 import com.moremod.capability.IMechCoreData;
 import com.moremod.capability.MechCoreDataProvider;
 import net.minecraft.entity.Entity;
@@ -9,6 +9,8 @@ import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.event.AttachCapabilitiesEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /**
  * Capability 生命周期事件处理器
@@ -20,8 +22,10 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
  */
 public class CapabilityEventHandler {
 
+    private static final Logger logger = LogManager.getLogger(CapabilityEventHandler.class);
+
     private static final ResourceLocation MECH_CORE_CAP_ID = new ResourceLocation(
-        MoreMod.MODID,
+        moremod.MODID,
         "mech_core_data"
     );
 
@@ -40,7 +44,7 @@ public class CapabilityEventHandler {
             );
 
             if (!player.world.isRemote) {
-                MoreMod.logger.debug(
+                logger.debug(
                     "Attached MechCoreData capability to player: {}",
                     player.getName()
                 );
@@ -69,7 +73,7 @@ public class CapabilityEventHandler {
             newData.markDirty();
 
             if (!newPlayer.world.isRemote) {
-                MoreMod.logger.debug(
+                logger.debug(
                     "Cloned MechCoreData for player: {}",
                     newPlayer.getName()
                 );
@@ -87,7 +91,7 @@ public class CapabilityEventHandler {
         EntityPlayer player = event.player;
 
         if (!player.world.isRemote) {
-            MoreMod.logger.debug(
+            logger.debug(
                 "Player logout: {} (Capability will be auto-cleaned)",
                 player.getName()
             );
