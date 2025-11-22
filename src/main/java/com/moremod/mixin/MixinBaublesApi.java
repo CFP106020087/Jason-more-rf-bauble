@@ -11,11 +11,20 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import java.util.WeakHashMap;
+
 /**
  * 将 getBaublesHandler(player) 的返回值包装成 SmartBaublesHandlerWrapper
+ *
+ * 修复：缓存 wrapper 实例，避免每次创建新实例导致的兼容性问题
  */
-@Mixin(value = BaublesApi.class,remap = false)
+@Mixin(value = BaublesApi.class, remap = false)
 public class MixinBaublesApi {
+
+    // 缓存 wrapper 实例，避免每次创建新的导致状态不一致
+    // 使用 WeakHashMap 避免内存泄漏
+    private static final WeakHashMap<IBaublesItemHandler, SmartBaublesHandlerWrapper> wrapperCache =
+        new WeakHashMap<>();
 
     @Inject(
             method = "getBaublesHandler",
@@ -30,7 +39,13 @@ public class MixinBaublesApi {
             return;
         }
 
-        // ⭐ 用我们的 wrapper 替换所有调用方得到的 handler
-        cir.setReturnValue(new SmartBaublesHandlerWrapper(original));
+        // ✅ 修复：使用缓存的 wrapper，避免每次创建新实例
+        SmartBaublesHandlerWrapper wrapper = wrapperCache.get(original);
+        if (wrapper == null) {
+            wrapper = new SmartBaublesHandlerWrapper(original);
+            wrapperCache.put(original, wrapper);
+        }
+
+        cir.setReturnValue(wrapper);
     }
 }
