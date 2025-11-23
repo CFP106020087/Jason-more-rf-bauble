@@ -541,7 +541,41 @@ public class ItemMechanicalCore extends Item implements IBauble {
         } catch (Throwable t) { return true; }
     }
 
+    // ✅ ThreadLocal 保存当前玩家用于 Capability 读取
+    private static final ThreadLocal<net.minecraft.entity.player.EntityPlayer> CURRENT_PLAYER = new ThreadLocal<>();
+
+    /**
+     * ✅ 从 Capability 读取升级等级（纯 Capability 模式）
+     */
+    private static int getUpgradeLevelFromCapability(net.minecraft.entity.player.EntityPlayer player, String upgradeId) {
+        if (player == null) return 0;
+
+        com.moremod.capability.IMechCoreData data = player.getCapability(
+            com.moremod.capability.IMechCoreData.CAPABILITY, null);
+
+        if (data != null) {
+            String moduleId = upgradeId.toUpperCase();
+            return data.getModuleLevel(moduleId);
+        }
+
+        return 0;
+    }
+
+    /**
+     * ✅ 改进的读取方法：优先从 Capability 读取，降级为 NBT 读取
+     */
     private static int getUpgradeLevelDirect(ItemStack stack, String upgradeId) {
+        // ✅ 优先级 1：从 Capability 读取（如果有当前玩家）
+        net.minecraft.entity.player.EntityPlayer currentPlayer = CURRENT_PLAYER.get();
+        if (currentPlayer != null) {
+            int capabilityLevel = getUpgradeLevelFromCapability(currentPlayer, upgradeId);
+            if (capabilityLevel > 0) {
+                if (isTemporarilyBlockedByGui(stack, upgradeId)) return 0;
+                return capabilityLevel;
+            }
+        }
+
+        // ✅ 优先级 2：从 NBT 读取（向后兼容 / 降级方案）
         if (!stack.hasTagCompound()) return 0;
 
         int level = stack.getTagCompound().getInteger("upgrade_" + upgradeId);
@@ -1533,6 +1567,54 @@ public class ItemMechanicalCore extends Item implements IBauble {
     private static NBTTagCompound getOrCreateNBT(ItemStack stack) {
         if (!stack.hasTagCompound()) stack.setTagCompound(new NBTTagCompound());
         return stack.getTagCompound();
+    }
+
+    /**
+     * ✅ 设置当前线程的玩家上下文（用于 Capability 读取）
+     */
+    public static void setPlayerContext(net.minecraft.entity.player.EntityPlayer player) {
+        CURRENT_PLAYER.set(player);
+    }
+
+    /**
+     * ✅ 清除当前线程的玩家上下文
+     */
+    public static void clearPlayerContext() {
+        CURRENT_PLAYER.remove();
+    }
+
+    /**
+     * ✅ 在玩家上下文中执行操作（自动管理 ThreadLocal）
+     */
+    public static <T> T withPlayerContext(net.minecraft.entity.player.EntityPlayer player, java.util.function.Supplier<T> action) {
+        try {
+            setPlayerContext(player);
+            return action.get();
+        } finally {
+            clearPlayerContext();
+        }
+    }
+
+    /**
+     * ✅ 新增：带玩家参数的重载方法（优先从 Capability 读取）
+     */
+    public static int getUpgradeLevel(ItemStack stack, UpgradeType type, net.minecraft.entity.player.EntityPlayer player) {
+        if (player != null) {
+            int level = getUpgradeLevelFromCapability(player, type.getKey());
+            if (level > 0) return level;
+        }
+        return getUpgradeLevelDirect(stack, type.getKey());
+    }
+
+    /**
+     * ✅ 新增：带玩家参数的重载方法（优先从 Capability 读取）
+     */
+    public static int getUpgradeLevel(ItemStack stack, String upgradeId, net.minecraft.entity.player.EntityPlayer player) {
+        if (player != null) {
+            int level = getUpgradeLevelFromCapability(player, upgradeId);
+            if (level > 0) return level;
+        }
+        return getUpgradeLevelDirect(stack, upgradeId);
     }
 
     public static int getUpgradeLevel(ItemStack stack, UpgradeType type) {

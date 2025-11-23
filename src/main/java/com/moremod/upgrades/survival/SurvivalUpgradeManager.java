@@ -32,17 +32,20 @@ public class SurvivalUpgradeManager {
         private static final String NBT_LAST_ENERGY_CHECK = "MechanicalCoreShieldEnergyCheck";
 
         public static void updateShield(EntityPlayer player, ItemStack coreStack) {
-            int level = ItemMechanicalCore.getUpgradeLevel(coreStack, "YELLOW_SHIELD");
-            if (level <= 0) {
-                // 移除所有吸收心
-                if (player.getAbsorptionAmount() > 0) {
-                    player.setAbsorptionAmount(0);
+            // ✅ 设置玩家上下文以支持 Capability 读取
+            ItemMechanicalCore.setPlayerContext(player);
+            try {
+                int level = ItemMechanicalCore.getUpgradeLevel(coreStack, "YELLOW_SHIELD");
+                if (level <= 0) {
+                    // 移除所有吸收心
+                    if (player.getAbsorptionAmount() > 0) {
+                        player.setAbsorptionAmount(0);
+                    }
+                    return;
                 }
-                return;
-            }
 
-            // 检查升级是否激活
-            if (!ItemMechanicalCore.isUpgradeEnabled(coreStack, "YELLOW_SHIELD")) {
+                // 检查升级是否激活
+                if (!ItemMechanicalCore.isUpgradeEnabled(coreStack, "YELLOW_SHIELD")) {
                 // 升级未激活，移除护盾
                 if (player.getAbsorptionAmount() > 0) {
                     player.setAbsorptionAmount(0);
@@ -116,9 +119,12 @@ public class SurvivalUpgradeManager {
                 }
             }
 
-            // 确保不超过最大值
-            if (currentShield > maxShield) {
-                player.setAbsorptionAmount(maxShield);
+                // 确保不超过最大值
+                if (currentShield > maxShield) {
+                    player.setAbsorptionAmount(maxShield);
+                }
+            } finally {
+                ItemMechanicalCore.clearPlayerContext();
             }
         }
 
@@ -157,10 +163,13 @@ public class SurvivalUpgradeManager {
         private static final String NBT_REGEN_ACTIVE = "MechanicalCoreRegenActive";
 
         public static void applyRegeneration(EntityPlayer player, ItemStack coreStack) {
-            int level = ItemMechanicalCore.getUpgradeLevel(coreStack, "HEALTH_REGEN");
-            if (level <= 0) return;
+            // ✅ 设置玩家上下文以支持 Capability 读取
+            ItemMechanicalCore.setPlayerContext(player);
+            try {
+                int level = ItemMechanicalCore.getUpgradeLevel(coreStack, "HEALTH_REGEN");
+                if (level <= 0) return;
 
-            // 生命恢复是生存必需，检查是否激活（在CRITICAL模式下仍能工作）
+                // 生命恢复是生存必需，检查是否激活（在CRITICAL模式下仍能工作）
             if (!ItemMechanicalCore.isUpgradeEnabled(coreStack, "HEALTH_REGEN")) {
                 // 提示信息
                 if (player.getEntityData().getBoolean(NBT_REGEN_ACTIVE)) {
@@ -673,8 +682,11 @@ public class SurvivalUpgradeManager {
         ItemStack coreStack = ItemMechanicalCore.getCoreFromPlayer(player);
         if (coreStack.isEmpty()) return;
 
-        // 获取能量状态
-        EnergyDepletionManager.EnergyStatus status = ItemMechanicalCore.getEnergyStatus(coreStack);
+        // ✅ 设置玩家上下文 - 所有后续调用将从 Capability 读取
+        ItemMechanicalCore.setPlayerContext(player);
+        try {
+            // 获取能量状态
+            EnergyDepletionManager.EnergyStatus status = ItemMechanicalCore.getEnergyStatus(coreStack);
 
         // 根据能量状态决定更新哪些系统
 
@@ -703,11 +715,15 @@ public class SurvivalUpgradeManager {
             return;
         }
 
-        // 省电模式或正常模式：所有系统正常运行
-        YellowShieldSystem.updateShield(player, coreStack);
-        HealthRegenSystem.applyRegeneration(player, coreStack);
-        HungerThirstSystem.manageFoodStats(player, coreStack);
-        FireExtinguishSystem.checkAndExtinguish(player, coreStack);
+            // 省电模式或正常模式：所有系统正常运行
+            YellowShieldSystem.updateShield(player, coreStack);
+            HealthRegenSystem.applyRegeneration(player, coreStack);
+            HungerThirstSystem.manageFoodStats(player, coreStack);
+            FireExtinguishSystem.checkAndExtinguish(player, coreStack);
+        } finally {
+            // ✅ 清除玩家上下文
+            ItemMechanicalCore.clearPlayerContext();
+        }
     }
 
     /**
@@ -721,8 +737,11 @@ public class SurvivalUpgradeManager {
         ItemStack coreStack = ItemMechanicalCore.getCoreFromPlayer(player);
         if (coreStack.isEmpty()) return;
 
-        // 检查护盾是否耗尽（在伤害后检查）
-        if (event.getAmount() > 0) {
+        // ✅ 设置玩家上下文
+        ItemMechanicalCore.setPlayerContext(player);
+        try {
+            // 检查护盾是否耗尽（在伤害后检查）
+            if (event.getAmount() > 0) {
             // 使用延迟检查，因为吸收心会在伤害计算后更新
             player.world.getMinecraftServer().addScheduledTask(() -> {
                 if (player.getAbsorptionAmount() <= 0) {
@@ -734,11 +753,15 @@ public class SurvivalUpgradeManager {
             });
         }
 
-        // 反伤处理
-        if (event.getSource().getTrueSource() instanceof EntityLivingBase) {
-            int thornsLevel = ItemMechanicalCore.getUpgradeLevel(coreStack, "THORNS");
-            ThornsSystem.applyThorns(player, (EntityLivingBase) event.getSource().getTrueSource(),
-                    event.getAmount(), thornsLevel);
+            // 反伤处理
+            if (event.getSource().getTrueSource() instanceof EntityLivingBase) {
+                int thornsLevel = ItemMechanicalCore.getUpgradeLevel(coreStack, "THORNS");
+                ThornsSystem.applyThorns(player, (EntityLivingBase) event.getSource().getTrueSource(),
+                        event.getAmount(), thornsLevel);
+            }
+        } finally {
+            // ✅ 清除玩家上下文
+            ItemMechanicalCore.clearPlayerContext();
         }
     }
 }
