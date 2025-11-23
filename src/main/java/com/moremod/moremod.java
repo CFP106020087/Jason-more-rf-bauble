@@ -70,6 +70,7 @@ import com.moremod.upgrades.survival.SurvivalUpgradeManager;
 import com.moremod.capability.module.impl.FlightModule;
 import com.moremod.capability.module.impl.ShieldGeneratorModule;
 import com.moremod.capability.module.impl.EnergyCapacityModule;
+import com.moremod.capability.module.impl.EnergyEfficiencyModule;
 import com.moremod.capability.module.impl.ArmorEnhancementModule;
 import com.moremod.capability.module.impl.RegenerationModule;
 import com.moremod.capability.module.impl.HungerThirstModule;
@@ -308,6 +309,7 @@ public class moremod {
         ModuleRegistry.registerNew(FlightModule.INSTANCE);
         ModuleRegistry.registerNew(ShieldGeneratorModule.INSTANCE);
         ModuleRegistry.registerNew(EnergyCapacityModule.INSTANCE);
+        ModuleRegistry.registerNew(EnergyEfficiencyModule.INSTANCE);
         ModuleRegistry.registerNew(ArmorEnhancementModule.INSTANCE);
         ModuleRegistry.registerNew(RegenerationModule.INSTANCE);
         ModuleRegistry.registerNew(HungerThirstModule.INSTANCE);
@@ -331,7 +333,7 @@ public class moremod {
         ModuleRegistry.registerNew(WaterproofModule.INSTANCE);
         ModuleRegistry.registerNew(PoisonImmunityModule.INSTANCE);
         ModuleRegistry.registerNew(ItemMagnetModule.INSTANCE);
-        System.out.println("[moremod] ✅ 机械核心模块注册完成（26 个模块）");
+        System.out.println("[moremod] ✅ 机械核心模块注册完成（27 个模块）");
 
         // ========== Ritual 多方块：创建实例（不在这里注册）==========
         System.out.println("[moremod] 🔮 创建 Ritual 多方块实例...");
