@@ -9,7 +9,10 @@ import com.moremod.util.UpgradeKeys;
 import com.moremod.capability.IMechCoreData;
 import com.moremod.capability.module.IMechCoreModule;
 import com.moremod.upgrades.ModuleRegistry;
+import com.moremod.network.NetworkHandler;
+import com.moremod.network.PacketSyncMechCoreData;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.init.SoundEvents;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -848,6 +851,17 @@ public class SmartUpgradeHandler {
 
         // 标记为需要同步到客户端
         data.markDirty();
+
+        // ✅ 立即同步到客户端（修复：升级后客户端看不到更新的问题）
+        if (player instanceof EntityPlayerMP) {
+            try {
+                PacketSyncMechCoreData packet = new PacketSyncMechCoreData(data);
+                NetworkHandler.CHANNEL.sendTo(packet, (EntityPlayerMP) player);
+            } catch (Exception e) {
+                System.err.println("[SmartUpgradeHandler] 同步 Capability 失败: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
     }
 
     /**
