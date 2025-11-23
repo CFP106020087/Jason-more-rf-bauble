@@ -983,11 +983,11 @@ public class ItemMechanicalCore extends Item implements IBauble {
         // 電池供能（無音效）
         applyBatteryGeneration(itemstack, player);
 
-        // ✨ 新增：更新潮濕值系統（只在裝備核心時運作）
-        WetnessSystem.updateWetness(player, itemstack);
-
-        // 檢查防水模塊（現有）
-        WaterproofUpgrade.applyWaterproofEffect(player, itemstack);
+        // ✨ 更新防水系统（每秒检查一次，避免性能问题）
+        if (entity.world.getTotalWorldTime() % 20 == 0) {
+            WetnessSystem.updateWetness(player, itemstack);
+            WaterproofUpgrade.applyWaterproofEffect(player, itemstack);
+        }
 
         if (entity.world.getTotalWorldTime() % 20 == 0) {
             EnergyDepletionManager.handleEnergyDepletion(itemstack, player);
