@@ -361,7 +361,8 @@ public class MechanicalCoreGui extends GuiScreen {
 
             if (ownedMaxLevel <= 0 && level > 0) {
                 ownedMaxLevel = level;
-                nbt.setInteger("OwnedMax_" + id, ownedMaxLevel);
+                // ✅ 只写大写变体
+                nbt.setInteger("OwnedMax_" + up(id), ownedMaxLevel);
                 coreStack.setTagCompound(nbt);
             }
 
@@ -446,7 +447,8 @@ public class MechanicalCoreGui extends GuiScreen {
 
                 if (ownedMaxLevel <= 0 && level > 0) {
                     ownedMaxLevel = level;
-                    nbt.setInteger("OwnedMax_" + id, ownedMaxLevel);
+                    // ✅ 只写大写变体
+                    nbt.setInteger("OwnedMax_" + up(id), ownedMaxLevel);
                     coreStack.setTagCompound(nbt);
                 }
 
@@ -549,7 +551,8 @@ public class MechanicalCoreGui extends GuiScreen {
                     e.ownedMaxLevel = ownedMax;
                 } else if (e.currentLevel > 0 && e.ownedMaxLevel <= 0) {
                     e.ownedMaxLevel = e.currentLevel;
-                    nbt.setInteger("OwnedMax_" + id, e.currentLevel);
+                    // ✅ 只写大写变体
+                    nbt.setInteger("OwnedMax_" + up(id), e.currentLevel);
                     coreStack.setTagCompound(nbt);
                 }
 
@@ -1445,9 +1448,8 @@ public class MechanicalCoreGui extends GuiScreen {
 
                     int ownedMax = getOwnedMaxFromNBT(nbt, wid);
                     if (ownedMax < lastLevel) {
-                        nbt.setInteger("OwnedMax_" + wid, lastLevel);
+                        // ✅ 只写大写变体
                         nbt.setInteger("OwnedMax_" + U, lastLevel);
-                        nbt.setInteger("OwnedMax_" + L, lastLevel);
                     }
 
                 }
@@ -1458,9 +1460,9 @@ public class MechanicalCoreGui extends GuiScreen {
         } else {
             String U = up(upgradeId), L = lo(upgradeId);
             if (paused && lastLevel > 0) {
-                for (String k : Arrays.asList(upgradeId, U, L)) {
-                    if (nbt.getInteger("OwnedMax_" + k) < lastLevel)
-                        nbt.setInteger("OwnedMax_" + k, lastLevel);
+                // ✅ 只写大写变体
+                if (nbt.getInteger("OwnedMax_" + U) < lastLevel) {
+                    nbt.setInteger("OwnedMax_" + U, lastLevel);
                 }
             }
             for (String k : Arrays.asList(upgradeId, U, L)) {

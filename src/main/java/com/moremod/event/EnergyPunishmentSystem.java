@@ -267,9 +267,8 @@ public class EnergyPunishmentSystem {
             }
 
             // 关键修复：移到 if 外面，每次降级都写入 WasPunished
+            // ✅ 只写大写变体（减少 67% 写入操作）
             nbt.setBoolean(K_WAS_PUNISHED + upperId, true);
-            nbt.setBoolean(K_WAS_PUNISHED + moduleId, true);
-            nbt.setBoolean(K_WAS_PUNISHED + lowerId, true);
 
             // 降级
             int newOwnedMax = Math.max(0, currentOwnedMax - 1);
@@ -277,15 +276,13 @@ public class EnergyPunishmentSystem {
 
             // 增加损坏计数
             int damageCount = nbt.getInteger(K_DAMAGE_COUNT + upperId);
+            // ✅ 只写大写变体（减少 67% 写入操作）
             nbt.setInteger(K_DAMAGE_COUNT + upperId, damageCount + 1);
-            nbt.setInteger(K_DAMAGE_COUNT + moduleId, damageCount + 1);
-            nbt.setInteger(K_DAMAGE_COUNT + lowerId, damageCount + 1);
 
             // 累计总损坏次数（用于修复成本计算）
             int totalDamage = nbt.getInteger("TotalDamageCount_" + upperId);
+            // ✅ 只写大写变体（减少 67% 写入操作）
             nbt.setInteger("TotalDamageCount_" + upperId, totalDamage + 1);
-            nbt.setInteger("TotalDamageCount_" + moduleId, totalDamage + 1);
-            nbt.setInteger("TotalDamageCount_" + lowerId, totalDamage + 1);
 
             // 调整当前等级（优先从 Capability 读取）
             int currentLevel = 0;
@@ -471,8 +468,8 @@ public class EnergyPunishmentSystem {
 
         // 如果完全修复，清除标记（保留 OriginalMax）
         if (targetLevel >= originalMax) {
+            // ✅ 只移除大写变体（与写入保持一致）
             nbt.removeTag(K_WAS_PUNISHED + upperId);
-            nbt.removeTag(K_WAS_PUNISHED + moduleId);
         }
 
         // 恢复等级
@@ -531,21 +528,18 @@ public class EnergyPunishmentSystem {
                 }
 
                 // 标记为惩罚过
+                // ✅ 只写大写变体（减少 67% 写入操作）
                 nbt.setBoolean(K_WAS_PUNISHED + upperId, true);
-                nbt.setBoolean(K_WAS_PUNISHED + id, true);
-                nbt.setBoolean(K_WAS_PUNISHED + lowerId, true);
 
                 // 增加损坏计数
                 int damageCount = nbt.getInteger(K_DAMAGE_COUNT + upperId);
+                // ✅ 只写大写变体（减少 67% 写入操作）
                 nbt.setInteger(K_DAMAGE_COUNT + upperId, damageCount + currentMax);
-                nbt.setInteger(K_DAMAGE_COUNT + id, damageCount + currentMax);
-                nbt.setInteger(K_DAMAGE_COUNT + lowerId, damageCount + currentMax);
 
                 // 累计总损坏次数
                 int totalDamage = nbt.getInteger("TotalDamageCount_" + upperId);
+                // ✅ 只写大写变体（减少 67% 写入操作）
                 nbt.setInteger("TotalDamageCount_" + upperId, totalDamage + currentMax);
-                nbt.setInteger("TotalDamageCount_" + id, totalDamage + currentMax);
-                nbt.setInteger("TotalDamageCount_" + lowerId, totalDamage + currentMax);
 
                 // 降级到0
                 setLevel(core, id, 0);

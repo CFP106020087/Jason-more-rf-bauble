@@ -1730,14 +1730,14 @@ public class ItemMechanicalCore extends Item implements IBauble {
         if (isManualOperation) {
             if (currentOwnedMax <= 0) {
                 int initialMax = Math.max(Math.max(currentLevel, newLevel), 1);
+                // ✅ 只写大写变体
                 nbt.setInteger("OwnedMax_" + normalizedId, initialMax);
-                nbt.setInteger("OwnedMax_" + upgradeId, initialMax);
                 currentOwnedMax = initialMax;
             }
 
             if (newLevel > currentOwnedMax) {
+                // ✅ 只写大写变体
                 nbt.setInteger("OwnedMax_" + normalizedId, newLevel);
-                nbt.setInteger("OwnedMax_" + upgradeId, newLevel);
             }
 
             if (newLevel == 0) {
@@ -1772,9 +1772,8 @@ public class ItemMechanicalCore extends Item implements IBauble {
         if (max <= 0) {
             max = getUpgradeLevel(stack, upgradeId);
             if (max > 0) {
-                for (String variant : variants) {
-                    nbt.setInteger("OwnedMax_" + variant, max);
-                }
+                // ✅ 只写大写变体
+                nbt.setInteger("OwnedMax_" + upgradeId.toUpperCase(), max);
             }
         }
 

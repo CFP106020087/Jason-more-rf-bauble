@@ -367,19 +367,14 @@ public class PacketMechanicalCoreUpdate implements IMessage {
 
             if (damageCount > 0) {
                 int newDamageCount = Math.max(0, damageCount - 1);
-                nbt.setInteger(K_DAMAGE_COUNT + upgradeId, newDamageCount);
+                // ✅ 只写大写变体（减少 67% 写入操作）
                 nbt.setInteger(K_DAMAGE_COUNT + upperId, newDamageCount);
-                nbt.setInteger(K_DAMAGE_COUNT + lowerId, newDamageCount);
             }
 
             if (targetLevel >= itemMax) {
-                nbt.removeTag(K_WAS_PUNISHED + upgradeId);
+                // ✅ 只移除大写变体（与写入保持一致）
                 nbt.removeTag(K_WAS_PUNISHED + upperId);
-                nbt.removeTag(K_WAS_PUNISHED + lowerId);
-
-                nbt.removeTag(K_DAMAGE_COUNT + upgradeId);
                 nbt.removeTag(K_DAMAGE_COUNT + upperId);
-                nbt.removeTag(K_DAMAGE_COUNT + lowerId);
             }
 
             // ✅ 修复：添加 player 参数（纯 Capability 模式）

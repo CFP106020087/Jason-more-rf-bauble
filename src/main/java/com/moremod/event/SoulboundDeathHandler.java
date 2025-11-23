@@ -277,29 +277,25 @@ public class SoulboundDeathHandler {
         }
 
         // 3. 设置惩罚标记
+        // ✅ 只写大写变体（减少 67% 写入操作）
         nbt.setBoolean(K_WAS_PUNISHED + upperId, true);
-        nbt.setBoolean(K_WAS_PUNISHED + target, true);
-        nbt.setBoolean(K_WAS_PUNISHED + lowerId, true);
 
         if (isWaterproof(target)) {
             for (String wid : WATERPROOF_IDS) {
-                nbt.setBoolean(K_WAS_PUNISHED + wid, true);
+                // ✅ 只写大写变体（减少 67% 写入操作）
                 nbt.setBoolean(K_WAS_PUNISHED + wid.toUpperCase(Locale.ROOT), true);
-                nbt.setBoolean(K_WAS_PUNISHED + wid.toLowerCase(Locale.ROOT), true);
             }
         }
 
         // 4. 增加损坏计数
         int damageCount = nbt.getInteger(K_DAMAGE_COUNT + upperId);
+        // ✅ 只写大写变体（减少 67% 写入操作）
         nbt.setInteger(K_DAMAGE_COUNT + upperId, damageCount + 1);
-        nbt.setInteger(K_DAMAGE_COUNT + target, damageCount + 1);
-        nbt.setInteger(K_DAMAGE_COUNT + lowerId, damageCount + 1);
 
         // 累计总损坏次数
         int totalDamageCount = nbt.getInteger("TotalDamageCount_" + upperId);
+        // ✅ 只写大写变体（减少 67% 写入操作）
         nbt.setInteger("TotalDamageCount_" + upperId, totalDamageCount + 1);
-        nbt.setInteger("TotalDamageCount_" + target, totalDamageCount + 1);
-        nbt.setInteger("TotalDamageCount_" + lowerId, totalDamageCount + 1);
 
         // 5. 然后才降级（在记录之后）
         int newOwnedMax = Math.max(0, currentOwnedMax - 1);
@@ -482,7 +478,7 @@ public class SoulboundDeathHandler {
     }
 
     /**
-     * ✅ 安全设置 OwnedMax，确保不覆盖 OriginalMax
+     * ✅ 安全设置 OwnedMax，确保不覆盖 OriginalMax（只写大写变体）
      */
     private static void setOwnedMaxSafe(ItemStack core, String id, int val){
         NBTTagCompound nbt = UpgradeKeys.getOrCreate(core);
@@ -512,16 +508,13 @@ public class SoulboundDeathHandler {
             }
         }
 
-        // 设置 OwnedMax
-        for (String k : variants) {
-            nbt.setInteger("OwnedMax_" + k, val);
-        }
+        // ✅ 设置 OwnedMax（只写大写变体）
+        nbt.setInteger("OwnedMax_" + upperId, val);
 
         if (isWaterproof(id)) {
             for (String wid : WATERPROOF_IDS){
-                nbt.setInteger("OwnedMax_" + wid, val);
+                // ✅ 只写大写变体
                 nbt.setInteger("OwnedMax_" + wid.toUpperCase(Locale.ROOT), val);
-                nbt.setInteger("OwnedMax_" + wid.toLowerCase(Locale.ROOT), val);
             }
         }
 
