@@ -506,19 +506,17 @@ public class WaterproofUpgrade {
 
     /**
      * 清除故障效果
+     *
+     * 注意：不检查 WetnessSystem 潮湿值，避免循环依赖
+     * 两个系统独立管理各自的 MALFUNCTION 效果
      */
     private static void clearMalfunctionEffects(EntityPlayer player) {
-        // ✨ 新逻辑：检查是否有潮湿值故障
-        int wetness = WetnessSystem.getWetness(player);
-
-        // 如果潮湿值达到故障阈值，不要清除故障（让潮湿系统管理）
-        if (wetness >= 80) {
-            return;
-        }
-
-        // 只有在确定没有潮湿故障时，才清除水接触故障
-        if (player.isPotionActive(ModPotions.MALFUNCTION)) {
+        // 移除水接触故障效果
+        // WetnessSystem 会独立管理雨天潮湿故障
+        UUID playerId = player.getUniqueID();
+        if (malfunctionLevel.containsKey(playerId)) {
             player.removePotionEffect(ModPotions.MALFUNCTION);
+            malfunctionLevel.remove(playerId);
         }
     }
 
