@@ -548,14 +548,21 @@ public class ItemMechanicalCore extends Item implements IBauble {
      * ✅ 从 Capability 读取升级等级（纯 Capability 模式）
      */
     private static int getUpgradeLevelFromCapability(net.minecraft.entity.player.EntityPlayer player, String upgradeId) {
-        if (player == null) return 0;
+        if (player == null) {
+            System.out.println("[getUpgradeLevelFromCapability] player is null");
+            return 0;
+        }
 
         com.moremod.capability.IMechCoreData data = player.getCapability(
             com.moremod.capability.IMechCoreData.CAPABILITY, null);
 
         if (data != null) {
             String moduleId = upgradeId.toUpperCase();
-            return data.getModuleLevel(moduleId);
+            int level = data.getModuleLevel(moduleId);
+            System.out.println("[getUpgradeLevelFromCapability] player=" + player.getName() + ", upgradeId=" + upgradeId + ", moduleId=" + moduleId + ", level=" + level);
+            return level;
+        } else {
+            System.out.println("[getUpgradeLevelFromCapability] Capability is null for player: " + player.getName());
         }
 
         return 0;
@@ -565,30 +572,51 @@ public class ItemMechanicalCore extends Item implements IBauble {
      * ✅ 改进的读取方法：优先从 Capability 读取，降级为 NBT 读取
      */
     private static int getUpgradeLevelDirect(ItemStack stack, String upgradeId) {
+        System.out.println("[getUpgradeLevelDirect] 开始读取: upgradeId=" + upgradeId);
+
         // ✅ 优先级 1：从 Capability 读取（如果有当前玩家）
         net.minecraft.entity.player.EntityPlayer currentPlayer = CURRENT_PLAYER.get();
+        System.out.println("[getUpgradeLevelDirect] CURRENT_PLAYER=" + (currentPlayer != null ? currentPlayer.getName() : "null"));
+
         if (currentPlayer != null) {
             int capabilityLevel = getUpgradeLevelFromCapability(currentPlayer, upgradeId);
+            System.out.println("[getUpgradeLevelDirect] Capability返回等级: " + capabilityLevel);
             if (capabilityLevel > 0) {
-                if (isTemporarilyBlockedByGui(stack, upgradeId)) return 0;
+                if (isTemporarilyBlockedByGui(stack, upgradeId)) {
+                    System.out.println("[getUpgradeLevelDirect] 被GUI阻止，返回0");
+                    return 0;
+                }
+                System.out.println("[getUpgradeLevelDirect] ✅ 从Capability读取成功: " + capabilityLevel);
                 return capabilityLevel;
             }
         }
 
         // ✅ 优先级 2：从 NBT 读取（向后兼容 / 降级方案）
-        if (!stack.hasTagCompound()) return 0;
+        System.out.println("[getUpgradeLevelDirect] Capability未返回数据，尝试NBT读取...");
+        if (!stack.hasTagCompound()) {
+            System.out.println("[getUpgradeLevelDirect] ItemStack没有NBT，返回0");
+            return 0;
+        }
 
         int level = stack.getTagCompound().getInteger("upgrade_" + upgradeId);
+        System.out.println("[getUpgradeLevelDirect] NBT读取 upgrade_" + upgradeId + " = " + level);
         if (level > 0) {
             if (isTemporarilyBlockedByGui(stack, upgradeId)) return 0;
+            System.out.println("[getUpgradeLevelDirect] ✅ 从NBT读取成功: " + level);
             return level;
         }
 
         try {
             if (!isCheckingUpgrade.get()) level = ItemMechanicalCoreExtended.getUpgradeLevel(stack, upgradeId);
+            System.out.println("[getUpgradeLevelDirect] Extended读取 " + upgradeId + " = " + level);
         } catch (Throwable ignored) {}
 
         if (level > 0 && isTemporarilyBlockedByGui(stack, upgradeId)) return 0;
+        if (level > 0) {
+            System.out.println("[getUpgradeLevelDirect] ✅ 从Extended读取成功: " + level);
+        } else {
+            System.out.println("[getUpgradeLevelDirect] ❌ 所有读取方式都返回0");
+        }
         return level;
     }
 

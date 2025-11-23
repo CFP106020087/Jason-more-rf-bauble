@@ -32,11 +32,17 @@ public class SurvivalUpgradeManager {
         private static final String NBT_LAST_ENERGY_CHECK = "MechanicalCoreShieldEnergyCheck";
 
         public static void updateShield(EntityPlayer player, ItemStack coreStack) {
+            System.out.println("[YellowShieldSystem] updateShield 被调用: player=" + player.getName());
+
             // ✅ 设置玩家上下文以支持 Capability 读取
             ItemMechanicalCore.setPlayerContext(player);
             try {
+                System.out.println("[YellowShieldSystem] 准备读取 YELLOW_SHIELD 等级...");
                 int level = ItemMechanicalCore.getUpgradeLevel(coreStack, "YELLOW_SHIELD");
+                System.out.println("[YellowShieldSystem] YELLOW_SHIELD 等级 = " + level);
+
                 if (level <= 0) {
+                    System.out.println("[YellowShieldSystem] 等级≤0，移除护盾");
                     // 移除所有吸收心
                     if (player.getAbsorptionAmount() > 0) {
                         player.setAbsorptionAmount(0);
