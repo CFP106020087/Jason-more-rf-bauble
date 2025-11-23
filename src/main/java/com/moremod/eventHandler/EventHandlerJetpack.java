@@ -382,33 +382,40 @@ public class EventHandlerJetpack {
         UUID playerId = player.getUniqueID();
         long worldTime = player.world.getTotalWorldTime();
 
-        PlayerCache cache = playerCaches.computeIfAbsent(playerId, k -> new PlayerCache());
-        updatePlayerEquipmentCache(player, cache);
+        // ✅ Set player context for all upgrade reads
+        ItemMechanicalCore.setPlayerContext(player);
+        try {
+            PlayerCache cache = playerCaches.computeIfAbsent(playerId, k -> new PlayerCache());
+            updatePlayerEquipmentCache(player, cache);
 
-        if (worldTime % PerformanceConfig.ENERGY_CHECK_INTERVAL == 0 && !cache.activeDevice.isEmpty()) {
-            if (checkAndHandleEnergyDepletion(player, cache.activeDevice, worldTime)) {
+            if (worldTime % PerformanceConfig.ENERGY_CHECK_INTERVAL == 0 && !cache.activeDevice.isEmpty()) {
+                if (checkAndHandleEnergyDepletion(player, cache.activeDevice, worldTime)) {
+                    return;
+                }
+            }
+
+            boolean jumping = Boolean.TRUE.equals(jetpackJumping.get(playerId));
+            boolean sneaking = Boolean.TRUE.equals(jetpackSneaking.get(playerId));
+
+            if (!cache.hasFlightDevice || !cache.isDeviceActive) {
+                playerFlying.put(playerId, false);
+                jetpackActivelyUsed.put(playerId, false);
+
+                // 恢复重力
+                player.setNoGravity(false);
                 return;
             }
-        }
 
-        boolean jumping = Boolean.TRUE.equals(jetpackJumping.get(playerId));
-        boolean sneaking = Boolean.TRUE.equals(jetpackSneaking.get(playerId));
-
-        if (!cache.hasFlightDevice || !cache.isDeviceActive) {
-            playerFlying.put(playerId, false);
-            jetpackActivelyUsed.put(playerId, false);
-
-            // 恢复重力
-            player.setNoGravity(false);
-            return;
-        }
-
-        // 机械核心或喷气背包：统一推力逻辑（分别计算能耗/速度）
-        if (ItemMechanicalCore.isMechanicalCore(cache.activeDevice)) {
-            handleMechanicalCoreThrust(player, cache, jumping, sneaking, worldTime);
-        } else if (cache.activeDevice.getItem() instanceof ItemJetpackBauble ||
-                cache.activeDevice.getItem() instanceof ItemCreativeJetpackBauble) {
-            handleJetpackThrust(player, cache, jumping, sneaking, worldTime);
+            // 机械核心或喷气背包：统一推力逻辑（分别计算能耗/速度）
+            if (ItemMechanicalCore.isMechanicalCore(cache.activeDevice)) {
+                handleMechanicalCoreThrust(player, cache, jumping, sneaking, worldTime);
+            } else if (cache.activeDevice.getItem() instanceof ItemJetpackBauble ||
+                    cache.activeDevice.getItem() instanceof ItemCreativeJetpackBauble) {
+                handleJetpackThrust(player, cache, jumping, sneaking, worldTime);
+            }
+        } finally {
+            // ✅ Clear player context
+            ItemMechanicalCore.clearPlayerContext();
         }
     }
 

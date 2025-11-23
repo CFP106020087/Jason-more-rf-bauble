@@ -148,8 +148,15 @@ public class EnergyUpgradeManager {
             ItemStack core = getCore(player);
             if (core.isEmpty()) return;
 
-            int level = ItemMechanicalCore.getUpgradeLevel(core, "KINETIC_GENERATOR");
-            if (level <= 0) return;
+            // ✅ Set player context for upgrade reads
+            ItemMechanicalCore.setPlayerContext(player);
+            int level;
+            try {
+                level = ItemMechanicalCore.getUpgradeLevel(core, "KINETIC_GENERATOR");
+                if (level <= 0) return;
+            } finally {
+                ItemMechanicalCore.clearPlayerContext();
+            }
 
             float hardness = event.getState().getBlockHardness(player.world, event.getPos());
             if (hardness < 0) return; // 不可破坏
@@ -332,8 +339,15 @@ public class EnergyUpgradeManager {
             ItemStack core = getCore(player);
             if (core.isEmpty()) return;
 
-            int level = ItemMechanicalCore.getUpgradeLevel(core, "COMBAT_CHARGER");
-            if (level <= 0) return;
+            // ✅ Set player context for upgrade reads
+            ItemMechanicalCore.setPlayerContext(player);
+            int level;
+            try {
+                level = ItemMechanicalCore.getUpgradeLevel(core, "COMBAT_CHARGER");
+                if (level <= 0) return;
+            } finally {
+                ItemMechanicalCore.clearPlayerContext();
+            }
 
             float maxHP = event.getEntityLiving().getMaxHealth();
             double base = maxHP * EnergyBalanceConfig.CombatCharger.ENERGY_PER_HP * level;
@@ -422,59 +436,66 @@ public class EnergyUpgradeManager {
         ItemStack core = getCore(player);
         if (core.isEmpty()) return;
 
-        // 只有升级安装且有效（等级>0）的情况下才驱动
-        if (ItemMechanicalCore.getUpgradeLevel(core, "KINETIC_GENERATOR") > 0) {
-            KineticGeneratorSystem.generateFromMovement(player, core);
-        }
-
-        if (ItemMechanicalCore.getUpgradeLevel(core, "SOLAR_GENERATOR") > 0) {
-            SolarGeneratorSystem.generateFromSunlight(player, core);
-        }
-
-        if (ItemMechanicalCore.getUpgradeLevel(core, "VOID_ENERGY") > 0) {
-            VoidEnergySystem.generateFromVoid(player, core);
-        }
-
-        // 连杀重置检查
-        long now = player.world.getTotalWorldTime();
-        long lastKill = player.getEntityData().getLong(NBT_COMBAT_LASTKILL_TICK);
-        if (now - lastKill > EnergyBalanceConfig.CombatCharger.STREAK_TIMEOUT) {
-            CombatChargerSystem.resetStreak(player.getUniqueID());
-        }
-
-        // 动能缓冲溢出保护
-        int buffer = player.getEntityData().getInteger(NBT_KINETIC_BUFFER);
-        int threshold = EnergyBalanceConfig.KineticGenerator.BUFFER_THRESHOLD;
-        if (buffer >= threshold * 2) { // 防止缓冲区过大
-            ItemMechanicalCore.addEnergy(core, buffer);
-            player.getEntityData().setInteger(NBT_KINETIC_BUFFER, 0);
-
-            if (DEBUG_MODE) {
-                System.out.println("[KineticGenerator] 缓冲区溢出保护: " + buffer + " RF");
+        // ✅ Set player context for all upgrade reads
+        ItemMechanicalCore.setPlayerContext(player);
+        try {
+            // 只有升级安装且有效（等级>0）的情况下才驱动
+            if (ItemMechanicalCore.getUpgradeLevel(core, "KINETIC_GENERATOR") > 0) {
+                KineticGeneratorSystem.generateFromMovement(player, core);
             }
-        }
 
-        // 定期状态报告（调试用）
-        if (DEBUG_MODE && now % 100 == 0) {
-            IEnergyStorage energy = ItemMechanicalCore.getEnergyStorage(core);
-            if (energy != null) {
-                System.out.println("[EnergyUpgradeManager] 当前能量: " +
-                        energy.getEnergyStored() + "/" + energy.getMaxEnergyStored() + " RF");
+            if (ItemMechanicalCore.getUpgradeLevel(core, "SOLAR_GENERATOR") > 0) {
+                SolarGeneratorSystem.generateFromSunlight(player, core);
+            }
 
-                if (buffer > 0) {
-                    System.out.println("  动能缓冲: " + buffer + " RF");
-                }
+            if (ItemMechanicalCore.getUpgradeLevel(core, "VOID_ENERGY") > 0) {
+                VoidEnergySystem.generateFromVoid(player, core);
+            }
 
-                int voidCharge = player.getEntityData().getInteger(NBT_VOID_CHARGE);
-                if (voidCharge > 0) {
-                    System.out.println("  虚空充能: " + voidCharge + "/100");
-                }
+            // 连杀重置检查
+            long now = player.world.getTotalWorldTime();
+            long lastKill = player.getEntityData().getLong(NBT_COMBAT_LASTKILL_TICK);
+            if (now - lastKill > EnergyBalanceConfig.CombatCharger.STREAK_TIMEOUT) {
+                CombatChargerSystem.resetStreak(player.getUniqueID());
+            }
 
-                int streak = CombatChargerSystem.getStreak(player.getUniqueID());
-                if (streak > 0) {
-                    System.out.println("  连杀: x" + streak);
+            // 动能缓冲溢出保护
+            int buffer = player.getEntityData().getInteger(NBT_KINETIC_BUFFER);
+            int threshold = EnergyBalanceConfig.KineticGenerator.BUFFER_THRESHOLD;
+            if (buffer >= threshold * 2) { // 防止缓冲区过大
+                ItemMechanicalCore.addEnergy(core, buffer);
+                player.getEntityData().setInteger(NBT_KINETIC_BUFFER, 0);
+
+                if (DEBUG_MODE) {
+                    System.out.println("[KineticGenerator] 缓冲区溢出保护: " + buffer + " RF");
                 }
             }
+
+            // 定期状态报告（调试用）
+            if (DEBUG_MODE && now % 100 == 0) {
+                IEnergyStorage energy = ItemMechanicalCore.getEnergyStorage(core);
+                if (energy != null) {
+                    System.out.println("[EnergyUpgradeManager] 当前能量: " +
+                            energy.getEnergyStored() + "/" + energy.getMaxEnergyStored() + " RF");
+
+                    if (buffer > 0) {
+                        System.out.println("  动能缓冲: " + buffer + " RF");
+                    }
+
+                    int voidCharge = player.getEntityData().getInteger(NBT_VOID_CHARGE);
+                    if (voidCharge > 0) {
+                        System.out.println("  虚空充能: " + voidCharge + "/100");
+                    }
+
+                    int streak = CombatChargerSystem.getStreak(player.getUniqueID());
+                    if (streak > 0) {
+                        System.out.println("  连杀: x" + streak);
+                    }
+                }
+            }
+        } finally {
+            // ✅ Clear player context
+            ItemMechanicalCore.clearPlayerContext();
         }
     }
 

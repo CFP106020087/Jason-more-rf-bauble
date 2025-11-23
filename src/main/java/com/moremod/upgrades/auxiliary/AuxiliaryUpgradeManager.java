@@ -999,45 +999,52 @@ public class AuxiliaryUpgradeManager {
         ItemStack core = ItemMechanicalCore.getCoreFromPlayer(p);
         if (core.isEmpty()) return;
 
-        IEnergyStorage storage = ItemMechanicalCore.getEnergyStorage(core);
-        if (storage == null) return;
+        // ✅ Set player context for all upgrade reads
+        ItemMechanicalCore.setPlayerContext(p);
+        try {
+            IEnergyStorage storage = ItemMechanicalCore.getEnergyStorage(core);
+            if (storage == null) return;
 
-        int cur = storage.getEnergyStored();
-        int max = storage.getMaxEnergyStored();
-        if (max == 0) return;
-        float pct = (float) cur / max;
+            int cur = storage.getEnergyStored();
+            int max = storage.getMaxEnergyStored();
+            if (max == 0) return;
+            float pct = (float) cur / max;
 
-        if (pct < 0.03f) {
-            MovementSpeedSystem.resetSpeed(p);
-            StealthSystem.disableStealth(p);
-            if (p.world.isRemote) OreVisionSystem.reset();
-            if (canSendMessage(p, "critical_energy")) {
-                p.sendStatusMessage(new TextComponentString(TextFormatting.DARK_RED + "⚠ 能量危急！所有系统关闭 (" +
-                        String.format(Locale.ROOT, "%.1f%%", pct * 100) + ")"), true);
+            if (pct < 0.03f) {
+                MovementSpeedSystem.resetSpeed(p);
+                StealthSystem.disableStealth(p);
+                if (p.world.isRemote) OreVisionSystem.reset();
+                if (canSendMessage(p, "critical_energy")) {
+                    p.sendStatusMessage(new TextComponentString(TextFormatting.DARK_RED + "⚠ 能量危急！所有系统关闭 (" +
+                            String.format(Locale.ROOT, "%.1f%%", pct * 100) + ")"), true);
+                }
+            } else if (pct < 0.05f) {
+                MovementSpeedSystem.updateSpeed(p, core);
+                StealthSystem.disableStealth(p);
+                if (p.world.isRemote) OreVisionSystem.reset();
+                if (canSendMessage(p, "emergency_energy")) {
+                    p.sendStatusMessage(new TextComponentString(TextFormatting.RED + "⚡ 能量紧急，仅保留移动系统 (" +
+                            String.format(Locale.ROOT, "%.1f%%", pct * 100) + ")"), true);
+                }
+            } else if (pct < 0.15f) {
+                MovementSpeedSystem.updateSpeed(p, core);
+                if (StealthSystem.isStealthActive(p)) StealthSystem.disableStealth(p);
+                if (p.world.isRemote && OreVisionSystem.isOreVisionActive()) OreVisionSystem.reset();
+                if (canSendMessage(p, "power_saving")) {
+                    p.sendStatusMessage(new TextComponentString(TextFormatting.YELLOW + "⚡ 省电模式，高耗能功能已禁用 (" +
+                            String.format(Locale.ROOT, "%.1f%%", pct * 100) + ")"), true);
+                }
+            } else {
+                MovementSpeedSystem.updateSpeed(p, core);
+                StealthSystem.updateStealth(p, core);
+                if (p.world.isRemote) {
+                    int oreLevel = ItemMechanicalCore.getUpgradeLevel(core, "ORE_VISION");
+                    if (oreLevel > 0) OreVisionSystem.updateScan(p, oreLevel);
+                }
             }
-        } else if (pct < 0.05f) {
-            MovementSpeedSystem.updateSpeed(p, core);
-            StealthSystem.disableStealth(p);
-            if (p.world.isRemote) OreVisionSystem.reset();
-            if (canSendMessage(p, "emergency_energy")) {
-                p.sendStatusMessage(new TextComponentString(TextFormatting.RED + "⚡ 能量紧急，仅保留移动系统 (" +
-                        String.format(Locale.ROOT, "%.1f%%", pct * 100) + ")"), true);
-            }
-        } else if (pct < 0.15f) {
-            MovementSpeedSystem.updateSpeed(p, core);
-            if (StealthSystem.isStealthActive(p)) StealthSystem.disableStealth(p);
-            if (p.world.isRemote && OreVisionSystem.isOreVisionActive()) OreVisionSystem.reset();
-            if (canSendMessage(p, "power_saving")) {
-                p.sendStatusMessage(new TextComponentString(TextFormatting.YELLOW + "⚡ 省电模式，高耗能功能已禁用 (" +
-                        String.format(Locale.ROOT, "%.1f%%", pct * 100) + ")"), true);
-            }
-        } else {
-            MovementSpeedSystem.updateSpeed(p, core);
-            StealthSystem.updateStealth(p, core);
-            if (p.world.isRemote) {
-                int oreLevel = ItemMechanicalCore.getUpgradeLevel(core, "ORE_VISION");
-                if (oreLevel > 0) OreVisionSystem.updateScan(p, oreLevel);
-            }
+        } finally {
+            // ✅ Clear player context
+            ItemMechanicalCore.clearPlayerContext();
         }
     }
 

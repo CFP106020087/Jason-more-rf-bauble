@@ -443,42 +443,49 @@ public class CombatUpgradeManager {
         ItemStack coreStack = ItemMechanicalCore.getCoreFromPlayer(player);
         if (coreStack.isEmpty()) return;
 
-        // 获取能量状态
-        EnergyDepletionManager.EnergyStatus status = ItemMechanicalCore.getEnergyStatus(coreStack);
+        // ✅ Set player context for all upgrade reads
+        ItemMechanicalCore.setPlayerContext(player);
+        try {
+            // 获取能量状态
+            EnergyDepletionManager.EnergyStatus status = ItemMechanicalCore.getEnergyStatus(coreStack);
 
-        // 如果在生命支持模式，不应用战斗升级
-        if (status == EnergyDepletionManager.EnergyStatus.CRITICAL) {
-            AttackSpeedSystem.removeAttackSpeed(player);
-            RangeExtensionSystem.removeReachExtension(player);
+            // 如果在生命支持模式，不应用战斗升级
+            if (status == EnergyDepletionManager.EnergyStatus.CRITICAL) {
+                AttackSpeedSystem.removeAttackSpeed(player);
+                RangeExtensionSystem.removeReachExtension(player);
 
-            // 清除追击标记
-            player.getEntityData().removeTag(PursuitSystem.NBT_PURSUIT_TARGET);
-            player.getEntityData().setInteger(PursuitSystem.NBT_PURSUIT_STACKS, 0);
-            return;
-        }
+                // 清除追击标记
+                player.getEntityData().removeTag(PursuitSystem.NBT_PURSUIT_TARGET);
+                player.getEntityData().setInteger(PursuitSystem.NBT_PURSUIT_STACKS, 0);
+                return;
+            }
 
-        // 紧急模式下，只保留基础战斗加成
-        if (status == EnergyDepletionManager.EnergyStatus.EMERGENCY) {
-            // 保留攻击速度和伤害，但移除范围扩展
-            AttackSpeedSystem.applyAttackSpeed(player, coreStack);
-            RangeExtensionSystem.removeReachExtension(player);
-        } else {
-            // 正常或省电模式，应用所有战斗升级
-            AttackSpeedSystem.applyAttackSpeed(player, coreStack);
-            RangeExtensionSystem.applyReachExtension(player, coreStack);
-        }
+            // 紧急模式下，只保留基础战斗加成
+            if (status == EnergyDepletionManager.EnergyStatus.EMERGENCY) {
+                // 保留攻击速度和伤害，但移除范围扩展
+                AttackSpeedSystem.applyAttackSpeed(player, coreStack);
+                RangeExtensionSystem.removeReachExtension(player);
+            } else {
+                // 正常或省电模式，应用所有战斗升级
+                AttackSpeedSystem.applyAttackSpeed(player, coreStack);
+                RangeExtensionSystem.applyReachExtension(player, coreStack);
+            }
 
-        // 顯示觸及範圍指示器（可選）
-        if (player.getHeldItemMainhand().isEmpty() && player.isSneaking()) {
-            int rangeLevel = ItemMechanicalCore.getUpgradeLevel(coreStack, "RANGE_EXTENSION");
-            RangeExtensionSystem.showReachIndicator(player, rangeLevel);
-        }
+            // 顯示觸及範圍指示器（可選）
+            if (player.getHeldItemMainhand().isEmpty() && player.isSneaking()) {
+                int rangeLevel = ItemMechanicalCore.getUpgradeLevel(coreStack, "RANGE_EXTENSION");
+                RangeExtensionSystem.showReachIndicator(player, rangeLevel);
+            }
 
-        // 清理过期的追击标记（1秒）
-        long lastPursuit = player.getEntityData().getLong(PursuitSystem.NBT_LAST_PURSUIT);
-        if (player.world.getTotalWorldTime() - lastPursuit > 20) {  // 改为20 ticks (1秒)
-            player.getEntityData().removeTag(PursuitSystem.NBT_PURSUIT_TARGET);
-            player.getEntityData().setInteger(PursuitSystem.NBT_PURSUIT_STACKS, 0);
+            // 清理过期的追击标记（1秒）
+            long lastPursuit = player.getEntityData().getLong(PursuitSystem.NBT_LAST_PURSUIT);
+            if (player.world.getTotalWorldTime() - lastPursuit > 20) {  // 改为20 ticks (1秒)
+                player.getEntityData().removeTag(PursuitSystem.NBT_PURSUIT_TARGET);
+                player.getEntityData().setInteger(PursuitSystem.NBT_PURSUIT_STACKS, 0);
+            }
+        } finally {
+            // ✅ Clear player context
+            ItemMechanicalCore.clearPlayerContext();
         }
     }
 
@@ -491,18 +498,24 @@ public class CombatUpgradeManager {
         ItemStack coreStack = ItemMechanicalCore.getCoreFromPlayer(player);
         if (coreStack.isEmpty()) return;
 
-        // 檢查攻擊速度連擊
-        AttackSpeedSystem.checkCombo(player, ItemMechanicalCore.getUpgradeLevel(coreStack, "ATTACK_SPEED"));
+        // ✅ Set player context for upgrade reads
+        ItemMechanicalCore.setPlayerContext(player);
+        try {
+            // 檢查攻擊速度連擊
+            AttackSpeedSystem.checkCombo(player, ItemMechanicalCore.getUpgradeLevel(coreStack, "ATTACK_SPEED"));
 
-        if (event.getTarget() instanceof EntityLivingBase) {
-            // 追击标记
-            int pursuitLevel = ItemMechanicalCore.getUpgradeLevel(coreStack, "PURSUIT");
-            PursuitSystem.markTarget(player, event.getTarget(), pursuitLevel);
+            if (event.getTarget() instanceof EntityLivingBase) {
+                // 追击标记
+                int pursuitLevel = ItemMechanicalCore.getUpgradeLevel(coreStack, "PURSUIT");
+                PursuitSystem.markTarget(player, event.getTarget(), pursuitLevel);
 
-            // 追击冲刺
-            if (player.isSneaking()) {
-                PursuitSystem.dashToTarget(player, event.getTarget(), pursuitLevel);
+                // 追击冲刺
+                if (player.isSneaking()) {
+                    PursuitSystem.dashToTarget(player, event.getTarget(), pursuitLevel);
+                }
             }
+        } finally {
+            ItemMechanicalCore.clearPlayerContext();
         }
     }
 
@@ -517,40 +530,46 @@ public class CombatUpgradeManager {
             ItemStack coreStack = ItemMechanicalCore.getCoreFromPlayer(player);
             if (coreStack.isEmpty()) return;
 
-            float damage = event.getAmount();
+            // ✅ Set player context for upgrade reads
+            ItemMechanicalCore.setPlayerContext(player);
+            try {
+                float damage = event.getAmount();
 
-            // 應用傷害提升
-            int damageLevel = ItemMechanicalCore.getUpgradeLevel(coreStack, "DAMAGE_BOOST");
-            if (damageLevel > 0) {
-                float multiplier = DamageBoostSystem.getDamageMultiplier(player, coreStack);
-                damage *= multiplier;
+                // 應用傷害提升
+                int damageLevel = ItemMechanicalCore.getUpgradeLevel(coreStack, "DAMAGE_BOOST");
+                if (damageLevel > 0) {
+                    float multiplier = DamageBoostSystem.getDamageMultiplier(player, coreStack);
+                    damage *= multiplier;
 
-                // 顯示傷害加成
-                if (multiplier > 1.0F && player.world.rand.nextInt(5) == 0) {
-                    player.sendStatusMessage(new TextComponentString(
-                            TextFormatting.RED + String.format("⚔ 傷害加成 +%d%%", (int)((multiplier - 1) * 100))
-                    ), true);
+                    // 顯示傷害加成
+                    if (multiplier > 1.0F && player.world.rand.nextInt(5) == 0) {
+                        player.sendStatusMessage(new TextComponentString(
+                                TextFormatting.RED + String.format("⚔ 傷害加成 +%d%%", (int)((multiplier - 1) * 100))
+                        ), true);
+                    }
                 }
-            }
 
-            // 應用暴擊
-            damage = DamageBoostSystem.applyCritical(player, damage, damageLevel);
+                // 應用暴擊
+                damage = DamageBoostSystem.applyCritical(player, damage, damageLevel);
 
-            // 應用追擊傷害
-            float pursuitBonus = PursuitSystem.getPursuitDamage(player, event.getEntity());
-            if (pursuitBonus > 0) {
-                damage *= (1 + pursuitBonus);
+                // 應用追擊傷害
+                float pursuitBonus = PursuitSystem.getPursuitDamage(player, event.getEntity());
+                if (pursuitBonus > 0) {
+                    damage *= (1 + pursuitBonus);
 
-                // 顯示追擊加成
-                if (player.world.rand.nextInt(3) == 0) {
-                    player.sendStatusMessage(new TextComponentString(
-                            TextFormatting.LIGHT_PURPLE + String.format("⚡ 追擊加成 +%d%%", (int)(pursuitBonus * 100))
-                    ), true);
+                    // 顯示追擊加成
+                    if (player.world.rand.nextInt(3) == 0) {
+                        player.sendStatusMessage(new TextComponentString(
+                                TextFormatting.LIGHT_PURPLE + String.format("⚡ 追擊加成 +%d%%", (int)(pursuitBonus * 100))
+                        ), true);
+                    }
                 }
-            }
 
-            // 設置最終傷害
-            event.setAmount(damage);
+                // 設置最終傷害
+                event.setAmount(damage);
+            } finally {
+                ItemMechanicalCore.clearPlayerContext();
+            }
         }
     }
 
