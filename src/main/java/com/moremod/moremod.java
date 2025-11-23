@@ -67,6 +67,9 @@ import com.moremod.upgrades.auxiliary.AuxiliaryUpgradeManager;
 import com.moremod.upgrades.combat.CombatUpgradeManager;
 import com.moremod.upgrades.energy.EnergyUpgradeManager;
 import com.moremod.upgrades.survival.SurvivalUpgradeManager;
+// ❌ 废弃：新模块系统实现（capability.module.impl）
+// 保留旧的 UpgradeManager 系统处理所有模块效果
+/*
 import com.moremod.capability.module.impl.FlightModule;
 import com.moremod.capability.module.impl.ShieldGeneratorModule;
 import com.moremod.capability.module.impl.EnergyCapacityModule;
@@ -94,6 +97,7 @@ import com.moremod.capability.module.impl.TemperatureControlModule;
 import com.moremod.capability.module.impl.WaterproofModule;
 import com.moremod.capability.module.impl.PoisonImmunityModule;
 import com.moremod.capability.module.impl.ItemMagnetModule;
+*/
 
 // 飾品盒系統導入
 
@@ -304,6 +308,14 @@ public class moremod {
         // 4. 初始化模块注册中心
         ModuleRegistry.init();
 
+        // ❌ 废弃：新模块系统注册
+        // 原因：旧的 UpgradeManager 系统实现更完善，继续使用旧系统
+        // 所有模块效果由以下系统处理：
+        //   - CombatUpgradeManager (战斗模块)
+        //   - EnergyUpgradeManager (能量模块)
+        //   - SurvivalUpgradeManager (生存模块)
+        //   - AuxiliaryUpgradeManager (辅助模块)
+        /*
         // 5. 注册所有模块
         System.out.println("[moremod] 📦 注册机械核心模块...");
         ModuleRegistry.registerNew(FlightModule.INSTANCE);
@@ -334,6 +346,8 @@ public class moremod {
         ModuleRegistry.registerNew(PoisonImmunityModule.INSTANCE);
         ModuleRegistry.registerNew(ItemMagnetModule.INSTANCE);
         System.out.println("[moremod] ✅ 机械核心模块注册完成（27 个模块）");
+        */
+        System.out.println("[moremod] ✅ 使用旧 UpgradeManager 系统处理所有模块效果");
 
         // ========== Ritual 多方块：创建实例（不在这里注册）==========
         System.out.println("[moremod] 🔮 创建 Ritual 多方块实例...");
