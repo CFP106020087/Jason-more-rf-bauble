@@ -4,8 +4,12 @@ import com.moremod.capability.IMechCoreData;
 import com.moremod.capability.module.IMechCoreModule;
 import com.moremod.capability.module.ModuleContainer;
 import com.moremod.capability.module.ModuleContext;
+import com.moremod.event.EnergyPunishmentSystem;
+import com.moremod.item.ItemMechanicalCore;
 import com.moremod.upgrades.ModuleRegistry;
+import com.moremod.upgrades.energy.EnergyDepletionManager;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.ItemStack;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 import org.apache.logging.log4j.LogManager;
@@ -104,9 +108,61 @@ public class ModuleTickHandler {
             }
         }
 
+        // 能量惩罚系统（仅每秒检查一次）
+        if (player.world.getTotalWorldTime() % 20 == 0) {
+            handleEnergyPunishment(player, data);
+        }
+
         // 标记脏（如果有变化）
         if (data.isDirty()) {
             // TODO: 网络同步
+        }
+    }
+
+    /**
+     * 处理能量惩罚系统
+     *
+     * 基于 Capability 能量状态调用惩罚系统
+     */
+    private void handleEnergyPunishment(EntityPlayer player, IMechCoreData data) {
+        // 计算能量状态
+        EnergyDepletionManager.EnergyStatus status = calculateEnergyStatus(data);
+
+        // 仅在低能量状态下执行惩罚
+        if (status == EnergyDepletionManager.EnergyStatus.EMERGENCY ||
+            status == EnergyDepletionManager.EnergyStatus.CRITICAL) {
+
+            // 获取核心物品（用于 EnergyPunishmentSystem 的 ItemStack 操作）
+            ItemStack coreStack = ItemMechanicalCore.getCoreFromPlayer(player);
+
+            if (!coreStack.isEmpty() && ItemMechanicalCore.isMechanicalCore(coreStack)) {
+                // 调用惩罚系统（保持与旧系统兼容）
+                EnergyPunishmentSystem.tick(coreStack, player, status);
+            }
+        }
+    }
+
+    /**
+     * 根据 Capability 数据计算能量状态
+     */
+    private EnergyDepletionManager.EnergyStatus calculateEnergyStatus(IMechCoreData data) {
+        int current = data.getEnergy();
+        int max = data.getMaxEnergy();
+
+        if (max == 0) {
+            return EnergyDepletionManager.EnergyStatus.CRITICAL;
+        }
+
+        float percentage = (float) current / max;
+
+        if (percentage >= EnergyDepletionManager.EnergyStatus.NORMAL.threshold) {
+            return EnergyDepletionManager.EnergyStatus.NORMAL;
+        } else if (percentage >= EnergyDepletionManager.EnergyStatus.POWER_SAVING.threshold) {
+            return EnergyDepletionManager.EnergyStatus.POWER_SAVING;
+        } else if (percentage >= EnergyDepletionManager.EnergyStatus.EMERGENCY.threshold) {
+            return EnergyDepletionManager.EnergyStatus.EMERGENCY;
+        } else {
+            return EnergyDepletionManager.EnergyStatus.CRITICAL;
         }
     }
 }
