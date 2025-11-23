@@ -42,7 +42,14 @@ public class MechanicalCoreNetworkHandler {
         ItemStack core = findMechanicalCoreWithFlight(mc.player);
         if (core.isEmpty()) return;
 
-        int flightLevel = ItemMechanicalCore.getUpgradeLevel(core, ItemMechanicalCore.UpgradeType.FLIGHT_MODULE);
+        // ✅ Set player context for upgrade reads (client-side)
+        ItemMechanicalCore.setPlayerContext(mc.player);
+        int flightLevel;
+        try {
+            flightLevel = ItemMechanicalCore.getUpgradeLevel(core, ItemMechanicalCore.UpgradeType.FLIGHT_MODULE);
+        } finally {
+            ItemMechanicalCore.clearPlayerContext();
+        }
 
         // V：机械核心飞行开关
         if (JetpackKeyHandler.keyToggleJetpack.isPressed()) {
@@ -112,7 +119,14 @@ public class MechanicalCoreNetworkHandler {
         for (int i = 0; i < h.getSlots(); i++) {
             ItemStack stack = h.getStackInSlot(i);
             if (ItemMechanicalCore.isMechanicalCore(stack)) {
-                int level = ItemMechanicalCore.getUpgradeLevel(stack, ItemMechanicalCore.UpgradeType.FLIGHT_MODULE);
+                // ✅ Set player context for upgrade reads
+                ItemMechanicalCore.setPlayerContext(player);
+                int level;
+                try {
+                    level = ItemMechanicalCore.getUpgradeLevel(stack, ItemMechanicalCore.UpgradeType.FLIGHT_MODULE);
+                } finally {
+                    ItemMechanicalCore.clearPlayerContext();
+                }
                 if (level > 0) return stack;
             }
         }

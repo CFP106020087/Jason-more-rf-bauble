@@ -297,16 +297,23 @@ public class EnergyDepletionManager {
         // 系统概览（示例保留）
         String[] important = {"HEALTH_REGEN","YELLOW_SHIELD","DAMAGE_BOOST","MOVEMENT_SPEED","FLIGHT_MODULE","ORE_VISION","STEALTH"};
         player.sendMessage(new TextComponentString(TextFormatting.GRAY + "━━━ 系统状态 ━━━"));
-        for (String id : important) {
-            int lv = getUpgradeLevel(stack, id);
-            if (lv > 0) {
-                boolean active = isUpgradeActive(stack, id);
-                TextFormatting c = active ? TextFormatting.GREEN : TextFormatting.RED;
-                String ico = active ? "✓" : "✗";
-                player.sendMessage(new TextComponentString(
-                        c + ico + " " + getUpgradeDisplayName(id) + " Lv." + lv + (active ? "" : TextFormatting.GRAY + " (能量不足或锁定)")
-                ));
+
+        // ✅ Set player context for all upgrade reads
+        ItemMechanicalCore.setPlayerContext(player);
+        try {
+            for (String id : important) {
+                int lv = getUpgradeLevel(stack, id);
+                if (lv > 0) {
+                    boolean active = isUpgradeActive(stack, id);
+                    TextFormatting c = active ? TextFormatting.GREEN : TextFormatting.RED;
+                    String ico = active ? "✓" : "✗";
+                    player.sendMessage(new TextComponentString(
+                            c + ico + " " + getUpgradeDisplayName(id) + " Lv." + lv + (active ? "" : TextFormatting.GRAY + " (能量不足或锁定)")
+                    ));
+                }
             }
+        } finally {
+            ItemMechanicalCore.clearPlayerContext();
         }
     }
 

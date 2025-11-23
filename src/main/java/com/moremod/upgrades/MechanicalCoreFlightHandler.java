@@ -34,15 +34,24 @@ public class MechanicalCoreFlightHandler {
     public static void handleFlightModule(EntityPlayer player, ItemStack coreStack) {
         if (player == null || coreStack == null || coreStack.isEmpty()) return;
 
-        int flightLevel = ItemMechanicalCore.getUpgradeLevel(coreStack, ItemMechanicalCore.UpgradeType.FLIGHT_MODULE);
-        if (flightLevel <= 0) return;
+        // ✅ Set player context for all upgrade reads
+        ItemMechanicalCore.setPlayerContext(player);
+        int flightLevel;
+        int speedLevel;
+        int efficiencyLevel;
+        try {
+            flightLevel = ItemMechanicalCore.getUpgradeLevel(coreStack, ItemMechanicalCore.UpgradeType.FLIGHT_MODULE);
+            if (flightLevel <= 0) return;
 
-        IEnergyStorage energy = coreStack.getCapability(CapabilityEnergy.ENERGY, null);
-        if (energy == null) return;
+            IEnergyStorage energy = coreStack.getCapability(CapabilityEnergy.ENERGY, null);
+            if (energy == null) return;
 
-        // 协同升级
-        int speedLevel      = ItemMechanicalCore.getUpgradeLevel(coreStack, ItemMechanicalCore.UpgradeType.SPEED_BOOST);
-        int efficiencyLevel = ItemMechanicalCore.getUpgradeLevel(coreStack, ItemMechanicalCore.UpgradeType.ENERGY_EFFICIENCY);
+            // 协同升级
+            speedLevel = ItemMechanicalCore.getUpgradeLevel(coreStack, ItemMechanicalCore.UpgradeType.SPEED_BOOST);
+            efficiencyLevel = ItemMechanicalCore.getUpgradeLevel(coreStack, ItemMechanicalCore.UpgradeType.ENERGY_EFFICIENCY);
+        } finally {
+            ItemMechanicalCore.clearPlayerContext();
+        }
 
         // 键位状态来自 EventHandlerJetpack（客户端每隔2tick上报）
         UUID pid = player.getUniqueID();
