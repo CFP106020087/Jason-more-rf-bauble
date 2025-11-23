@@ -64,6 +64,12 @@ public interface IMechCoreData {
     /** 激活/停用模块 */
     void setModuleActive(String moduleId, boolean active);
 
+    /** 获取模块原始最高等级（用于修复系统） */
+    int getOriginalMaxLevel(String moduleId);
+
+    /** 设置模块原始最高等级（永不降低） */
+    void setOriginalMaxLevel(String moduleId, int maxLevel);
+
     // ────────────────────────────────────────────────────────────
     // 元数据（紧凑存储）
     // ────────────────────────────────────────────────────────────

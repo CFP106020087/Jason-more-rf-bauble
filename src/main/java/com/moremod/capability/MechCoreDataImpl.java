@@ -166,6 +166,17 @@ public class MechCoreDataImpl implements IMechCoreData {
         markDirty();
     }
 
+    @Override
+    public int getOriginalMaxLevel(String moduleId) {
+        return moduleContainer.getOriginalMaxLevel(moduleId);
+    }
+
+    @Override
+    public void setOriginalMaxLevel(String moduleId, int maxLevel) {
+        moduleContainer.setOriginalMaxLevel(moduleId, maxLevel);
+        markDirty();
+    }
+
     // ────────────────────────────────────────────────────────────
     // 元数据
     // ────────────────────────────────────────────────────────────

@@ -21,6 +21,9 @@ public class ModuleContainer {
     /** 模块等级存储 (moduleId → level) */
     private final Map<String, Integer> moduleLevels = new HashMap<>();
 
+    /** 模块原始最高等级存储 (moduleId → originalMaxLevel) */
+    private final Map<String, Integer> originalMaxLevels = new HashMap<>();
+
     /** 模块激活状态 (moduleId → active) */
     private final Map<String, Boolean> moduleActive = new HashMap<>();
 
@@ -78,6 +81,23 @@ public class ModuleContainer {
     }
 
     // ────────────────────────────────────────────────────────────
+    // 原始最高等级管理（用于修复系统）
+    // ────────────────────────────────────────────────────────────
+
+    /** 获取模块原始最高等级 */
+    public int getOriginalMaxLevel(String moduleId) {
+        return originalMaxLevels.getOrDefault(moduleId, 0);
+    }
+
+    /** 设置模块原始最高等级（永不降低） */
+    public void setOriginalMaxLevel(String moduleId, int maxLevel) {
+        int currentMax = originalMaxLevels.getOrDefault(moduleId, 0);
+        if (maxLevel > currentMax) {
+            originalMaxLevels.put(moduleId, maxLevel);
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────
     // 元数据管理
     // ────────────────────────────────────────────────────────────
 
@@ -104,6 +124,11 @@ public class ModuleContainer {
         moduleLevels.forEach((id, level) -> levels.setInteger(id, level));
         nbt.setTag("LEVELS", levels);
 
+        // 存储原始最高等级
+        NBTTagCompound originalMax = new NBTTagCompound();
+        originalMaxLevels.forEach((id, maxLevel) -> originalMax.setInteger(id, maxLevel));
+        nbt.setTag("ORIGINAL_MAX", originalMax);
+
         // 存储激活状态
         NBTTagCompound active = new NBTTagCompound();
         moduleActive.forEach((id, isActive) -> active.setBoolean(id, isActive));
@@ -120,6 +145,7 @@ public class ModuleContainer {
     /** 从 NBT 反序列化 */
     public void deserializeNBT(NBTTagCompound nbt) {
         moduleLevels.clear();
+        originalMaxLevels.clear();
         moduleActive.clear();
         moduleMeta.clear();
 
@@ -128,6 +154,14 @@ public class ModuleContainer {
             NBTTagCompound levels = nbt.getCompoundTag("LEVELS");
             for (String key : levels.getKeySet()) {
                 moduleLevels.put(key, levels.getInteger(key));
+            }
+        }
+
+        // 读取原始最高等级
+        if (nbt.hasKey("ORIGINAL_MAX")) {
+            NBTTagCompound originalMax = nbt.getCompoundTag("ORIGINAL_MAX");
+            for (String key : originalMax.getKeySet()) {
+                originalMaxLevels.put(key, originalMax.getInteger(key));
             }
         }
 

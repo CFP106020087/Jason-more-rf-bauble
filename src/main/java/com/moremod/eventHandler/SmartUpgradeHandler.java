@@ -90,7 +90,7 @@ public class SmartUpgradeHandler {
     // ================= ✅ 核心：记录 OriginalMax =================
 
     /**
-     * ✅ 记录/更新 OriginalMax（历史最高值）
+     * ✅ 记录/更新 OriginalMax（历史最高值）到 Capability
      *
      * 规则：
      * 1. 如果 OriginalMax 不存在，设置为 newLevel
@@ -98,45 +98,47 @@ public class SmartUpgradeHandler {
      * 3. 永不降低 OriginalMax
      */
     private void recordOriginalMax(ItemStack coreStack, String upgradeId, int newLevel) {
-        NBTTagCompound nbt = UpgradeKeys.getOrCreate(coreStack);
+        // 优先使用 Capability（需要当前玩家上下文）
+        EntityPlayer player = getCurrentPlayer();
+        if (player != null) {
+            IMechCoreData capData = player.getCapability(IMechCoreData.CAPABILITY, null);
+            if (capData != null) {
+                String moduleId = upgradeId.toUpperCase();
+                int currentMax = capData.getOriginalMaxLevel(moduleId);
 
+                if (newLevel > currentMax) {
+                    System.out.println("[RecordOriginalMax] 更新历史最高值到Capability: " + moduleId);
+                    System.out.println("  旧值: " + currentMax);
+                    System.out.println("  新值: " + newLevel);
+                    capData.setOriginalMaxLevel(moduleId, newLevel);
+                } else if (currentMax > 0) {
+                    System.out.println("[RecordOriginalMax] 保持历史最高值: " + moduleId + " = " + currentMax);
+                } else {
+                    System.out.println("[RecordOriginalMax] 首次记录到Capability: " + moduleId + " = " + newLevel);
+                    capData.setOriginalMaxLevel(moduleId, newLevel);
+                }
+                return;
+            }
+        }
+
+        // 降级方案：写入 NBT（向后兼容）
+        NBTTagCompound nbt = UpgradeKeys.getOrCreate(coreStack);
         String upperId = upgradeId.toUpperCase();
         String lowerId = upgradeId.toLowerCase();
-        String[] variants = {upgradeId, upperId, lowerId};
 
-        // 获取当前的 OriginalMax
-        int currentOriginalMax = 0;
-        for (String variant : variants) {
-            int val = nbt.getInteger(K_ORIGINAL_MAX + variant);
-            currentOriginalMax = Math.max(currentOriginalMax, val);
-        }
+        int currentMax = Math.max(
+            nbt.getInteger(K_ORIGINAL_MAX + upgradeId),
+            Math.max(
+                nbt.getInteger(K_ORIGINAL_MAX + upperId),
+                nbt.getInteger(K_ORIGINAL_MAX + lowerId)
+            )
+        );
 
-        // ✅ 只在新等级更高时更新
-        if (newLevel > currentOriginalMax) {
-            System.out.println("[RecordOriginalMax] 更新历史最高值: " + upgradeId);
-            System.out.println("  旧值: " + currentOriginalMax);
-            System.out.println("  新值: " + newLevel);
-
-            // 写入所有三个变体
+        if (newLevel > currentMax || currentMax == 0) {
+            System.out.println("[RecordOriginalMax] 降级写入NBT: " + upgradeId + " = " + newLevel);
             nbt.setInteger(K_ORIGINAL_MAX + upgradeId, newLevel);
             nbt.setInteger(K_ORIGINAL_MAX + upperId, newLevel);
             nbt.setInteger(K_ORIGINAL_MAX + lowerId, newLevel);
-        } else if (currentOriginalMax > 0) {
-            System.out.println("[RecordOriginalMax] 保持历史最高值: " + upgradeId + " = " + currentOriginalMax);
-        } else {
-            // 第一次记录
-            System.out.println("[RecordOriginalMax] 首次记录: " + upgradeId + " = " + newLevel);
-            nbt.setInteger(K_ORIGINAL_MAX + upgradeId, newLevel);
-            nbt.setInteger(K_ORIGINAL_MAX + upperId, newLevel);
-            nbt.setInteger(K_ORIGINAL_MAX + lowerId, newLevel);
-        }
-
-        // ✅ 验证写入成功
-        int verify = nbt.getInteger(K_ORIGINAL_MAX + upperId);
-        if (verify < newLevel) {
-            System.err.println("[RecordOriginalMax] ⚠️ 警告：写入验证失败！");
-            System.err.println("  预期: " + newLevel);
-            System.err.println("  实际: " + verify);
         }
     }
 
