@@ -91,6 +91,8 @@ import com.moremod.capability.module.impl.MagicAbsorbModule;
 import com.moremod.capability.module.impl.NeuralSynchronizerModule;
 import com.moremod.capability.module.impl.TemperatureControlModule;
 import com.moremod.capability.module.impl.WaterproofModule;
+import com.moremod.capability.module.impl.PoisonImmunityModule;
+import com.moremod.capability.module.impl.ItemMagnetModule;
 
 // 飾品盒系統導入
 
@@ -327,7 +329,9 @@ public class moremod {
         ModuleRegistry.registerNew(NeuralSynchronizerModule.INSTANCE);
         ModuleRegistry.registerNew(TemperatureControlModule.INSTANCE);
         ModuleRegistry.registerNew(WaterproofModule.INSTANCE);
-        System.out.println("[moremod] ✅ 机械核心模块注册完成（24 个模块）");
+        ModuleRegistry.registerNew(PoisonImmunityModule.INSTANCE);
+        ModuleRegistry.registerNew(ItemMagnetModule.INSTANCE);
+        System.out.println("[moremod] ✅ 机械核心模块注册完成（26 个模块）");
 
         // ========== Ritual 多方块：创建实例（不在这里注册）==========
         System.out.println("[moremod] 🔮 创建 Ritual 多方块实例...");

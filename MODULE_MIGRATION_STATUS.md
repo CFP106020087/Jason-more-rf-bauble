@@ -2,12 +2,12 @@
 
 ## 📊 迁移进度总览
 
-**已迁移**: 24/27 (88.9%)
-**待迁移**: 3/27 (11.1%)
+**已迁移**: 26/26 (100%)
+**Phase 3 完成**: ✅
 
 ---
 
-## ✅ 已迁移模块 (24)
+## ✅ 已迁移模块 (26)
 
 ### 核心模块 (5)
 1. **FlightModule** (`FLIGHT_MODULE`)
@@ -169,6 +169,21 @@
     - 能量: 5 * level RF/tick
     - 特性: Lv.1 50%减免，Lv.2 完全免疫，Lv.3 完全免疫+快速干燥
     - 系统: 潮湿值 0-100，故障阈值 80，雨天 +4/s，干燥 -2/s
+
+25. **PoisonImmunityModule** (`POISON_IMMUNITY`)
+   - 等级: Lv.1
+   - 功能: 毒免疫（清除毒药和凋零效果）
+   - 文件: `capability/module/impl/PoisonImmunityModule.java`
+   - 能量: 基础 10 RF/tick，清除额外 20 RF/次
+   - 特性: 自动清除 Poison 和 Wither 效果，统计清除次数
+
+26. **ItemMagnetModule** (`ITEM_MAGNET`)
+   - 等级: Lv.1-3
+   - 功能: 物品磁铁（自动吸引周围物品和经验球）
+   - 文件: `capability/module/impl/ItemMagnetModule.java`
+   - 能量: 基础 5*level RF/tick，吸引额外 1 RF/item
+   - 范围: 8/12/16 格
+   - 特性: 可穿墙吸引，统计吸引数量
 
 ---
 
