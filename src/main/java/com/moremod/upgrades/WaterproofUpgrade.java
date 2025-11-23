@@ -678,7 +678,6 @@ public class WaterproofUpgrade {
             nbt.setInteger("upgrade_" + id, level);
             nbt.setInteger("upgrade_" + id.toLowerCase(), level);
             nbt.setInteger("upgrade_" + id.toUpperCase(), level);
-            nbt.setBoolean("HasUpgrade_" + id, level > 0);
         }
         nbt.setInteger("waterproofLevel", level);
         nbt.setBoolean("hasWaterproofModule", level > 0);

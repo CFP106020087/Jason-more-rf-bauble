@@ -291,7 +291,6 @@ public final class UpgradeKeys {
             // 1. NBT直接写入（所有变体）
             for (String baseId : baseIds) {
                 nbt.setInteger("upgrade_" + baseId, restoreLevel);
-                nbt.setBoolean("HasUpgrade_" + baseId, true);
             }
 
             // 2. 使用setLevel方法

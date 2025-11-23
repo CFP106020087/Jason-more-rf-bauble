@@ -283,7 +283,6 @@ public class PacketMechanicalCoreUpdate implements IMessage {
             for (String variant : variants) {
                 if (paused && lastLevel > 0) {
                     nbt.setInteger(K_LAST_LEVEL + variant, lastLevel);
-                    nbt.setBoolean("HasUpgrade_" + variant, true);
                 }
                 nbt.setBoolean(K_IS_PAUSED + variant, paused);
             }
@@ -294,7 +293,6 @@ public class PacketMechanicalCoreUpdate implements IMessage {
                     for (String wv : wvariants) {
                         if (paused && lastLevel > 0) {
                             nbt.setInteger(K_LAST_LEVEL + wv, lastLevel);
-                            nbt.setBoolean("HasUpgrade_" + wv, true);
                         }
                         nbt.setBoolean(K_IS_PAUSED + wv, paused);
                     }
@@ -535,9 +533,6 @@ public class PacketMechanicalCoreUpdate implements IMessage {
                         nbt.setInteger(K_LAST_LEVEL + U,   lastLevel);
                         nbt.setInteger(K_LAST_LEVEL + L,   lastLevel);
                         ensureOwnedMaxAtLeast(nbt, wid, lastLevel);
-                        nbt.setBoolean("HasUpgrade_" + wid, true);
-                        nbt.setBoolean("HasUpgrade_" + U,   true);
-                        nbt.setBoolean("HasUpgrade_" + L,   true);
                     }
                     nbt.setBoolean(K_IS_PAUSED + wid, paused);
                     nbt.setBoolean(K_IS_PAUSED + U,   paused);
@@ -549,7 +544,6 @@ public class PacketMechanicalCoreUpdate implements IMessage {
                     for (String k : Arrays.asList(upgradeId, U, L)) {
                         nbt.setInteger(K_LAST_LEVEL + k, lastLevel);
                         ensureOwnedMaxAtLeast(nbt, k, lastLevel);
-                        nbt.setBoolean("HasUpgrade_" + k, true);
                     }
                 }
                 for (String k : Arrays.asList(upgradeId, U, L)) {

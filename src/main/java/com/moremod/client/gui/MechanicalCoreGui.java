@@ -1312,9 +1312,6 @@ public class MechanicalCoreGui extends GuiScreen {
                     entry.isPaused = false;
 
                     // 记录 LastLevel，方便修复后恢复
-                    nbt.setInteger("LastLevel_" + upgradeId, old);
-                    nbt.setInteger("LastLevel_" + up(upgradeId), old);
-                    nbt.setInteger("LastLevel_" + lo(upgradeId), old);
 
                     // 确保 OriginalMax 已记录
                     String upperId = up(upgradeId);
@@ -1393,9 +1390,6 @@ public class MechanicalCoreGui extends GuiScreen {
                 nbt.setInteger("upgrade_" + L, newLevel);
 
                 if (newLevel > 0) {
-                    nbt.setBoolean("HasUpgrade_" + wid, true);
-                    nbt.setBoolean("HasUpgrade_" + U, true);
-                    nbt.setBoolean("HasUpgrade_" + L, true);
                 }
 
                 try {
@@ -1419,9 +1413,6 @@ public class MechanicalCoreGui extends GuiScreen {
             nbt.setInteger("upgrade_" + L, newLevel);
 
             if (newLevel > 0) {
-                nbt.setBoolean("HasUpgrade_" + upgradeId, true);
-                nbt.setBoolean("HasUpgrade_" + U, true);
-                nbt.setBoolean("HasUpgrade_" + L, true);
             }
 
             try {
@@ -1451,9 +1442,6 @@ public class MechanicalCoreGui extends GuiScreen {
             for (String wid : WATERPROOF_IDS) {
                 String U = up(wid), L = lo(wid);
                 if (paused && lastLevel > 0) {
-                    nbt.setInteger("LastLevel_" + wid, lastLevel);
-                    nbt.setInteger("LastLevel_" + U, lastLevel);
-                    nbt.setInteger("LastLevel_" + L, lastLevel);
 
                     int ownedMax = getOwnedMaxFromNBT(nbt, wid);
                     if (ownedMax < lastLevel) {
@@ -1462,9 +1450,6 @@ public class MechanicalCoreGui extends GuiScreen {
                         nbt.setInteger("OwnedMax_" + L, lastLevel);
                     }
 
-                    nbt.setBoolean("HasUpgrade_" + wid, true);
-                    nbt.setBoolean("HasUpgrade_" + U, true);
-                    nbt.setBoolean("HasUpgrade_" + L, true);
                 }
                 nbt.setBoolean("IsPaused_" + wid, paused);
                 nbt.setBoolean("IsPaused_" + U, paused);
@@ -1474,10 +1459,8 @@ public class MechanicalCoreGui extends GuiScreen {
             String U = up(upgradeId), L = lo(upgradeId);
             if (paused && lastLevel > 0) {
                 for (String k : Arrays.asList(upgradeId, U, L)) {
-                    nbt.setInteger("LastLevel_" + k, lastLevel);
                     if (nbt.getInteger("OwnedMax_" + k) < lastLevel)
                         nbt.setInteger("OwnedMax_" + k, lastLevel);
-                    nbt.setBoolean("HasUpgrade_" + k, true);
                 }
             }
             for (String k : Arrays.asList(upgradeId, U, L)) {

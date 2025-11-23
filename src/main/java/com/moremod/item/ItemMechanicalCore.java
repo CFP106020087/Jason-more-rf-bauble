@@ -1753,7 +1753,6 @@ public class ItemMechanicalCore extends Item implements IBauble {
         for (String variant : variants) {
             nbt.setInteger("upgrade_" + variant, newLevel);
             if (newLevel > 0) {
-                nbt.setBoolean("HasUpgrade_" + variant, true);
             }
         }
     }
