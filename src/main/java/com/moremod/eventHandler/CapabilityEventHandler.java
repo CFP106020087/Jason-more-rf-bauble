@@ -42,13 +42,6 @@ public class CapabilityEventHandler {
                 MECH_CORE_CAP_ID,
                 new MechCoreDataProvider()
             );
-
-            if (!player.world.isRemote) {
-                logger.debug(
-                    "Attached MechCoreData capability to player: {}",
-                    player.getName()
-                );
-            }
         }
     }
 
