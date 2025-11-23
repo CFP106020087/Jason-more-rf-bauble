@@ -817,12 +817,16 @@ public class SmartUpgradeHandler {
      * @param newLevel 新等级
      */
     private void syncToCapability(EntityPlayer player, String moduleId, int newLevel) {
+        System.out.println("[SmartUpgradeHandler] syncToCapability 开始: player=" + player.getName() + ", moduleId=" + moduleId + ", newLevel=" + newLevel);
+
         IMechCoreData data = player.getCapability(IMechCoreData.CAPABILITY, null);
         if (data == null) {
+            System.err.println("[SmartUpgradeHandler] ❌ Capability 未附加到玩家: " + player.getName());
             return; // Capability 未附加（不应该发生）
         }
 
         int oldLevel = data.getModuleLevel(moduleId);
+        System.out.println("[SmartUpgradeHandler] 模块等级变化: " + oldLevel + " -> " + newLevel);
 
         // 更新 Capability 中的模块等级
         data.setModuleLevel(moduleId, newLevel);
@@ -830,11 +834,13 @@ public class SmartUpgradeHandler {
         // 激活模块（如果之前未激活）
         if (!data.isModuleActive(moduleId)) {
             data.setModuleActive(moduleId, true);
+            System.out.println("[SmartUpgradeHandler] 激活模块: " + moduleId);
         }
 
         // 触发新模块系统的回调
         IMechCoreModule module = ModuleRegistry.getNew(moduleId);
         if (module != null) {
+            System.out.println("[SmartUpgradeHandler] 找到模块实例: " + module.getModuleId());
             try {
                 // 触发等级变化回调
                 module.onLevelChanged(player, data, oldLevel, newLevel);
@@ -847,20 +853,31 @@ public class SmartUpgradeHandler {
                 System.err.println("[SmartUpgradeHandler] 模块回调失败: " + moduleId);
                 e.printStackTrace();
             }
+        } else {
+            System.out.println("[SmartUpgradeHandler] ⚠️ 未找到模块实例: " + moduleId);
         }
 
         // 标记为需要同步到客户端
         data.markDirty();
+        System.out.println("[SmartUpgradeHandler] 已标记为 dirty");
 
         // ✅ 立即同步到客户端（修复：升级后客户端看不到更新的问题）
+        System.out.println("[SmartUpgradeHandler] 检查玩家类型: " + player.getClass().getName());
+        System.out.println("[SmartUpgradeHandler] 是否为 EntityPlayerMP: " + (player instanceof EntityPlayerMP));
+
         if (player instanceof EntityPlayerMP) {
+            System.out.println("[SmartUpgradeHandler] 准备发送网络包...");
             try {
                 PacketSyncMechCoreData packet = new PacketSyncMechCoreData(data);
+                System.out.println("[SmartUpgradeHandler] 网络包已创建，准备发送...");
                 NetworkHandler.CHANNEL.sendTo(packet, (EntityPlayerMP) player);
+                System.out.println("[SmartUpgradeHandler] ✅ 网络包已发送");
             } catch (Exception e) {
-                System.err.println("[SmartUpgradeHandler] 同步 Capability 失败: " + e.getMessage());
+                System.err.println("[SmartUpgradeHandler] ❌ 同步 Capability 失败: " + e.getMessage());
                 e.printStackTrace();
             }
+        } else {
+            System.err.println("[SmartUpgradeHandler] ⚠️ 玩家不是 EntityPlayerMP，跳过网络同步");
         }
     }
 
