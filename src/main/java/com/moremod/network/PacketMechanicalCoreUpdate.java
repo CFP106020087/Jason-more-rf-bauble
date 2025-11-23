@@ -111,7 +111,7 @@ public class PacketMechanicalCoreUpdate implements IMessage {
                 int requested = Math.max(0, msg.level);
 
                 // ✅ 关键修复：使用忽略暂停状态的读取方法
-                int actualLevel = getActualLevel(nbt, id);  // ← 读取真实等级，不管是否暂停
+                int actualLevel = getActualLevel(nbt, id, serverPlayer);  // ← 从 Capability 读取真实等级
                 int ownedMax = getOwnedMax(nbt, id);
 
                 System.out.println("[服务器] SET_LEVEL - 模块: " + id +
@@ -144,7 +144,7 @@ public class PacketMechanicalCoreUpdate implements IMessage {
                         System.out.println("[服务器] 暂停模块 " + id + " 从 Lv." + actualLevel);
 
                         // 先设置等级为0
-                        setLevelEverywhere(core, id, 0);
+                        setLevelEverywhere(core, id, 0, serverPlayer);
 
                         // 再写入暂停元数据（使用真实等级）
                         writePauseMeta(core, id, actualLevel, true);
@@ -167,7 +167,7 @@ public class PacketMechanicalCoreUpdate implements IMessage {
                     clearPauseState(nbt, id);
 
                     // 再设置等级
-                    setLevelEverywhere(core, id, requested);
+                    setLevelEverywhere(core, id, requested, serverPlayer);
 
                     if (requested > ownedMax) {
                         ensureOwnedMaxAtLeast(nbt, id, requested);
@@ -202,7 +202,7 @@ public class PacketMechanicalCoreUpdate implements IMessage {
                 }
 
                 // ✅ 验证写入结果
-                int finalLevel = getActualLevel(nbt, id);
+                int finalLevel = getActualLevel(nbt, id, serverPlayer);
                 boolean finalPaused = nbt.getBoolean(K_IS_PAUSED + id);
                 int finalLastLevel = nbt.getInteger(K_LAST_LEVEL + id);
 
@@ -219,9 +219,27 @@ public class PacketMechanicalCoreUpdate implements IMessage {
         // ================= 关键新增方法 =================
 
         /**
-         * ✅ 读取真实等级（忽略暂停状态）
+         * ✅ 读取真实等级（从 Capability 读取）
          */
+        private static int getActualLevel(NBTTagCompound nbt, String id, EntityPlayerMP player) {
+            if (player == null) return 0;
+
+            // 从 Capability 读取
+            com.moremod.capability.IMechCoreData data = player.getCapability(
+                com.moremod.capability.IMechCoreData.CAPABILITY, null);
+
+            if (data != null) {
+                String moduleId = id.toUpperCase();
+                return data.getModuleLevel(moduleId);
+            }
+
+            return 0;
+        }
+
+        // 保留旧签名用于兼容（但已废弃）
+        @Deprecated
         private static int getActualLevel(NBTTagCompound nbt, String id) {
+            // 旧的 NBT 读取逻辑（已废弃）
             if (nbt == null) return 0;
 
             int lv = 0;
@@ -366,12 +384,11 @@ public class PacketMechanicalCoreUpdate implements IMessage {
                 nbt.removeTag(K_DAMAGE_COUNT + lowerId);
             }
 
-            setLevelEverywhere(core, upgradeId, targetLevel);
-// 推荐
-            writePauseStateOnly(nbt, upgradeId, targetLevel, false);
+            // ✅ 修复：添加 player 参数（纯 Capability 模式）
+            setLevelEverywhere(core, upgradeId, targetLevel, player);
 
-// 或者至少
-// clearPauseState(nbt, upgradeId);
+            // 清除暂停状态
+            writePauseStateOnly(nbt, upgradeId, targetLevel, false);
 
             player.world.playSound(null, player.posX, player.posY, player.posZ,
                     SoundEvents.BLOCK_ANVIL_USE, SoundCategory.PLAYERS, 1.0f, 1.0f);
@@ -467,65 +484,40 @@ public class PacketMechanicalCoreUpdate implements IMessage {
             return max;
         }
 
-        private static void setLevelEverywhere(ItemStack core, String upgradeId, int newLevel) {
-            if (core == null || core.isEmpty()) return;
+        private static void setLevelEverywhere(ItemStack core, String upgradeId, int newLevel, EntityPlayerMP player) {
+            if (core == null || core.isEmpty() || player == null) return;
 
+            // ✅ 纯 Capability 模式：只写 Capability，不写 NBT
+            com.moremod.capability.IMechCoreData data = player.getCapability(
+                com.moremod.capability.IMechCoreData.CAPABILITY, null);
+
+            if (data != null) {
+                // 标准化模块 ID（统一大写下划线格式）
+                String moduleId = upgradeId.toUpperCase();
+
+                // 设置模块等级
+                data.setModuleLevel(moduleId, newLevel);
+
+                // 标记为脏，触发网络同步
+                data.markDirty();
+
+                System.out.println("[Capability] 设置模块 " + moduleId + " 为 Lv." + newLevel);
+            }
+
+            // ✅ 清除旧的暂停状态（保留在 NBT 中用于兼容性）
             NBTTagCompound nbt = core.hasTagCompound() ? core.getTagCompound() : new NBTTagCompound();
             if (!core.hasTagCompound()) core.setTagCompound(nbt);
 
-            if (isWaterproofId(upgradeId)) {
-                for (String wid : WATERPROOF_ALIASES) {
-                    String U = up(wid), L = lo(wid);
-                    nbt.setInteger(K_UPGRADE + wid, newLevel);
-                    nbt.setInteger(K_UPGRADE + U,   newLevel);
-                    nbt.setInteger(K_UPGRADE + L,   newLevel);
-                    if (newLevel > 0) {
-                        nbt.setBoolean("HasUpgrade_" + wid, true);
-                        nbt.setBoolean("HasUpgrade_" + U,   true);
-                        nbt.setBoolean("HasUpgrade_" + L,   true);
-                    }
-                    try {
-                        ItemMechanicalCoreExtended.setUpgradeLevel(core, wid, newLevel);
-                        ItemMechanicalCoreExtended.setUpgradeLevel(core, U,   newLevel);
-                        ItemMechanicalCoreExtended.setUpgradeLevel(core, L,   newLevel);
-                    } catch (Throwable ignored) {}
-                }
-                try {
-                    for (ItemMechanicalCore.UpgradeType t : ItemMechanicalCore.UpgradeType.values()) {
-                        if (isWaterproofId(t.getKey())) {
-                            ItemMechanicalCore.setUpgradeLevel(core, t, newLevel);
-                        }
-                    }
-                } catch (Throwable ignored) {}
-            } else {
-                String U = up(upgradeId), L = lo(upgradeId);
-                nbt.setInteger(K_UPGRADE + upgradeId, newLevel);
-                nbt.setInteger(K_UPGRADE + U,         newLevel);
-                nbt.setInteger(K_UPGRADE + L,         newLevel);
-                if (newLevel > 0) {
-                    nbt.setBoolean("HasUpgrade_" + upgradeId, true);
-                    nbt.setBoolean("HasUpgrade_" + U,         true);
-                    nbt.setBoolean("HasUpgrade_" + L,         true);
-                }
-                try {
-                    ItemMechanicalCoreExtended.setUpgradeLevel(core, upgradeId, newLevel);
-                    ItemMechanicalCoreExtended.setUpgradeLevel(core, U,        newLevel);
-                    ItemMechanicalCoreExtended.setUpgradeLevel(core, L,        newLevel);
-                } catch (Throwable ignored) {}
-                try {
-                    for (ItemMechanicalCore.UpgradeType t : ItemMechanicalCore.UpgradeType.values()) {
-                        if (t.getKey().equalsIgnoreCase(upgradeId)) {
-                            ItemMechanicalCore.setUpgradeLevel(core, t, newLevel);
-                            break;
-                        }
-                    }
-                } catch (Throwable ignored) {}
-            }
-
-            // ✅ 统一兜底：只要把等级设为 >0，就清掉一切 IsPaused_（含别名）
             if (newLevel > 0) {
                 clearPauseState(nbt, upgradeId);
             }
+        }
+
+        // 为了向后兼容，保留旧签名（但现在需要玩家参数）
+        @Deprecated
+        private static void setLevelEverywhere(ItemStack core, String upgradeId, int newLevel) {
+            // 这个方法不再工作，需要使用带玩家参数的版本
+            System.err.println("[警告] 调用了过时的 setLevelEverywhere，请更新代码使用 Capability");
         }
 
 

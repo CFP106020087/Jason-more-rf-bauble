@@ -366,7 +366,7 @@ public class SmartUpgradeHandler {
     }
 
     /**
-     * ✅ 基础升级处理
+     * ✅ 基础升级处理（纯 Capability 模式）
      */
     private boolean handleBasicUpgrade(EntityPlayer player, ItemStack coreStack,
                                        String cid, int moduleLevel) {
@@ -383,7 +383,15 @@ public class SmartUpgradeHandler {
             return false;
         }
 
-        int cur = ItemMechanicalCore.getUpgradeLevel(coreStack, enumType);
+        // 从 Capability 读取当前等级
+        IMechCoreData data = player.getCapability(IMechCoreData.CAPABILITY, null);
+        if (data == null) {
+            player.sendMessage(new TextComponentString(TextFormatting.RED + "机械核心数据未初始化！"));
+            return false;
+        }
+
+        String moduleId = cid.toUpperCase();
+        int cur = data.getModuleLevel(moduleId);
         int max = getMaxLevel(enumType);
         if (cur >= max) {
             player.sendMessage(new TextComponentString(TextFormatting.RED + enumType.getDisplayName() + " 已达最大等级！"));
@@ -392,18 +400,12 @@ public class SmartUpgradeHandler {
 
         int newLv = moduleLevel;
 
-        // ✅ 关键：先记录 OriginalMax
+        // ✅ 记录 OriginalMax（用于修复系统）
         recordOriginalMax(coreStack, cid, newLv);
         recordOriginalMax(coreStack, enumType.getKey(), newLv);
         recordOriginalMax(coreStack, enumType.name(), newLv);
 
-        ItemMechanicalCore.setUpgradeLevel(coreStack, enumType, newLv);
-        ItemMechanicalCoreExtended.setUpgradeLevel(coreStack, enumType.getKey(), newLv);
-        ItemMechanicalCoreExtended.setUpgradeLevel(coreStack, enumType.name(), newLv);
-        UpgradeKeys.setLevel(coreStack, cid, newLv);
-        UpgradeKeys.markOwnedActive(coreStack, cid, newLv);
-
-        // ✅ 同步到新的 Capability 系统
+        // ✅ 纯 Capability 写入（不写 NBT）
         syncToCapability(player, cid, newLv);
 
         player.sendMessage(new TextComponentString(
@@ -418,7 +420,7 @@ public class SmartUpgradeHandler {
     }
 
     /**
-     * ✅ 扩展升级处理
+     * ✅ 扩展升级处理（纯 Capability 模式）
      */
     private boolean handleExtendedUpgrade(EntityPlayer player, ItemStack coreStack,
                                           String cid, int moduleLevel) {
@@ -433,7 +435,15 @@ public class SmartUpgradeHandler {
             return false;
         }
 
-        int cur = ItemMechanicalCoreExtended.getUpgradeLevel(coreStack, cid);
+        // 从 Capability 读取当前等级
+        IMechCoreData data = player.getCapability(IMechCoreData.CAPABILITY, null);
+        if (data == null) {
+            player.sendMessage(new TextComponentString(TextFormatting.RED + "机械核心数据未初始化！"));
+            return false;
+        }
+
+        String moduleId = cid.toUpperCase();
+        int cur = data.getModuleLevel(moduleId);
         int max = info.maxLevel;
         if (cur >= max) {
             player.sendMessage(new TextComponentString(TextFormatting.RED + info.displayName + " 已达到最大等级！"));
@@ -442,14 +452,10 @@ public class SmartUpgradeHandler {
 
         int newLv = moduleLevel;
 
-        // ✅ 关键：先记录 OriginalMax
+        // ✅ 记录 OriginalMax（用于修复系统）
         recordOriginalMax(coreStack, cid, newLv);
 
-        ItemMechanicalCoreExtended.setUpgradeLevel(coreStack, cid, newLv);
-        UpgradeKeys.setLevel(coreStack, cid, newLv);
-        UpgradeKeys.markOwnedActive(coreStack, cid, newLv);
-
-        // ✅ 同步到新的 Capability 系统
+        // ✅ 纯 Capability 写入（不写 NBT）
         syncToCapability(player, cid, newLv);
 
         player.sendMessage(new TextComponentString(
@@ -464,30 +470,32 @@ public class SmartUpgradeHandler {
     }
 
     /**
-     * ✅ 飞行模块处理
+     * ✅ 飞行模块处理（纯 Capability 模式）
      */
     private boolean handleFlightModule(EntityPlayer player, ItemStack coreStack, String registryName, int moduleLevel) {
         String cid = "FLIGHT_MODULE";
         unlockIfLocked(player, coreStack, cid);
 
-        int cur = getFlightLevel(coreStack);
+        // 从 Capability 读取当前等级
+        IMechCoreData data = player.getCapability(IMechCoreData.CAPABILITY, null);
+        if (data == null) {
+            return msg(player, TextFormatting.RED + "机械核心数据未初始化！", false);
+        }
+
+        int cur = data.getModuleLevel("FLIGHT_MODULE");
         int target = moduleLevel;
 
         if (target <= cur) {
             return msg(player, TextFormatting.RED + "已安装相同或更高级的飞行模块！", false);
         }
 
-        // ✅ 先记录 OriginalMax
+        // ✅ 记录 OriginalMax（用于修复系统）
         recordOriginalMax(coreStack, cid, target);
 
-        ItemMechanicalCore.setUpgradeLevel(coreStack, ItemMechanicalCore.UpgradeType.FLIGHT_MODULE, target);
-        ItemMechanicalCoreExtended.setUpgradeLevel(coreStack, "FLIGHT_MODULE", target);
-        UpgradeKeys.setLevel(coreStack, "FLIGHT_MODULE", target);
-        UpgradeKeys.markOwnedActive(coreStack, "FLIGHT_MODULE", target);
-
-        // ✅ 同步到新的 Capability 系统
+        // ✅ 纯 Capability 写入（不写 NBT）
         syncToCapability(player, "FLIGHT_MODULE", target);
 
+        // ✅ 保留模块配置标志（这些是设置，不是等级数据）
         NBTTagCompound nbt = UpgradeKeys.getOrCreate(coreStack);
         nbt.setBoolean("FlightModuleEnabled", true);
         if (target >= 2 && !nbt.hasKey("FlightHoverMode")) nbt.setBoolean("FlightHoverMode", false);
@@ -514,28 +522,37 @@ public class SmartUpgradeHandler {
     }
 
     /**
-     * ✅ 防水模块处理
+     * ✅ 防水模块处理（纯 Capability 模式）
      */
     private boolean handleWaterproofModule(EntityPlayer player, ItemStack coreStack,
                                            String registryName, String cid, int moduleLevel) {
         cid = "WATERPROOF_MODULE";
         unlockIfLocked(player, coreStack, cid);
 
-        int cur = getWaterproofLevel(coreStack);
+        // 从 Capability 读取当前等级
+        IMechCoreData data = player.getCapability(IMechCoreData.CAPABILITY, null);
+        if (data == null) {
+            return msg(player, TextFormatting.RED + "机械核心数据未初始化！", false);
+        }
+
+        int cur = data.getModuleLevel("WATERPROOF_MODULE");
         int target = moduleLevel;
 
         if (target <= cur) {
             return msg(player, TextFormatting.RED + "已安装相同或更高级的防水模块！", false);
         }
 
-        // ✅ 先记录 OriginalMax
+        // ✅ 记录 OriginalMax（用于修复系统）
         recordOriginalMax(coreStack, cid, target);
         recordOriginalMax(coreStack, "WATERPROOF", target);
 
-        setWaterproofLevel(coreStack, target);
-
-        // ✅ 同步到新的 Capability 系统
+        // ✅ 纯 Capability 写入（不写 NBT）
         syncToCapability(player, "WATERPROOF_MODULE", target);
+
+        // ✅ 保留模块配置标志（这些是设置，不是等级数据）
+        NBTTagCompound nbt = UpgradeKeys.getOrCreate(coreStack);
+        nbt.setBoolean("hasWaterproofModule", target > 0);
+        nbt.setInteger("waterproofLevel", target);
 
         switch (target) {
             case 1:
@@ -558,7 +575,7 @@ public class SmartUpgradeHandler {
     }
 
     /**
-     * ✅ 套装升级处理
+     * ✅ 套装升级处理（纯 Capability 模式）
      */
     private boolean handlePackageUpgrade(EntityPlayer player, ItemStack core,
                                          String rawType, String registryName) {
@@ -576,12 +593,19 @@ public class SmartUpgradeHandler {
         String[] combatUps   = {"DAMAGE_BOOST", "ATTACK_SPEED", "RANGE_EXTENSION"};
         String[] omniUps     = {"ENERGY_CAPACITY", "ENERGY_EFFICIENCY", "ARMOR_ENHANCEMENT"};
 
+        // 从 Capability 读取当前等级
+        IMechCoreData data = player.getCapability(IMechCoreData.CAPABILITY, null);
+        if (data == null) {
+            return msg(player, TextFormatting.RED + "机械核心数据未初始化！", false);
+        }
+
         Map<String, Integer> before = new HashMap<>();
         String[] targetList = isSurvival ? survivalUps : (isCombat ? combatUps : omniUps);
 
         for (String u : targetList) {
             unlockIfLocked(player, core, u);
-            int cur = lvOf(core, u);
+            String moduleId = u.toUpperCase();
+            int cur = data.getModuleLevel(moduleId);
             before.put(u, cur);
             int max = maxOf(core, u);
             if (cur >= max) {
@@ -594,14 +618,13 @@ public class SmartUpgradeHandler {
         for (String u : targetList) {
             int newLevel = before.get(u) + 1;
 
-            // ✅ 先记录 OriginalMax
+            // ✅ 记录 OriginalMax（用于修复系统）
             recordOriginalMax(core, u, newLevel);
 
-            applyUpgrade(core, u, newLevel);
             upgradedModules.put(u, newLevel);
         }
 
-        // ✅ 批量同步到新的 Capability 系统
+        // ✅ 批量同步到 Capability（纯 Capability 写入，不写 NBT）
         syncMultipleToCapability(player, upgradedModules);
 
         if (isSurvival) {
