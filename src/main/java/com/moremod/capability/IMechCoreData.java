@@ -33,6 +33,9 @@ public interface IMechCoreData {
     /** 消耗能量（返回是否成功） */
     boolean consumeEnergy(int amount);
 
+    /** 增加能量（用于发电模块，返回实际增加量） */
+    int addEnergy(int amount);
+
     /** 接收能量（返回实际接收量） */
     int receiveEnergy(int maxReceive);
 

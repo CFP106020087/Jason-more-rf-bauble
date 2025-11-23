@@ -172,27 +172,26 @@
 
 ---
 
-## 🔄 待迁移模块 (3)
+## 🎯 系统级整合
 
-### 系统整合模块 (2)
-这些模块需要与系统层整合，而非作为独立模块
+### ✅ EnergyEfficiency（能量效率系统）
+- **整合位置**: `IMechCoreData.consumeEnergy()` + `MechCoreDataImpl`
+- **实现方式**: 自动应用 ENERGY_EFFICIENCY 模块等级的倍率
+- **倍率表**:
+  * Lv.0: 1.00 (无减免)
+  * Lv.1: 0.85 (15% 减免)
+  * Lv.2: 0.70 (30% 减免)
+  * Lv.3: 0.55 (45% 减免)
+  * Lv.4: 0.40 (60% 减免)
+  * Lv.5: 0.25 (75% 减免)
+  * Lv.6+: 继续递减，最低 0.10
+- **影响范围**: 所有调用 consumeEnergy 的模块自动应用
+- **新增方法**: `addEnergy(int amount)` 用于发电模块
 
-25. **EnergyEfficiency** (系统级) - Phase 3H
-    - 等级: Lv.1-5
-    - 功能: 降低所有模块的能量消耗（全局倍率）
-    - 旧实现: `EnergyEfficiencyManager.java`
-    - 状态: 需要在能量消耗系统中全局应用
-
-26. **EnergyPunishment** (系统级) - Phase 3I
-    - 功能: 能量惩罚系统
-    - 旧实现: `EnergyPunishmentSystem.java`
-    - 状态: 需要整合到能量系统中
-
-### 可选模块 (1)
-27. **ThermalGeneratorModule** (`THERMAL_GENERATOR`)
-    - 等级: Lv.1-5
-    - 功能: 热能发电（在岩浆附近产能）
-    - 状态: 需要确认是否存在完整实现
+### 🔄 待整合: EnergyPunishment（能量惩罚系统）
+- **旧实现**: `EnergyPunishmentSystem.java`
+- **功能**: 低能量时的惩罚效果
+- **状态**: Phase 3I - 待整合
 
 ---
 

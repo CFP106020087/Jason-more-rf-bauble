@@ -39,12 +39,39 @@ public class MechCoreDataImpl implements IMechCoreData {
 
     @Override
     public boolean consumeEnergy(int amount) {
-        if (amount < 0 || energy < amount) {
+        if (amount < 0) return false;
+
+        // 应用能量效率（ENERGY_EFFICIENCY 模块）
+        int efficiencyLevel = getModuleLevel("ENERGY_EFFICIENCY");
+        double multiplier = getEfficiencyMultiplier(efficiencyLevel);
+        int actualCost = (int) (amount * multiplier);
+
+        // 确保至少消耗1点能量（如果原本要消耗的话）
+        if (amount > 0 && actualCost == 0) {
+            actualCost = 1;
+        }
+
+        if (energy < actualCost) {
             return false;
         }
-        energy -= amount;
+
+        energy -= actualCost;
         markDirty();
         return true;
+    }
+
+    @Override
+    public int addEnergy(int amount) {
+        if (amount <= 0) return 0;
+
+        int toAdd = Math.min(maxEnergy - energy, amount);
+        energy += toAdd;
+
+        if (toAdd > 0) {
+            markDirty();
+        }
+
+        return toAdd;
     }
 
     @Override
@@ -59,6 +86,34 @@ public class MechCoreDataImpl implements IMechCoreData {
         }
 
         return received;
+    }
+
+    /**
+     * 获取能量效率倍率
+     *
+     * 基于 ENERGY_EFFICIENCY 模块等级
+     * - Lv.0: 1.00 (无减免)
+     * - Lv.1: 0.85 (15% 减免)
+     * - Lv.2: 0.70 (30% 减免)
+     * - Lv.3: 0.55 (45% 减免)
+     * - Lv.4: 0.40 (60% 减免)
+     * - Lv.5: 0.25 (75% 减免)
+     * - Lv.6+: 继续递减，最低 0.10
+     */
+    private double getEfficiencyMultiplier(int level) {
+        switch (level) {
+            case 0: return 1.00;
+            case 1: return 0.85;
+            case 2: return 0.70;
+            case 3: return 0.55;
+            case 4: return 0.40;
+            case 5: return 0.25;
+            default:
+                if (level > 5) {
+                    return Math.max(0.10, 0.25 - (level - 5) * 0.05);
+                }
+                return 1.00;
+        }
     }
 
     @Override
