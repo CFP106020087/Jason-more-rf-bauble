@@ -785,6 +785,19 @@ public class SmartUpgradeHandler {
     }
 
     private int getFlightLevel(ItemStack core) {
+        // ✅ 优先从 Capability 读取（使用 ThreadLocal 获取当前玩家）
+        EntityPlayer player = getCurrentPlayer();
+        if (player != null) {
+            IMechCoreData capData = player.getCapability(IMechCoreData.CAPABILITY, null);
+            if (capData != null) {
+                int capLevel = capData.getModuleLevel("FLIGHT_MODULE");
+                if (capLevel > 0) {
+                    return capLevel;
+                }
+            }
+        }
+
+        // 降级方案：从 NBT 读取
         int lv = 0;
         lv = Math.max(lv, ItemMechanicalCore.getUpgradeLevel(core, ItemMechanicalCore.UpgradeType.FLIGHT_MODULE));
         lv = Math.max(lv, ItemMechanicalCoreExtended.getUpgradeLevel(core, "FLIGHT_MODULE"));

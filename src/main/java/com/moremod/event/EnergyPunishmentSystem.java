@@ -213,11 +213,24 @@ public class EnergyPunishmentSystem {
         List<String> installed = getInstalledUpgrades(core);
         NBTTagCompound nbt = UpgradeKeys.getOrCreate(core);
 
+        // ✅ 获取 Capability（用于读取等级和 OriginalMax）
+        com.moremod.capability.IMechCoreData capData = player.getCapability(com.moremod.capability.IMechCoreData.CAPABILITY, null);
+
         installed = installed.stream()
                 .filter(id -> !isGeneratorModule(id))
                 .filter(id -> !ItemMechanicalCore.isUpgradePaused(core, id))
                 .filter(id -> getOwnedMax(core, id) > 0)
-                .filter(id -> getCurrentLevel(core, id) > 0)
+                .filter(id -> {
+                    // ✅ 优先从 Capability 读取当前等级
+                    int level = 0;
+                    if (capData != null) {
+                        level = capData.getModuleLevel(id.toUpperCase());
+                    }
+                    if (level == 0) {
+                        level = getCurrentLevel(core, id);
+                    }
+                    return level > 0;
+                })
                 .collect(Collectors.toList());
 
         if (installed.isEmpty()) {
@@ -229,9 +242,6 @@ public class EnergyPunishmentSystem {
 
         Collections.shuffle(installed);
         int degradeCount = Math.min(DEGRADE_MODULE_COUNT, installed.size());
-
-        // 获取 Capability 用于读写 OriginalMax
-        IMechCoreData capData = player.getCapability(IMechCoreData.CAPABILITY, null);
 
         for (int i = 0; i < degradeCount; i++) {
             String moduleId = installed.get(i);
@@ -277,10 +287,20 @@ public class EnergyPunishmentSystem {
             nbt.setInteger("TotalDamageCount_" + moduleId, totalDamage + 1);
             nbt.setInteger("TotalDamageCount_" + lowerId, totalDamage + 1);
 
-            // 调整当前等级
-            int currentLevel = getCurrentLevel(core, moduleId);
+            // 调整当前等级（优先从 Capability 读取）
+            int currentLevel = 0;
+            if (capData != null) {
+                currentLevel = capData.getModuleLevel(upperId);
+            }
+            if (currentLevel == 0) {
+                currentLevel = getCurrentLevel(core, moduleId);
+            }
             if (currentLevel > newOwnedMax) {
                 setLevel(core, moduleId, newOwnedMax);
+                // ✅ 同步到 Capability
+                if (capData != null) {
+                    capData.setModuleLevel(upperId, newOwnedMax);
+                }
             }
 
             // 获取原始最大等级用于显示（优先从 Capability）

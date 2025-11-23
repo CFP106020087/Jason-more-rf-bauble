@@ -221,18 +221,38 @@ public class SoulboundDeathHandler {
         String upperId = target.toUpperCase(Locale.ROOT);
         String lowerId = target.toLowerCase(Locale.ROOT);
 
-        // 1. 在降级前，立即读取并记录当前状态
-        int currentOwnedMax = getOwnedMax(core, target);
-        int currentLevel = getCurrentLevel(core, target);
+        // 1. ✅ 从 Capability 读取当前状态（优先级高于 NBT）
+        IMechCoreData capData = player.getCapability(IMechCoreData.CAPABILITY, null);
+        int currentLevel = 0;
+        int currentOwnedMax = 0;
 
-        // 如果没有 OwnedMax，使用当前等级初始化
+        if (capData != null) {
+            // 优先从 Capability 读取当前等级
+            currentLevel = capData.getModuleLevel(upperId);
+            // 尝试从 Capability 读取 OriginalMax（作为 OwnedMax 的初始值）
+            currentOwnedMax = capData.getOriginalMaxLevel(upperId);
+        }
+
+        // 如果 Capability 中没有等级数据，降级到 NBT
+        if (currentLevel == 0) {
+            currentLevel = getCurrentLevel(core, target);
+        }
+        // 如果 Capability 中没有 OriginalMax，从 NBT 读取 OwnedMax
+        if (currentOwnedMax == 0) {
+            currentOwnedMax = getOwnedMax(core, target);
+        }
+
+        // 如果还是没有 OwnedMax，使用当前等级初始化
         if (currentOwnedMax <= 0 && currentLevel > 0) {
             currentOwnedMax = currentLevel;
             setOwnedMaxEverywhere(core, target, currentOwnedMax);
+            // 同时记录到 Capability
+            if (capData != null) {
+                capData.setOriginalMaxLevel(upperId, currentOwnedMax);
+            }
         }
 
         // 2. 如果是第一次损坏，立即记录 OriginalMax 到 Capability
-        IMechCoreData capData = player.getCapability(IMechCoreData.CAPABILITY, null);
         if (capData != null) {
             int existingMax = capData.getOriginalMaxLevel(upperId);
             if (existingMax == 0 && currentOwnedMax > 0) {
