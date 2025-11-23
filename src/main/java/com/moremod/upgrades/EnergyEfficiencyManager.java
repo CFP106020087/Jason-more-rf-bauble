@@ -30,7 +30,14 @@ public class EnergyEfficiencyManager {
             return 1.0; // 无核心，无加成
         }
 
-        int level = ItemMechanicalCore.getUpgradeLevel(coreStack, ItemMechanicalCore.UpgradeType.ENERGY_EFFICIENCY);
+        // ✅ Set player context for upgrade reads
+        ItemMechanicalCore.setPlayerContext(player);
+        int level;
+        try {
+            level = ItemMechanicalCore.getUpgradeLevel(coreStack, ItemMechanicalCore.UpgradeType.ENERGY_EFFICIENCY);
+        } finally {
+            ItemMechanicalCore.clearPlayerContext();
+        }
 
         // 根据等级计算效率
         switch (level) {
@@ -180,7 +187,13 @@ public class EnergyEfficiencyManager {
             return 0;
         }
 
-        return ItemMechanicalCore.getUpgradeLevel(coreStack, ItemMechanicalCore.UpgradeType.ENERGY_EFFICIENCY);
+        // ✅ Set player context for upgrade reads
+        ItemMechanicalCore.setPlayerContext(player);
+        try {
+            return ItemMechanicalCore.getUpgradeLevel(coreStack, ItemMechanicalCore.UpgradeType.ENERGY_EFFICIENCY);
+        } finally {
+            ItemMechanicalCore.clearPlayerContext();
+        }
     }
 
     /**

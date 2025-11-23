@@ -27,27 +27,34 @@ public class UpgradeEffectManager {
             return;
         }
 
-        // 应用各种升级效果
-        // 能量容量效果已经在其他地方处理（如核心本身的容量计算）
-        // 不需要额外的tick效果
+        // ✅ Set player context for all upgrade reads
+        ItemMechanicalCore.setPlayerContext(player);
+        try {
+            // 应用各种升级效果
+            // 能量容量效果已经在其他地方处理（如核心本身的容量计算）
+            // 不需要额外的tick效果
 
-        // 能量效率使用新的系统
-        applyEnergyEfficiencyEffect(player, coreStack);
+            // 能量效率使用新的系统
+            applyEnergyEfficiencyEffect(player, coreStack);
 
-        // 护甲强化现在通过事件处理，这里只需要显示状态
-        // 实际减伤在 ArmorEnhancementEventHandler 中处理
+            // 护甲强化现在通过事件处理，这里只需要显示状态
+            // 实际减伤在 ArmorEnhancementEventHandler 中处理
 
-        applySpeedBoostEffect(player, coreStack);
-        applyRegenerationEffect(player, coreStack);
+            applySpeedBoostEffect(player, coreStack);
+            applyRegenerationEffect(player, coreStack);
 
-        // 飞行模块使用新的处理器
-        applyFlightModuleEffect(player, coreStack);
+            // 飞行模块使用新的处理器
+            applyFlightModuleEffect(player, coreStack);
 
-        applyShieldGeneratorEffect(player, coreStack);
+            applyShieldGeneratorEffect(player, coreStack);
 
-        // 温度控制效果
-        com.moremod.upgrades.TemperatureControlEffect.applyTemperatureControl(player, coreStack);
-        WaterproofUpgrade.applyWaterproofEffect(player, coreStack);
+            // 温度控制效果
+            com.moremod.upgrades.TemperatureControlEffect.applyTemperatureControl(player, coreStack);
+            WaterproofUpgrade.applyWaterproofEffect(player, coreStack);
+        } finally {
+            // ✅ Clear player context
+            ItemMechanicalCore.clearPlayerContext();
+        }
     }
 
     /**

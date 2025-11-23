@@ -53,46 +53,52 @@ public class EnergyConsumptionManager {
      * 計算總能量消耗
      */
     public static int calculateTotalConsumption(ItemStack coreStack, EntityPlayer player) {
-        int totalConsumption = 0;
-        int nonEnergyUpgrades = 0;
+        // ✅ Set player context for all upgrade reads
+        ItemMechanicalCore.setPlayerContext(player);
+        try {
+            int totalConsumption = 0;
+            int nonEnergyUpgrades = 0;
 
-        // 計算基礎升級消耗
-        for (ItemMechanicalCore.UpgradeType type : ItemMechanicalCore.UpgradeType.values()) {
-            String key = type.name();
-            if (UPGRADE_CONSUMPTION.containsKey(key)) {
-                int level = ItemMechanicalCore.getUpgradeLevel(coreStack, type);
-                if (level > 0) {
-                    totalConsumption += UPGRADE_CONSUMPTION.get(key) * level;
-                    nonEnergyUpgrades += level;
+            // 計算基礎升級消耗
+            for (ItemMechanicalCore.UpgradeType type : ItemMechanicalCore.UpgradeType.values()) {
+                String key = type.name();
+                if (UPGRADE_CONSUMPTION.containsKey(key)) {
+                    int level = ItemMechanicalCore.getUpgradeLevel(coreStack, type);
+                    if (level > 0) {
+                        totalConsumption += UPGRADE_CONSUMPTION.get(key) * level;
+                        nonEnergyUpgrades += level;
+                    }
                 }
             }
-        }
 
-        // 計算擴展升級消耗
-        for (Map.Entry<String, ItemMechanicalCoreExtended.UpgradeInfo> entry :
-                ItemMechanicalCoreExtended.getAllUpgrades().entrySet()) {
-            String key = entry.getKey();
-            if (UPGRADE_CONSUMPTION.containsKey(key)) {
-                int level = ItemMechanicalCoreExtended.getUpgradeLevel(coreStack, key);
-                if (level > 0) {
-                    totalConsumption += UPGRADE_CONSUMPTION.get(key) * level;
-                    nonEnergyUpgrades += level;
+            // 計算擴展升級消耗
+            for (Map.Entry<String, ItemMechanicalCoreExtended.UpgradeInfo> entry :
+                    ItemMechanicalCoreExtended.getAllUpgrades().entrySet()) {
+                String key = entry.getKey();
+                if (UPGRADE_CONSUMPTION.containsKey(key)) {
+                    int level = ItemMechanicalCoreExtended.getUpgradeLevel(coreStack, key);
+                    if (level > 0) {
+                        totalConsumption += UPGRADE_CONSUMPTION.get(key) * level;
+                        nonEnergyUpgrades += level;
+                    }
                 }
             }
+
+            // 特殊情況額外消耗
+            totalConsumption += calculateSpecialConsumption(coreStack, player);
+
+            // 非線性增長：每5個非能量升級增加10%消耗
+            float multiplier = 1.0f + (nonEnergyUpgrades / 5) * 0.1f;
+            totalConsumption = (int)(totalConsumption * multiplier);
+
+            // 應用能量效率減免
+            double efficiency = EnergyEfficiencyManager.getEfficiencyMultiplier(player);
+            totalConsumption = (int)(totalConsumption * efficiency);
+
+            return totalConsumption;
+        } finally {
+            ItemMechanicalCore.clearPlayerContext();
         }
-
-        // 特殊情況額外消耗
-        totalConsumption += calculateSpecialConsumption(coreStack, player);
-
-        // 非線性增長：每5個非能量升級增加10%消耗
-        float multiplier = 1.0f + (nonEnergyUpgrades / 5) * 0.1f;
-        totalConsumption = (int)(totalConsumption * multiplier);
-
-        // 應用能量效率減免
-        double efficiency = EnergyEfficiencyManager.getEfficiencyMultiplier(player);
-        totalConsumption = (int)(totalConsumption * efficiency);
-
-        return totalConsumption;
     }
 
     /**
@@ -143,31 +149,37 @@ public class EnergyConsumptionManager {
      * 計算總能量產出（估算）
      */
     private static int calculateTotalProduction(ItemStack coreStack, EntityPlayer player) {
-        int totalProduction = 0;
+        // ✅ Set player context for all upgrade reads
+        ItemMechanicalCore.setPlayerContext(player);
+        try {
+            int totalProduction = 0;
 
-        // 動能發電（移動時平均）
-        int kineticLevel = ItemMechanicalCore.getUpgradeLevel(coreStack, "KINETIC_GENERATOR");
-        if (kineticLevel > 0 && player.getEntityData().getInteger("MechanicalCoreKineticBuffer") > 0) {
-            totalProduction += 150 * kineticLevel; // 平均 150/300/450 RF/s
+            // 動能發電（移動時平均）
+            int kineticLevel = ItemMechanicalCore.getUpgradeLevel(coreStack, "KINETIC_GENERATOR");
+            if (kineticLevel > 0 && player.getEntityData().getInteger("MechanicalCoreKineticBuffer") > 0) {
+                totalProduction += 150 * kineticLevel; // 平均 150/300/450 RF/s
+            }
+
+            // 太陽能（白天）
+            int solarLevel = ItemMechanicalCore.getUpgradeLevel(coreStack, "SOLAR_GENERATOR");
+            if (solarLevel > 0 && player.world.isDaytime() && player.world.canSeeSky(player.getPosition())) {
+                totalProduction += 100 * solarLevel; // 100/200/300 RF/s
+            }
+
+            // 虛空能量
+            int voidLevel = ItemMechanicalCore.getUpgradeLevel(coreStack, "VOID_ENERGY");
+            if (voidLevel > 0 && (player.dimension == 1 || player.posY < 30)) {
+                totalProduction += 250 * voidLevel; // 平均 250/500/750 RF/s
+            }
+
+            // 應用效率加成（產能加成）
+            double efficiencyBonus = 2.0 - EnergyEfficiencyManager.getEfficiencyMultiplier(player);
+            totalProduction = (int)(totalProduction * efficiencyBonus);
+
+            return totalProduction;
+        } finally {
+            ItemMechanicalCore.clearPlayerContext();
         }
-
-        // 太陽能（白天）
-        int solarLevel = ItemMechanicalCore.getUpgradeLevel(coreStack, "SOLAR_GENERATOR");
-        if (solarLevel > 0 && player.world.isDaytime() && player.world.canSeeSky(player.getPosition())) {
-            totalProduction += 100 * solarLevel; // 100/200/300 RF/s
-        }
-
-        // 虛空能量
-        int voidLevel = ItemMechanicalCore.getUpgradeLevel(coreStack, "VOID_ENERGY");
-        if (voidLevel > 0 && (player.dimension == 1 || player.posY < 30)) {
-            totalProduction += 250 * voidLevel; // 平均 250/500/750 RF/s
-        }
-
-        // 應用效率加成（產能加成）
-        double efficiencyBonus = 2.0 - EnergyEfficiencyManager.getEfficiencyMultiplier(player);
-        totalProduction = (int)(totalProduction * efficiencyBonus);
-
-        return totalProduction;
     }
 
     /**
@@ -193,40 +205,46 @@ public class EnergyConsumptionManager {
      * 獲取消耗明細（用於顯示）
      */
     public static ConsumptionBreakdown getConsumptionBreakdown(ItemStack coreStack, EntityPlayer player) {
-        ConsumptionBreakdown breakdown = new ConsumptionBreakdown();
+        // ✅ Set player context for all upgrade reads
+        ItemMechanicalCore.setPlayerContext(player);
+        try {
+            ConsumptionBreakdown breakdown = new ConsumptionBreakdown();
 
-        // 收集各類升級消耗
-        for (ItemMechanicalCore.UpgradeType type : ItemMechanicalCore.UpgradeType.values()) {
-            String key = type.name();
-            if (UPGRADE_CONSUMPTION.containsKey(key)) {
-                int level = ItemMechanicalCore.getUpgradeLevel(coreStack, type);
-                if (level > 0) {
-                    int cost = UPGRADE_CONSUMPTION.get(key) * level;
-                    breakdown.addItem(type.getDisplayName(), level, cost);
+            // 收集各類升級消耗
+            for (ItemMechanicalCore.UpgradeType type : ItemMechanicalCore.UpgradeType.values()) {
+                String key = type.name();
+                if (UPGRADE_CONSUMPTION.containsKey(key)) {
+                    int level = ItemMechanicalCore.getUpgradeLevel(coreStack, type);
+                    if (level > 0) {
+                        int cost = UPGRADE_CONSUMPTION.get(key) * level;
+                        breakdown.addItem(type.getDisplayName(), level, cost);
+                    }
                 }
             }
-        }
 
-        // 收集擴展升級消耗
-        for (Map.Entry<String, ItemMechanicalCoreExtended.UpgradeInfo> entry :
-                ItemMechanicalCoreExtended.getAllUpgrades().entrySet()) {
-            String key = entry.getKey();
-            if (UPGRADE_CONSUMPTION.containsKey(key)) {
-                int level = ItemMechanicalCoreExtended.getUpgradeLevel(coreStack, key);
-                if (level > 0) {
-                    int cost = UPGRADE_CONSUMPTION.get(key) * level;
-                    breakdown.addItem(entry.getValue().displayName, level, cost);
+            // 收集擴展升級消耗
+            for (Map.Entry<String, ItemMechanicalCoreExtended.UpgradeInfo> entry :
+                    ItemMechanicalCoreExtended.getAllUpgrades().entrySet()) {
+                String key = entry.getKey();
+                if (UPGRADE_CONSUMPTION.containsKey(key)) {
+                    int level = ItemMechanicalCoreExtended.getUpgradeLevel(coreStack, key);
+                    if (level > 0) {
+                        int cost = UPGRADE_CONSUMPTION.get(key) * level;
+                        breakdown.addItem(entry.getValue().displayName, level, cost);
+                    }
                 }
             }
+
+            // 計算總消耗
+            breakdown.totalBase = breakdown.items.stream().mapToInt(i -> i.cost).sum();
+            breakdown.specialConsumption = calculateSpecialConsumption(coreStack, player);
+            breakdown.efficiency = EnergyEfficiencyManager.getEfficiencyMultiplier(player);
+            breakdown.totalFinal = calculateTotalConsumption(coreStack, player);
+
+            return breakdown;
+        } finally {
+            ItemMechanicalCore.clearPlayerContext();
         }
-
-        // 計算總消耗
-        breakdown.totalBase = breakdown.items.stream().mapToInt(i -> i.cost).sum();
-        breakdown.specialConsumption = calculateSpecialConsumption(coreStack, player);
-        breakdown.efficiency = EnergyEfficiencyManager.getEfficiencyMultiplier(player);
-        breakdown.totalFinal = calculateTotalConsumption(coreStack, player);
-
-        return breakdown;
     }
 
     /**
