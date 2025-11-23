@@ -207,7 +207,7 @@ public class ItemMechanicalCoreExtended {
         if (info != null) level = Math.max(0, Math.min(level, info.maxLevel)); else level = Math.max(0, level);
 
         nbt.setInteger("upgrade_" + canon, level);
-        if (level > 0) nbt.setBoolean("HasUpgrade_" + canon, true);
+        // ✅ 移除冗余：HasUpgrade_* 字段（可通过 upgrade_* > 0 判断）
     }
 
     /** 启/禁用（只写规范键；读取兼容别名） */
@@ -255,7 +255,7 @@ public class ItemMechanicalCoreExtended {
 
     /* ===================== 统计与工具 ===================== */
 
-    /** 返回“已安装”的规范ID列表（去重；等级>0 或 HasUpgrade_*为true） */
+    /** 返回"已安装"的规范ID列表（去重；等级>0） */
     public static List<String> getInstalledUpgradeIds(ItemStack stack) {
         List<String> result = new ArrayList<>();
         if (stack == null || stack.isEmpty() || !stack.hasTagCompound()) return result;
@@ -265,20 +265,19 @@ public class ItemMechanicalCoreExtended {
 
         // 1) 以注册表为基准，检查是否安装
         for (String canon : REGISTRY.keySet()) {
-            if (nbt.getBoolean("HasUpgrade_" + canon) || getUpgradeLevel(stack, canon) > 0) {
+            // ✅ 移除冗余：HasUpgrade_* 检查（直接用等级判断）
+            if (getUpgradeLevel(stack, canon) > 0) {
                 installedCanon.add(canon);
             }
         }
 
-        // 2) 兜底：扫描 NBT 中的 upgrade_*/HasUpgrade_*，把能映射到规范ID的也算进去
+        // 2) 兜底：扫描 NBT 中的 upgrade_*，把能映射到规范ID的也算进去
         for (String k : nbt.getKeySet()) {
             if (k.startsWith("upgrade_") && nbt.getInteger(k) > 0) {
                 String raw = k.substring("upgrade_".length());
                 installedCanon.add(canonical(raw));
-            } else if (k.startsWith("HasUpgrade_") && nbt.getBoolean(k)) {
-                String raw = k.substring("HasUpgrade_".length());
-                installedCanon.add(canonical(raw));
             }
+            // ✅ 移除冗余：HasUpgrade_* 扫描
         }
 
         result.addAll(installedCanon);
@@ -346,20 +345,20 @@ public class ItemMechanicalCoreExtended {
         return true;
     }
 
-    /** 重置为0并清除禁用标记（保留 HasUpgrade_ 以示曾经安装） */
+    /** 重置为0并清除禁用标记 */
     public static void resetUpgrade(ItemStack stack, String upgradeId) {
         setUpgradeLevel(stack, upgradeId, 0);
         setUpgradeDisabled(stack, upgradeId, false);
     }
 
-    /** 完全移除（删除 upgrade_/HasUpgrade_/Disabled_ 规范键；别名键保留以兼容旧存档） */
+    /** 完全移除（删除 upgrade_/Disabled_ 规范键；别名键保留以兼容旧存档） */
     public static void removeUpgrade(ItemStack stack, String upgradeId) {
         if (!stack.hasTagCompound()) return;
         NBTTagCompound nbt = stack.getTagCompound();
         String canon = canonical(upgradeId);
         nbt.removeTag("upgrade_" + canon);
         nbt.removeTag("Disabled_" + canon);
-        nbt.removeTag("HasUpgrade_" + canon);
+        // ✅ 移除冗余：HasUpgrade_* 字段
     }
 
     /** 升级状态字符串用于显示 */

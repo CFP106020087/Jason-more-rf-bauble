@@ -1014,7 +1014,8 @@ public class ItemMechanicalCore extends Item implements IBauble {
         for (UpgradeType t : UpgradeType.values()) {
             String id = t.getKey();
             int lv = getUpgradeLevel(stack, id);
-            boolean installed = (nbt != null && nbt.getBoolean("HasUpgrade_" + id)) || lv > 0;
+            // ✅ 移除冗余：HasUpgrade_* 检查（直接用等级判断）
+            boolean installed = lv > 0;
             if (installed && seen.add(norm(id))) types++;
             if (lv > 0) levels += lv;
         }
@@ -1023,7 +1024,8 @@ public class ItemMechanicalCore extends Item implements IBauble {
         for (String id : EXTENDED_UPGRADE_IDS) {
             int lv = 0;
             try { lv = ItemMechanicalCoreExtended.getUpgradeLevel(stack, id); } catch (Throwable ignored) {}
-            boolean installed = (nbt != null && nbt.getBoolean("HasUpgrade_" + id)) || lv > 0;
+            // ✅ 移除冗余：HasUpgrade_* 检查（直接用等级判断）
+            boolean installed = lv > 0;
             if (installed && seen.add(norm(id))) types++;
             if (lv > 0) levels += lv;
         }
@@ -1473,8 +1475,9 @@ public class ItemMechanicalCore extends Item implements IBauble {
             tooltip.add("");
             tooltip.add(TextFormatting.GOLD + "基础升级:");
             for (UpgradeType type : UpgradeType.values()) {
-                if (nbt.getBoolean("HasUpgrade_" + type.getKey()) || getUpgradeLevel(stack, type) > 0) {
-                    int lv = getUpgradeLevel(stack, type);
+                int lv = getUpgradeLevel(stack, type);
+                // ✅ 移除冗余：HasUpgrade_* 检查（直接用等级判断）
+                if (lv > 0) {
                     boolean act = isUpgradeActive(stack, type.getKey());
                     TextFormatting sc = act ? TextFormatting.GREEN : (lv == 0 ? TextFormatting.YELLOW : TextFormatting.RED);
                     String status = act ? "✓" : (lv == 0 ? "⏸" : "✗");
@@ -1500,8 +1503,10 @@ public class ItemMechanicalCore extends Item implements IBauble {
             if (installed > 0) {
                 int paused = 0, disabled = 0;
                 for (UpgradeType type : UpgradeType.values()) {
-                    if (nbt.getBoolean("HasUpgrade_" + type.getKey()) || getUpgradeLevel(stack, type) > 0) {
-                        if (getUpgradeLevel(stack, type) == 0) paused++;
+                    int lv = getUpgradeLevel(stack, type);
+                    // ✅ 移除冗余：HasUpgrade_* 检查（直接用等级判断）
+                    if (lv > 0) {
+                        if (lv == 0) paused++;
                         else if (nbt.getBoolean("Disabled_" + type.getKey())) disabled++;
                     }
                 }
@@ -1656,13 +1661,13 @@ public class ItemMechanicalCore extends Item implements IBauble {
     public static void setUpgradeLevel(ItemStack stack, UpgradeType type, int level) {
         NBTTagCompound nbt = getOrCreateNBT(stack);
         nbt.setInteger("upgrade_" + type.getKey(), level);
-        if (level > 0) nbt.setBoolean("HasUpgrade_" + type.getKey(), true);
+        // ❌ 移除冗余：HasUpgrade_* 字段（可通过 upgrade_* > 0 判断）
     }
 
     public static void setUpgradeLevel(ItemStack stack, String upgradeId, int level) {
         NBTTagCompound nbt = getOrCreateNBT(stack);
         nbt.setInteger("upgrade_" + upgradeId, level);
-        if (level > 0) nbt.setBoolean("HasUpgrade_" + upgradeId, true);
+        // ❌ 移除冗余：HasUpgrade_* 字段（可通过 upgrade_* > 0 判断）
     }
 
     public static int getTotalInstalledUpgrades(ItemStack stack) {
@@ -1674,7 +1679,8 @@ public class ItemMechanicalCore extends Item implements IBauble {
         // a) 基础枚举
         for (UpgradeType type : UpgradeType.values()) {
             String id = type.getKey();
-            if (nbt.getBoolean("HasUpgrade_" + id) || getUpgradeLevelDirect(stack, id) > 0) {
+            // ✅ 移除冗余：HasUpgrade_* 检查（直接查等级）
+            if (getUpgradeLevelDirect(stack, id) > 0) {
                 installed.add(norm(id));
             }
         }
@@ -1683,9 +1689,8 @@ public class ItemMechanicalCore extends Item implements IBauble {
         for (String k : nbt.getKeySet()) {
             if (k.startsWith("upgrade_") && nbt.getInteger(k) > 0) {
                 installed.add(norm(k.substring("upgrade_".length())));
-            } else if (k.startsWith("HasUpgrade_") && nbt.getBoolean(k)) {
-                installed.add(norm(k.substring("HasUpgrade_".length())));
             }
+            // ✅ 移除冗余：HasUpgrade_* 检查
         }
 
         // c) 扩展来源
@@ -1702,7 +1707,8 @@ public class ItemMechanicalCore extends Item implements IBauble {
             for (String id : EXTENDED_UPGRADE_IDS) {
                 int lv = 0;
                 try { lv = ItemMechanicalCoreExtended.getUpgradeLevel(stack, id); } catch (Throwable ignored) {}
-                if (lv > 0 || (nbt.getBoolean("HasUpgrade_" + id))) {
+                // ✅ 移除冗余：HasUpgrade_* 检查（直接用等级判断）
+                if (lv > 0) {
                     installed.add(norm(id));
                 }
             }
