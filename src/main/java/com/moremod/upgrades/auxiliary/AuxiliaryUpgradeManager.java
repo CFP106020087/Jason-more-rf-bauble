@@ -808,9 +808,16 @@ public class AuxiliaryUpgradeManager {
                 ItemStack core = ItemMechanicalCore.getCoreFromPlayer(player);
                 if (core.isEmpty()) return;
 
-                int level = ItemMechanicalCore.getUpgradeLevel(core, "EXP_AMPLIFIER");
-                if (level <= 0) return;
-                if (!ItemMechanicalCore.isUpgradeEnabled(core, "EXP_AMPLIFIER")) return;
+                // ✅ Set player context for upgrade reads
+                ItemMechanicalCore.setPlayerContext(player);
+                int level;
+                try {
+                    level = ItemMechanicalCore.getUpgradeLevel(core, "EXP_AMPLIFIER");
+                    if (level <= 0) return;
+                    if (!ItemMechanicalCore.isUpgradeEnabled(core, "EXP_AMPLIFIER")) return;
+                } finally {
+                    ItemMechanicalCore.clearPlayerContext();
+                }
 
                 int baseExp = computeBaseExperience(entity);
                 if (baseExp <= 0) return;
@@ -904,10 +911,17 @@ public class AuxiliaryUpgradeManager {
             ItemStack core = ItemMechanicalCore.getCoreFromPlayer(p);
             if (core.isEmpty()) return;
 
-            int level = ItemMechanicalCore.getUpgradeLevel(core, "EXP_AMPLIFIER");
-            if (level <= 0) return;
+            // ✅ Set player context for upgrade reads
+            ItemMechanicalCore.setPlayerContext(p);
+            int level;
+            try {
+                level = ItemMechanicalCore.getUpgradeLevel(core, "EXP_AMPLIFIER");
+                if (level <= 0) return;
 
-            if (!ItemMechanicalCore.isUpgradeEnabled(core, "EXP_AMPLIFIER")) return;
+                if (!ItemMechanicalCore.isUpgradeEnabled(core, "EXP_AMPLIFIER")) return;
+            } finally {
+                ItemMechanicalCore.clearPlayerContext();
+            }
 
             // 能量消耗
             int cost = Math.max(5, orb.getXpValue() * 2);
@@ -957,10 +971,17 @@ public class AuxiliaryUpgradeManager {
             ItemStack core = ItemMechanicalCore.getCoreFromPlayer(player);
             if (core.isEmpty()) return 0;
 
-            int level = ItemMechanicalCore.getUpgradeLevel(core, "EXP_AMPLIFIER");
-            if (level <= 0) return 0;
+            // ✅ Set player context for upgrade reads
+            ItemMechanicalCore.setPlayerContext(player);
+            int level;
+            try {
+                level = ItemMechanicalCore.getUpgradeLevel(core, "EXP_AMPLIFIER");
+                if (level <= 0) return 0;
 
-            if (!ItemMechanicalCore.isUpgradeEnabled(core, "EXP_AMPLIFIER")) return 0;
+                if (!ItemMechanicalCore.isUpgradeEnabled(core, "EXP_AMPLIFIER")) return 0;
+            } finally {
+                ItemMechanicalCore.clearPlayerContext();
+            }
 
             switch (level) {
                 case 1: return 5;
