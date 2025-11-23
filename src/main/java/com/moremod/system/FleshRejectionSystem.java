@@ -337,6 +337,11 @@ public class FleshRejectionSystem {
     public static boolean hasNeuralSynchronizer(ItemStack core) {
         if (core.isEmpty()) return false;
 
+        // ✅ 优先使用扩展系统统一读取（支持 Capability）
+        int level = ItemMechanicalCoreExtended.getUpgradeLevel(core, "NEURAL_SYNCHRONIZER");
+        if (level > 0) return true;
+
+        // 降级方案：从 NBT 读取（兼容性）
         NBTTagCompound nbt = core.getTagCompound();
         if (nbt != null) {
             if (nbt.getInteger("upgrade_neural_synchronizer") > 0) return true;
