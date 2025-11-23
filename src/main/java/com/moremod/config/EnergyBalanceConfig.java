@@ -111,6 +111,7 @@ public class EnergyBalanceConfig {
         public static int SHIELD_MAINTAIN_PER_LEVEL = 40;
         public static int SHIELD_RESTORE_PER_POINT  = 20;
         public static int HEALTH_REGEN_PER_LEVEL    = 60;
+        public static int HEALTH_REGEN_COST_PER_HALF_HEART = 100;  // 每 0.5 心恢复消耗
         public static int HUNGER_RESTORE            = 50;
         public static int THIRST_RESTORE            = 50;
         public static int FIRE_EXTINGUISH           = 200;

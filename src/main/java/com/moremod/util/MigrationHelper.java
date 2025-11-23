@@ -58,7 +58,7 @@ public class MigrationHelper {
      * @param oldNBT 旧的 ItemStack NBT
      */
     public static void migrateFromItemStack(IMechCoreData data, NBTTagCompound oldNBT) {
-        if (oldNBT == null || oldNBT.hasNoTags()) {
+        if (oldNBT == null || oldNBT.getKeySet().isEmpty()) {
             return;
         }
 
@@ -90,7 +90,7 @@ public class MigrationHelper {
 
                 // 迁移元数据（如果存在）
                 NBTTagCompound meta = getModuleMeta(oldNBT, moduleId);
-                if (meta != null && !meta.hasNoTags()) {
+                if (meta != null && !meta.getKeySet().isEmpty()) {
                     data.setModuleMeta(moduleId, meta);
                     logger.debug("Migrated metadata for: {}", moduleId);
                 }

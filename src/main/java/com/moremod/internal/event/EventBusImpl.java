@@ -95,7 +95,7 @@ public class EventBusImpl implements IEventBus {
 
         // 排序（优先级）
         for (List<ListenerEntry<? extends IEvent>> list : listeners.values()) {
-            Collections.sort(list);
+            sortListeners(list);
         }
 
         // 记录所有者映射
@@ -154,7 +154,7 @@ public class EventBusImpl implements IEventBus {
             listeners.computeIfAbsent(eventClass, k -> new CopyOnWriteArrayList<>());
 
         list.add(entry);
-        Collections.sort(list);
+        sortListeners(list);
 
         ownerMap.computeIfAbsent(listener, k -> new ArrayList<>()).add(entry);
     }
@@ -244,7 +244,7 @@ public class EventBusImpl implements IEventBus {
         }
 
         // 按优先级排序
-        Collections.sort(result);
+        sortListeners(result);
 
         return result;
     }
@@ -262,5 +262,14 @@ public class EventBusImpl implements IEventBus {
         ownerMap.clear();
         asyncExecutor.shutdown();
         logger.info("EventBus '{}' shutdown", name);
+    }
+
+    /**
+     * 排序监听器列表（处理泛型通配符问题）
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private void sortListeners(List<ListenerEntry<? extends IEvent>> list) {
+        // 使用原始类型来避免泛型通配符的 Comparable 问题
+        Collections.sort((List) list);
     }
 }

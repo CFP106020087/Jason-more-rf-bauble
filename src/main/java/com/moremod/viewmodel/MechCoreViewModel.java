@@ -1,8 +1,10 @@
 package com.moremod.viewmodel;
 
 import com.moremod.capability.IMechCoreData;
+import com.moremod.capability.module.IMechCoreModule;
 import com.moremod.capability.module.ModuleContainer;
 import com.moremod.item.ItemMechanicalCoreExtended;
+import com.moremod.upgrades.ModuleRegistry;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.text.TextFormatting;
 
@@ -78,7 +80,7 @@ public class MechCoreViewModel {
             modules.add(new ModuleInfo(
                 moduleId,
                 container.getLevel(moduleId),
-                container.getMaxLevel(moduleId),
+                getModuleMaxLevel(moduleId),
                 container.isActive(moduleId)
             ));
         }
@@ -94,7 +96,7 @@ public class MechCoreViewModel {
             modules.add(new ModuleInfo(
                 moduleId,
                 container.getLevel(moduleId),
-                container.getMaxLevel(moduleId),
+                getModuleMaxLevel(moduleId),
                 true
             ));
         }
@@ -108,7 +110,7 @@ public class MechCoreViewModel {
         return new ModuleInfo(
             moduleId,
             container.getLevel(moduleId),
-            container.getMaxLevel(moduleId),
+            getModuleMaxLevel(moduleId),
             container.isActive(moduleId)
         );
     }
@@ -186,6 +188,18 @@ public class MechCoreViewModel {
     // ────────────────────────────────────────────────────────────
     // 辅助方法
     // ────────────────────────────────────────────────────────────
+
+    /**
+     * 获取模块的最大等级
+     */
+    private int getModuleMaxLevel(String moduleId) {
+        IMechCoreModule module = ModuleRegistry.getNew(moduleId);
+        if (module != null) {
+            return module.getMaxLevel();
+        }
+        // 默认最大等级为 5
+        return 5;
+    }
 
     private String formatEnergy(int energy) {
         if (energy >= 1_000_000) {

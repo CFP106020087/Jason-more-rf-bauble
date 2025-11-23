@@ -38,8 +38,7 @@ public class PacketSyncMechCoreData implements IMessage {
         this.maxEnergy = data.getMaxEnergy();
 
         // 序列化模块容器数据
-        this.moduleData = new NBTTagCompound();
-        data.getModuleContainer().serializeNBT(this.moduleData);
+        this.moduleData = data.getModuleContainer().serializeNBT();
     }
 
     @Override
