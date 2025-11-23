@@ -2,6 +2,7 @@ package com.moremod.client.gui;
 
 import baubles.api.BaublesApi;
 import baubles.api.cap.IBaublesItemHandler;
+import com.moremod.capability.IMechCoreData;
 import com.moremod.event.EnergyPunishmentSystem;
 import com.moremod.item.ItemBatteryBauble;
 import com.moremod.item.ItemCreativeBatteryBauble;
@@ -261,8 +262,29 @@ public class MechanicalCoreGui extends GuiScreen {
         return UpgradeStatus.NOT_OWNED;
     }
 
+    /**
+     * ✅ 从 Capability 读取升级等级（纯 Capability 模式）
+     *
+     * 优先级：
+     * 1. 从客户端玩家 Capability 读取
+     * 2. 降级到 NBT 读取（向后兼容）
+     */
     private int getUpgradeLevelAcross(ItemStack core, String id) {
         if (core == null || core.isEmpty()) return 0;
+
+        // ✅ 优先级 1：从客户端玩家 Capability 读取
+        if (player != null) {
+            IMechCoreData data = player.getCapability(IMechCoreData.CAPABILITY, null);
+            if (data != null) {
+                String moduleId = up(id);
+                int capLevel = data.getModuleLevel(moduleId);
+                if (capLevel > 0) {
+                    return capLevel;
+                }
+            }
+        }
+
+        // ✅ 优先级 2：降级到 NBT 读取（向后兼容）
         NBTTagCompound nbt = core.getTagCompound();
         int nbtLevel = 0;
         boolean nbtHasKey = false;

@@ -1,5 +1,6 @@
 package com.moremod.client.gui;
 
+import com.moremod.capability.IMechCoreData;
 import com.moremod.client.KeyBindHandler;
 import com.moremod.item.ItemMechanicalCore;
 import com.moremod.item.ItemMechanicalCoreExtended;
@@ -882,8 +883,29 @@ public class MechanicalCoreHUD extends Gui {
         int consumption = 0;
     }
 
+    /**
+     * ✅ 从 Capability 读取升级等级（纯 Capability 模式）
+     *
+     * 优先级：
+     * 1. 从客户端玩家 Capability 读取
+     * 2. 降级到 NBT 读取（向后兼容）
+     */
     private int getUpgradeLevel(ItemStack stack, String upgradeId) {
         try {
+            // ✅ 优先级 1：从客户端玩家 Capability 读取
+            EntityPlayer player = mc.player;
+            if (player != null) {
+                IMechCoreData data = player.getCapability(IMechCoreData.CAPABILITY, null);
+                if (data != null) {
+                    String moduleId = upgradeId.toUpperCase();
+                    int capLevel = data.getModuleLevel(moduleId);
+                    if (capLevel > 0) {
+                        return capLevel;
+                    }
+                }
+            }
+
+            // ✅ 优先级 2：降级到 NBT 读取（向后兼容）
             int level = ItemMechanicalCoreExtended.getUpgradeLevel(stack, upgradeId);
             if (level > 0) return level;
 
