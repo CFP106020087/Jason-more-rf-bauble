@@ -6,9 +6,12 @@ import com.moremod.capability.module.ModuleContainer;
 import com.moremod.capability.module.ModuleContext;
 import com.moremod.event.EnergyPunishmentSystem;
 import com.moremod.item.ItemMechanicalCore;
+import com.moremod.network.NetworkHandler;
+import com.moremod.network.PacketSyncMechCoreData;
 import com.moremod.upgrades.ModuleRegistry;
 import com.moremod.upgrades.energy.EnergyDepletionManager;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
@@ -113,9 +116,27 @@ public class ModuleTickHandler {
             handleEnergyPunishment(player, data);
         }
 
-        // 标记脏（如果有变化）
+        // 网络同步（如果有变化）
         if (data.isDirty()) {
-            // TODO: 网络同步
+            syncToClient(player, data);
+            data.clearDirty();
+        }
+    }
+
+    /**
+     * 同步 Capability 数据到客户端
+     */
+    private void syncToClient(EntityPlayer player, IMechCoreData data) {
+        if (!(player instanceof EntityPlayerMP)) {
+            return;
+        }
+
+        try {
+            PacketSyncMechCoreData packet = new PacketSyncMechCoreData(data);
+            NetworkHandler.CHANNEL.sendTo(packet, (EntityPlayerMP) player);
+        } catch (Exception e) {
+            logger.error("Failed to sync MechCoreData to client for player: {}",
+                       player.getName(), e);
         }
     }
 

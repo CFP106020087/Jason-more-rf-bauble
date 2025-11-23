@@ -38,6 +38,14 @@ public final class NetworkHandler {
                 nextId(), Side.SERVER
         );
 
+        // ========== Capability 同步包 ==========
+        CHANNEL.registerMessage(
+                PacketSyncMechCoreData.Handler.class,
+                PacketSyncMechCoreData.class,
+                nextId(), Side.CLIENT
+        );
+        System.out.println("[moremod] ✅ 已註冊 PacketSyncMechCoreData（Capability同步）");
+
         // 🏪🏪🏪 新增：村民交易機數據包 🏪🏪🏪
 
         // 交易索引切換（左右箭頭）
