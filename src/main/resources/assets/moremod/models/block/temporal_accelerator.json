@@ -1,0 +1,12 @@
+{
+  "parent": "block/cube",
+  "textures": {
+    "particle": "moremod:blocks/temporal_accelerator_side",
+    "down": "moremod:blocks/temporal_accelerator_bottom",
+    "up": "moremod:blocks/temporal_accelerator_top",
+    "north": "moremod:blocks/temporal_accelerator_side",
+    "south": "moremod:blocks/temporal_accelerator_side",
+    "west": "moremod:blocks/temporal_accelerator_side",
+    "east": "moremod:blocks/temporal_accelerator_side"
+  }
+}

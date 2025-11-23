@@ -1,0 +1,12 @@
+{
+  "parent": "block/cube",
+  "textures": {
+    "particle": "moremod:blocks/trading_station_side",
+    "down": "moremod:blocks/trading_station_bottom",
+    "up": "moremod:blocks/trading_station_top",
+    "north": "moremod:blocks/trading_station_front_on",
+    "south": "moremod:blocks/trading_station_side",
+    "west": "moremod:blocks/trading_station_side",
+    "east": "moremod:blocks/trading_station_side"
+  }
+}

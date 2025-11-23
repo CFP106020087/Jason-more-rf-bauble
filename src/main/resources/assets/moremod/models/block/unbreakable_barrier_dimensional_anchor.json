@@ -1,0 +1,4 @@
+{
+    "parent": "block/cube_all",
+    "textures": { "all": "moremod:blocks/unbreakable_barrier_dimensional_anchor" }
+}

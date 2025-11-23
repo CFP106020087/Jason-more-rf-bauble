@@ -1,0 +1,12 @@
+{
+  "parent": "block/cube",
+  "textures": {
+    "down": "moremod:blocks/simple_wisdom_shrine",
+    "up": "moremod:blocks/simple_wisdom_shrine",
+    "north": "moremod:blocks/simple_wisdom_shrine",
+    "south": "moremod:blocks/simple_wisdom_shrine",
+    "west": "moremod:blocks/simple_wisdom_shrine",
+    "east": "moremod:blocks/simple_wisdom_shrine",
+    "particle": "moremod:blocks/simple_wisdom_shrine"
+  }
+}

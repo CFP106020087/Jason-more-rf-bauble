@@ -1,0 +1,11 @@
+[
+  {
+    "modid": "moremod",
+    "name": "Jason's more rf bauble",
+    "version": "${version}",
+    "mcversion": "1.12.2",
+    "authorList": ["Jason"],
+    "description": "More RF baubles and integrations.",
+    "acceptedMinecraftVersions": "[1.12.2]"
+  }
+]

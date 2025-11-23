@@ -1,0 +1,22 @@
+{
+  "required": false,
+  "package": "com.moremod.mixin.villager",
+  "refmap": "mixins.moremod.villager.refmap.json",
+  "compatibilityLevel": "JAVA_8",
+  "target": "@env(DEFAULT)",
+  "minVersion": "0.8",
+  "priority": 2000,
+  "verbose": true,
+  "mixins": [
+    "MixinEntityVillager",    "MixinMerchantRecipeList",
+    "MixinSlotMerchantResult"
+  ],
+  "client": [
+    "MixinGuiMerchant"
+  ],
+  "server": [],
+  "injectors": {
+    "defaultRequire": 0,
+    "maxShiftBy": 10
+  }
+}

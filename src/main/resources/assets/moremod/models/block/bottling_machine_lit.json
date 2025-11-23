@@ -1,0 +1,12 @@
+{
+  "parent": "block/cube",
+  "textures": {
+    "particle": "moremod:blocks/bottling_machine_side",
+    "down": "moremod:blocks/bottling_machine_bottom",
+    "up": "moremod:blocks/bottling_machine_top_lit",
+    "north": "moremod:blocks/bottling_machine_front_lit",
+    "south": "moremod:blocks/bottling_machine_side",
+    "west": "moremod:blocks/bottling_machine_side",
+    "east": "moremod:blocks/bottling_machine_side"
+  }
+}

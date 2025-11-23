@@ -1,0 +1,9 @@
+
+{
+  "parent": "minecraft:block/anvil",
+  "textures": {
+    "particle": "moremod:blocks/magic_anvil_side_material",
+    "body":     "moremod:blocks/magic_anvil_side_material",
+    "top":      "moremod:blocks/magic_anvil_top_material"
+  }
+}

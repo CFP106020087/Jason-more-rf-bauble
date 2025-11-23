@@ -1,0 +1,7 @@
+{
+  "parent": "block/cube_all",
+  "textures": {
+    "all": "moremod:blocks/ethereal_wall",
+    "particle": "moremod:blocks/ethereal_wall"
+  }
+}
