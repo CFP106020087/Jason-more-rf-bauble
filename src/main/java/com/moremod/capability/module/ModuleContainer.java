@@ -33,17 +33,22 @@ public class ModuleContainer {
 
     /** 获取模块等级 */
     public int getLevel(String moduleId) {
-        return moduleLevels.getOrDefault(moduleId, 0);
+        int level = moduleLevels.getOrDefault(moduleId, 0);
+        System.out.println("[ModuleContainer] getLevel: moduleId=" + moduleId + ", level=" + level + ", 容器内容=" + moduleLevels);
+        return level;
     }
 
     /** 设置模块等级 */
     public void setLevel(String moduleId, int level) {
+        System.out.println("[ModuleContainer] setLevel: moduleId=" + moduleId + ", level=" + level + ", 设置前容器=" + moduleLevels);
         if (level <= 0) {
             moduleLevels.remove(moduleId);
             moduleActive.remove(moduleId);
+            System.out.println("[ModuleContainer] 等级≤0，已移除模块");
         } else {
             moduleLevels.put(moduleId, level);
             moduleActive.putIfAbsent(moduleId, true);
+            System.out.println("[ModuleContainer] 已写入，设置后容器=" + moduleLevels);
         }
     }
 

@@ -142,11 +142,15 @@ public class MechCoreDataImpl implements IMechCoreData {
 
     @Override
     public int getModuleLevel(String moduleId) {
-        return moduleContainer.getLevel(moduleId);
+        System.out.println("[MechCoreDataImpl@" + System.identityHashCode(this) + "] getModuleLevel: " + moduleId);
+        int level = moduleContainer.getLevel(moduleId);
+        System.out.println("[MechCoreDataImpl@" + System.identityHashCode(this) + "] 返回等级: " + level);
+        return level;
     }
 
     @Override
     public void setModuleLevel(String moduleId, int level) {
+        System.out.println("[MechCoreDataImpl@" + System.identityHashCode(this) + "] setModuleLevel: moduleId=" + moduleId + ", level=" + level);
         moduleContainer.setLevel(moduleId, level);
         markDirty();
     }
