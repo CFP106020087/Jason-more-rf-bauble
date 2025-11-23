@@ -4,6 +4,7 @@ import com.moremod.moremod;
 import com.moremod.capability.IMechCoreData;
 import com.moremod.capability.MechCoreDataProvider;
 import com.moremod.item.ItemMechanicalCore;
+import com.moremod.config.EnergyBalanceConfig;
 import baubles.api.BaublesApi;
 import baubles.api.cap.IBaublesItemHandler;
 import net.minecraft.entity.Entity;
@@ -142,6 +143,9 @@ public class CapabilityEventHandler {
                             capData.setOriginalMaxLevel(upperId, originalMax);
                         }
                     }
+
+                    // ✅ 计算并更新 maxEnergy（基于 ENERGY_CAPACITY 等级）
+                    updateMaxEnergyFromCapability(capData, nbt);
                 }
             }
         }
@@ -209,45 +213,51 @@ public class CapabilityEventHandler {
         if (!coreStack.isEmpty() && ItemMechanicalCore.isMechanicalCore(coreStack)) {
             IMechCoreData capData = player.getCapability(IMechCoreData.CAPABILITY, null);
 
-            if (capData != null && capData.isDirty()) {
-                // 保存Capability数据到ItemStack NBT
-                if (!coreStack.hasTagCompound()) {
-                    coreStack.setTagCompound(new NBTTagCompound());
-                }
+            if (capData != null) {
+                // ✅ 定期更新 maxEnergy（确保能量容量模块生效）
+                NBTTagCompound nbt = coreStack.hasTagCompound() ? coreStack.getTagCompound() : null;
+                updateMaxEnergyFromCapability(capData, nbt);
 
-                NBTTagCompound nbt = coreStack.getTagCompound();
-                NBTTagCompound mechData = new NBTTagCompound();
-
-                // 保存所有基础升级
-                for (ItemMechanicalCore.UpgradeType type : ItemMechanicalCore.UpgradeType.values()) {
-                    String key = type.getKey();
-                    int level = capData.getModuleLevel(key);
-                    if (level > 0) {
-                        mechData.setInteger(key, level);
+                if (capData.isDirty()) {
+                    // 保存Capability数据到ItemStack NBT
+                    if (!coreStack.hasTagCompound()) {
+                        coreStack.setTagCompound(new NBTTagCompound());
                     }
-                }
 
-                nbt.setTag("MechanicalCoreData", mechData);
+                    NBTTagCompound nbtData = coreStack.getTagCompound();
+                    NBTTagCompound mechData = new NBTTagCompound();
 
-                // ✅ 同步 OriginalMax 到 NBT（只写大写变体，减少写入开销）
-                for (ItemMechanicalCore.UpgradeType type : ItemMechanicalCore.UpgradeType.values()) {
-                    String key = type.getKey();
-                    String upperId = key.toUpperCase();
-                    int originalMax = capData.getOriginalMaxLevel(upperId);
-
-                    if (originalMax > 0) {
-                        nbt.setInteger("OriginalMax_" + upperId, originalMax);
-                        // ✅ 只写大写变体（读取时会回退到多变体兼容）
+                    // 保存所有基础升级
+                    for (ItemMechanicalCore.UpgradeType type : ItemMechanicalCore.UpgradeType.values()) {
+                        String key = type.getKey();
+                        int level = capData.getModuleLevel(key);
+                        if (level > 0) {
+                            mechData.setInteger(key, level);
+                        }
                     }
+
+                    nbtData.setTag("MechanicalCoreData", mechData);
+
+                    // ✅ 同步 OriginalMax 到 NBT（只写大写变体，减少写入开销）
+                    for (ItemMechanicalCore.UpgradeType type : ItemMechanicalCore.UpgradeType.values()) {
+                        String key = type.getKey();
+                        String upperId = key.toUpperCase();
+                        int originalMax = capData.getOriginalMaxLevel(upperId);
+
+                        if (originalMax > 0) {
+                            nbtData.setInteger("OriginalMax_" + upperId, originalMax);
+                            // ✅ 只写大写变体（读取时会回退到多变体兼容）
+                        }
+                    }
+
+                    // 清除dirty标记
+                    capData.clearDirty();
+
+                    logger.debug(
+                        "Synced MechanicalCore Capability to ItemStack NBT for player: {}",
+                        player.getName()
+                    );
                 }
-
-                // 清除dirty标记
-                capData.clearDirty();
-
-                logger.debug(
-                    "Synced MechanicalCore Capability to ItemStack NBT for player: {}",
-                    player.getName()
-                );
             }
         }
     }
@@ -313,5 +323,35 @@ public class CapabilityEventHandler {
                 player.getName()
             );
         }
+    }
+
+    /**
+     * 根据 ENERGY_CAPACITY 等级更新 Capability 的 maxEnergy
+     */
+    private void updateMaxEnergyFromCapability(IMechCoreData capData, NBTTagCompound nbt) {
+        if (capData == null) return;
+
+        // 获取 ENERGY_CAPACITY 等级（优先从 Capability，降级到 NBT）
+        int capacityLevel = capData.getModuleLevel("ENERGY_CAPACITY");
+        if (capacityLevel == 0) {
+            capacityLevel = capData.getModuleLevel("energy_capacity");
+        }
+
+        // 如果 Capability 中没有，尝试从 NBT 读取（兼容性）
+        if (capacityLevel == 0 && nbt != null) {
+            // 检查是否被禁用或暂停
+            if (!nbt.getBoolean("Disabled_energy_capacity") && !nbt.getBoolean("IsPaused_energy_capacity")) {
+                capacityLevel = nbt.getInteger("upgrade_energy_capacity");
+            }
+        }
+
+        // 计算 maxEnergy
+        int maxEnergy = EnergyBalanceConfig.BASE_ENERGY_CAPACITY
+                      + capacityLevel * EnergyBalanceConfig.ENERGY_PER_CAPACITY_LEVEL;
+
+        // 更新到 Capability
+        capData.setMaxEnergy(maxEnergy);
+
+        logger.debug("Updated maxEnergy: {} (capacityLevel: {})", maxEnergy, capacityLevel);
     }
 }

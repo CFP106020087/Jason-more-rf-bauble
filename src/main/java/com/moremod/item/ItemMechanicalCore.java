@@ -2208,6 +2208,21 @@ public class ItemMechanicalCore extends Item implements IBauble {
             if (isCalculatingEnergy.get()) return EnergyBalanceConfig.BASE_ENERGY_CAPACITY;
             try {
                 isCalculatingEnergy.set(true);
+
+                // ✅ 优先从 Capability 读取（如果有玩家上下文）
+                net.minecraft.entity.player.EntityPlayer player = CURRENT_PLAYER.get();
+                if (player != null) {
+                    com.moremod.capability.IMechCoreData capData = player.getCapability(
+                            com.moremod.capability.IMechCoreData.CAPABILITY, null);
+                    if (capData != null) {
+                        int capMaxEnergy = capData.getMaxEnergy();
+                        if (capMaxEnergy > 0) {
+                            return capMaxEnergy;
+                        }
+                    }
+                }
+
+                // ✅ 降级方案：从 NBT 计算（兼容性）
                 int capacityLevel = 0;
                 if (container.hasTagCompound()) {
                     NBTTagCompound nbt = container.getTagCompound();

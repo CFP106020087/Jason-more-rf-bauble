@@ -654,16 +654,22 @@ public class WaterproofUpgrade {
 
     public static int getWaterproofLevel(ItemStack coreStack) {
         if (coreStack.isEmpty()) return 0;
-        NBTTagCompound nbt = coreStack.getTagCompound();
-        if (nbt == null) return 0;
 
-        int level = 0;
-        for (String id : WATERPROOF_IDS) {
-            level = Math.max(level, nbt.getInteger("upgrade_" + id));
-            level = Math.max(level, nbt.getInteger("upgrade_" + id.toLowerCase()));
-            level = Math.max(level, nbt.getInteger("upgrade_" + id.toUpperCase()));
+        // ✅ 优先使用扩展系统统一读取（支持 Capability）
+        int level = com.moremod.item.ItemMechanicalCoreExtended.getUpgradeLevel(coreStack, "WATERPROOF_MODULE");
+
+        // 如果扩展系统没有，尝试从 NBT 读取（兼容性）
+        if (level == 0) {
+            NBTTagCompound nbt = coreStack.getTagCompound();
+            if (nbt != null) {
+                for (String id : WATERPROOF_IDS) {
+                    level = Math.max(level, nbt.getInteger("upgrade_" + id));
+                    level = Math.max(level, nbt.getInteger("upgrade_" + id.toLowerCase()));
+                    level = Math.max(level, nbt.getInteger("upgrade_" + id.toUpperCase()));
+                }
+                level = Math.max(level, nbt.getInteger("waterproofLevel"));
+            }
         }
-        level = Math.max(level, nbt.getInteger("waterproofLevel"));
 
         return Math.min(level, MAX_LEVEL);
     }

@@ -1,7 +1,9 @@
 package com.moremod.upgrades;
 
 import com.moremod.item.ItemMechanicalCore;
+import com.moremod.item.ItemMechanicalCoreExtended;
 import com.moremod.eventHandler.EventHandlerJetpack;
+import com.moremod.upgrades.module.NeuralSynchronizerModule;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.MobEffects;
@@ -51,6 +53,9 @@ public class UpgradeEffectManager {
             // 温度控制效果
             com.moremod.upgrades.TemperatureControlEffect.applyTemperatureControl(player, coreStack);
             WaterproofUpgrade.applyWaterproofEffect(player, coreStack);
+
+            // ✅ 神经同步器模块效果
+            applyNeuralSynchronizerEffect(player, coreStack);
         } finally {
             // ✅ Clear player context
             ItemMechanicalCore.clearPlayerContext();
@@ -153,6 +158,19 @@ public class UpgradeEffectManager {
                     ));
                 }
             }
+        }
+    }
+
+    /**
+     * 神经同步器效果
+     */
+    private static void applyNeuralSynchronizerEffect(EntityPlayer player, ItemStack coreStack) {
+        // 获取神经同步器等级（使用扩展系统）
+        int level = ItemMechanicalCoreExtended.getUpgradeLevel(coreStack, "NEURAL_SYNCHRONIZER");
+
+        if (level > 0) {
+            // 调用模块的 onTick 方法
+            NeuralSynchronizerModule.INSTANCE.onTick(player, coreStack, level);
         }
     }
 
