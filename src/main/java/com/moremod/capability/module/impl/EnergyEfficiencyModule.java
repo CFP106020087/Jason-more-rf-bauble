@@ -36,12 +36,14 @@ public class EnergyEfficiencyModule extends AbstractMechCoreModule {
 
     @Override
     public void onActivate(EntityPlayer player, IMechCoreData data, int newLevel) {
+        System.out.println("[EnergyEfficiencyModule] onActivate 被调用: player=" + player.getName() + ", newLevel=" + newLevel);
         // 激活时无需特殊操作
         // 效率加成在 consumeEnergy 时自动应用
     }
 
     @Override
     public void onDeactivate(EntityPlayer player, IMechCoreData data) {
+        System.out.println("[EnergyEfficiencyModule] onDeactivate 被调用: player=" + player.getName());
         // 停用时无需特殊操作
         // consumeEnergy 会自动检测等级为 0
     }
@@ -54,6 +56,7 @@ public class EnergyEfficiencyModule extends AbstractMechCoreModule {
 
     @Override
     public void onLevelChanged(EntityPlayer player, IMechCoreData data, int oldLevel, int newLevel) {
+        System.out.println("[EnergyEfficiencyModule] onLevelChanged 被调用: player=" + player.getName() + ", oldLevel=" + oldLevel + ", newLevel=" + newLevel);
         // 等级变化时无需特殊操作
         // 新等级会在下次 consumeEnergy 时自动生效
 

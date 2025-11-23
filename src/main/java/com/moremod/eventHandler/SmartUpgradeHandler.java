@@ -38,6 +38,13 @@ public class SmartUpgradeHandler {
     private static final String K_ORIGINAL_MAX = "OriginalMax_";
     private static final String K_OWNED_MAX = "OwnedMax_";
 
+    // ✅ ThreadLocal 保存当前处理的玩家（用于 lvOf 等方法）
+    private static final ThreadLocal<EntityPlayer> CURRENT_PLAYER = new ThreadLocal<>();
+
+    private static EntityPlayer getCurrentPlayer() {
+        return CURRENT_PLAYER.get();
+    }
+
     @SubscribeEvent(priority = EventPriority.HIGH)
     public void onPlayerRightClick(PlayerInteractEvent.RightClickItem event) {
         if (event.getWorld().isRemote) return;
@@ -49,27 +56,34 @@ public class SmartUpgradeHandler {
 
         event.setCanceled(true);
 
-        ItemStack coreStack = ItemMechanicalCore.findEquippedMechanicalCore(player);
-        if (!ItemMechanicalCore.isMechanicalCore(coreStack)) {
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.RED + "未找到装备的机械核心！请先装备到头部饰品栏。"
-            ));
-            return;
-        }
+        // ✅ 设置当前玩家上下文（用于 lvOf 等方法从 Capability 读取）
+        CURRENT_PLAYER.set(player);
+        try {
+            ItemStack coreStack = ItemMechanicalCore.findEquippedMechanicalCore(player);
+            if (!ItemMechanicalCore.isMechanicalCore(coreStack)) {
+                player.sendMessage(new TextComponentString(
+                        TextFormatting.RED + "未找到装备的机械核心！请先装备到头部饰品栏。"
+                ));
+                return;
+            }
 
-        ItemUpgradeComponent upgradeItem = (ItemUpgradeComponent) heldItem.getItem();
+            ItemUpgradeComponent upgradeItem = (ItemUpgradeComponent) heldItem.getItem();
 
-        UpgradeValidation validation = validateUpgrade(coreStack, upgradeItem);
-        if (!validation.canUpgrade) {
-            player.sendMessage(new TextComponentString(TextFormatting.RED + validation.message));
-            return;
-        }
+            UpgradeValidation validation = validateUpgrade(coreStack, upgradeItem);
+            if (!validation.canUpgrade) {
+                player.sendMessage(new TextComponentString(TextFormatting.RED + validation.message));
+                return;
+            }
 
-        boolean ok = performUpgrade(player, coreStack, heldItem, upgradeItem, validation);
-        if (ok) {
-            if (!player.isCreative()) heldItem.shrink(1);
-            playUpgradeEffects(player);
-            forceSyncCore(player);
+            boolean ok = performUpgrade(player, coreStack, heldItem, upgradeItem, validation);
+            if (ok) {
+                if (!player.isCreative()) heldItem.shrink(1);
+                playUpgradeEffects(player);
+                forceSyncCore(player);
+            }
+        } finally {
+            // ✅ 清除玩家上下文
+            CURRENT_PLAYER.remove();
         }
     }
 
@@ -659,7 +673,28 @@ public class SmartUpgradeHandler {
         }
     }
 
+    /**
+     * ✅ 从 Capability 读取当前等级（纯 Capability 模式）
+     *
+     * 注意：必须从玩家 Capability 读取，不能从 ItemStack NBT 读取
+     * 因为纯 Capability 模式下 NBT 是空的
+     */
     private int lvOf(ItemStack core, String id) {
+        // ✅ 优先从当前玩家 Capability 读取（服务端）
+        // 注意：这个方法在服务端调用，player 是事件处理器中的玩家
+        EntityPlayer currentPlayer = getCurrentPlayer();
+        if (currentPlayer != null) {
+            IMechCoreData data = currentPlayer.getCapability(IMechCoreData.CAPABILITY, null);
+            if (data != null) {
+                String moduleId = UpgradeKeys.canon(id);
+                int capLevel = data.getModuleLevel(moduleId);
+                if (capLevel > 0) {
+                    return capLevel;
+                }
+            }
+        }
+
+        // ✅ 降级到 NBT 读取（向后兼容）
         int lv = 0;
         lv = Math.max(lv, ItemMechanicalCoreExtended.getUpgradeLevel(core, id));
         lv = Math.max(lv, ItemMechanicalCoreExtended.getUpgradeLevel(core, id.toLowerCase(Locale.ROOT)));

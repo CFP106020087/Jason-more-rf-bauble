@@ -32,12 +32,14 @@ public class EnergyCapacityModule extends AbstractMechCoreModule {
 
     @Override
     public void onActivate(EntityPlayer player, IMechCoreData data, int newLevel) {
+        System.out.println("[EnergyCapacityModule] onActivate 被调用: player=" + player.getName() + ", newLevel=" + newLevel);
         // 激活时更新最大能量
         updateMaxEnergy(player, data, newLevel);
     }
 
     @Override
     public void onDeactivate(EntityPlayer player, IMechCoreData data) {
+        System.out.println("[EnergyCapacityModule] onDeactivate 被调用: player=" + player.getName());
         // 停用时恢复基础能量上限
         data.setMaxEnergy(EnergyBalanceConfig.BASE_ENERGY_CAPACITY);
 
@@ -54,6 +56,7 @@ public class EnergyCapacityModule extends AbstractMechCoreModule {
 
     @Override
     public void onLevelChanged(EntityPlayer player, IMechCoreData data, int oldLevel, int newLevel) {
+        System.out.println("[EnergyCapacityModule] onLevelChanged 被调用: player=" + player.getName() + ", oldLevel=" + oldLevel + ", newLevel=" + newLevel);
         // 等级变化时更新最大能量
         updateMaxEnergy(player, data, newLevel);
     }
@@ -66,7 +69,15 @@ public class EnergyCapacityModule extends AbstractMechCoreModule {
         int bonusPerLevel = EnergyBalanceConfig.ENERGY_PER_CAPACITY_LEVEL;
         int newMaxEnergy = baseCapacity + (level * bonusPerLevel);
 
+        System.out.println("[EnergyCapacityModule] updateMaxEnergy:");
+        System.out.println("  当前能量: " + data.getEnergy());
+        System.out.println("  当前最大能量: " + data.getMaxEnergy());
+        System.out.println("  新最大能量: " + newMaxEnergy);
+        System.out.println("  (基础: " + baseCapacity + " + 等级" + level + " * " + bonusPerLevel + ")");
+
         data.setMaxEnergy(newMaxEnergy);
+
+        System.out.println("  设置后最大能量: " + data.getMaxEnergy());
 
         // 不自动填充能量，保持当前值
         // 如果当前能量超过新上限（降级情况），裁剪
