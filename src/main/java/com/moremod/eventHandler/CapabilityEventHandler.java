@@ -221,7 +221,7 @@ public class CapabilityEventHandler {
                 // 保存所有基础升级
                 for (ItemMechanicalCore.UpgradeType type : ItemMechanicalCore.UpgradeType.values()) {
                     String key = type.getKey();
-                    int level = capData.getUpgradeLevel(key);
+                    int level = capData.getModuleLevel(key);
                     if (level > 0) {
                         mechData.setInteger(key, level);
                     }
@@ -281,7 +281,7 @@ public class CapabilityEventHandler {
                     // 保存所有基础升级
                     for (ItemMechanicalCore.UpgradeType type : ItemMechanicalCore.UpgradeType.values()) {
                         String key = type.getKey();
-                        int level = capData.getUpgradeLevel(key);
+                        int level = capData.getModuleLevel(key);
                         if (level > 0) {
                             mechData.setInteger(key, level);
                         }
