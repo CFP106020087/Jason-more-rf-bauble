@@ -123,6 +123,25 @@ public class CapabilityEventHandler {
                             player.getName()
                         );
                     }
+
+                    // 从旧的 NBT 格式迁移 OriginalMax 到 Capability
+                    for (ItemMechanicalCore.UpgradeType type : ItemMechanicalCore.UpgradeType.values()) {
+                        String key = type.getKey();
+                        String upperId = key.toUpperCase();
+
+                        // 尝试从多个变体读取 OriginalMax
+                        int originalMax = Math.max(
+                            nbt.getInteger("OriginalMax_" + key),
+                            Math.max(
+                                nbt.getInteger("OriginalMax_" + upperId),
+                                nbt.getInteger("OriginalMax_" + key.toLowerCase())
+                            )
+                        );
+
+                        if (originalMax > 0) {
+                            capData.setOriginalMaxLevel(upperId, originalMax);
+                        }
+                    }
                 }
             }
         }
@@ -210,6 +229,19 @@ public class CapabilityEventHandler {
 
                 nbt.setTag("MechanicalCoreData", mechData);
 
+                // 同步 OriginalMax 到 NBT（向后兼容）
+                for (ItemMechanicalCore.UpgradeType type : ItemMechanicalCore.UpgradeType.values()) {
+                    String key = type.getKey();
+                    String upperId = key.toUpperCase();
+                    int originalMax = capData.getOriginalMaxLevel(upperId);
+
+                    if (originalMax > 0) {
+                        nbt.setInteger("OriginalMax_" + upperId, originalMax);
+                        nbt.setInteger("OriginalMax_" + key, originalMax);
+                        nbt.setInteger("OriginalMax_" + key.toLowerCase(), originalMax);
+                    }
+                }
+
                 // 清除dirty标记
                 capData.clearDirty();
 
@@ -256,6 +288,19 @@ public class CapabilityEventHandler {
                     }
 
                     nbt.setTag("MechanicalCoreData", mechData);
+
+                    // 保存 OriginalMax 到 NBT（向后兼容）
+                    for (ItemMechanicalCore.UpgradeType type : ItemMechanicalCore.UpgradeType.values()) {
+                        String key = type.getKey();
+                        String upperId = key.toUpperCase();
+                        int originalMax = capData.getOriginalMaxLevel(upperId);
+
+                        if (originalMax > 0) {
+                            nbt.setInteger("OriginalMax_" + upperId, originalMax);
+                            nbt.setInteger("OriginalMax_" + key, originalMax);
+                            nbt.setInteger("OriginalMax_" + key.toLowerCase(), originalMax);
+                        }
+                    }
 
                     logger.info(
                         "Saved MechanicalCore data to ItemStack NBT on logout for player: {}",

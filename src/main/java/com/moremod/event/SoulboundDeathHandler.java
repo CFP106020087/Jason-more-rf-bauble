@@ -231,19 +231,27 @@ public class SoulboundDeathHandler {
             setOwnedMaxEverywhere(core, target, currentOwnedMax);
         }
 
-        // 2. 如果是第一次损坏，立即记录 OriginalMax
-        if (!nbt.hasKey(K_ORIGINAL_MAX + upperId) && currentOwnedMax > 0) {
-            // 记录降级前的值（所有变体）
-            nbt.setInteger(K_ORIGINAL_MAX + upperId, currentOwnedMax);
-            nbt.setInteger(K_ORIGINAL_MAX + target, currentOwnedMax);
-            nbt.setInteger(K_ORIGINAL_MAX + lowerId, currentOwnedMax);
+        // 2. 如果是第一次损坏，立即记录 OriginalMax 到 Capability
+        IMechCoreData capData = player.getCapability(IMechCoreData.CAPABILITY, null);
+        if (capData != null) {
+            int existingMax = capData.getOriginalMaxLevel(upperId);
+            if (existingMax == 0 && currentOwnedMax > 0) {
+                // 首次记录：使用当前 OwnedMax
+                capData.setOriginalMaxLevel(upperId, currentOwnedMax);
+            }
+        } else {
+            // 降级方案：写入 NBT（向后兼容）
+            if (!nbt.hasKey(K_ORIGINAL_MAX + upperId) && currentOwnedMax > 0) {
+                nbt.setInteger(K_ORIGINAL_MAX + upperId, currentOwnedMax);
+                nbt.setInteger(K_ORIGINAL_MAX + target, currentOwnedMax);
+                nbt.setInteger(K_ORIGINAL_MAX + lowerId, currentOwnedMax);
 
-            // 防水别名也记录
-            if (isWaterproof(target)) {
-                for (String wid : WATERPROOF_IDS) {
-                    nbt.setInteger(K_ORIGINAL_MAX + wid, currentOwnedMax);
-                    nbt.setInteger(K_ORIGINAL_MAX + wid.toUpperCase(Locale.ROOT), currentOwnedMax);
-                    nbt.setInteger(K_ORIGINAL_MAX + wid.toLowerCase(Locale.ROOT), currentOwnedMax);
+                if (isWaterproof(target)) {
+                    for (String wid : WATERPROOF_IDS) {
+                        nbt.setInteger(K_ORIGINAL_MAX + wid, currentOwnedMax);
+                        nbt.setInteger(K_ORIGINAL_MAX + wid.toUpperCase(Locale.ROOT), currentOwnedMax);
+                        nbt.setInteger(K_ORIGINAL_MAX + wid.toLowerCase(Locale.ROOT), currentOwnedMax);
+                    }
                 }
             }
         }
@@ -288,9 +296,19 @@ public class SoulboundDeathHandler {
             setLevelEverywhere(core, target, newOwnedMax);
         }
 
-        // 获取 OriginalMax 用于显示
-        int originalMax = nbt.getInteger(K_ORIGINAL_MAX + upperId);
-        if (originalMax <= 0) originalMax = currentOwnedMax;
+        // 获取 OriginalMax 用于显示（优先从 Capability）
+        int originalMax = 0;
+        if (capData != null) {
+            originalMax = capData.getOriginalMaxLevel(upperId);
+        }
+        // 降级方案：从 NBT 读取
+        if (originalMax <= 0) {
+            originalMax = nbt.getInteger(K_ORIGINAL_MAX + upperId);
+        }
+        // 最终降级：使用 currentOwnedMax
+        if (originalMax <= 0) {
+            originalMax = currentOwnedMax;
+        }
 
         // 发送消息
         player.sendMessage(new TextComponentString(TextFormatting.DARK_RED + "☠ 死亡惩罚"));

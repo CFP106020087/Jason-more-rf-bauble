@@ -230,6 +230,9 @@ public class EnergyPunishmentSystem {
         Collections.shuffle(installed);
         int degradeCount = Math.min(DEGRADE_MODULE_COUNT, installed.size());
 
+        // 获取 Capability 用于读写 OriginalMax
+        IMechCoreData capData = player.getCapability(IMechCoreData.CAPABILITY, null);
+
         for (int i = 0; i < degradeCount; i++) {
             String moduleId = installed.get(i);
             String upperId = moduleId.toUpperCase();
@@ -238,11 +241,19 @@ public class EnergyPunishmentSystem {
             // 获取当前的拥有等级
             int currentOwnedMax = getOwnedMax(core, moduleId);
 
-            // 第一次损坏时记录原始等级
-            if (!nbt.hasKey(K_ORIGINAL_MAX + upperId)) {
-                nbt.setInteger(K_ORIGINAL_MAX + upperId, currentOwnedMax);
-                nbt.setInteger(K_ORIGINAL_MAX + moduleId, currentOwnedMax);
-                nbt.setInteger(K_ORIGINAL_MAX + lowerId, currentOwnedMax);
+            // 第一次损坏时记录原始等级到 Capability
+            if (capData != null) {
+                int existingMax = capData.getOriginalMaxLevel(upperId);
+                if (existingMax == 0 && currentOwnedMax > 0) {
+                    capData.setOriginalMaxLevel(upperId, currentOwnedMax);
+                }
+            } else {
+                // 降级方案：写入 NBT
+                if (!nbt.hasKey(K_ORIGINAL_MAX + upperId)) {
+                    nbt.setInteger(K_ORIGINAL_MAX + upperId, currentOwnedMax);
+                    nbt.setInteger(K_ORIGINAL_MAX + moduleId, currentOwnedMax);
+                    nbt.setInteger(K_ORIGINAL_MAX + lowerId, currentOwnedMax);
+                }
             }
 
             // 关键修复：移到 if 外面，每次降级都写入 WasPunished
@@ -272,14 +283,25 @@ public class EnergyPunishmentSystem {
                 setLevel(core, moduleId, newOwnedMax);
             }
 
-            // 获取原始最大等级用于显示
-            int originalMax = Math.max(
-                    nbt.getInteger(K_ORIGINAL_MAX + upperId),
-                    Math.max(
-                            nbt.getInteger(K_ORIGINAL_MAX + moduleId),
-                            nbt.getInteger(K_ORIGINAL_MAX + lowerId)
-                    )
-            );
+            // 获取原始最大等级用于显示（优先从 Capability）
+            int originalMax = 0;
+            if (capData != null) {
+                originalMax = capData.getOriginalMaxLevel(upperId);
+            }
+            // 降级方案：从 NBT 读取
+            if (originalMax <= 0) {
+                originalMax = Math.max(
+                        nbt.getInteger(K_ORIGINAL_MAX + upperId),
+                        Math.max(
+                                nbt.getInteger(K_ORIGINAL_MAX + moduleId),
+                                nbt.getInteger(K_ORIGINAL_MAX + lowerId)
+                        )
+                );
+            }
+            // 最终降级：使用 currentOwnedMax
+            if (originalMax <= 0) {
+                originalMax = currentOwnedMax;
+            }
 
             // 通知
             if (newOwnedMax <= 0) {
@@ -303,7 +325,28 @@ public class EnergyPunishmentSystem {
     }
 
     /**
-     * ✅ 获取历史最高等级（缺失时自动补写）
+     * ✅ 获取历史最高等级（带玩家上下文，优先从 Capability 读取）
+     */
+    public static int getItemMaxLevel(ItemStack core, String moduleId, EntityPlayer player) {
+        String upperId = moduleId.toUpperCase();
+
+        // 第1层：尝试从 Capability 读取
+        if (player != null) {
+            IMechCoreData capData = player.getCapability(IMechCoreData.CAPABILITY, null);
+            if (capData != null) {
+                int originalMax = capData.getOriginalMaxLevel(upperId);
+                if (originalMax > 0) {
+                    return originalMax;
+                }
+            }
+        }
+
+        // 降级到无玩家版本（NBT fallback）
+        return getItemMaxLevel(core, moduleId);
+    }
+
+    /**
+     * ✅ 获取历史最高等级（缺失时自动补写）- NBT fallback
      */
     public static int getItemMaxLevel(ItemStack core, String moduleId) {
         NBTTagCompound nbt = core.getTagCompound();
@@ -313,7 +356,7 @@ public class EnergyPunishmentSystem {
         String lowerId = moduleId.toLowerCase();
         String[] variants = {upperId, moduleId, lowerId};
 
-        // 第1层：尝试读取 OriginalMax
+        // 第1层：尝试读取 OriginalMax from NBT
         int originalMax = 0;
         for (String variant : variants) {
             int val = nbt.getInteger(K_ORIGINAL_MAX + variant);
@@ -332,7 +375,7 @@ public class EnergyPunishmentSystem {
             return 0;
         }
 
-        // 使用 OwnedMax 作为 fallback，并回填 OriginalMax
+        // 使用 OwnedMax 作为 fallback，并回填 OriginalMax（仅 NBT）
         nbt.setInteger(K_ORIGINAL_MAX + upperId, ownedMax);
         nbt.setInteger(K_ORIGINAL_MAX + moduleId, ownedMax);
         nbt.setInteger(K_ORIGINAL_MAX + lowerId, ownedMax);
@@ -363,7 +406,7 @@ public class EnergyPunishmentSystem {
         String upperId = moduleId.toUpperCase();
 
         int currentOwnedMax = getOwnedMax(core, moduleId);
-        int originalMax = getItemMaxLevel(core, moduleId);
+        int originalMax = getItemMaxLevel(core, moduleId, player);
 
         if (targetLevel > originalMax) {
             player.sendMessage(new TextComponentString(
@@ -435,6 +478,9 @@ public class EnergyPunishmentSystem {
         NBTTagCompound nbt = UpgradeKeys.getOrCreate(core);
         List<String> damaged = new ArrayList<>();
 
+        // 获取 Capability 用于记录 OriginalMax
+        IMechCoreData capData = player.getCapability(IMechCoreData.CAPABILITY, null);
+
         // 处理所有模块
         for (String id : getInstalledUpgrades(core)) {
             if (isGeneratorModule(id)) {
@@ -449,10 +495,19 @@ public class EnergyPunishmentSystem {
                 String upperId = id.toUpperCase();
                 String lowerId = id.toLowerCase();
 
-                if (!nbt.hasKey(K_ORIGINAL_MAX + upperId)) {
-                    nbt.setInteger(K_ORIGINAL_MAX + upperId, currentMax);
-                    nbt.setInteger(K_ORIGINAL_MAX + id, currentMax);
-                    nbt.setInteger(K_ORIGINAL_MAX + lowerId, currentMax);
+                // 记录 OriginalMax 到 Capability
+                if (capData != null) {
+                    int existingMax = capData.getOriginalMaxLevel(upperId);
+                    if (existingMax == 0) {
+                        capData.setOriginalMaxLevel(upperId, currentMax);
+                    }
+                } else {
+                    // 降级方案：写入 NBT
+                    if (!nbt.hasKey(K_ORIGINAL_MAX + upperId)) {
+                        nbt.setInteger(K_ORIGINAL_MAX + upperId, currentMax);
+                        nbt.setInteger(K_ORIGINAL_MAX + id, currentMax);
+                        nbt.setInteger(K_ORIGINAL_MAX + lowerId, currentMax);
+                    }
                 }
 
                 // 标记为惩罚过
