@@ -110,7 +110,7 @@ public class CapabilityEventHandler {
                             if (mechData.hasKey(key)) {
                                 int level = mechData.getInteger(key);
                                 if (level > 0) {
-                                    capData.setUpgradeLevel(key, level);
+                                    capData.setModuleLevel(key, level);
                                 }
                             }
                         }
