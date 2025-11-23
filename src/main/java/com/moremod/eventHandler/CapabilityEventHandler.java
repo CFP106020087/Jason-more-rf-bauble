@@ -229,7 +229,7 @@ public class CapabilityEventHandler {
 
                 nbt.setTag("MechanicalCoreData", mechData);
 
-                // 同步 OriginalMax 到 NBT（向后兼容）
+                // ✅ 同步 OriginalMax 到 NBT（只写大写变体，减少写入开销）
                 for (ItemMechanicalCore.UpgradeType type : ItemMechanicalCore.UpgradeType.values()) {
                     String key = type.getKey();
                     String upperId = key.toUpperCase();
@@ -237,8 +237,7 @@ public class CapabilityEventHandler {
 
                     if (originalMax > 0) {
                         nbt.setInteger("OriginalMax_" + upperId, originalMax);
-                        nbt.setInteger("OriginalMax_" + key, originalMax);
-                        nbt.setInteger("OriginalMax_" + key.toLowerCase(), originalMax);
+                        // ✅ 只写大写变体（读取时会回退到多变体兼容）
                     }
                 }
 
@@ -290,6 +289,7 @@ public class CapabilityEventHandler {
                     nbt.setTag("MechanicalCoreData", mechData);
 
                     // 保存 OriginalMax 到 NBT（向后兼容）
+                    // ✅ 保存 OriginalMax 到 NBT（只写大写变体）
                     for (ItemMechanicalCore.UpgradeType type : ItemMechanicalCore.UpgradeType.values()) {
                         String key = type.getKey();
                         String upperId = key.toUpperCase();
@@ -297,8 +297,7 @@ public class CapabilityEventHandler {
 
                         if (originalMax > 0) {
                             nbt.setInteger("OriginalMax_" + upperId, originalMax);
-                            nbt.setInteger("OriginalMax_" + key, originalMax);
-                            nbt.setInteger("OriginalMax_" + key.toLowerCase(), originalMax);
+                            // ✅ 只写大写变体（减少 67% 的写入操作）
                         }
                     }
 
