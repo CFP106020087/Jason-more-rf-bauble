@@ -1,0 +1,12 @@
+{
+  "parent": "block/cube",
+  "textures": {
+    "particle": "moremod:blocks/machine_side",
+    "down": "moremod:blocks/machine_bottom",
+    "up": "moremod:blocks/machine_side",
+    "north": "moremod:blocks/machine_side",
+    "south": "moremod:blocks/machine_side",
+    "east": "moremod:blocks/machine_side",
+    "west": "moremod:blocks/machine_side"
+  }
+}
