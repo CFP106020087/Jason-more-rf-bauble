@@ -1,6 +1,7 @@
 package com.moremod.proxy;
 
 import com.moremod.client.ClientEventHandler;
+import com.moremod.client.ClientHandlerPacketSyncRejectionData;
 import com.moremod.client.gui.EventHUDOverlay;
 import com.moremod.client.render.*;
 import com.moremod.client.render.debug.*;
@@ -24,6 +25,8 @@ import com.moremod.item.ItemSwordChengYue;
 // ✨ 新增导入：锯刃剑渲染层
 import com.moremod.item.sawblade.client.BloodEuphoriaRenderer;
 import com.moremod.moremod;
+import com.moremod.network.PacketHandler;
+import com.moremod.network.PacketSyncRejectionData;
 import com.moremod.tile.TileEntityPedestal;
 import com.moremod.tile.TileEntityProtectionField;
 import com.moremod.tile.TileEntityRitualCore;
@@ -87,7 +90,18 @@ public class ClientProxy extends CommonProxy {
 
         registerEntityRenderers();
     }
+    @Override
+    public void registerNetworkMessages() {
 
+        int id = PacketHandler.nextId();
+
+        PacketHandler.INSTANCE.registerMessage(
+                ClientHandlerPacketSyncRejectionData.class,
+                PacketSyncRejectionData.class,
+                id,
+                Side.CLIENT
+        );
+    }
     @Override
     public void init(FMLInitializationEvent event) {
         super.init(event);

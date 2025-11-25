@@ -1,5 +1,6 @@
 package com.moremod.block;
 
+import com.moremod.tile.TileEntitySwordUpgradeStation;
 import net.minecraft.block.Block;
 import net.minecraft.block.ITileEntityProvider;
 import net.minecraft.block.material.Material;
@@ -29,7 +30,7 @@ public class BlockSwordUpgradeStation extends Block implements ITileEntityProvid
 
     @Override
     public TileEntity createNewTileEntity(World worldIn, int meta) {
-        return new TileEntitySwordUpgradeStationMaterial();
+        return new TileEntitySwordUpgradeStation();
     }
 
     @Override
@@ -46,25 +47,4 @@ public class BlockSwordUpgradeStation extends Block implements ITileEntityProvid
     /**
      * ✅ 修复：方块破坏时只掉落输入槽物品，避免预览槽物品复制
      */
-    @Override
-    public void breakBlock(World worldIn, BlockPos pos, IBlockState state) {
-        TileEntity te = worldIn.getTileEntity(pos);
-        
-        if (te instanceof TileEntitySwordUpgradeStationMaterial) {
-            TileEntitySwordUpgradeStationMaterial tile = (TileEntitySwordUpgradeStationMaterial) te;
-            IItemHandler handler = tile.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null);
-            
-            if (handler != null) {
-                // 只掉落输入槽（SLOT_BASE 和 SLOT_MAT），跳过输出预览槽（SLOT_OUT）
-                for (int i = 0; i < 2; i++) { // 只遍历前两个槽位
-                    ItemStack stack = handler.getStackInSlot(i);
-                    if (!stack.isEmpty()) {
-                        InventoryHelper.spawnItemStack(worldIn, pos.getX(), pos.getY(), pos.getZ(), stack);
-                    }
-                }
-            }
-        }
-        
-        super.breakBlock(worldIn, pos, state);
-    }
 }

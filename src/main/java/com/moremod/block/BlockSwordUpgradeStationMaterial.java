@@ -18,6 +18,8 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.*;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import net.minecraftforge.items.CapabilityItemHandler;
+import net.minecraftforge.items.IItemHandler;
 
 public class BlockSwordUpgradeStationMaterial extends Block implements ITileEntityProvider {
 
@@ -50,15 +52,25 @@ public class BlockSwordUpgradeStationMaterial extends Block implements ITileEnti
     @Override
     public void breakBlock(World worldIn, BlockPos pos, IBlockState state) {
         TileEntity te = worldIn.getTileEntity(pos);
+
         if (te instanceof TileEntitySwordUpgradeStationMaterial) {
             TileEntitySwordUpgradeStationMaterial tile = (TileEntitySwordUpgradeStationMaterial) te;
-            for (int i = 0; i < 3; i++) {
-                ItemStack s = tile.getStackInSlot(i);
-                if (!s.isEmpty()) InventoryHelper.spawnItemStack(worldIn, pos.getX(), pos.getY(), pos.getZ(), s);
+            IItemHandler handler = tile.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null);
+
+            if (handler != null) {
+                // 只掉落输入槽（SLOT_BASE 和 SLOT_MAT），跳过输出预览槽（SLOT_OUT）
+                for (int i = 0; i < 2; i++) { // 只遍历前两个槽位
+                    ItemStack stack = handler.getStackInSlot(i);
+                    if (!stack.isEmpty()) {
+                        InventoryHelper.spawnItemStack(worldIn, pos.getX(), pos.getY(), pos.getZ(), stack);
+                    }
+                }
             }
         }
+
         super.breakBlock(worldIn, pos, state);
     }
+
 
     @Override
     public IBlockState getStateForPlacement(World worldIn, BlockPos pos, EnumFacing facing,

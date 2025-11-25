@@ -236,7 +236,7 @@ public class CombatUpgradeManager {
             // 使用屬性修改器增加觸及距離
             net.minecraft.entity.ai.attributes.IAttributeInstance reachDistance =
                     player.getAttributeMap().getAttributeInstance(
-                            net.minecraft.entity.player.EntityPlayer.REACH_DISTANCE
+                            EntityPlayer.REACH_DISTANCE
                     );
 
             // 移除舊的修改器
@@ -259,7 +259,7 @@ public class CombatUpgradeManager {
 
             net.minecraft.entity.ai.attributes.IAttributeInstance reachDistance =
                     player.getAttributeMap().getAttributeInstance(
-                            net.minecraft.entity.player.EntityPlayer.REACH_DISTANCE
+                            EntityPlayer.REACH_DISTANCE
                     );
             reachDistance.removeModifier(REACH_MODIFIER_UUID);
         }

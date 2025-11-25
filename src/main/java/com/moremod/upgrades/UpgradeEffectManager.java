@@ -46,7 +46,7 @@ public class UpgradeEffectManager {
         applyShieldGeneratorEffect(player, coreStack);
 
         // 温度控制效果
-        com.moremod.upgrades.TemperatureControlEffect.applyTemperatureControl(player, coreStack);
+        TemperatureControlEffect.applyTemperatureControl(player, coreStack);
         WaterproofUpgrade.applyWaterproofEffect(player, coreStack);
     }
 

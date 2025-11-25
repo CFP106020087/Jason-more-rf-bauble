@@ -10,7 +10,10 @@ public class CommonProxy {
         // 通用的预初始化代码
 
  }
-
+    public void registerNetworkMessages() {
+        // only server messages here
+        com.moremod.network.PacketHandler.registerMessages();
+    }
 
     public void init(FMLInitializationEvent event) {
         // 通用的初始化代码

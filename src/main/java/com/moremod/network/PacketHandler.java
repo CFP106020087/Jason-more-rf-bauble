@@ -1,16 +1,18 @@
 package com.moremod.network;
 
+import com.moremod.client.ClientHandlerPacketSyncRejectionData;
 import net.minecraftforge.fml.common.network.NetworkRegistry;
 import net.minecraftforge.fml.common.network.simpleimpl.SimpleNetworkWrapper;
 import net.minecraftforge.fml.relauncher.Side;
 
-import static com.dhanantry.scapeandrunparasites.util.handlers.SRPPacketHandler.nextID;
-import static crafttweaker.mc1120.CraftTweaker.NETWORK;
-
 public class PacketHandler {
     public static final SimpleNetworkWrapper INSTANCE =
             NetworkRegistry.INSTANCE.newSimpleChannel("moremod_channel");
+    private static int id = 0;
 
+    public static int nextId() {
+        return id++;
+    }
     public static void registerMessages() {
         int id = 0;
 
@@ -29,12 +31,7 @@ public class PacketHandler {
                 id++,
                 Side.SERVER
         );
-        INSTANCE.registerMessage(
-                PacketSyncRejectionData.Handler.class,
-                PacketSyncRejectionData.class,
-                id++,
-                Side.CLIENT
-        );
+
 
         INSTANCE.registerMessage(
                 MessageJetpackSneaking.Handler.class,

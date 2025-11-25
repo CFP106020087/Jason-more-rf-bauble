@@ -30,27 +30,7 @@ public class PacketSyncRejectionData implements IMessage {
         data = ByteBufUtils.readTag(buf);
     }
 
-    // 客户端接收
-    public static class Handler implements IMessageHandler<PacketSyncRejectionData, IMessage> {
-        @Override
-        public IMessage onMessage(PacketSyncRejectionData msg, MessageContext ctx) {
-            net.minecraft.client.Minecraft.getMinecraft().addScheduledTask(() -> {
-                EntityPlayer player = net.minecraft.client.Minecraft.getMinecraft().player;
-
-                // 覆盖客户端 EntityData
-                if (player != null && msg.data != null) {
-                    NBTTagCompound root = player.getEntityData()
-                            .getCompoundTag("MoreMod_RejectionData");
-
-                    root.merge(msg.data);
-                }
-            });
-            return null;
-        }
-    }
-
-    /** 用于服务器发送封包 */
-    public static void send(EntityPlayerMP player, NBTTagCompound data) {
-        NetworkHandler.INSTANCE.sendTo(new PacketSyncRejectionData(data), player);
+    public NBTTagCompound getData() {
+        return data;
     }
 }

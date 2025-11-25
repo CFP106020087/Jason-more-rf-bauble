@@ -343,10 +343,7 @@ public class GuiHandler implements IGuiHandler {
         TileEntity te = world.getTileEntity(pos);
 
         // 先匹配 material TE（如果你已经把旧台子替换成了 material 实现）
-        if (te instanceof TileEntitySwordUpgradeStationMaterial) {
-            System.out.println("[GuiHandler] 使用 material Container 打开旧ID=24");
-            return new ContainerSwordUpgradeStationMaterial(player.inventory, (TileEntitySwordUpgradeStationMaterial) te);
-        }
+
         // 兼容：旧 TE / 旧容器
         if (te instanceof TileEntitySwordUpgradeStation) {
             System.out.println("[GuiHandler] 使用旧 Container 打开旧ID=24");

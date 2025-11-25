@@ -3,46 +3,64 @@ package com.moremod.compat.crafttweaker;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.nbt.NBTTagCompound;
-import atomicstryker.infernalmobs.common.InfernalMobsCore;
-import atomicstryker.infernalmobs.common.MobModifier;
+import net.minecraft.entity.monster.IMob;
+import net.minecraft.entity.passive.EntityAnimal;
+
+// Champions（已优化，无反射）
 import c4.champions.common.capability.CapabilityChampionship;
 import c4.champions.common.capability.IChampionship;
 
+// Infernal（已优化，使用NBT）
+import atomicstryker.infernalmobs.common.InfernalMobsCore;
+import atomicstryker.infernalmobs.common.MobModifier;
+
+// ⭐ Lycanites - 直接导入（有软依赖）
+import com.lycanitesmobs.core.entity.BaseCreatureEntity;
+import com.lycanitesmobs.core.entity.TameableCreatureEntity;
+import com.lycanitesmobs.api.IGroupBoss;
+import com.lycanitesmobs.api.IGroupHeavy;
+import com.lycanitesmobs.api.IGroupDemon;
+import com.lycanitesmobs.api.IGroupShadow;
+
+// ⭐ SRP - 直接导入（有软依赖）
+import com.dhanantry.scapeandrunparasites.entity.ai.misc.EntityParasiteBase;
+
 import java.util.*;
 import java.util.regex.Pattern;
+import java.lang.reflect.Method;
 
 /**
- * 宝石掉落规则管理器 v2.4 - Ice and Fire修复版
+ * 宝石掉落规则管理器 v3.0 - 性能优化版
  *
- * 核心修复：
- * 1. ✅ 在static块中添加Ice and Fire龙的内建规则
- * 2. ✅ 提高DEFAULT_RULE掉落率（1% → 10%）
- * 3. ✅ Infernal使用NBT检测（主要）+ API检测（备用）
- * 4. ✅ 保留所有原有方法和逻辑
+ * 优化策略：
+ * 1. ✅ Ice and Fire龙：保留反射（private access）
+ * 2. ✅ Champions：已优化（CapabilityChampionship）
+ * 3. ✅ Infernal：已优化（NBT检测）
+ * 4. ✅ Lycanites：直接导入类和接口
+ * 5. ✅ SRP：直接导入EntityParasiteBase
  */
 public class GemLootRuleManager {
 
     private static final List<LootRule> RULES = new ArrayList<>();
+    private static boolean debugMode = false;
+    
+    // 缓存反射方法（仅用于龙）
+    private static final Map<Class<?>, Method> DRAGON_STAGE_METHOD_CACHE = new HashMap<>();
 
-    // ⭐ v2.4：提高默认掉落率 1% → 10%
+    // 默认规则
     private static LootRule DEFAULT_RULE = new LootRule(
             "default",
-            1, 10,           // Lv1-10
-            1, 1,            // 1词条
-            0.10f,           // 10%掉落率（原1%）
-            0.0f,            // 最低品质0%
-            1                // 重roll 1次
+            1, 10,
+            1, 1,
+            0.05f,      // POE系统：默认5%
+            0.0f,
+            1
     );
 
     static {
-        // ==========================================
-        // ⭐⭐⭐ 内建规则已禁用 ⭐⭐⭐
-        // 所有规则改由 CTGemLootRules.setupAllRules() 配置
-        // ==========================================
-
         System.out.println("[GemLootRuleManager] ========================================");
-        System.out.println("[GemLootRuleManager] 内建规则已禁用");
-        System.out.println("[GemLootRuleManager] 所有规则由 CTGemLootRules.setupAllRules() 配置");
+        System.out.println("[GemLootRuleManager] v3.0 性能优化版");
+        System.out.println("[GemLootRuleManager] 仅龙使用反射，其他均已优化");
         System.out.println("[GemLootRuleManager] ========================================");
     }
 
@@ -75,15 +93,19 @@ public class GemLootRuleManager {
         return map;
     }
 
+    public static void setDebugMode(boolean debug) {
+        debugMode = debug;
+    }
+
     // ==========================================
-    // 规则匹配
+    // 规则匹配（优化版）
     // ==========================================
 
     public static LootRule findRule(EntityLivingBase entity) {
         String entityName = entity.getName().toLowerCase();
         String entityClass = entity.getClass().getName();
         String entityClassSimple = entity.getClass().getSimpleName();
-        String modId = getModId(entityClass);
+        String modId = getModIdFast(entity);
         float health = entity.getMaxHealth();
 
         for (LootRule rule : RULES) {
@@ -96,22 +118,28 @@ public class GemLootRuleManager {
         return DEFAULT_RULE;
     }
 
-    private static String getModId(String className) {
-        if (className.contains("iceandfire")) return "iceandfire";
-        if (className.contains("champions")) return "champions";
-        if (className.contains("infernalmobs")) return "infernalmobs";
-        if (className.contains("lycanitesmobs")) return "lycanitesmobs";
-        if (className.contains("srparasites")) return "srparasites";
-
+    // 优化的模组ID获取
+    private static String getModIdFast(EntityLivingBase entity) {
+        // 使用instanceof判断（性能最优）
+        if (entity instanceof BaseCreatureEntity) return "lycanitesmobs";
+        if (entity instanceof EntityParasiteBase) return "srparasites";
+        
+        // 使用类名前缀判断（次优）
+        String className = entity.getClass().getName();
+        if (className.startsWith("com.github.alexthe666.iceandfire")) return "iceandfire";
+        if (className.startsWith("c4.champions")) return "champions";
+        if (className.startsWith("atomicstryker.infernalmobs")) return "infernalmobs";
+        
+        // 兜底：从包名提取
         String[] parts = className.split("\\.");
         if (parts.length >= 3) {
-            return parts[parts.length - 3].toLowerCase();
+            return parts[2].toLowerCase();  // 通常第三段是模组名
         }
-        return "";
+        return "minecraft";
     }
 
     // ==========================================
-    // 掉落规则类
+    // 掉落规则类（优化版）
     // ==========================================
 
     public static class LootRule {
@@ -129,21 +157,25 @@ public class GemLootRuleManager {
         private float maxHealth = -1;
         private int championTier = -1;
         private int minChampionTier = -1;
+        private int maxChampionTier = -1;
         private int minAffixCount = -1;
         private int maxAffixCount = -1;
         private boolean growthFactorBonus = false;
         private int minModCount = -1;
         private int maxModCount = -1;
-        private int minType = -1;
-        private int maxType = -1;
+        
+        // Lycanites接口要求
         private Set<String> requiredInterfaces = new HashSet<>();
         private Set<String> excludedInterfaces = new HashSet<>();
         private boolean excludeBoss = false;
         private boolean requireHostile = false;
-
-        // ⭐ Ice and Fire 龙阶段检查
-        private int minDragonStage = -1;   // 最小龙阶段 (1-5)
-        private int maxDragonStage = -1;   // 最大龙阶段 (1-5)
+        
+        // SRP进化等级
+        private String requiredSRPEvolution = null;
+        
+        // Ice and Fire龙阶段（仍需反射）
+        private int minDragonStage = -1;
+        private int maxDragonStage = -1;
 
         // 掉落参数
         public int minLevel;
@@ -159,10 +191,10 @@ public class GemLootRuleManager {
         private boolean dynamicLevel = false;
         public int priority = 0;
 
-        // ⭐ 新增：血量动态加成
-        private boolean healthScaling = false;           // 是否启用血量加成
-        private float healthScalingThreshold = 200.0f;   // 血量门槛（低于此值不掉落）
-        private float healthScalingFactor = 0.01f;       // 血量加成系数
+        // ❌ 移除血量动态加成（破坏平衡）
+        // private boolean healthScaling = false;
+        // private float healthScalingThreshold = 200.0f;
+        // private float healthScalingFactor = 0.01f;
 
         public LootRule(String id, int minLevel, int maxLevel, int minAffixes, int maxAffixes,
                         float dropChance, float minQuality, int rerollCount) {
@@ -232,6 +264,11 @@ public class GemLootRuleManager {
             return this;
         }
 
+        public LootRule setMaxChampionTier(int tier) {
+            this.maxChampionTier = tier;
+            return this;
+        }
+
         public LootRule setMinAffixCount(int count) {
             this.minAffixCount = count;
             return this;
@@ -255,16 +292,6 @@ public class GemLootRuleManager {
 
         public LootRule setMaxModCount(int count) {
             this.maxModCount = count;
-            return this;
-        }
-
-        public LootRule setMinType(int type) {
-            this.minType = type;
-            return this;
-        }
-
-        public LootRule setMaxType(int type) {
-            this.maxType = type;
             return this;
         }
 
@@ -310,27 +337,16 @@ public class GemLootRuleManager {
             return this;
         }
 
-        // ⭐ 新增：血量动态加成配置
-        public LootRule setHealthScaling(boolean enable) {
-            this.healthScaling = enable;
-            return this;
-        }
+        // ❌ 血量加成方法已移除（破坏游戏平衡）
+        // public LootRule setHealthScaling(boolean enable) { ... }
+        // public LootRule setHealthScalingThreshold(float threshold) { ... }
+        // public LootRule setHealthScalingFactor(float factor) { ... }
 
-        public LootRule setHealthScalingThreshold(float threshold) {
-            this.healthScalingThreshold = threshold;
-            return this;
-        }
-
-        public LootRule setHealthScalingFactor(float factor) {
-            this.healthScalingFactor = factor;
-            return this;
-        }
-
-        // ⭐ 新增：Ice and Fire 龙阶段匹配
+        // Ice and Fire龙阶段
         public LootRule setDragonStage(int stage) {
             this.minDragonStage = stage;
             this.maxDragonStage = stage;
-            this.priority += 200;  // 高优先级
+            this.priority += 200;
             return this;
         }
 
@@ -345,13 +361,13 @@ public class GemLootRuleManager {
         }
 
         // ==========================================
-        // 匹配逻辑（完整保留）
+        // 匹配逻辑（优化版）
         // ==========================================
 
         public boolean matches(EntityLivingBase entity, String entityName, String className,
                                String simpleClassName, String modId, float health) {
 
-            // === 第一步：基础匹配 ===
+            // 基础匹配
             boolean hasBasicCondition = !entityNames.isEmpty() || !classNames.isEmpty() ||
                     !modIds.isEmpty() || namePattern != null || classPattern != null;
             boolean basicMatched = false;
@@ -365,10 +381,12 @@ public class GemLootRuleManager {
                     }
                 }
 
-                // 类名匹配
+                // 类名匹配（精确匹配）
                 if (!basicMatched) {
                     for (String cls : classNames) {
-                        if (simpleClassName.equals(cls) || className.contains(cls)) {
+                        // 使用精确匹配或者以.ClassName结尾（避免EntityWither匹配EntityWitherSkeleton）
+                        if (simpleClassName.equals(cls) || 
+                            className.endsWith("." + cls)) {  // 完整类名匹配
                             basicMatched = true;
                             break;
                         }
@@ -393,69 +411,51 @@ public class GemLootRuleManager {
                     basicMatched = true;
                 }
 
-                // 如果有基础条件但没匹配上，直接返回false
                 if (!basicMatched) {
                     return false;
                 }
             }
 
-            // === 第二步：血量检查 ===
+            // 血量检查
             if (minHealth > 0 && health < minHealth) return false;
             if (maxHealth > 0 && health > maxHealth) return false;
 
-            // ⭐ 新增：血量动态加成门槛检查
-            if (healthScaling && health < healthScalingThreshold) {
-                return false;  // 低于门槛不匹配
-            }
-
-            // === 第三步：高级条件检查 ===
-
-            // Champions检查
-            if (championTier > 0 || minChampionTier > 0 || minAffixCount > 0 || maxAffixCount > 0) {
+            // Champions检查（已优化，无反射）
+            if (championTier > 0 || minChampionTier > 0 || maxChampionTier > 0 || 
+                minAffixCount > 0 || maxAffixCount > 0) {
                 if (!checkChampions(entity)) return false;
             }
 
-            // Infernal Mobs检查
+            // Infernal检查（已优化，NBT）
             if (minModCount > 0 || maxModCount > 0) {
                 if (!checkInfernalMobs(entity)) return false;
             }
 
-            // SRP检查
-            if (minType > 0 || maxType > 0) {
-                if (!checkSRP(entity)) return false;
-            }
-
-            // Lycanites检查
+            // Lycanites检查（优化版，直接类判断）
             if (!requiredInterfaces.isEmpty() || !excludedInterfaces.isEmpty() || excludeBoss) {
-                if (!checkLycanites(entity)) return false;
+                if (!checkLycanitesOptimized(entity)) return false;
             }
 
-            // ⭐ Ice and Fire 龙阶段检查
+            // SRP检查（优化版，直接类判断）
+            if (requiredSRPEvolution != null) {
+                if (!checkSRPOptimized(entity)) return false;
+            }
+
+            // Ice and Fire龙阶段检查（仍需反射）
             if (minDragonStage > 0 || maxDragonStage > 0) {
                 if (!checkDragonStage(entity)) return false;
             }
 
-            // 敌对性检查
+            // 敌对性检查（优化版）
             if (requireHostile) {
-                if (entity instanceof com.lycanitesmobs.core.entity.BaseCreatureEntity) {
-                    com.lycanitesmobs.core.entity.BaseCreatureEntity lycanite =
-                            (com.lycanitesmobs.core.entity.BaseCreatureEntity) entity;
-                    if (!lycanite.isAggressive()) {
-                        return false;
-                    }
-                } else if (entity instanceof net.minecraft.entity.monster.IMob) {
-                    // 敌对怪物，通过
-                } else if (entity instanceof net.minecraft.entity.passive.EntityAnimal) {
-                    // 友善动物，拒绝
-                    return false;
-                }
+                if (!checkHostileOptimized(entity)) return false;
             }
 
             return true;
         }
 
         // ==========================================
-        // Champions检查（完整保留）
+        // Champions检查（已优化）
         // ==========================================
 
         private boolean checkChampions(EntityLivingBase entity) {
@@ -465,7 +465,6 @@ public class GemLootRuleManager {
 
             try {
                 IChampionship chp = CapabilityChampionship.getChampionship((EntityLiving) entity);
-
                 if (chp == null || chp.getRank() == null) {
                     return false;
                 }
@@ -475,18 +474,18 @@ public class GemLootRuleManager {
                     return false;
                 }
 
-                // Tier检查
                 if (championTier > 0 && tier != championTier) {
                     return false;
                 }
                 if (minChampionTier > 0 && tier < minChampionTier) {
                     return false;
                 }
+                if (maxChampionTier > 0 && tier > maxChampionTier) {
+                    return false;
+                }
 
-                // 词条数检查
                 if (minAffixCount > 0 || maxAffixCount > 0) {
                     int affixCount = chp.getAffixes().size();
-
                     if (minAffixCount > 0 && affixCount < minAffixCount) {
                         return false;
                     }
@@ -496,225 +495,215 @@ public class GemLootRuleManager {
                 }
 
                 return true;
-
             } catch (Exception e) {
                 return false;
             }
         }
 
         // ==========================================
-        // Infernal检查（三重检测策略）
+        // Infernal检查（已优化，NBT）
         // ==========================================
 
         private boolean checkInfernalMobs(EntityLivingBase entity) {
             try {
-                // 策略1: NBT标签检测
                 NBTTagCompound nbt = entity.getEntityData();
                 String infernalTag = nbt.getString("InfernalMobsMod");
 
                 if (infernalTag != null && !infernalTag.isEmpty()) {
-                    int modSize = infernalTag.trim().split("\\s+").length;
-
+                    int modSize = countWords(infernalTag);
                     if (minModCount > 0 && modSize < minModCount) {
                         return false;
                     }
                     if (maxModCount > 0 && modSize > maxModCount) {
                         return false;
                     }
-
                     return true;
                 }
-
-                // 策略2: API检测
-                try {
-                    if (InfernalMobsCore.getIsRareEntity(entity)) {
-                        Map<EntityLivingBase, MobModifier> raresMap = InfernalMobsCore.proxy.getRareMobs();
-                        MobModifier chain = raresMap.get(entity);
-
-                        if (chain != null) {
-                            int modSize = chain.getModSize();
-
-                            if (minModCount > 0 && modSize < minModCount) {
-                                return false;
-                            }
-                            if (maxModCount > 0 && modSize > maxModCount) {
-                                return false;
-                            }
-
-                            return true;
-                        }
-                    }
-                } catch (Exception e) {
-                    // API检测失败，继续
-                }
-
-                // 策略3: 名称模式检测
-                if (entity.hasCustomName()) {
-                    String customName = entity.getCustomNameTag();
-
-                    if (customName.contains("§")) {
-                        String cleanName = customName.replaceAll("§.", "");
-                        String[] parts = cleanName.trim().split("\\s+");
-                        int estimatedModSize = Math.max(0, parts.length - 1);
-
-                        if (minModCount > 0 && estimatedModSize < minModCount) {
-                            return false;
-                        }
-                        if (maxModCount > 0 && estimatedModSize > maxModCount) {
-                            return false;
-                        }
-
-                        return true;
-                    }
-                }
-
                 return false;
-
             } catch (Exception e) {
                 return false;
             }
         }
 
-        // ==========================================
-        // SRP检查（完整保留）
-        // ==========================================
-
-        private boolean checkSRP(EntityLivingBase entity) {
-            try {
-                if (entity.getClass().getName().contains("srparasites")) {
-                    byte type = (byte) entity.getClass().getMethod("getParasiteType").invoke(entity);
-                    if (minType > 0 && type < minType) return false;
-                    if (maxType > 0 && type > maxType) return false;
-                    return true;
-                }
-            } catch (Exception e) {
-                // SRP未安装或不是寄生虫
+        // 快速计算词条数（避免正则）
+        private int countWords(String str) {
+            if (str == null || str.isEmpty()) return 0;
+            int count = 1;
+            for (int i = 0; i < str.length(); i++) {
+                if (str.charAt(i) == ' ') count++;
             }
-            return false;
+            return count;
         }
 
         // ==========================================
-        // Lycanites检查（完整保留）
+        // Lycanites检查（优化版）
         // ==========================================
 
-        private boolean checkLycanites(EntityLivingBase entity) {
-            String className = entity.getClass().getName();
-            if (!className.contains("lycanitesmobs")) return false;
+        private boolean checkLycanitesOptimized(EntityLivingBase entity) {
+            if (!(entity instanceof BaseCreatureEntity)) {
+                return false;
+            }
 
+            // 使用直接类判断替代反射
             for (String interfaceName : requiredInterfaces) {
-                try {
-                    Class<?> interfaceClass = Class.forName("com.lycanitesmobs.api." + interfaceName);
-                    if (!interfaceClass.isInstance(entity)) return false;
-                } catch (Exception e) {
-                    return false;
+                boolean matched = false;
+                switch (interfaceName) {
+                    case "IGroupBoss":
+                        matched = entity instanceof IGroupBoss;
+                        break;
+                    case "IGroupHeavy":
+                        matched = entity instanceof IGroupHeavy;
+                        break;
+                    case "IGroupDemon":
+                        matched = entity instanceof IGroupDemon;
+                        break;
+                    case "IGroupShadow":
+                        matched = entity instanceof IGroupShadow;
+                        break;
                 }
+                if (!matched) return false;
             }
 
             for (String interfaceName : excludedInterfaces) {
-                try {
-                    Class<?> interfaceClass = Class.forName("com.lycanitesmobs.api." + interfaceName);
-                    if (interfaceClass.isInstance(entity)) return false;
-                } catch (Exception e) {
-                    // 接口不存在，继续
+                boolean matched = false;
+                switch (interfaceName) {
+                    case "IGroupBoss":
+                        matched = entity instanceof IGroupBoss;
+                        break;
+                    case "IGroupHeavy":
+                        matched = entity instanceof IGroupHeavy;
+                        break;
+                    case "IGroupDemon":
+                        matched = entity instanceof IGroupDemon;
+                        break;
+                    case "IGroupShadow":
+                        matched = entity instanceof IGroupShadow;
+                        break;
                 }
+                if (matched) return false;
             }
 
-            if (excludeBoss) {
-                try {
-                    Class<?> bossInterface = Class.forName("com.lycanitesmobs.api.IGroupBoss");
-                    if (bossInterface.isInstance(entity)) return false;
-                } catch (Exception e) {
-                    // 接口不存在，继续
-                }
+            if (excludeBoss && entity instanceof IGroupBoss) {
+                return false;
             }
 
             return true;
         }
 
         // ==========================================
-        // ⭐ Ice and Fire 龙阶段检查
+        // SRP检查（优化版）
+        // ==========================================
+
+        private boolean checkSRPOptimized(EntityLivingBase entity) {
+            if (!(entity instanceof EntityParasiteBase)) {
+                return false;
+            }
+
+            EntityParasiteBase parasite = (EntityParasiteBase) entity;
+            
+            // 直接获取包名判断进化等级
+            String packageName = entity.getClass().getPackage().getName();
+            String evolution = packageName.substring(packageName.lastIndexOf('.') + 1);
+            
+            if (requiredSRPEvolution != null && !requiredSRPEvolution.equals(evolution)) {
+                return false;
+            }
+
+            return true;
+        }
+
+        // ==========================================
+        // 敌对性检查（优化版）
+        // ==========================================
+
+        private boolean checkHostileOptimized(EntityLivingBase entity) {
+            // Lycanites生物
+            if (entity instanceof BaseCreatureEntity) {
+                BaseCreatureEntity creature = (BaseCreatureEntity) entity;
+                return creature.isAggressive();
+            }
+            
+            // 原版敌对接口
+            if (entity instanceof IMob) {
+                return true;
+            }
+            
+            // 原版动物（非敌对）
+            if (entity instanceof EntityAnimal) {
+                return false;
+            }
+            
+            // 默认视为敌对
+            return true;
+        }
+
+        // ==========================================
+        // Ice and Fire龙阶段检查（保留反射，因为private）
         // ==========================================
 
         private boolean checkDragonStage(EntityLivingBase entity) {
             String className = entity.getClass().getName();
 
-            // 只检查 Ice and Fire 的龙
             if (!className.contains("iceandfire")) {
-                // ⭐ 修复：如果不是龙，但规则设置了龙阶段条件，说明此规则不适用于这个实体
                 return false;
             }
 
             try {
-                // ⭐ 尝试多个可能的方法名
-                java.lang.reflect.Method method = null;
-                int stage = -1;
-
-                // 方法1: getDragonStage()
-                try {
-                    method = entity.getClass().getMethod("getDragonStage");
-                    Object result = method.invoke(entity);
-                    stage = ((Number) result).intValue();
-                    System.out.println("[GemLoot-Debug] 龙阶段（getDragonStage）: " + stage);
-                } catch (NoSuchMethodException e1) {
-                    // 方法2: getLifeStage()
-                    try {
-                        method = entity.getClass().getMethod("getLifeStage");
-                        Object result = method.invoke(entity);
-                        stage = ((Number) result).intValue();
-                        System.out.println("[GemLoot-Debug] 龙阶段（getLifeStage）: " + stage);
-                    } catch (NoSuchMethodException e2) {
-                        // 方法3: 通过 getAgeInDays() 计算
-                        try {
-                            method = entity.getClass().getMethod("getAgeInDays");
-                            int ageInDays = (int) method.invoke(entity);
-                            // Ice and Fire 阶段计算：每25天一个阶段
-                            stage = Math.min(5, (ageInDays / 25) + 1);
-                            System.out.println("[GemLoot-Debug] 龙阶段（通过年龄计算）: " + stage + " (年龄: " + ageInDays + "天)");
-                        } catch (Exception e3) {
-                            System.err.println("[GemLoot] 无法获取龙阶段，所有方法都失败:");
-                            System.err.println("  - getDragonStage(): " + e1.getMessage());
-                            System.err.println("  - getLifeStage(): " + e2.getMessage());
-                            System.err.println("  - getAgeInDays(): " + e3.getMessage());
-                            return false;
+                // 使用缓存的方法
+                Method method = DRAGON_STAGE_METHOD_CACHE.computeIfAbsent(
+                    entity.getClass(), 
+                    clazz -> {
+                        // 尝试不同的方法名
+                        for (String methodName : Arrays.asList("getDragonStage", "getLifeStage", "getAgeInDays")) {
+                            try {
+                                return clazz.getMethod(methodName);
+                            } catch (NoSuchMethodException e) {
+                                // 继续尝试下一个
+                            }
                         }
+                        return null;
                     }
-                }
+                );
 
-                if (stage < 0) {
+                if (method == null) {
                     return false;
                 }
 
-                // 检查阶段范围
-                if (minDragonStage > 0 && stage < minDragonStage) {
-                    System.out.println("[GemLoot-Debug] 龙阶段不匹配: " + stage + " < " + minDragonStage);
-                    return false;
-                }
-                if (maxDragonStage > 0 && stage > maxDragonStage) {
-                    System.out.println("[GemLoot-Debug] 龙阶段不匹配: " + stage + " > " + maxDragonStage);
-                    return false;
+                int stage;
+                String methodName = method.getName();
+                Object result = method.invoke(entity);
+                
+                if (methodName.equals("getAgeInDays")) {
+                    // 年龄转阶段
+                    int ageInDays = ((Number) result).intValue();
+                    stage = Math.min(5, (ageInDays / 25) + 1);
+                } else {
+                    stage = ((Number) result).intValue();
                 }
 
-                System.out.println("[GemLoot-Debug] ✅ 龙阶段匹配: " + stage + " (范围: " + minDragonStage + "-" + maxDragonStage + ")");
+                if (debugMode) {
+                    System.out.println("[GemLoot] 龙阶段: " + stage);
+                }
+
+                if (minDragonStage > 0 && stage < minDragonStage) return false;
+                if (maxDragonStage > 0 && stage > maxDragonStage) return false;
+
                 return true;
 
             } catch (Exception e) {
-                // 如果方法不存在或调用失败，返回 false
-                System.err.println("[GemLoot] 龙阶段检查异常: " + e.getMessage());
-                e.printStackTrace();
+                if (debugMode) {
+                    System.err.println("[GemLoot] 龙阶段检查失败: " + e.getMessage());
+                }
                 return false;
             }
         }
 
         // ==========================================
-        // 动态调整（完整保留）
+        // 动态调整（优化版，无血量加成）
         // ==========================================
-
-        // ==========================================
-// 动态调整（Champions与Infernal取较大值版本）
-// ==========================================
 
         public LootRule applyDynamicAdjustments(EntityLivingBase entity) {
-            if (!dynamicDropRate && !dynamicLevel && !growthFactorBonus && !healthScaling) {
+            if (!dynamicDropRate && !dynamicLevel && !growthFactorBonus) {
                 return this;
             }
 
@@ -728,73 +717,26 @@ public class GemLootRuleManager {
             adjusted.minDropCount = this.minDropCount;
             adjusted.maxDropCount = this.maxDropCount;
 
-            // ==========================================
-            // ⭐ 血量动态加成（优先计算）
-            // ==========================================
-            if (healthScaling) {
-                float health = entity.getMaxHealth();
-                if (health >= healthScalingThreshold) {
-                    // 计算超出门槛的血量
-                    float excessHealth = health - healthScalingThreshold;
+            // ❌ 血量加成已移除（避免破坏平衡）
+            // 仅保留Champions和Infernal动态调整
 
-                    // 等级加成：每100血 +5级
-                    int levelBonus = (int) (excessHealth / 100.0f * 5);
-                    adjusted.minLevel += levelBonus;
-                    adjusted.maxLevel += levelBonus;
-
-                    // 词条加成：每200血 +1词条
-                    int affixBonus = (int) (excessHealth / 200.0f);
-                    adjusted.minAffixes += affixBonus;
-                    adjusted.maxAffixes += affixBonus;
-
-                    // 掉落率加成：每100血 +2%
-                    float dropBonus = (excessHealth / 100.0f) * 0.02f;
-                    adjusted.dropChance += dropBonus;
-
-                    // 品质加成：每300血 +5%
-                    float qualityBonus = (excessHealth / 300.0f) * 0.05f;
-                    adjusted.minQuality += qualityBonus;
-
-                    System.out.println(String.format(
-                            "[GemLoot-HealthScaling] %s (%.0f血): 等级+%d, 词条+%d, 掉落率+%.1f%%, 品质+%.1f%%",
-                            entity.getName(),
-                            health,
-                            levelBonus,
-                            affixBonus,
-                            dropBonus * 100,
-                            qualityBonus * 100
-                    ));
-                }
-            }
-
-            // ==========================================
-            // ⭐ 分别计算Champions和Infernal加成，取较大值（不叠加）
-            // ==========================================
+            // Champions和Infernal加成（取最大值）
             int championsLevelBonus = 0;
             float championsDropBonus = 0.0f;
             int infernalLevelBonus = 0;
             float infernalDropBonus = 0.0f;
 
-            // Champions动态调整
-            if (growthFactorBonus && entity instanceof EntityLiving) {
+            // Champions动态调整（已优化）
+            if ((dynamicDropRate || dynamicLevel || growthFactorBonus) && entity instanceof EntityLiving) {
                 try {
                     IChampionship chp = CapabilityChampionship.getChampionship((EntityLiving) entity);
                     if (chp != null && chp.getRank() != null) {
-                        int growth = chp.getRank().getGrowthFactor();
-                        championsDropBonus += growth * 0.02f;
-                        championsLevelBonus += growth * 2;
-                    }
-                } catch (Exception e) {
-                    // 忽略
-                }
-            }
-
-            // Champions词条加成
-            if (dynamicDropRate || dynamicLevel) {
-                if (entity instanceof EntityLiving) {
-                    try {
-                        IChampionship chp = CapabilityChampionship.getChampionship((EntityLiving) entity);
-                        if (chp != null) {
+                        if (growthFactorBonus) {
+                            int growth = chp.getRank().getGrowthFactor();
+                            championsDropBonus += growth * 0.02f;
+                            championsLevelBonus += growth * 2;
+                        }
+                        if (dynamicDropRate || dynamicLevel) {
                             int affixCount = chp.getAffixes().size();
                             if (dynamicDropRate) {
                                 championsDropBonus += affixCount * 0.05f;
@@ -803,38 +745,24 @@ public class GemLootRuleManager {
                                 championsLevelBonus += affixCount * 5;
                             }
                         }
-                    } catch (Exception e) {
-                        // 忽略
                     }
+                } catch (Exception e) {
+                    // 忽略
                 }
+            }
 
-                // Infernal Mobs词条加成
+            // Infernal动态调整（已优化，NBT）
+            if (dynamicDropRate || dynamicLevel) {
                 try {
                     NBTTagCompound nbt = entity.getEntityData();
                     String infernalTag = nbt.getString("InfernalMobsMod");
-
                     if (infernalTag != null && !infernalTag.isEmpty()) {
-                        int modSize = infernalTag.trim().split("\\s+").length;
-
+                        int modSize = countWords(infernalTag);
                         if (dynamicDropRate) {
                             infernalDropBonus += modSize * 0.03f;
                         }
                         if (dynamicLevel) {
                             infernalLevelBonus += modSize * 3;
-                        }
-                    } else {
-                        // 备用：尝试API方式
-                        if (InfernalMobsCore.getIsRareEntity(entity)) {
-                            MobModifier chain = InfernalMobsCore.proxy.getRareMobs().get(entity);
-                            if (chain != null) {
-                                int modSize = chain.getModSize();
-                                if (dynamicDropRate) {
-                                    infernalDropBonus += modSize * 0.03f;
-                                }
-                                if (dynamicLevel) {
-                                    infernalLevelBonus += modSize * 3;
-                                }
-                            }
                         }
                     }
                 } catch (Exception e) {
@@ -842,29 +770,15 @@ public class GemLootRuleManager {
                 }
             }
 
-            // ⭐ 取Champions和Infernal中较大的加成值，避免叠加
+            // 取最大值
             int finalLevelBonus = Math.max(championsLevelBonus, infernalLevelBonus);
             float finalDropBonus = Math.max(championsDropBonus, infernalDropBonus);
 
-            // 应用最终加成
             adjusted.dropChance += finalDropBonus;
             adjusted.minLevel += finalLevelBonus;
             adjusted.maxLevel += finalLevelBonus;
 
-            // 调试信息
-            if (championsLevelBonus > 0 || infernalLevelBonus > 0) {
-                System.out.println(String.format(
-                        "[GemLoot-DynamicBonus] %s - Champions: +%d级/%.1f%%, Infernal: +%d级/%.1f%% → 最终: +%d级/%.1f%%",
-                        entity.getName(),
-                        championsLevelBonus, championsDropBonus * 100,
-                        infernalLevelBonus, infernalDropBonus * 100,
-                        finalLevelBonus, finalDropBonus * 100
-                ));
-            }
-
-            // ==========================================
             // 限制最大值
-            // ==========================================
             adjusted.dropChance = Math.min(adjusted.dropChance, 1.0f);
             adjusted.minLevel = Math.max(1, Math.min(adjusted.minLevel, 100));
             adjusted.maxLevel = Math.max(adjusted.minLevel, Math.min(adjusted.maxLevel, 100));
@@ -875,10 +789,7 @@ public class GemLootRuleManager {
             return adjusted;
         }
 
-        // ==========================================
         // 工具方法
-        // ==========================================
-
         public int getDropCount(Random random) {
             if (minDropCount == maxDropCount) {
                 return minDropCount;
