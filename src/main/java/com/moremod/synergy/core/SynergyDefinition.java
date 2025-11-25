@@ -1,5 +1,6 @@
 package com.moremod.synergy.core;
 
+import com.moremod.synergy.api.IInstalledModuleView;
 import com.moremod.synergy.api.ISynergyCondition;
 import com.moremod.synergy.api.ISynergyEffect;
 
@@ -184,7 +185,7 @@ public class SynergyDefinition {
 
     private Set<String> getAllPlayerModuleIds(SynergyContext context) {
         Set<String> ids = new HashSet<>();
-        for (var module : context.getModules()) {
+        for (IInstalledModuleView module : context.getModules()) {
             ids.add(module.getModuleId().toUpperCase(Locale.ROOT));
         }
         return ids;

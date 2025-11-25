@@ -8,6 +8,7 @@ import com.moremod.synergy.api.IInstalledModuleView;
 import com.moremod.synergy.api.IModuleProvider;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
+import net.minecraftforge.energy.IEnergyStorage;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -241,7 +242,7 @@ public class ExistingModuleBridge implements IModuleProvider {
             return 0;
         }
         try {
-            var storage = ItemMechanicalCore.getEnergyStorage(core);
+            IEnergyStorage storage = ItemMechanicalCore.getEnergyStorage(core);
             return storage != null ? storage.getEnergyStored() : 0;
         } catch (Exception e) {
             return 0;
@@ -260,7 +261,7 @@ public class ExistingModuleBridge implements IModuleProvider {
             return 0;
         }
         try {
-            var storage = ItemMechanicalCore.getEnergyStorage(core);
+            IEnergyStorage storage = ItemMechanicalCore.getEnergyStorage(core);
             return storage != null ? storage.getMaxEnergyStored() : 0;
         } catch (Exception e) {
             return 0;

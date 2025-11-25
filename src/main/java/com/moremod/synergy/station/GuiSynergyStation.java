@@ -167,8 +167,8 @@ public class GuiSynergyStation extends GuiContainer {
         SynergyManager manager = SynergyManager.getInstance();
         Set<String> linkedSet = new HashSet<>(linkedModules);
 
-        for (SynergyDefinition synergy : manager.getAllSynergies()) {
-            Set<String> required = synergy.getRequiredModules();
+        for (SynergyDefinition synergy : manager.getAll()) {
+            List<String> required = synergy.getRequiredModules();
             if (linkedSet.containsAll(required)) {
                 matchingSynergies.add(synergy);
             }
@@ -293,7 +293,7 @@ public class GuiSynergyStation extends GuiContainer {
         drawGradientRect(x + 2, y + 2, x + GUI_WIDTH - 2, y + 20, COLOR_PANEL_BG, COLOR_BG_DARK);
 
         // 标题下划线
-        drawHorizontalLine(x + 2, x + GUI_WIDTH - 3, y + 20, COLOR_ACCENT);
+        drawHLine(x + 2, x + GUI_WIDTH - 3, y + 20, COLOR_ACCENT);
 
         GlStateManager.enableTexture2D();
         // 标题文字
@@ -761,13 +761,13 @@ public class GuiSynergyStation extends GuiContainer {
     // ==================== 绘图工具方法 ====================
 
     private void drawHollowRect(int x, int y, int width, int height, int color) {
-        drawHorizontalLine(x, x + width - 1, y, color);
-        drawHorizontalLine(x, x + width - 1, y + height - 1, color);
-        drawVerticalLine(x, y, y + height - 1, color);
-        drawVerticalLine(x + width - 1, y, y + height - 1, color);
+        drawHLine(x, x + width - 1, y, color);
+        drawHLine(x, x + width - 1, y + height - 1, color);
+        drawVLine(x, y, y + height - 1, color);
+        drawVLine(x + width - 1, y, y + height - 1, color);
     }
 
-    private void drawHorizontalLine(int x1, int x2, int y, int color) {
+    protected void drawHLine(int x1, int x2, int y, int color) {
         if (x2 < x1) {
             int temp = x1;
             x1 = x2;
@@ -776,7 +776,7 @@ public class GuiSynergyStation extends GuiContainer {
         drawRect(x1, y, x2 + 1, y + 1, color);
     }
 
-    private void drawVerticalLine(int x, int y1, int y2, int color) {
+    protected void drawVLine(int x, int y1, int y2, int color) {
         if (y2 < y1) {
             int temp = y1;
             y1 = y2;
