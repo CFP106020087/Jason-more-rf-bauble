@@ -2,6 +2,7 @@ package com.moremod.synergy.station;
 
 import com.moremod.client.gui.GuiHandler;
 import com.moremod.moremod;
+import com.moremod.moremodCreativeTab;
 import net.minecraft.block.Block;
 import net.minecraft.block.ITileEntityProvider;
 import net.minecraft.block.material.Material;
@@ -26,6 +27,7 @@ public class BlockSynergyStation extends Block implements ITileEntityProvider {
         setRegistryName("synergy_station");
         setHardness(3.5F);
         setResistance(10.0F);
+        setCreativeTab(moremodCreativeTab.moremod_TAB);
     }
 
     @Override
