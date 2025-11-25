@@ -521,7 +521,7 @@ public class GuiHandler implements IGuiHandler {
 
         if (te instanceof TileEntitySynergyStation) {
             System.out.println("[GuiHandler] 打开 Synergy 链结站 GUI");
-            return new GuiSynergyStation(player.inventory, (TileEntitySynergyStation) te);
+            return new GuiSynergyStation(player, (TileEntitySynergyStation) te);
         }
         System.out.println("[GuiHandler] ❌ 未识别的 Synergy 链结站 TE(客户端): " + (te == null ? "null" : te.getClass().getName()));
         return null;
