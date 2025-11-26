@@ -6,9 +6,7 @@ import com.moremod.synergy.condition.*;
 import com.moremod.synergy.core.*;
 import com.moremod.synergy.effect.*;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.MobEffects;
 import net.minecraft.init.SoundEvents;
-import net.minecraft.potion.PotionEffect;
 import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.SoundCategory;
 import net.minecraft.util.text.TextFormatting;
@@ -61,10 +59,10 @@ public class TemporalSynergies {
                         float healthPercent = player.getHealth() / player.getMaxHealth();
 
                         if (context.getEventType() == SynergyEventType.TICK) {
-                            // 低血量时触发强化恢复
-                            if (healthPercent < 0.3f && player.ticksExisted % 20 == 0) {
+                            // 低血量时触发强化恢复（持续回血）
+                            if (healthPercent < 0.3f && player.ticksExisted % 10 == 0) {
                                 int totalLevel = regenLevel + potionLevel + fireLevel;
-                                float healAmount = 1.0f + totalLevel * 0.3f;
+                                float healAmount = 0.5f + totalLevel * 0.15f;
                                 player.heal(healAmount);
 
                                 // 不死鸟光环粒子
@@ -76,22 +74,31 @@ public class TemporalSynergies {
                                             player.posZ + Math.sin(angle) * 0.6,
                                             0, 0.05, 0);
                                 }
-
-                                // 恢复效果
-                                player.addPotionEffect(new PotionEffect(MobEffects.REGENERATION, 40, 1, false, true));
                             }
 
-                            // 着火时获得抗火
+                            // 着火时直接灭火并转化为治疗
                             if (player.isBurning()) {
-                                player.addPotionEffect(new PotionEffect(MobEffects.FIRE_RESISTANCE, 60, 0, false, false));
-                                player.heal(0.2f * fireLevel);  // 火焰转化为治疗
+                                // 快速减少火焰时间
+                                player.fire = Math.max(0, player.fire - 3 - fireLevel);
+
+                                // 火焰转化为治疗
+                                if (player.ticksExisted % 10 == 0) {
+                                    player.heal(0.5f + fireLevel * 0.3f);
+                                    world.spawnParticle(EnumParticleTypes.FLAME,
+                                            player.posX, player.posY + 1, player.posZ,
+                                            0.3, 0.3, 0.3);
+                                }
                             }
 
                         } else if (context.getEventType() == SynergyEventType.HURT) {
-                            // 受伤时有概率触发再生
+                            // 受伤时设置持续恢复标记
                             if (world.rand.nextFloat() < 0.3f) {
                                 int duration = 60 + potionLevel * 20;
-                                player.addPotionEffect(new PotionEffect(MobEffects.REGENERATION, duration, 0, false, true));
+                                player.getEntityData().setLong("synergy_phoenix_regen", world.getTotalWorldTime() + duration);
+                                player.getEntityData().setFloat("synergy_phoenix_heal_rate", 0.3f + potionLevel * 0.1f);
+
+                                // 直接恢复一部分
+                                player.heal(1.0f + potionLevel * 0.5f);
 
                                 world.playSound(null, player.posX, player.posY, player.posZ,
                                         SoundEvents.ENTITY_BLAZE_AMBIENT, SoundCategory.PLAYERS, 0.3f, 1.5f);
@@ -216,9 +223,22 @@ public class TemporalSynergies {
                                     0, 0.1, 0);
                         }
 
-                        // 高等级时有概率获得力量
+                        // 高等级时设置伤害加成标记
                         if (totalLevel >= 6 && world.rand.nextFloat() < 0.2f) {
-                            player.addPotionEffect(new PotionEffect(MobEffects.STRENGTH, 200, 0, false, true));
+                            player.getEntityData().setLong("synergy_xp_damage_boost", world.getTotalWorldTime() + 200);
+                            player.getEntityData().setFloat("synergy_xp_damage_amount", 3.0f + totalLevel * 0.5f);
+
+                            // 力量获得特效
+                            world.playSound(null, player.posX, player.posY, player.posZ,
+                                    SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.PLAYERS, 0.5f, 1.5f);
+
+                            for (int i = 0; i < 8; i++) {
+                                world.spawnParticle(EnumParticleTypes.CRIT,
+                                        player.posX + (world.rand.nextDouble() - 0.5),
+                                        player.posY + 1 + world.rand.nextDouble(),
+                                        player.posZ + (world.rand.nextDouble() - 0.5),
+                                        0, 0.1, 0);
+                            }
                         }
                     }
 

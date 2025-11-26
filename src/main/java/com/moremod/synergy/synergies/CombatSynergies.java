@@ -7,9 +7,7 @@ import com.moremod.synergy.core.*;
 import com.moremod.synergy.effect.*;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.MobEffects;
 import net.minecraft.init.SoundEvents;
-import net.minecraft.potion.PotionEffect;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.SoundCategory;
@@ -89,11 +87,23 @@ public class CombatSynergies {
 
                             player.heal(healAmount);
 
-                            // 低血量时获得短暂力量
+                            // 低血量时标记狂暴状态（通过NBT存储伤害加成）
                             if (healthPercent < 0.3f) {
-                                player.addPotionEffect(new PotionEffect(MobEffects.STRENGTH, 60, 1, false, true));
+                                // 设置狂暴标记，持续3秒
+                                player.getEntityData().setLong("synergy_berserker_rage", world.getTotalWorldTime() + 60);
+                                player.getEntityData().setFloat("synergy_berserker_bonus", 3.0f + context.getModuleLevel("DAMAGE_BOOST"));
+
                                 world.playSound(null, player.posX, player.posY, player.posZ,
                                         SoundEvents.ENTITY_PLAYER_ATTACK_CRIT, SoundCategory.PLAYERS, 0.5f, 0.8f);
+
+                                // 狂暴视觉效果
+                                for (int i = 0; i < 12; i++) {
+                                    world.spawnParticle(EnumParticleTypes.REDSTONE,
+                                            player.posX + (world.rand.nextDouble() - 0.5) * 1.5,
+                                            player.posY + world.rand.nextDouble() * 2,
+                                            player.posZ + (world.rand.nextDouble() - 0.5) * 1.5,
+                                            1, 0, 0);
+                                }
                             }
                         }
                     }
@@ -133,16 +143,26 @@ public class CombatSynergies {
                         EntityLivingBase target = context.getTarget();
                         if (target == null) return;
 
+                        World world = player.world;
                         int pursuitLevel = context.getModuleLevel("PURSUIT");
                         int speedLevel = context.getModuleLevel("MOVEMENT_SPEED");
                         int attackSpeedLevel = context.getModuleLevel("ATTACK_SPEED");
 
-                        // 获得速度和急迫效果
-                        int duration = 40 + (pursuitLevel + speedLevel) * 10;
-                        int amplifier = Math.min(2, (pursuitLevel + speedLevel + attackSpeedLevel) / 3);
+                        // 直接加速：朝向目标的冲刺
+                        double dx = target.posX - player.posX;
+                        double dz = target.posZ - player.posZ;
+                        double dist = Math.sqrt(dx * dx + dz * dz);
 
-                        player.addPotionEffect(new PotionEffect(MobEffects.SPEED, duration, amplifier, false, true));
-                        player.addPotionEffect(new PotionEffect(MobEffects.HASTE, duration, amplifier, false, true));
+                        if (dist > 0.5) {
+                            double speedBoost = 0.3 + (pursuitLevel + speedLevel) * 0.05;
+                            player.motionX += (dx / dist) * speedBoost;
+                            player.motionZ += (dz / dist) * speedBoost;
+                            player.velocityChanged = true;
+                        }
+
+                        // 设置追猎标记用于后续攻击加速
+                        player.getEntityData().setLong("synergy_hunter_mark", world.getTotalWorldTime() + 40);
+                        player.getEntityData().setInteger("synergy_hunter_level", attackSpeedLevel);
 
                         // 对逃跑的目标造成额外伤害
                         double targetSpeed = Math.sqrt(target.motionX * target.motionX + target.motionZ * target.motionZ);
@@ -150,8 +170,17 @@ public class CombatSynergies {
                             float bonusDamage = context.getOriginalDamage() * 0.2f * pursuitLevel;
                             target.attackEntityFrom(DamageSource.causePlayerDamage(player), bonusDamage);
 
-                            player.world.spawnParticle(EnumParticleTypes.SWEEP_ATTACK,
+                            world.spawnParticle(EnumParticleTypes.SWEEP_ATTACK,
                                     target.posX, target.posY + 1, target.posZ,
+                                    0, 0, 0);
+                        }
+
+                        // 追击粒子效果
+                        for (int i = 0; i < 5; i++) {
+                            world.spawnParticle(EnumParticleTypes.FOOTSTEP,
+                                    player.posX - player.motionX * i * 0.3,
+                                    player.posY + 0.1,
+                                    player.posZ - player.motionZ * i * 0.3,
                                     0, 0, 0);
                         }
 
@@ -161,7 +190,7 @@ public class CombatSynergies {
 
                     @Override
                     public String getDescription() {
-                        return "Gain speed on attack, bonus damage to fleeing targets";
+                        return "Dash toward target, bonus damage to fleeing targets";
                     }
                 })
                 .addEffect(MessageEffect.actionBar("🏃 追猎!", TextFormatting.AQUA))
@@ -223,9 +252,15 @@ public class CombatSynergies {
                                     SoundEvents.ITEM_SHIELD_BLOCK, SoundCategory.PLAYERS, 0.5f, 1.2f);
                         }
 
-                        // 获得短暂抗性
+                        // 高等级时直接恢复伤害的部分（模拟抗性）
                         if (totalLevel >= 6) {
-                            player.addPotionEffect(new PotionEffect(MobEffects.RESISTANCE, 40, 0, false, true));
+                            float damageReduction = context.getOriginalDamage() * 0.2f;
+                            player.heal(damageReduction);
+
+                            // 抗性粒子
+                            world.spawnParticle(EnumParticleTypes.VILLAGER_ANGRY,
+                                    player.posX, player.posY + 1, player.posZ,
+                                    0, 0.2, 0);
                         }
 
                         // 消耗能量

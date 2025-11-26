@@ -7,9 +7,7 @@ import com.moremod.synergy.core.*;
 import com.moremod.synergy.effect.*;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.MobEffects;
 import net.minecraft.init.SoundEvents;
-import net.minecraft.potion.PotionEffect;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.SoundCategory;
@@ -74,7 +72,10 @@ public class EntitySynergies {
                                 e -> e != player && !e.isDead);
 
                         for (EntityLivingBase entity : entities) {
-                            entity.addPotionEffect(new PotionEffect(MobEffects.SLOWNESS, 60, 0, false, true));
+                            // 直接减慢敌人移动
+                            entity.motionX *= 0.6;
+                            entity.motionZ *= 0.6;
+                            entity.velocityChanged = true;
 
                             // 粒子连线
                             world.spawnParticle(EnumParticleTypes.CRIT,
@@ -217,9 +218,10 @@ public class EntitySynergies {
                             if (speed > 0.2 && player.ticksExisted % 10 == 0) {
                                 speedStacks = Math.min(speedStacks + 1, maxStacks);
 
-                                // 速度加成
-                                int amplifier = Math.min(2, speedStacks / 3);
-                                player.addPotionEffect(new PotionEffect(MobEffects.SPEED, 30, amplifier, false, false));
+                                // 直接速度加成：放大当前移动方向的动量
+                                double boost = 1.0 + speedStacks * 0.03;
+                                player.motionX *= boost;
+                                player.motionZ *= boost;
 
                                 // 速度粒子
                                 if (speedStacks >= 3) {

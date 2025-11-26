@@ -7,9 +7,7 @@ import com.moremod.synergy.core.*;
 import com.moremod.synergy.effect.*;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.MobEffects;
 import net.minecraft.init.SoundEvents;
-import net.minecraft.potion.PotionEffect;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.SoundCategory;
@@ -185,8 +183,9 @@ public class DomainSynergies {
                                 float bonusDamage = context.getOriginalDamage() * 0.05f * attackStacks;
                                 target.attackEntityFrom(DamageSource.causePlayerDamage(player), bonusDamage);
 
-                                // 攻击速度加成
-                                player.addPotionEffect(new PotionEffect(MobEffects.HASTE, 40, Math.min(2, attackStacks / 5), false, false));
+                                // 攻击速度加成（通过标记实现）
+                                player.getEntityData().setLong("synergy_attack_speed_boost", currentTime + 40);
+                                player.getEntityData().setInteger("synergy_attack_speed_level", Math.min(2, attackStacks / 5));
 
                                 // 高层数特效
                                 if (attackStacks >= 5) {
@@ -231,7 +230,9 @@ public class DomainSynergies {
                             // 击杀时重置为满层
                             attackStacks = maxStacks;
 
-                            player.addPotionEffect(new PotionEffect(MobEffects.STRENGTH, 100, 1, false, true));
+                            // 设置伤害加成标记（代替力量药水）
+                            player.getEntityData().setLong("synergy_kill_damage_boost", currentTime + 100);
+                            player.getEntityData().setFloat("synergy_kill_damage_amount", 6.0f + totalLevel * 0.5f);
 
                             ExistingModuleBridge.getInstance().addEnergy(player, 200 + totalLevel * 30);
                         }
@@ -291,20 +292,22 @@ public class DomainSynergies {
                                 player.getFoodStats().addStats(1 + hungerLevel / 2, 0.5f);
                             }
 
-                            // 免疫各种状态效果
+                            // 免疫各种负面状态：直接清除
                             if (player.ticksExisted % 40 == 0) {
-                                player.removePotionEffect(MobEffects.HUNGER);
-                                player.removePotionEffect(MobEffects.POISON);
-
-                                if (totalLevel >= 10) {
-                                    player.removePotionEffect(MobEffects.WITHER);
-                                }
+                                // 清除已有的负面效果（获取后清除，避免null）
+                                player.getActivePotionEffects().removeIf(effect ->
+                                        effect.getPotion().isBadEffect());
                             }
 
-                            // 火焰/寒冷环境适应
+                            // 火焰环境适应：直接灭火并治疗
                             if (player.isBurning()) {
-                                player.addPotionEffect(new PotionEffect(MobEffects.FIRE_RESISTANCE, 100, 0, false, false));
-                                player.heal(0.1f * fireLevel);
+                                // 快速灭火
+                                player.fire = Math.max(0, player.fire - 5 - fireLevel * 2);
+
+                                // 火焰转化为治疗
+                                if (player.ticksExisted % 10 == 0) {
+                                    player.heal(0.3f + fireLevel * 0.2f);
+                                }
                             }
 
                             // 生存光环粒子

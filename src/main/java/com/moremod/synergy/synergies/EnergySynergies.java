@@ -7,9 +7,7 @@ import com.moremod.synergy.core.*;
 import com.moremod.synergy.effect.*;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.MobEffects;
 import net.minecraft.init.SoundEvents;
-import net.minecraft.potion.PotionEffect;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.SoundCategory;
@@ -66,9 +64,14 @@ public class EnergySynergies {
                         if (energyPercent > 0.8f) {
                             int totalLevel = capacityLevel + efficiencyLevel + voidLevel;
 
-                            // 速度加成
-                            if (player.ticksExisted % 40 == 0) {
-                                player.addPotionEffect(new PotionEffect(MobEffects.SPEED, 60, 0, false, false));
+                            // 直接速度加成：提升移动速度
+                            if (player.ticksExisted % 5 == 0) {
+                                double currentSpeed = Math.sqrt(player.motionX * player.motionX + player.motionZ * player.motionZ);
+                                if (currentSpeed > 0.05 && currentSpeed < 0.5) {
+                                    double boost = 1.05 + totalLevel * 0.01;
+                                    player.motionX *= boost;
+                                    player.motionZ *= boost;
+                                }
                             }
 
                             // 每秒有概率恢复生命
