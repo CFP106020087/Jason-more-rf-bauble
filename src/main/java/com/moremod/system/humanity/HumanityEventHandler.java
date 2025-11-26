@@ -26,6 +26,10 @@ import ichttt.mods.firstaid.api.damagesystem.AbstractDamageablePart;
 import ichttt.mods.firstaid.api.damagesystem.AbstractPlayerDamageModel;
 import ichttt.mods.firstaid.api.event.FirstAidLivingDamageEvent;
 
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
+
 /**
  * 人性值事件处理器
  * Humanity Event Handler
@@ -34,6 +38,9 @@ import ichttt.mods.firstaid.api.event.FirstAidLivingDamageEvent;
  */
 @Mod.EventBusSubscriber(modid = moremod.MODID)
 public class HumanityEventHandler {
+
+    // 防止AoE伤害递归的标记
+    private static final Set<UUID> aoeDamageInProgress = new HashSet<>();
 
     // ========== 玩家Tick事件 ==========
 
@@ -154,8 +161,12 @@ public class HumanityEventHandler {
         event.setAmount(event.getAmount() * damageMultiplier);
 
         // 极低人性惩罚：攻击波及周围生物（包括友方）
+        // 检查是否已经在处理AoE伤害，防止递归
         if (humanity < 10f && HumanityConfig.extremeLowHumanityAoEDamage) {
-            spreadDamageToNearby(player, target, event.getAmount());
+            UUID playerId = player.getUniqueID();
+            if (!aoeDamageInProgress.contains(playerId)) {
+                spreadDamageToNearby(player, target, event.getAmount());
+            }
         }
     }
 
@@ -163,29 +174,39 @@ public class HumanityEventHandler {
      * 将伤害波及到周围的生物（极低人性惩罚）
      */
     private static void spreadDamageToNearby(EntityPlayer player, EntityLivingBase originalTarget, float damage) {
-        double range = HumanityConfig.extremeLowHumanityAoERange;
-        float aoeDamage = damage * (float) HumanityConfig.extremeLowHumanityAoEDamageRatio;
+        UUID playerId = player.getUniqueID();
 
-        java.util.List<EntityLivingBase> nearbyEntities = player.world.getEntitiesWithinAABB(
-                EntityLivingBase.class,
-                originalTarget.getEntityBoundingBox().grow(range),
-                e -> e != originalTarget && e != player && e.isEntityAlive()
-        );
+        // 标记正在处理AoE伤害，防止递归
+        aoeDamageInProgress.add(playerId);
 
-        for (EntityLivingBase entity : nearbyEntities) {
-            // 波及伤害
-            entity.attackEntityFrom(
-                    net.minecraft.util.DamageSource.causePlayerDamage(player).setDamageBypassesArmor(),
-                    aoeDamage
+        try {
+            double range = HumanityConfig.extremeLowHumanityAoERange;
+            float aoeDamage = damage * (float) HumanityConfig.extremeLowHumanityAoEDamageRatio;
+
+            java.util.List<EntityLivingBase> nearbyEntities = player.world.getEntitiesWithinAABB(
+                    EntityLivingBase.class,
+                    originalTarget.getEntityBoundingBox().grow(range),
+                    e -> e != originalTarget && e != player && e.isEntityAlive()
             );
-        }
 
-        // 粒子效果
-        if (!nearbyEntities.isEmpty() && player.world instanceof net.minecraft.world.WorldServer) {
-            net.minecraft.world.WorldServer world = (net.minecraft.world.WorldServer) player.world;
-            world.spawnParticle(net.minecraft.util.EnumParticleTypes.SMOKE_LARGE,
-                    originalTarget.posX, originalTarget.posY + 1, originalTarget.posZ,
-                    10, range * 0.5, 0.5, range * 0.5, 0.01);
+            for (EntityLivingBase entity : nearbyEntities) {
+                // 波及伤害
+                entity.attackEntityFrom(
+                        net.minecraft.util.DamageSource.causePlayerDamage(player).setDamageBypassesArmor(),
+                        aoeDamage
+                );
+            }
+
+            // 粒子效果
+            if (!nearbyEntities.isEmpty() && player.world instanceof net.minecraft.world.WorldServer) {
+                net.minecraft.world.WorldServer world = (net.minecraft.world.WorldServer) player.world;
+                world.spawnParticle(net.minecraft.util.EnumParticleTypes.SMOKE_LARGE,
+                        originalTarget.posX, originalTarget.posY + 1, originalTarget.posZ,
+                        10, range * 0.5, 0.5, range * 0.5, 0.01);
+            }
+        } finally {
+            // 清除标记
+            aoeDamageInProgress.remove(playerId);
         }
     }
 
