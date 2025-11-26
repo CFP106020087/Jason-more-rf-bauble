@@ -1,0 +1,56 @@
+{
+  "pools": [
+    {
+      "name": "stone_sentinel_drops",
+      "rolls": {
+        "min": 6,
+        "max": 10
+      },
+      "bonus_rolls": 3,
+      "entries": [
+        {
+          "type": "item",
+          "name": "moremod:frguardian_stone",
+          "weight": 3,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": {
+                "min": 3,
+                "max": 5
+              }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "moremod:ancient_core_fragment",
+          "weight": 2,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": {
+                "min": 2,
+                "max": 4
+              }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "moremod:runed_void_stone",
+          "weight": 1,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": {
+                "min": 1,
+                "max": 2
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

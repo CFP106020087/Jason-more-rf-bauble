@@ -1,0 +1,25 @@
+{
+  "format_version": "1.8.0",
+  "animations": {
+    "animation.dragon.fly": {
+      "loop": true,
+      "bones": {
+        "all": {
+          "rotation": [
+            { "angle": [0, 0, 0],   "time": 0 },
+            { "angle": [0, 10, 0],  "time": 5 },
+            { "angle": [0, -10, 0], "time": 10 },
+            { "angle": [0, 0, 0],   "time": 15 }
+          ]
+        },
+        "head": {
+          "rotation": [
+            { "angle": [5, 0, 0],   "time": 0 },
+            { "angle": [-5, 0, 0],  "time": 7 },
+            { "angle": [5, 0, 0],   "time": 15 }
+          ]
+        }
+      }
+    }
+  }
+}

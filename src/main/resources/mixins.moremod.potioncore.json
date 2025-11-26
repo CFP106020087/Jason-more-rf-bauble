@@ -1,0 +1,14 @@
+{
+  "required": false,
+  "package": "com.moremod.mixin",
+  "refmap": "mixins.moremod.refmap.json",
+  "compatibilityLevel": "JAVA_8",
+  "target": "@env(DEFAULT)",
+  "minVersion": "0.8",
+  "mixins": [
+    "MixinPotionCoreMagicDamage"
+  ],
+  "injectors": {
+    "maxShiftBy": 10
+  }
+}

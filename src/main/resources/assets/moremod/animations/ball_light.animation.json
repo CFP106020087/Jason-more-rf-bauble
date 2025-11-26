@@ -1,0 +1,17 @@
+{
+  "format_version": "1.8.0",
+  "animations": {
+    "animation.ball.pulse": {
+      "loop": true,
+      "bones": {
+        "all": {
+          "scale": [
+            { "scale": [1.0, 1.0, 1.0], "time": 0 },
+            { "scale": [1.25, 1.25, 1.25], "time": 5 },
+            { "scale": [1.0, 1.0, 1.0], "time": 10 }
+          ]
+        }
+      }
+    }
+  }
+}

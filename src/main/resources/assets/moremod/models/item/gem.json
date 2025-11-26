@@ -1,0 +1,44 @@
+{
+  "parent": "item/generated",
+  "textures": {
+    "layer0": "moremod:items/gem_unidentified"
+  },
+  "overrides": [
+    {
+      "predicate": {
+        "quality": 0.0
+      },
+      "model": "moremod:item/gem_unidentified"
+    },
+    {
+      "predicate": {
+        "quality": 0.2
+      },
+      "model": "moremod:item/gem_gray"
+    },
+    {
+      "predicate": {
+        "quality": 0.4
+      },
+      "model": "moremod:item/gem_green"
+    },
+    {
+      "predicate": {
+        "quality": 0.6
+      },
+      "model": "moremod:item/gem_blue"
+    },
+    {
+      "predicate": {
+        "quality": 0.8
+      },
+      "model": "moremod:item/gem_purple"
+    },
+    {
+      "predicate": {
+        "quality": 1.0
+      },
+      "model": "moremod:item/gem_gold"
+    }
+  ]
+}

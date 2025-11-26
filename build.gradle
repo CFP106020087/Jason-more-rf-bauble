@@ -1,0 +1,127 @@
+buildscript {
+    repositories {
+        jcenter()
+        maven { url = "https://files.minecraftforge.net/maven" }
+        mavenCentral()
+        maven { url = "https://repo.spongepowered.org/repository/maven-public/" }
+    }
+    dependencies {
+        classpath 'net.minecraftforge.gradle:ForgeGradle:2.3-SNAPSHOT'
+        classpath 'org.spongepowered:mixingradle:0.6-SNAPSHOT'
+    }
+}
+
+apply plugin: 'net.minecraftforge.gradle.forge'
+apply plugin: 'org.spongepowered.mixin'
+
+version = "3.2.2"
+group = "com.moremod"
+archivesBaseName = "Jasons-more-rf-bauble"
+
+sourceCompatibility = targetCompatibility = '1.8'
+compileJava {
+    sourceCompatibility = targetCompatibility = '1.8'
+    options.encoding = 'UTF-8'
+}
+
+minecraft {
+    version = "1.12.2-14.23.5.2847"
+    runDir = "run"
+    mappings = "stable_39"
+    makeObfSourceJar = false
+
+}
+
+repositories {
+    mavenCentral()
+    maven { url "https://repo.spongepowered.org/repository/maven-public/" }
+    maven { url "https://cursemaven.com" }
+    maven { name = "Progwml6 maven"; url = "https://dvs1.progwml6.com/files/maven/" }
+    maven { name = "ModMaven"; url = "https://modmaven.k-4u.nl" }
+    maven { url = "https://maven.blamejared.com" }
+    flatDir { dirs 'libs' }
+}
+
+dependencies {
+    // JEI
+    deobfProvided "mezz.jei:jei_1.12.2:4.16.1.1013:api"
+
+    // Mod dependencies
+    compileOnly name:'MmmMmmMmmMmm-1.12-2.0.5'
+    compileOnly name:'Ice and Fire-2.1.7'
+    compileOnly name:'champions-1.12.2-1.0.11.10'
+    compileOnly name:'InfernalMobs-1.12.2'
+    compileOnly name:'morerefinedstorage-2.3.2'
+    compileOnly name:'Baubles-1.12-1.5.2'
+    compileOnly name:'RedstoneFlux-1.12-2.1.1.1-universal'
+    compileOnly name:'SRParasites-1.12.2v1.9.21'
+    compileOnly name:'geckolib-forge-1.12.2-3.0.31'
+    compileOnly name:'lycanitesmobs-1.12.2-2.0.8.10'
+    compileOnly name:'CraftTweaker2-1.12-4.1.20.703'
+    compileOnly name:'firstaid-1.6.22'
+    runtimeOnly name:'`FermiumBooter-1.2.0'
+    compileOnly name:'`FermiumBooter-1.2.0'
+    compileOnly name:'EnhancedVisuals_v1.4.4_mc1.12.2'
+    compileOnly name:'PotionCore-1.9_for_1.12.2'
+
+    // ========== Mixin 配置 ==========
+    compile('org.spongepowered:mixin:0.8.5') {
+        exclude module: 'launchwrapper'
+        exclude module: 'guava'
+        exclude module: 'gson'
+    }
+
+    annotationProcessor('org.spongepowered:mixin:0.8.5:processor') {
+        exclude module: 'guava'
+        exclude module: 'gson'
+    }
+}
+
+// ========== Mixin 配置（简化版）==========
+mixin {
+    defaultObfuscationEnv = "searge"
+    add sourceSets.main, "mixins.moremod.refmap.json"
+
+    // ❌ 移除所有 MixinGradle 0.6 不支持的配置
+    // showMessageTypes = true  // 不支持
+    // messages { ... }         // 不支持
+}
+
+processResources {
+    inputs.property "version", project.version
+    inputs.property "mcversion", project.minecraft.version
+
+    from(sourceSets.main.resources.srcDirs) {
+        include 'mcmod.info'
+        expand 'version': project.version, 'mcversion': project.minecraft.version
+    }
+    from(sourceSets.main.resources.srcDirs) {
+        exclude 'mcmod.info'
+    }
+}
+
+jar {
+    manifest {
+        attributes(
+                'FMLCorePlugin': 'com.moremod.core.moremodMixinPlugin',
+                'FMLCorePluginContainsFMLMod': 'true',
+                'ForceLoadAsMod': 'true',
+                'MixinConfigs': 'mixins.moremod.json',
+                'TweakClass': 'org.spongepowered.asm.launch.MixinTweaker',
+                'TweakOrder': '0'
+        )
+    }
+
+    exclude 'com/charles445/**'
+    exclude 'com/dhanantry/**'
+    exclude 'com/lycanitesmobs/**'
+    exclude 'mezz/jei/**'
+}
+
+reobf {
+    jar {
+        mappingType = 'SEARGE'
+    }
+}
+
+build.dependsOn jar
