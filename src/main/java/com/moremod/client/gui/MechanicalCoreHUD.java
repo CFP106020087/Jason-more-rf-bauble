@@ -8,6 +8,9 @@ import com.moremod.upgrades.energy.EnergyDepletionManager;
 import com.moremod.upgrades.WaterproofUpgrade;
 import com.moremod.upgrades.WetnessSystem;
 import com.moremod.system.FleshRejectionSystem;
+import com.moremod.system.humanity.HumanityCapabilityHandler;
+import com.moremod.system.humanity.IHumanityData;
+import com.moremod.system.humanity.AscensionRoute;
 import com.moremod.config.MechanicalCoreHUDConfig;
 import com.moremod.config.FleshRejectionConfig;
 import net.minecraft.client.Minecraft;
@@ -412,6 +415,14 @@ public class MechanicalCoreHUD extends Gui {
                 currentY += 12;
             }
             // ========== 排异值显示结束 ==========
+
+            // ========== 人性值显示 ==========
+            IHumanityData humanityData = HumanityCapabilityHandler.getData(player);
+            if (humanityData != null && humanityData.isSystemActive()) {
+                currentY += 2;
+                currentY = renderHumanityInfo(hudX, currentY, hudWidth, humanityData, fontRenderer);
+            }
+            // ========== 人性值显示结束 ==========
 
             // 渲染实时能量流
             if (MechanicalCoreHUDConfig.showEnergyFlow) {
@@ -1129,6 +1140,137 @@ public class MechanicalCoreHUD extends Gui {
         drawRect(x, y + height - cornerSize, x + 1, y + height, color);
         drawRect(x + width - cornerSize, y + height - 1, x + width, y + height, color);
         drawRect(x + width - 1, y + height - cornerSize, x + width, y + height, color);
+    }
+
+    // ========== 人性值渲染方法 ==========
+
+    /**
+     * 渲染人性值信息
+     */
+    private int renderHumanityInfo(int hudX, int currentY, int hudWidth, IHumanityData data, FontRenderer fontRenderer) {
+        float humanity = data.getHumanity();
+        AscensionRoute route = data.getAscensionRoute();
+
+        // 人性值进度条
+        int barY = currentY;
+        int barWidth = hudWidth - 10;
+        int barHeight = 4;
+
+        // 背景
+        drawRect(hudX + 5, barY, hudX + 5 + barWidth, barY + barHeight, 0xFF000000);
+
+        // 获取颜色
+        int barColor = getHumanityBarColor(humanity, route);
+        TextFormatting textColor = getHumanityTextColor(humanity, route);
+
+        // 低人性脉冲效果
+        if (humanity < 25f && animationTick % 20 < 10) {
+            barColor = 0xFF8800AA;
+        }
+
+        // 绘制进度条
+        int fillWidth = (int)(humanity / 100f * barWidth);
+        drawRect(hudX + 5, barY, hudX + 5 + fillWidth, barY + barHeight, barColor);
+
+        currentY = barY + 6;
+
+        // 第一行：人性值 + 状态
+        String humanityText = "⚛ 人性: " + String.format("%.0f%%", humanity);
+        String statusLabel = getHumanityStatusLabel(humanity, route);
+
+        fontRenderer.drawStringWithShadow(textColor + humanityText + " " + statusLabel,
+                hudX + 5, currentY, 0xFFFFFF);
+        currentY += 10;
+
+        // 升格路线显示
+        if (route != AscensionRoute.NONE) {
+            String routeText = route == AscensionRoute.MEKHANE_SYNTHETIC ?
+                    TextFormatting.LIGHT_PURPLE + "  [Mekhane合成人]" :
+                    TextFormatting.DARK_PURPLE + "  [破碎之神]";
+            fontRenderer.drawStringWithShadow(routeText, hudX + 5, currentY, 0xFFFFFF);
+            currentY += 10;
+        }
+
+        // 崩解状态警告
+        if (data.isDissolutionActive()) {
+            int seconds = data.getDissolutionTicks() / 20;
+            String warningText = TextFormatting.DARK_RED + "💀 崩解中! " + TextFormatting.RED + seconds + "s";
+            if (animationTick % 10 < 5) {
+                fontRenderer.drawStringWithShadow(warningText, hudX + 5, currentY, 0xFFFFFF);
+            }
+            currentY += 10;
+        }
+
+        // 存在锚定标记
+        if (data.isExistenceAnchored(mc.world.getTotalWorldTime())) {
+            String anchorText = TextFormatting.AQUA + "  [存在锚定]";
+            fontRenderer.drawStringWithShadow(anchorText, hudX + 5, currentY, 0xFFFFFF);
+            currentY += 10;
+        }
+
+        // 分析进度
+        net.minecraft.util.ResourceLocation analyzing = data.getAnalyzingEntity();
+        if (analyzing != null) {
+            int progress = data.getAnalysisProgress();
+            String analysisText = TextFormatting.GREEN + "  分析: " + TextFormatting.WHITE +
+                    analyzing.getPath() + " " + TextFormatting.YELLOW + progress + "%";
+            fontRenderer.drawStringWithShadow(analysisText, hudX + 5, currentY, 0xFFFFFF);
+            currentY += 10;
+        }
+
+        return currentY;
+    }
+
+    /**
+     * 获取人性值进度条颜色
+     */
+    private int getHumanityBarColor(float humanity, AscensionRoute route) {
+        if (route == AscensionRoute.MEKHANE_SYNTHETIC) {
+            return 0xFFDD88FF;  // 浅紫
+        }
+        if (route == AscensionRoute.BROKEN_GOD) {
+            return 0xFF8800AA;  // 暗紫
+        }
+
+        if (humanity >= 80f) return 0xFFAADDFF;  // 蓝白
+        if (humanity >= 60f) return 0xFFBBDDEE;  // 浅蓝
+        if (humanity >= 40f) return 0xFFEEBBFF;  // 浅紫
+        if (humanity >= 25f) return 0xFFDD88FF;  // 紫
+        if (humanity >= 10f) return 0xFFAA44DD;  // 深紫
+        return 0xFF8800AA;  // 暗紫
+    }
+
+    /**
+     * 获取人性值文字颜色
+     */
+    private TextFormatting getHumanityTextColor(float humanity, AscensionRoute route) {
+        if (route == AscensionRoute.MEKHANE_SYNTHETIC) return TextFormatting.LIGHT_PURPLE;
+        if (route == AscensionRoute.BROKEN_GOD) return TextFormatting.DARK_PURPLE;
+
+        if (humanity >= 80f) return TextFormatting.AQUA;
+        if (humanity >= 60f) return TextFormatting.WHITE;
+        if (humanity >= 40f) return TextFormatting.LIGHT_PURPLE;
+        if (humanity >= 25f) return TextFormatting.DARK_PURPLE;
+        return TextFormatting.DARK_RED;
+    }
+
+    /**
+     * 获取人性值状态标签
+     */
+    private String getHumanityStatusLabel(float humanity, AscensionRoute route) {
+        if (route == AscensionRoute.MEKHANE_SYNTHETIC) {
+            return TextFormatting.LIGHT_PURPLE + "[协同完美]";
+        }
+        if (route == AscensionRoute.BROKEN_GOD) {
+            return TextFormatting.DARK_PURPLE + "[超越人性]";
+        }
+
+        if (humanity >= 80f) return TextFormatting.AQUA + "[猎人协议]";
+        if (humanity >= 60f) return TextFormatting.WHITE + "[稳定]";
+        if (humanity >= 40f) return TextFormatting.LIGHT_PURPLE + "[灰域]";
+        if (humanity >= 25f) return TextFormatting.DARK_PURPLE + "[异常协议]";
+        if (humanity >= 10f) return TextFormatting.RED + "[深度异化]";
+        return TextFormatting.DARK_RED + "[临界崩解]";
     }
 
     // ========== 以下是新增的辅助方法：客户端从核心NBT读取排异数据 ==========
