@@ -107,7 +107,7 @@ public class PacketSynergyStationAction implements IMessage {
                         break;
 
                     case TOGGLE_ACTIVE:
-                        station.toggleActivated();
+                        station.toggleActivated(player);
                         break;
                 }
             });

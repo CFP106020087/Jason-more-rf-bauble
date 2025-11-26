@@ -81,7 +81,7 @@ public class ContainerSynergyStation extends Container {
      * 切换激活状态
      */
     public void toggleActivated() {
-        tileEntity.toggleActivated();
+        tileEntity.toggleActivated(player);
     }
 
     /**

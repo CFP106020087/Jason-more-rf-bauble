@@ -225,12 +225,14 @@ public class GuiSynergyStation extends GuiScreen {
                                 PacketSynergyStationAction.ActionType.TOGGLE_ACTIVE
                         )
                 );
-                // 本地更新
-                tileEntity.toggleActivated();
-                button.displayString = tileEntity.isActivated() ? "ON" : "OFF";
+                // 本地更新（仅视觉状态，实际激活由服务端处理）
+                // 检查当前状态来决定切换后的状态
+                boolean wasActivated = tileEntity.isActivated();
+                button.displayString = wasActivated ? "OFF" : "ON"; // 预期切换后的状态
 
-                // 激活状态反馈
-                if (tileEntity.isActivated()) {
+                // 激活状态反馈（基于切换后的预期状态）
+                if (!wasActivated) {
+                    // 从关闭变为激活
                     player.playSound(net.minecraft.init.SoundEvents.BLOCK_BEACON_ACTIVATE, 0.5f, 1.5f);
                     if (!matchingSynergies.isEmpty()) {
                         StringBuilder sb = new StringBuilder("§a[链结站激活] §f生效中的协同效果:");
@@ -243,6 +245,7 @@ public class GuiSynergyStation extends GuiScreen {
                                 "§e[链结站激活] §7当前无匹配协同（需要2个以上模块）"));
                     }
                 } else {
+                    // 从激活变为关闭
                     player.playSound(net.minecraft.init.SoundEvents.BLOCK_BEACON_AMBIENT, 0.5f, 0.5f);
                     player.sendMessage(new net.minecraft.util.text.TextComponentString("§c[链结站关闭]"));
                 }
