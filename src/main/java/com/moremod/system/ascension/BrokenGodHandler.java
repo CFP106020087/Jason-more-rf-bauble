@@ -2,7 +2,6 @@ package com.moremod.system.ascension;
 
 import com.moremod.config.BrokenGodConfig;
 import com.moremod.item.ItemMechanicalCore;
-import com.moremod.moremod;
 import com.moremod.system.humanity.AscensionRoute;
 import com.moremod.system.humanity.HumanityCapabilityHandler;
 import com.moremod.system.humanity.IHumanityData;
@@ -14,6 +13,8 @@ import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.WorldServer;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -30,6 +31,8 @@ import java.util.UUID;
  * - 扭曲脉冲冷却
  */
 public class BrokenGodHandler {
+
+    private static final Logger LOGGER = LogManager.getLogger("moremod");
 
     // ========== 停机模式追踪 ==========
 
@@ -106,7 +109,7 @@ public class BrokenGodHandler {
                     30, 0.5, 0.5, 0.5, 0.05);
         }
 
-        moremod.logger.info("[BrokenGod] Player {} entered shutdown mode", player.getName());
+        LOGGER.info("[BrokenGod] Player {} entered shutdown mode", player.getName());
     }
 
     /**
@@ -184,7 +187,7 @@ public class BrokenGodHandler {
                     30, 0.5, 1, 0.5, 0.1);
         }
 
-        moremod.logger.info("[BrokenGod] Player {} exited shutdown mode", player.getName());
+        LOGGER.info("[BrokenGod] Player {} exited shutdown mode", player.getName());
     }
 
     // ========== 扭曲脉冲冷却 ==========
@@ -301,7 +304,7 @@ public class BrokenGodHandler {
                 net.minecraft.init.SoundEvents.ENTITY_WITHER_SPAWN,
                 net.minecraft.util.SoundCategory.PLAYERS, 1.0f, 0.5f);
 
-        moremod.logger.info("[BrokenGod] Player {} has ascended to Broken God", player.getName());
+        LOGGER.info("[BrokenGod] Player {} has ascended to Broken God", player.getName());
     }
 
     // ========== 清理 ==========

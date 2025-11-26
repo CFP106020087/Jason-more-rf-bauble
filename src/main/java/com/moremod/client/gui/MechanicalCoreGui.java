@@ -1060,8 +1060,8 @@ public class MechanicalCoreGui extends GuiScreen {
                     true
             ));
 
-            // 播放音效
-            player.playSound(SoundEvents.ENTITY_WITHER_SPAWN, 1.0f, 0.5f);
+            // 播放音效 (服务器会播放升格音效)
+            this.mc.player.playSound(SoundEvents.BLOCK_END_PORTAL_FRAME_FILL, 1.0f, 0.8f);
 
             // 关闭GUI
             this.mc.displayGuiScreen(null);
