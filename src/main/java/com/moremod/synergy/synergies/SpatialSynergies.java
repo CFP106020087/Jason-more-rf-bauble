@@ -217,9 +217,10 @@ public class SpatialSynergies {
 
                             // 着火时直接灭火并恢复
                             if (player.isBurning()) {
-                                // 减少火焰燃烧时间
-                                int newFireTicks = Math.max(0, player.fire - 5 - tempLevel * 2);
-                                player.fire = newFireTicks;
+                                // 快速灭火（频率基于等级）
+                                if (player.ticksExisted % (Math.max(1, 8 - tempLevel * 2)) == 0) {
+                                    player.extinguish();
+                                }
 
                                 // 火焰伤害转化为治疗
                                 if (player.ticksExisted % 20 == 0) {

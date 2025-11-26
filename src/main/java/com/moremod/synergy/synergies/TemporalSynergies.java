@@ -78,8 +78,10 @@ public class TemporalSynergies {
 
                             // 着火时直接灭火并转化为治疗
                             if (player.isBurning()) {
-                                // 快速减少火焰时间
-                                player.fire = Math.max(0, player.fire - 3 - fireLevel);
+                                // 快速灭火（概率基于等级）
+                                if (player.ticksExisted % (Math.max(1, 10 - fireLevel * 2)) == 0) {
+                                    player.extinguish();
+                                }
 
                                 // 火焰转化为治疗
                                 if (player.ticksExisted % 10 == 0) {

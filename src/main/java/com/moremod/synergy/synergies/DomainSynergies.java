@@ -301,8 +301,10 @@ public class DomainSynergies {
 
                             // 火焰环境适应：直接灭火并治疗
                             if (player.isBurning()) {
-                                // 快速灭火
-                                player.fire = Math.max(0, player.fire - 5 - fireLevel * 2);
+                                // 快速灭火（频率基于等级）
+                                if (player.ticksExisted % (Math.max(1, 8 - fireLevel * 2)) == 0) {
+                                    player.extinguish();
+                                }
 
                                 // 火焰转化为治疗
                                 if (player.ticksExisted % 10 == 0) {
