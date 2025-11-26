@@ -307,18 +307,19 @@ public class HumanityConfig {
 
     @Config.Comment({
             "极低人性(<10%)时，无痛麻木触发概率",
-            "玩家因感受不到疼痛而更容易伤害到自己的要害",
-            "Painless numbness trigger chance - player hurts own vital areas"
+            "玩家因感受不到疼痛而无法保护要害，受到的伤害优先命中头部和躯干",
+            "Painless numbness trigger chance - received damage prioritizes head/body (First Aid)"
     })
     @Config.Name("无痛麻木概率 | Painless Numbness Chance")
     @Config.RangeDouble(min = 0, max = 1)
     public static double extremeLowHumanityCritChance = 0.35;
 
     @Config.Comment({
-            "无痛麻木时的额外自我伤害倍率",
-            "Additional self-damage multiplier from painless numbness"
+            "无痛麻木时的伤害转移比例",
+            "多少四肢伤害会被转移到头部和躯干（0.5 = 50%四肢伤害转移到要害）",
+            "How much limb damage is transferred to head/body (0.5 = 50% transferred)"
     })
-    @Config.Name("自我伤害倍率 | Self Damage Multiplier")
+    @Config.Name("伤害转移比例 | Vital Damage Transfer Ratio")
     @Config.RangeDouble(min = 1.0, max = 3.0)
     public static double extremeLowHumanityCritMultiplier = 1.5;
 

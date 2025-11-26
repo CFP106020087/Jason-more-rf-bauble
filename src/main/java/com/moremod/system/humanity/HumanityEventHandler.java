@@ -17,10 +17,14 @@ import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.event.entity.player.PlayerSleepInBedEvent;
 import net.minecraftforge.event.entity.player.PlayerWakeUpEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.common.Optional;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
+import ichttt.mods.firstaid.api.damagesystem.AbstractDamageablePart;
+import ichttt.mods.firstaid.api.damagesystem.AbstractPlayerDamageModel;
+import ichttt.mods.firstaid.api.event.FirstAidLivingDamageEvent;
 
 /**
  * 人性值事件处理器
@@ -196,25 +200,8 @@ public class HumanityEventHandler {
         // 标记战斗状态
         HumanitySpectrumSystem.markCombat(player);
 
-        float humanity = HumanitySpectrumSystem.getHumanity(player);
-
-        // 极低人性惩罚：无痛麻木
-        // 伤害优先打在头/躯干等要害部位（与 First Aid 配合使用）
-        // 实现方式：增加伤害量，First Aid 会将伤害分配到身体各部位
-        // 因为玩家感受不到疼痛，无法及时保护要害
-        if (humanity < 10f) {
-            if (player.world.rand.nextFloat() < HumanityConfig.extremeLowHumanityCritChance) {
-                // 增加伤害量（First Aid 会将此伤害分配到身体各部位）
-                float vitalDamageMultiplier = (float) HumanityConfig.extremeLowHumanityCritMultiplier;
-                event.setAmount(event.getAmount() * vitalDamageMultiplier);
-
-                // 发送警告
-                player.sendStatusMessage(new net.minecraft.util.text.TextComponentString(
-                        net.minecraft.util.text.TextFormatting.DARK_RED + "【无痛麻木】" +
-                        net.minecraft.util.text.TextFormatting.GRAY + " 伤害命中要害..."
-                ), true);
-            }
-        }
+        // 注意：无痛麻木效果（低人性伤害优先命中要害）
+        // 已移至 onFirstAidDamage 方法中，使用 First Aid API 正确处理部位伤害分配
 
         // 检查量子叠加（灰域致命伤害时）
         if (HumanitySpectrumSystem.checkQuantumCollapse(player, event.getAmount())) {
@@ -256,6 +243,86 @@ public class HumanityEventHandler {
         if (humanity < 50f) {
             float reduction = (float) HumanityConfig.lowHumanityHealingReduction;
             event.setAmount(event.getAmount() * (1f - reduction));
+        }
+    }
+
+    // ========== First Aid 部位伤害处理（无痛麻木效果）==========
+
+    /**
+     * 无痛麻木效果 - 极低人性值时伤害优先打在头部和躯干
+     *
+     * 当人性值 < 10% 时，玩家因为失去痛觉而无法保护要害部位，
+     * 导致伤害更容易命中头部和身体（要害）
+     */
+    @Optional.Method(modid = "firstaid")
+    @SubscribeEvent(priority = EventPriority.LOW)
+    public static void onFirstAidDamage(FirstAidLivingDamageEvent event) {
+        if (!(event.getEntityLiving() instanceof EntityPlayer)) return;
+        if (event.isCanceled()) return;
+
+        EntityPlayer player = (EntityPlayer) event.getEntityLiving();
+
+        if (!HumanitySpectrumSystem.isSystemActive(player)) return;
+
+        float humanity = HumanitySpectrumSystem.getHumanity(player);
+
+        // 极低人性：无痛麻木 - 伤害优先命中要害
+        if (humanity < 10f && HumanityConfig.extremeLowHumanityCritChance > 0) {
+            // 概率触发无痛麻木效果
+            if (player.world.rand.nextFloat() < HumanityConfig.extremeLowHumanityCritChance) {
+                applyPainlessNumbnessEffect(event, player);
+            }
+        }
+    }
+
+    /**
+     * 应用无痛麻木效果 - 将四肢伤害转移到头部和躯干
+     */
+    @Optional.Method(modid = "firstaid")
+    private static void applyPainlessNumbnessEffect(FirstAidLivingDamageEvent event, EntityPlayer player) {
+        AbstractPlayerDamageModel beforeDamage = event.getBeforeDamage();
+        AbstractPlayerDamageModel afterDamage = event.getAfterDamage();
+
+        // 计算四肢受到的伤害
+        float leftArmDamage = Math.max(0, beforeDamage.LEFT_ARM.currentHealth - afterDamage.LEFT_ARM.currentHealth);
+        float rightArmDamage = Math.max(0, beforeDamage.RIGHT_ARM.currentHealth - afterDamage.RIGHT_ARM.currentHealth);
+        float leftLegDamage = Math.max(0, beforeDamage.LEFT_LEG.currentHealth - afterDamage.LEFT_LEG.currentHealth);
+        float rightLegDamage = Math.max(0, beforeDamage.RIGHT_LEG.currentHealth - afterDamage.RIGHT_LEG.currentHealth);
+
+        float totalLimbDamage = leftArmDamage + rightArmDamage + leftLegDamage + rightLegDamage;
+
+        // 如果四肢没有受到伤害，不需要转移
+        if (totalLimbDamage <= 0.1f) return;
+
+        // 将部分四肢伤害转移到要害（头部40%，躯干60%）
+        float transferRatio = (float) (HumanityConfig.extremeLowHumanityCritMultiplier - 1.0);
+        transferRatio = Math.min(0.7f, Math.max(0.3f, transferRatio)); // 限制在30%-70%
+
+        float transferAmount = totalLimbDamage * transferRatio;
+        float headTransfer = transferAmount * 0.4f;
+        float bodyTransfer = transferAmount * 0.6f;
+
+        // 恢复部分四肢血量（因为伤害被转移了）
+        float recoveryPerLimb = transferAmount * 0.25f;
+        afterDamage.LEFT_ARM.currentHealth = Math.min(beforeDamage.LEFT_ARM.currentHealth,
+            afterDamage.LEFT_ARM.currentHealth + recoveryPerLimb);
+        afterDamage.RIGHT_ARM.currentHealth = Math.min(beforeDamage.RIGHT_ARM.currentHealth,
+            afterDamage.RIGHT_ARM.currentHealth + recoveryPerLimb);
+        afterDamage.LEFT_LEG.currentHealth = Math.min(beforeDamage.LEFT_LEG.currentHealth,
+            afterDamage.LEFT_LEG.currentHealth + recoveryPerLimb);
+        afterDamage.RIGHT_LEG.currentHealth = Math.min(beforeDamage.RIGHT_LEG.currentHealth,
+            afterDamage.RIGHT_LEG.currentHealth + recoveryPerLimb);
+
+        // 将伤害转移到头部和躯干
+        afterDamage.HEAD.currentHealth = Math.max(0, afterDamage.HEAD.currentHealth - headTransfer);
+        afterDamage.BODY.currentHealth = Math.max(0, afterDamage.BODY.currentHealth - bodyTransfer);
+
+        // 发送警告消息
+        if (!player.world.isRemote) {
+            player.sendStatusMessage(new net.minecraft.util.text.TextComponentString(
+                    net.minecraft.util.text.TextFormatting.DARK_RED + "【无痛麻木】" +
+                    net.minecraft.util.text.TextFormatting.GRAY + " 伤害命中要害..."
+            ), true);
         }
     }
 
