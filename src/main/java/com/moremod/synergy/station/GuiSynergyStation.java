@@ -228,6 +228,24 @@ public class GuiSynergyStation extends GuiScreen {
                 // 本地更新
                 tileEntity.toggleActivated();
                 button.displayString = tileEntity.isActivated() ? "ON" : "OFF";
+
+                // 激活状态反馈
+                if (tileEntity.isActivated()) {
+                    player.playSound(net.minecraft.init.SoundEvents.BLOCK_BEACON_ACTIVATE, 0.5f, 1.5f);
+                    if (!matchingSynergies.isEmpty()) {
+                        StringBuilder sb = new StringBuilder("§a[链结站激活] §f生效中的协同效果:");
+                        for (SynergyDefinition synergy : matchingSynergies) {
+                            sb.append("\n  §b▸ ").append(synergy.getDisplayName());
+                        }
+                        player.sendMessage(new net.minecraft.util.text.TextComponentString(sb.toString()));
+                    } else {
+                        player.sendMessage(new net.minecraft.util.text.TextComponentString(
+                                "§e[链结站激活] §7当前无匹配协同（需要2个以上模块）"));
+                    }
+                } else {
+                    player.playSound(net.minecraft.init.SoundEvents.BLOCK_BEACON_DEACTIVATE, 0.5f, 1.0f);
+                    player.sendMessage(new net.minecraft.util.text.TextComponentString("§c[链结站关闭]"));
+                }
                 break;
         }
     }
@@ -620,6 +638,8 @@ public class GuiSynergyStation extends GuiScreen {
         // 右键移除槽位
         if (mouseButton == 1 && hoveredSlot >= 0) {
             if (!tileEntity.isSlotEmpty(hoveredSlot)) {
+                String removedModule = tileEntity.getModuleInSlot(hoveredSlot);
+
                 // 发送网络包到服务器
                 PacketHandler.INSTANCE.sendToServer(
                         new PacketSynergyStationAction(
@@ -631,6 +651,11 @@ public class GuiSynergyStation extends GuiScreen {
                 // 本地更新
                 tileEntity.clearSlot(hoveredSlot);
                 updateMatchingSynergies();
+
+                // 播放移除音效
+                player.playSound(net.minecraft.init.SoundEvents.BLOCK_LAVA_EXTINGUISH, 0.3f, 1.5f);
+                player.sendMessage(new net.minecraft.util.text.TextComponentString(
+                        "§7[链结] §c移除 §f" + removedModule + " §7从槽位 " + (hoveredSlot + 1)));
             }
         }
     }
@@ -653,6 +678,19 @@ public class GuiSynergyStation extends GuiScreen {
                 // 本地更新
                 tileEntity.setModuleInSlot(hoveredSlot, draggingModule.moduleId);
                 updateMatchingSynergies();
+
+                // 播放反馈音效
+                player.playSound(net.minecraft.init.SoundEvents.BLOCK_END_PORTAL_FRAME_FILL, 0.5f, 1.2f);
+
+                // 显示反馈消息
+                String feedback = "§b[链结] §f" + draggingModule.displayName + " §7-> 槽位 " + (hoveredSlot + 1);
+                if (!matchingSynergies.isEmpty()) {
+                    feedback += " §a| 激活: " + matchingSynergies.get(0).getDisplayName();
+                    if (matchingSynergies.size() > 1) {
+                        feedback += " (+" + (matchingSynergies.size() - 1) + ")";
+                    }
+                }
+                player.sendMessage(new net.minecraft.util.text.TextComponentString(feedback));
             }
             draggingModule = null;
         }
