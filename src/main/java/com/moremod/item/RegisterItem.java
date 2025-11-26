@@ -4,6 +4,10 @@ import com.moremod.item.upgrades.ItemUpgradeComponent;
 import com.moremod.item.upgrades.UpgradeItemsExtended;
 import com.moremod.items.BloodyThirstMask;
 import com.moremod.item.battery.*;
+import com.moremod.item.broken.ItemBrokenHand;
+import com.moremod.item.broken.ItemBrokenHeart;
+import com.moremod.item.broken.ItemBrokenEye;
+import com.moremod.system.ascension.BrokenGodItems;
 
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.item.Item;
@@ -180,6 +184,11 @@ public class RegisterItem {
 
     public static Item DIMENSIONALANCOR;
 
+    // 破碎之神套装
+    public static Item BROKEN_HAND;
+    public static Item BROKEN_HEART;
+    public static Item BROKEN_EYE;
+
     // 战斗类升级
     public static Item DAMAGE_BOOST_LV1;
     public static Item DAMAGE_BOOST_LV2;
@@ -286,6 +295,15 @@ public class RegisterItem {
         ENCHANT_RING_T2 = newSafe(() -> new EnchantmentBoostBauble("enchant_ring_t2", 3), "enchant_ring_t2");
         ENCHANT_RING_T3 = newSafe(() -> new EnchantmentBoostBauble("enchant_ring_t3", 5), "enchant_ring_t3");
         ENCHANT_RING_ULTIMATE = newSafe(() -> new EnchantmentBoostBauble("enchant_ring_ultimate", 10), "enchant_ring_ultimate");
+
+        // 破碎之神套装
+        BROKEN_HAND = newSafe(ItemBrokenHand::new, "broken_hand");
+        BROKEN_HEART = newSafe(ItemBrokenHeart::new, "broken_heart");
+        BROKEN_EYE = newSafe(ItemBrokenEye::new, "broken_eye");
+        // 同步到 BrokenGodItems
+        BrokenGodItems.BROKEN_HAND = (ItemBrokenHand) BROKEN_HAND;
+        BrokenGodItems.BROKEN_HEART = (ItemBrokenHeart) BROKEN_HEART;
+        BrokenGodItems.BROKEN_EYE = (ItemBrokenEye) BROKEN_EYE;
 
         // SimpleDifficulty（按需）
         initSimpleDifficultyItems();
@@ -437,7 +455,8 @@ public class RegisterItem {
                 MECHANICAL_HEART, TEMPORAL_HEART, BLOODY_THIRST_MASK, MERCHANT_PERSUADER, VILLAGER_PROFESSION_TOOL,
                 ANTIKYTHERA_GEAR, TOGGLE_RENDER,DIMENSIONALRIPPER,DIMENSIONALANCOR,SPACETIME_SHARD,ANCHORKEY,
                 ENCHANT_RING_T1,ENCHANT_RING_T2,ENCHANT_RING_T3,ENCHANT_RING_ULTIMATE,TIME_BLOCK,LIGHTING_BOLT,
-                SAGEBOOK,HOLY_WATER
+                SAGEBOOK,HOLY_WATER,
+                BROKEN_HAND, BROKEN_HEART, BROKEN_EYE
         );
         if (SIMPLE_DIFFICULTY_LOADED) {
             addIfNotNull(itemsToRegister, TEMPERATURE_REGULATOR, THIRST_PROCESSOR);

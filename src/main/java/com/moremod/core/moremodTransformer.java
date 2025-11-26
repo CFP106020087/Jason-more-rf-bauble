@@ -22,6 +22,7 @@ public class moremodTransformer implements IClassTransformer {
     private static final boolean ENABLE_POTIONFINGERS_FIX   = false;
     private static final boolean ENABLE_SETBONUS_COMPAT     = true;
     private static final boolean ENABLE_SWORD_UPGRADE       = true;
+    private static final boolean ENABLE_BROKEN_GOD_DEATH    = true;
 
     public static Side side;
 
@@ -83,6 +84,12 @@ public class moremodTransformer implements IClassTransformer {
             if (ENABLE_SWORD_UPGRADE && "net.minecraft.item.ItemStack".equals(transformedName)) {
                 System.out.println("[moremodTransformer] Patching ItemStack#getAttributeModifiers for upgrades...");
                 return transformItemStackForUpgrades(basicClass);
+            }
+
+            // 破碎之神死亡拦截
+            if (ENABLE_BROKEN_GOD_DEATH && "net.minecraft.entity.EntityLivingBase".equals(transformedName)) {
+                System.out.println("[moremodTransformer] Patching EntityLivingBase.onDeath for Broken God...");
+                return transformEntityLivingBaseOnDeath(basicClass);
             }
 
         } catch (Throwable t) {
@@ -922,6 +929,78 @@ public class moremodTransformer implements IClassTransformer {
         } catch (ClassNotFoundException e) {
             return false;
         }
+    }
+
+    // ============================================================
+    // 破碎之神死亡拦截转换
+    // ============================================================
+
+    /**
+     * 转换 EntityLivingBase.onDeath 方法
+     * 在方法开头注入破碎之神死亡检查
+     *
+     * 原始代码:
+     * public void onDeath(DamageSource cause) { ... }
+     *
+     * 转换后:
+     * public void onDeath(DamageSource cause) {
+     *     if (BrokenGodDeathHook.shouldPreventDeath(this, cause)) return;
+     *     ... 原始代码 ...
+     * }
+     */
+    private byte[] transformEntityLivingBaseOnDeath(byte[] bytes) {
+        ClassNode cn = new ClassNode();
+        new ClassReader(bytes).accept(cn, ClassReader.EXPAND_FRAMES);
+        boolean modified = false;
+
+        for (MethodNode mn : cn.methods) {
+            // 查找 onDeath 方法 (SRG名: func_70645_a)
+            if (("onDeath".equals(mn.name) || "func_70645_a".equals(mn.name))
+                    && "(Lnet/minecraft/util/DamageSource;)V".equals(mn.desc)) {
+
+                System.out.println("[moremodTransformer]   Found onDeath method: " + mn.name);
+
+                // 创建注入代码
+                InsnList inject = new InsnList();
+
+                // 加载 this (EntityLivingBase)
+                inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
+
+                // 加载 cause (DamageSource, 参数1)
+                inject.add(new VarInsnNode(Opcodes.ALOAD, 1));
+
+                // 调用 BrokenGodDeathHook.shouldPreventDeath(this, cause)
+                inject.add(new MethodInsnNode(
+                        Opcodes.INVOKESTATIC,
+                        "com/moremod/core/BrokenGodDeathHook",
+                        "shouldPreventDeath",
+                        "(Lnet/minecraft/entity/EntityLivingBase;Lnet/minecraft/util/DamageSource;)Z",
+                        false
+                ));
+
+                // 如果返回 true (1)，直接 return
+                LabelNode continueLabel = new LabelNode();
+                inject.add(new JumpInsnNode(Opcodes.IFEQ, continueLabel));
+                inject.add(new InsnNode(Opcodes.RETURN));
+                inject.add(continueLabel);
+
+                // 在方法开头注入
+                mn.instructions.insert(inject);
+
+                modified = true;
+                System.out.println("[moremodTransformer]   + Injected Broken God death check into onDeath");
+            }
+        }
+
+        if (!modified) {
+            System.out.println("[moremodTransformer]   WARNING: Could not find onDeath method to patch!");
+            return bytes;
+        }
+
+        ClassWriter cw = new SafeClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
+        cn.accept(cw);
+        System.out.println("[moremodTransformer]   ✓ EntityLivingBase.onDeath patched for Broken God");
+        return cw.toByteArray();
     }
 
     // ============================================================
