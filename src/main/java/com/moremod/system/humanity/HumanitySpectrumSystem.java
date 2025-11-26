@@ -2,6 +2,8 @@ package com.moremod.system.humanity;
 
 import com.moremod.config.HumanityConfig;
 import com.moremod.item.ItemMechanicalCore;
+import com.moremod.network.PacketHandler;
+import com.moremod.network.PacketSyncHumanityData;
 import com.moremod.system.FleshRejectionSystem;
 import com.moremod.util.BaublesSyncUtil;
 import net.minecraft.entity.Entity;
@@ -120,8 +122,22 @@ public class HumanitySpectrumSystem {
         forceSyncPlayers.add(player.getUniqueID());
     }
 
+    /**
+     * 强制同步玩家的人性值数据到客户端
+     * 用于玩家登录时的初始同步
+     */
+    public static void forceSync(EntityPlayer player) {
+        markForceSync(player);
+    }
+
     private static void performSync(EntityPlayerMP player) {
         BaublesSyncUtil.safeSyncAll(player);
+
+        // 同步人性值数据到客户端
+        IHumanityData data = HumanityCapabilityHandler.getData(player);
+        if (data != null) {
+            PacketHandler.INSTANCE.sendTo(new PacketSyncHumanityData(data), player);
+        }
     }
 
     public static void cleanupPlayer(UUID playerId) {

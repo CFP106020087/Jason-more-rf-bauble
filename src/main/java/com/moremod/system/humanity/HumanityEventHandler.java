@@ -295,6 +295,16 @@ public class HumanityEventHandler {
         }
     }
 
+    // ========== 玩家登录同步 ==========
+
+    @SubscribeEvent
+    public static void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.player instanceof EntityPlayerMP) {
+            // 延迟一点同步，确保客户端准备好
+            HumanitySpectrumSystem.forceSync(event.player);
+        }
+    }
+
     // ========== 玩家退出清理 ==========
 
     @SubscribeEvent
