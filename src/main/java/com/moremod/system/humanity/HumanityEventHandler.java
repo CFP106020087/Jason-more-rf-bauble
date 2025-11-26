@@ -148,6 +148,41 @@ public class HumanityEventHandler {
         }
 
         event.setAmount(event.getAmount() * damageMultiplier);
+
+        // 极低人性惩罚：攻击波及周围生物（包括友方）
+        if (humanity < 10f && HumanityConfig.extremeLowHumanityAoEDamage) {
+            spreadDamageToNearby(player, target, event.getAmount());
+        }
+    }
+
+    /**
+     * 将伤害波及到周围的生物（极低人性惩罚）
+     */
+    private static void spreadDamageToNearby(EntityPlayer player, EntityLivingBase originalTarget, float damage) {
+        double range = HumanityConfig.extremeLowHumanityAoERange;
+        float aoeDamage = damage * (float) HumanityConfig.extremeLowHumanityAoEDamageRatio;
+
+        java.util.List<EntityLivingBase> nearbyEntities = player.world.getEntitiesWithinAABB(
+                EntityLivingBase.class,
+                originalTarget.getEntityBoundingBox().grow(range),
+                e -> e != originalTarget && e != player && e.isEntityAlive()
+        );
+
+        for (EntityLivingBase entity : nearbyEntities) {
+            // 波及伤害
+            entity.attackEntityFrom(
+                    net.minecraft.util.DamageSource.causePlayerDamage(player).setDamageBypassesArmor(),
+                    aoeDamage
+            );
+        }
+
+        // 粒子效果
+        if (!nearbyEntities.isEmpty() && player.world instanceof net.minecraft.world.WorldServer) {
+            net.minecraft.world.WorldServer world = (net.minecraft.world.WorldServer) player.world;
+            world.spawnParticle(net.minecraft.util.EnumParticleTypes.SMOKE_LARGE,
+                    originalTarget.posX, originalTarget.posY + 1, originalTarget.posZ,
+                    10, range * 0.5, 0.5, range * 0.5, 0.01);
+        }
     }
 
     /**
@@ -160,6 +195,21 @@ public class HumanityEventHandler {
 
         // 标记战斗状态
         HumanitySpectrumSystem.markCombat(player);
+
+        float humanity = HumanitySpectrumSystem.getHumanity(player);
+
+        // 极低人性惩罚：敌人更容易命中要害
+        if (humanity < 10f) {
+            if (player.world.rand.nextFloat() < HumanityConfig.extremeLowHumanityCritChance) {
+                float critMultiplier = (float) HumanityConfig.extremeLowHumanityCritMultiplier;
+                event.setAmount(event.getAmount() * critMultiplier);
+
+                // 要害命中反馈
+                player.sendStatusMessage(new net.minecraft.util.text.TextComponentString(
+                        net.minecraft.util.text.TextFormatting.DARK_RED + "【要害命中】"
+                ), true);
+            }
+        }
 
         // 检查量子叠加（灰域致命伤害时）
         if (HumanitySpectrumSystem.checkQuantumCollapse(player, event.getAmount())) {

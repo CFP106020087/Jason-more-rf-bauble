@@ -407,8 +407,16 @@ public class MechanicalCoreHUD extends Gui {
                 }
             }
 
-            // 如果已突破，显示状态
-            if (transcended) {
+            // ========== 人性系统判断 ==========
+            // 人性系统激活条件：已突破 AND 排异值为0
+            // 使用核心NBT数据直接判断，避免同步问题
+            boolean shouldShowHumanitySystem = transcended && rejection <= 0;
+
+            IHumanityData humanityData = HumanityCapabilityHandler.getData(player);
+
+            // 如果已突破但排异值仍 >0（排异回归状态），显示突破状态
+            // 当人性系统应该激活时（transcended && rejection == 0），不显示任何排异相关信息
+            if (transcended && !shouldShowHumanitySystem) {
                 currentY += 2;
                 String transcendedText = TextFormatting.AQUA + "✓ 血肉已適應機械化";
                 fontRenderer.drawStringWithShadow(transcendedText, hudX + 5, currentY, 0xFFFFFF);
@@ -417,15 +425,10 @@ public class MechanicalCoreHUD extends Gui {
             // ========== 排异值显示结束 ==========
 
             // ========== 人性值显示 ==========
-            // 只有在人性系统激活时才显示（排异期间不显示）
-            IHumanityData humanityData = HumanityCapabilityHandler.getData(player);
-            if (humanityData != null && humanityData.isSystemActive()) {
-                // 再次确认：如果排异值 > 0 或未突破，不显示人性值
-                // isSystemActive() 应该已经处理了这个，但为了保险起见再检查一次
-                if (transcended && rejection <= 0) {
-                    currentY += 2;
-                    currentY = renderHumanityInfo(hudX, currentY, hudWidth, humanityData, fontRenderer);
-                }
+            // 只有在人性系统应该激活时才显示（已突破且排异值为0）
+            if (shouldShowHumanitySystem && humanityData != null) {
+                currentY += 2;
+                currentY = renderHumanityInfo(hudX, currentY, hudWidth, humanityData, fontRenderer);
             }
             // ========== 人性值显示结束 ==========
 

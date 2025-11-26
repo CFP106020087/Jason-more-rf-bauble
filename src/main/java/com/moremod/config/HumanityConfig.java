@@ -301,6 +301,57 @@ public class HumanityConfig {
     @Config.RangeDouble(min = 0, max = 1)
     public static double distortionPulseChance = 0.30;
 
+    // ============================================================
+    // 极低人性惩罚配置 (<10%)
+    // ============================================================
+
+    @Config.Comment({
+            "极低人性(<10%)时，敌人攻击命中要害的概率",
+            "Chance for enemies to hit critical spots at extreme low humanity"
+    })
+    @Config.Name("要害命中概率 | Critical Hit Chance")
+    @Config.RangeDouble(min = 0, max = 1)
+    public static double extremeLowHumanityCritChance = 0.35;
+
+    @Config.Comment({
+            "要害命中时的额外伤害倍率",
+            "Extra damage multiplier when enemies hit critical spots"
+    })
+    @Config.Name("要害伤害倍率 | Critical Damage Multiplier")
+    @Config.RangeDouble(min = 1.0, max = 3.0)
+    public static double extremeLowHumanityCritMultiplier = 1.5;
+
+    @Config.Comment({
+            "极低人性(<10%)时，攻击是否会波及周围生物",
+            "Whether attacks spread to nearby entities at extreme low humanity"
+    })
+    @Config.Name("攻击波及周围 | AoE Damage Spread")
+    public static boolean extremeLowHumanityAoEDamage = true;
+
+    @Config.Comment({
+            "攻击波及范围（方块）",
+            "AoE damage spread range in blocks"
+    })
+    @Config.Name("波及范围 | AoE Range")
+    @Config.RangeDouble(min = 1, max = 8)
+    public static double extremeLowHumanityAoERange = 3.0;
+
+    @Config.Comment({
+            "波及伤害占原伤害的比例",
+            "AoE damage as percentage of original damage"
+    })
+    @Config.Name("波及伤害比例 | AoE Damage Ratio")
+    @Config.RangeDouble(min = 0.1, max = 1.0)
+    public static double extremeLowHumanityAoEDamageRatio = 0.3;
+
+    @Config.Comment({
+            "完全禁止交易的人性阈值",
+            "Humanity threshold below which all trading is blocked"
+    })
+    @Config.Name("禁止交易阈值 | No Trade Threshold")
+    @Config.RangeDouble(min = 0, max = 30)
+    public static double noTradeThreshold = 10.0;
+
     @Config.Comment({
             "异常场最大半径（0%人性时）",
             "Maximum anomaly field radius at 0% humanity"
