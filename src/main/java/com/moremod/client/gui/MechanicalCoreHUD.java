@@ -417,10 +417,15 @@ public class MechanicalCoreHUD extends Gui {
             // ========== 排异值显示结束 ==========
 
             // ========== 人性值显示 ==========
+            // 只有在人性系统激活时才显示（排异期间不显示）
             IHumanityData humanityData = HumanityCapabilityHandler.getData(player);
-            if (humanityData != null) {
-                currentY += 2;
-                currentY = renderHumanityInfo(hudX, currentY, hudWidth, humanityData, fontRenderer);
+            if (humanityData != null && humanityData.isSystemActive()) {
+                // 再次确认：如果排异值 > 0 或未突破，不显示人性值
+                // isSystemActive() 应该已经处理了这个，但为了保险起见再检查一次
+                if (transcended && rejection <= 0) {
+                    currentY += 2;
+                    currentY = renderHumanityInfo(hudX, currentY, hudWidth, humanityData, fontRenderer);
+                }
             }
             // ========== 人性值显示结束 ==========
 
