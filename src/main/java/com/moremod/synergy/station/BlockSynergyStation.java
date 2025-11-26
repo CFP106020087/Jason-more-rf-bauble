@@ -2,6 +2,7 @@ package com.moremod.synergy.station;
 
 import com.moremod.client.gui.GuiHandler;
 import com.moremod.moremod;
+import com.moremod.system.humanity.HumanityEffectsManager;
 import net.minecraft.block.Block;
 import net.minecraft.block.ITileEntityProvider;
 import net.minecraft.block.material.Material;
@@ -11,6 +12,7 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.text.TextComponentString;
 import net.minecraft.world.World;
 
 /**
@@ -38,6 +40,13 @@ public class BlockSynergyStation extends Block implements ITileEntityProvider {
                                     EntityPlayer playerIn, EnumHand hand, EnumFacing facing,
                                     float hitX, float hitY, float hitZ) {
         if (!worldIn.isRemote) {
+            // 检查人性值是否允许使用链结站
+            if (!HumanityEffectsManager.canUseSynergyStation(playerIn)) {
+                playerIn.sendStatusMessage(new TextComponentString(
+                        "§8§o机械识别系统拒绝访问...你的存在太过异常"), true);
+                return true;
+            }
+
             // GUI ID 29 - 在 GuiHandler 中注册
             playerIn.openGui(moremod.instance, GuiHandler.SYNERGY_STATION_GUI,
                     worldIn, pos.getX(), pos.getY(), pos.getZ());

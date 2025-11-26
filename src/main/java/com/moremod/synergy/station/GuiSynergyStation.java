@@ -1,6 +1,8 @@
 package com.moremod.synergy.station;
 
 import com.moremod.item.ItemMechanicalCoreExtended;
+import com.moremod.network.PacketHandler;
+import com.moremod.network.PacketSynergyStationAction;
 import com.moremod.synergy.core.SynergyDefinition;
 import com.moremod.synergy.core.SynergyManager;
 import net.minecraft.client.gui.GuiButton;
@@ -203,11 +205,27 @@ public class GuiSynergyStation extends GuiScreen {
     protected void actionPerformed(GuiButton button) {
         switch (button.id) {
             case BTN_CLEAR_ALL:
+                // 发送网络包到服务器
+                PacketHandler.INSTANCE.sendToServer(
+                        new PacketSynergyStationAction(
+                                tileEntity.getPos(),
+                                PacketSynergyStationAction.ActionType.CLEAR_ALL
+                        )
+                );
+                // 本地更新（服务器会同步回来，但本地先更新以提供即时反馈）
                 tileEntity.clearAllSlots();
                 updateMatchingSynergies();
                 break;
 
             case BTN_ACTIVATE:
+                // 发送网络包到服务器
+                PacketHandler.INSTANCE.sendToServer(
+                        new PacketSynergyStationAction(
+                                tileEntity.getPos(),
+                                PacketSynergyStationAction.ActionType.TOGGLE_ACTIVE
+                        )
+                );
+                // 本地更新
                 tileEntity.toggleActivated();
                 button.displayString = tileEntity.isActivated() ? "ON" : "OFF";
                 break;
@@ -602,6 +620,15 @@ public class GuiSynergyStation extends GuiScreen {
         // 右键移除槽位
         if (mouseButton == 1 && hoveredSlot >= 0) {
             if (!tileEntity.isSlotEmpty(hoveredSlot)) {
+                // 发送网络包到服务器
+                PacketHandler.INSTANCE.sendToServer(
+                        new PacketSynergyStationAction(
+                                tileEntity.getPos(),
+                                PacketSynergyStationAction.ActionType.CLEAR_SLOT,
+                                hoveredSlot
+                        )
+                );
+                // 本地更新
                 tileEntity.clearSlot(hoveredSlot);
                 updateMatchingSynergies();
             }
@@ -614,6 +641,16 @@ public class GuiSynergyStation extends GuiScreen {
 
         if (draggingModule != null && state == 0) {
             if (hoveredSlot >= 0 && tileEntity.isSlotEmpty(hoveredSlot)) {
+                // 发送网络包到服务器
+                PacketHandler.INSTANCE.sendToServer(
+                        new PacketSynergyStationAction(
+                                tileEntity.getPos(),
+                                PacketSynergyStationAction.ActionType.SET_SLOT,
+                                hoveredSlot,
+                                draggingModule.moduleId
+                        )
+                );
+                // 本地更新
                 tileEntity.setModuleInSlot(hoveredSlot, draggingModule.moduleId);
                 updateMatchingSynergies();
             }

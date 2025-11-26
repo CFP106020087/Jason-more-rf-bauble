@@ -4,6 +4,7 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.Container;
 import net.minecraft.inventory.Slot;
+import net.minecraft.item.ItemStack;
 
 /**
  * Synergy 链结站 Container
@@ -25,30 +26,9 @@ public class ContainerSynergyStation extends Container {
         this.tileEntity = te;
         this.player = playerInventory.player;
 
-        // 添加玩家物品栏槽位（可选，如果需要与物品交互）
-        // 这里保留玩家物品栏以便未来扩展（比如需要消耗物品来激活链结）
-
-        // 玩家物品栏 (3行9列)
-        for (int row = 0; row < 3; row++) {
-            for (int col = 0; col < 9; col++) {
-                this.addSlotToContainer(new Slot(
-                        playerInventory,
-                        col + row * 9 + 9,  // 槽位索引从9开始（0-8是快捷栏）
-                        8 + col * 18,       // X坐标
-                        84 + row * 18       // Y坐标
-                ));
-            }
-        }
-
-        // 快捷栏 (1行9列)
-        for (int col = 0; col < 9; col++) {
-            this.addSlotToContainer(new Slot(
-                    playerInventory,
-                    col,
-                    8 + col * 18,   // X坐标
-                    142             // Y坐标
-            ));
-        }
+        // 注意：这个 Container 不添加任何槽位
+        // 因为 Synergy 链结站是纯 GUI 操作（基于模块 ID），不涉及物品传输
+        // 添加玩家物品栏槽位会导致与 GuiScreen 不兼容而产生复制 bug
     }
 
     @Override
@@ -102,5 +82,15 @@ public class ContainerSynergyStation extends Container {
      */
     public void toggleActivated() {
         tileEntity.toggleActivated();
+    }
+
+    /**
+     * 阻止 Shift-Click 移动物品
+     * 这个 Container 不需要物品传输功能，所以直接返回空
+     */
+    @Override
+    public ItemStack transferStackInSlot(EntityPlayer playerIn, int index) {
+        // 不允许任何物品传输，防止复制bug
+        return ItemStack.EMPTY;
     }
 }

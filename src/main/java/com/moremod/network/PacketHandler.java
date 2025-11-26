@@ -185,6 +185,14 @@ public class PacketHandler {
                 Side.CLIENT
         );
 
+        // === Synergy 链结站操作 (C->S) ===
+        INSTANCE.registerMessage(
+                PacketSynergyStationAction.Handler.class,
+                PacketSynergyStationAction.class,
+                id++,
+                Side.SERVER
+        );
+
         System.out.println("[MoreMod] 网络包注册完成，共 " + id + " 个消息类型");
     }
 }

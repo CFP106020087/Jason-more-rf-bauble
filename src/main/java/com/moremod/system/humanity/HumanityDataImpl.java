@@ -28,6 +28,10 @@ public class HumanityDataImpl implements IHumanityData {
     public static final String NBT_LAST_COMBAT_TIME = "last_combat_time";
     public static final String NBT_LAST_SLEEP_TIME = "last_sleep_time";
     public static final String NBT_TICKS_SINCE_SLEEP = "ticks_since_sleep";
+    public static final String NBT_ASCENSION_ROUTE = "ascension_route";
+    public static final String NBT_DISSOLUTION_SURVIVALS = "dissolution_survivals";
+    public static final String NBT_HUMANITY_BEHAVIOR_SCORE = "humanity_behavior_score";
+    public static final String NBT_OPERATION_VALUE = "operation_value";
 
     // 默认值
     public static final float DEFAULT_HUMANITY = 75.0f;
@@ -52,6 +56,12 @@ public class HumanityDataImpl implements IHumanityData {
     private long lastCombatTime = 0;
     private long lastSleepTime = 0;
     private long ticksSinceSleep = 0;
+
+    // 升格系统
+    private AscensionRoute ascensionRoute = AscensionRoute.NONE;
+    private int dissolutionSurvivals = 0;
+    private int humanityBehaviorScore = 100; // Mekhane 专用
+    private int operationValue = 100; // 破碎之神专用
 
     // ========== 核心数值 ==========
 
@@ -357,6 +367,62 @@ public class HumanityDataImpl implements IHumanityData {
         this.ticksSinceSleep++;
     }
 
+    // ========== 升格路线 ==========
+
+    @Override
+    public AscensionRoute getAscensionRoute() {
+        return ascensionRoute;
+    }
+
+    @Override
+    public void setAscensionRoute(AscensionRoute route) {
+        this.ascensionRoute = route != null ? route : AscensionRoute.NONE;
+    }
+
+    @Override
+    public int getDissolutionSurvivals() {
+        return dissolutionSurvivals;
+    }
+
+    @Override
+    public void incrementDissolutionSurvivals() {
+        this.dissolutionSurvivals++;
+    }
+
+    // ========== Mekhane 合成人专用 ==========
+
+    @Override
+    public int getHumanityBehaviorScore() {
+        return humanityBehaviorScore;
+    }
+
+    @Override
+    public void setHumanityBehaviorScore(int score) {
+        this.humanityBehaviorScore = MathHelper.clamp(score, 0, 100);
+    }
+
+    @Override
+    public void modifyHumanityBehaviorScore(int delta) {
+        setHumanityBehaviorScore(this.humanityBehaviorScore + delta);
+    }
+
+    // ========== 破碎之神专用 ==========
+
+    @Override
+    public int getOperationValue() {
+        return operationValue;
+    }
+
+    @Override
+    public void setOperationValue(int value) {
+        this.operationValue = MathHelper.clamp(value, 0, 100);
+    }
+
+    @Override
+    public void modifyOperationValue(int delta) {
+        setOperationValue(this.operationValue + delta);
+    }
+
     // ========== NBT序列化 ==========
 
     @Override
@@ -398,6 +464,12 @@ public class HumanityDataImpl implements IHumanityData {
         nbt.setLong(NBT_LAST_COMBAT_TIME, lastCombatTime);
         nbt.setLong(NBT_LAST_SLEEP_TIME, lastSleepTime);
         nbt.setLong(NBT_TICKS_SINCE_SLEEP, ticksSinceSleep);
+
+        // 升格系统
+        nbt.setString(NBT_ASCENSION_ROUTE, ascensionRoute.getId());
+        nbt.setInteger(NBT_DISSOLUTION_SURVIVALS, dissolutionSurvivals);
+        nbt.setInteger(NBT_HUMANITY_BEHAVIOR_SCORE, humanityBehaviorScore);
+        nbt.setInteger(NBT_OPERATION_VALUE, operationValue);
 
         return nbt;
     }
@@ -449,6 +521,12 @@ public class HumanityDataImpl implements IHumanityData {
         this.lastCombatTime = nbt.getLong(NBT_LAST_COMBAT_TIME);
         this.lastSleepTime = nbt.getLong(NBT_LAST_SLEEP_TIME);
         this.ticksSinceSleep = nbt.getLong(NBT_TICKS_SINCE_SLEEP);
+
+        // 升格系统
+        this.ascensionRoute = AscensionRoute.fromId(nbt.getString(NBT_ASCENSION_ROUTE));
+        this.dissolutionSurvivals = nbt.getInteger(NBT_DISSOLUTION_SURVIVALS);
+        this.humanityBehaviorScore = nbt.hasKey(NBT_HUMANITY_BEHAVIOR_SCORE) ? nbt.getInteger(NBT_HUMANITY_BEHAVIOR_SCORE) : 100;
+        this.operationValue = nbt.hasKey(NBT_OPERATION_VALUE) ? nbt.getInteger(NBT_OPERATION_VALUE) : 100;
     }
 
     @Override
@@ -472,5 +550,11 @@ public class HumanityDataImpl implements IHumanityData {
 
         ResourceLocation analyzing = other.getAnalyzingEntity();
         this.analyzingEntity = analyzing;
+
+        // 升格系统
+        this.ascensionRoute = other.getAscensionRoute();
+        this.dissolutionSurvivals = other.getDissolutionSurvivals();
+        this.humanityBehaviorScore = other.getHumanityBehaviorScore();
+        this.operationValue = other.getOperationValue();
     }
 }

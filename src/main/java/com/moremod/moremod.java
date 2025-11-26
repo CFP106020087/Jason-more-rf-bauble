@@ -11,6 +11,7 @@ import com.moremod.client.gui.EventHUDOverlay;
 import com.moremod.client.gui.SmartRejectionGuide;
 import com.moremod.commands.CommandLootDebug;
 import com.moremod.commands.CommandResetEquipTime;
+import com.moremod.commands.CommandHumanity;
 import com.moremod.compat.PotionCoreCompatEnhanced;
 import com.moremod.config.*;
 import com.moremod.dimension.PersonalDimensionManager;
@@ -675,6 +676,7 @@ public class moremod {
         System.out.println("[moremod] ========== 服务器启动中 ==========");
         event.registerServerCommand(new CommandLootDebug());
         event.registerServerCommand(new CommandResetEquipTime());
+        event.registerServerCommand(new CommandHumanity());
 
         ModConfig.updateEnergyBalanceConfig();
         System.out.println("[moremod] ✅ 服务器配置已加载");

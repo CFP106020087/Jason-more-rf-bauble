@@ -44,6 +44,11 @@ public class HumanityEventHandler {
         // 更新人性值
         HumanitySpectrumSystem.updateHumanity(player);
 
+        // 每秒更新一次MaxHP修改器（基于人性值）
+        if (player.ticksExisted % 20 == 0) {
+            HumanityEffectsManager.updateMaxHP(player);
+        }
+
         // 应用异常场效果
         HumanitySpectrumSystem.applyAnomalyFieldEffect(player);
 
@@ -221,18 +226,38 @@ public class HumanityEventHandler {
         EntityPlayer player = event.getEntityPlayer();
         if (!HumanitySpectrumSystem.isSystemActive(player)) return;
 
-        // 与村民交互限制
+        // 与村民交互限制 - 使用新的层级系统
         if (event.getTarget() instanceof EntityVillager) {
-            float humanity = HumanitySpectrumSystem.getHumanity(player);
+            HumanityEffectsManager.NPCInteractionLevel level =
+                    HumanityEffectsManager.getNPCInteractionLevel(player);
 
-            if (humanity < HumanityConfig.npcInteractionThreshold) {
-                event.setCanceled(true);
-                player.sendStatusMessage(new net.minecraft.util.text.TextComponentString(
-                        "\u00a78\u00a7o村民无法理解你的存在..."), true);
+            switch (level) {
+                case INVISIBLE:
+                    // 完全无法交互
+                    event.setCanceled(true);
+                    player.sendStatusMessage(new net.minecraft.util.text.TextComponentString(
+                            "§8§o村民完全无视你的存在..."), true);
+                    makeVillagerFlee((EntityVillager) event.getTarget(), player);
+                    break;
 
-                // 村民恐惧反应
-                EntityVillager villager = (EntityVillager) event.getTarget();
-                makeVillagerFlee(villager, player);
+                case HOSTILE:
+                    // 拒绝交易
+                    event.setCanceled(true);
+                    player.sendStatusMessage(new net.minecraft.util.text.TextComponentString(
+                            "§c§o村民恐惧地拒绝与你交易"), true);
+                    makeVillagerFlee((EntityVillager) event.getTarget(), player);
+                    break;
+
+                case SUSPICIOUS:
+                    // 可以交互，但会加价（在交易事件中处理）
+                    player.sendStatusMessage(new net.minecraft.util.text.TextComponentString(
+                            "§e§o村民用警惕的眼神看着你..."), true);
+                    break;
+
+                case TRUSTED:
+                case NORMAL:
+                    // 正常交互
+                    break;
             }
         }
 

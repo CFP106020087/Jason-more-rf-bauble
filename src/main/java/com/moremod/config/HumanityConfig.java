@@ -350,6 +350,14 @@ public class HumanityConfig {
     public static double npcInteractionThreshold = 25.0;
 
     @Config.Comment({
+            "使用Synergy链结站所需的人性值阈值",
+            "Humanity threshold required to use Synergy Station"
+    })
+    @Config.Name("链结站人性阈值 | Synergy Station Threshold")
+    @Config.RangeDouble(min = 0, max = 100)
+    public static double synergyStationThreshold = 60.0;
+
+    @Config.Comment({
             "中低人性(25-50%)交易价格乘数",
             "Trade price multiplier at medium-low humanity"
     })

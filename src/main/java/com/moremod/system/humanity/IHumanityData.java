@@ -231,6 +231,64 @@ public interface IHumanityData {
      */
     void resetSleepDeprivation();
 
+    // ========== 升格路线 (Ascension Route) ==========
+
+    /**
+     * 获取当前升格路线
+     */
+    AscensionRoute getAscensionRoute();
+
+    /**
+     * 设置升格路线
+     */
+    void setAscensionRoute(AscensionRoute route);
+
+    /**
+     * 获取崩解存活次数（用于破碎之神升格条件）
+     */
+    int getDissolutionSurvivals();
+
+    /**
+     * 增加崩解存活次数
+     */
+    void incrementDissolutionSurvivals();
+
+    // ========== Mekhane 合成人专用 ==========
+
+    /**
+     * 获取人性行为分数（Mekhane路线需要维护）
+     * 0-100，低于30会导致能力减弱
+     */
+    int getHumanityBehaviorScore();
+
+    /**
+     * 设置人性行为分数
+     */
+    void setHumanityBehaviorScore(int score);
+
+    /**
+     * 修改人性行为分数
+     */
+    void modifyHumanityBehaviorScore(int delta);
+
+    // ========== 破碎之神专用 ==========
+
+    /**
+     * 获取运转值（破碎之神需要维护）
+     * 0-100，低于20会受到持续伤害
+     */
+    int getOperationValue();
+
+    /**
+     * 设置运转值
+     */
+    void setOperationValue(int value);
+
+    /**
+     * 修改运转值
+     */
+    void modifyOperationValue(int delta);
+
     // ========== NBT序列化 ==========
 
     /**
