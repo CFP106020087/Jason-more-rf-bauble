@@ -2,8 +2,11 @@ package com.moremod.client.gui;
 
 import com.moremod.client.KeyBindHandler;
 import com.moremod.config.FleshRejectionConfig;
+import com.moremod.config.HumanityConfig;
 import com.moremod.item.ItemMechanicalCore;
 import com.moremod.system.FleshRejectionSystem;
+import com.moremod.system.humanity.HumanityCapabilityHandler;
+import com.moremod.system.humanity.IHumanityData;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
@@ -53,6 +56,8 @@ public class SmartRejectionGuide extends Gui {
     private static int remainingTicks = 0;
     private static float lastRejection = -1;
     private static float lastAdaptation = -1;
+    private static float lastHumanity = -1;
+    private static boolean wasInHumanitySystem = false; // 追踪是否在人性值系统中
     private static Set<String> shownMilestones = new HashSet<>();
     private static boolean hadCore = false;
 
@@ -95,20 +100,45 @@ public class SmartRejectionGuide extends Gui {
         float adaptation = FleshRejectionSystem.getAdaptationLevel(mc.player);
         boolean transcended = FleshRejectionSystem.hasTranscended(mc.player);
 
+        // 获取人性值数据
+        IHumanityData humanityData = HumanityCapabilityHandler.getData(mc.player);
+        float humanity = humanityData != null ? humanityData.getHumanity() : 75f;
+        boolean humanitySystemActive = humanityData != null && humanityData.isSystemActive()
+                && transcended && rejection <= 0;
+
         // 首次装备检测
         if (!hadCore) {
             hadCore = true;
             showFirstEquipGuide();
         }
 
+        // 检测系统切换
+        if (humanitySystemActive != wasInHumanitySystem) {
+            if (humanitySystemActive) {
+                // 进入人性值系统
+                showEnterHumanitySystemGuide(humanity);
+            } else if (wasInHumanitySystem) {
+                // 离开人性值系统（排异重新激活）
+                showLeaveHumanitySystemGuide();
+            }
+            wasInHumanitySystem = humanitySystemActive;
+        }
+
         // 只有在不显示详细信息时才检查里程碑
         if (!showingDetailedStatus) {
-            checkMilestones(rejection, adaptation, transcended);
+            if (humanitySystemActive) {
+                // 人性值系统里程碑
+                checkHumanityMilestones(humanity);
+            } else {
+                // 排异系统里程碑
+                checkMilestones(rejection, adaptation, transcended);
+            }
         }
 
         // 更新记录
         lastRejection = rejection;
         lastAdaptation = adaptation;
+        lastHumanity = humanity;
 
         // Guide倒计时（只在不显示详细信息时）
         if (remainingTicks > 0 && !showingDetailedStatus) {
@@ -116,6 +146,93 @@ public class SmartRejectionGuide extends Gui {
             if (remainingTicks == 0) {
                 currentGuide = null;
             }
+        }
+    }
+
+    // ========== 人性值系统引导 ==========
+
+    private static void showEnterHumanitySystemGuide(float humanity) {
+        showGuide(new GuideInfo(
+                "§d✦ 人性值系统已激活", 300, 10,
+                "§7你已完成人机融合，进入人性值阶段",
+                String.format("§7当前人性值: §f%.0f%%", humanity),
+                "§b高人性(>60%): §7猎人协议，精准打击",
+                "§5低人性(<40%): §7异常协议，存在扭曲",
+                "§e灰域(40-60%): §7不稳定，量子叠加"
+        ), true);
+    }
+
+    private static void showLeaveHumanitySystemGuide() {
+        showGuide(new GuideInfo(
+                "§4⚠ 人性值系统已关闭", 200, 10,
+                "§c排异反应重新激活！",
+                "§7人机融合状态中断...",
+                "§7需要重新达成突破条件"
+        ), true);
+    }
+
+    private static void checkHumanityMilestones(float humanity) {
+        // 高人性里程碑
+        if (humanity >= 80 && !shownMilestones.contains("hum80")) {
+            shownMilestones.add("hum80");
+            showGuide(new GuideInfo(
+                    "§a◈ 高度人性", 180, 5,
+                    String.format("§7人性值: §a%.0f%%", humanity),
+                    "§a效果: §7猎人协议全面激活",
+                    "§a效果: §7生物档案槽位最大化",
+                    "§7保持人类行为维持人性"
+            ), false);
+        }
+        else if (humanity >= 60 && humanity < 80 && !shownMilestones.contains("hum60")) {
+            shownMilestones.add("hum60");
+            showGuide(new GuideInfo(
+                    "§b◈ 稳定人性", 160, 4,
+                    String.format("§7人性值: §b%.0f%%", humanity),
+                    "§b效果: §7猎人协议可用",
+                    "§7可使用生物档案系统"
+            ), false);
+        }
+        // 灰域警告
+        else if (humanity >= 40 && humanity < 60 && !shownMilestones.contains("humGrey")) {
+            shownMilestones.add("humGrey");
+            showGuide(new GuideInfo(
+                    "§e⚡ 进入灰域", 200, 6,
+                    String.format("§7人性值: §e%.0f%%", humanity),
+                    "§e警告: §7存在状态不稳定",
+                    "§e效果: §7量子叠加可能触发",
+                    "§e效果: §7致命伤害时可能坍缩"
+            ), false);
+        }
+        // 低人性里程碑
+        else if (humanity >= 25 && humanity < 40 && !shownMilestones.contains("hum25")) {
+            shownMilestones.add("hum25");
+            showGuide(new GuideInfo(
+                    "§5◈ 低人性状态", 200, 6,
+                    String.format("§7人性值: §5%.0f%%", humanity),
+                    "§5效果: §7异常协议激活",
+                    "§5效果: §7异常场开始影响周围",
+                    "§c警告: §7治疗效果降低"
+            ), false);
+        }
+        else if (humanity >= 10 && humanity < 25 && !shownMilestones.contains("hum10")) {
+            shownMilestones.add("hum10");
+            showGuide(new GuideInfo(
+                    "§4⚠ 极低人性", 200, 7,
+                    String.format("§7人性值: §4%.0f%%", humanity),
+                    "§4效果: §7异常协议强化",
+                    "§4效果: §7畸变脉冲可能触发",
+                    "§c危险: §7接近存在崩解边缘"
+            ), true);
+        }
+        else if (humanity <= 5 && !shownMilestones.contains("humCritical")) {
+            shownMilestones.add("humCritical");
+            showGuide(new GuideInfo(
+                    "§4⚠⚠ 存在崩解警告", 240, 10,
+                    String.format("§c人性值: §4%.1f%%", humanity),
+                    "§4危险: §c即将触发存在崩解！",
+                    "§4崩解中必须存活60秒",
+                    "§6立即进行人类活动！"
+            ), true);
         }
     }
 
@@ -319,8 +436,13 @@ public class SmartRejectionGuide extends Gui {
     }
 
     private static void renderDetailedStatus(int centerX, int y) {
-        FleshRejectionSystem.RejectionStatus status = FleshRejectionSystem.getStatus(mc.player);
-        if (status == null) return;
+        FleshRejectionSystem.RejectionStatus rejStatus = FleshRejectionSystem.getStatus(mc.player);
+        if (rejStatus == null) return;
+
+        // 检查是否在人性值系统中
+        IHumanityData humanityData = HumanityCapabilityHandler.getData(mc.player);
+        boolean inHumanitySystem = humanityData != null && humanityData.isSystemActive()
+                && rejStatus.transcended && rejStatus.rejection <= 0;
 
         FontRenderer fr = mc.fontRenderer;
 
@@ -333,6 +455,27 @@ public class SmartRejectionGuide extends Gui {
         }
         int alphaInt = (int)(alpha * 255);
         int bgAlpha = (int)(alpha * 200);
+
+        if (inHumanitySystem) {
+            // ========== 人性值系统详细状态 ==========
+            y = renderHumanityDetailedStatus(centerX, y, humanityData, fr, alphaInt, bgAlpha);
+        } else {
+            // ========== 排异系统详细状态 ==========
+            y = renderRejectionDetailedStatus(centerX, y, rejStatus, fr, alphaInt, bgAlpha);
+        }
+
+        // 底部提示
+        y += 4;
+        String keyName = getKeyDisplayName();
+        String hint = "§7按 [" + keyName + "] 关闭";
+        int hintWidth = fr.getStringWidth(hint);
+        fr.drawStringWithShadow(hint, centerX - hintWidth/2, y,
+                0x777777 | (alphaInt << 24));
+    }
+
+    // ========== 排异系统详细状态渲染 ==========
+    private static int renderRejectionDetailedStatus(int centerX, int y,
+            FleshRejectionSystem.RejectionStatus status, FontRenderer fr, int alphaInt, int bgAlpha) {
 
         // 标题
         String title = "§6⚙ 血肉排异详细状态";
@@ -423,17 +566,16 @@ public class SmartRejectionGuide extends Gui {
 
         for (String debuff : debuffs) {
             String debuffText;
-            int color = 0xFF6666; // 默认红色
+            int color = 0xFF6666;
 
-            // 对重要效果使用不同颜色
             if (debuff.contains("无敌帧")) {
-                debuffText = "§e⚡ " + debuff; // 黄色闪电
+                debuffText = "§e⚡ " + debuff;
                 color = 0xFFFF66;
             } else if (debuff.contains("FA")) {
-                debuffText = "§d✖ " + debuff; // 紫色X
+                debuffText = "§d✖ " + debuff;
                 color = 0xFF66FF;
             } else if (debuff.contains("崩溃") || debuff.contains("不兼容")) {
-                debuffText = "§4" + debuff; // 深红
+                debuffText = "§4" + debuff;
                 color = 0x880000;
             } else {
                 debuffText = "§c• " + debuff;
@@ -448,13 +590,220 @@ public class SmartRejectionGuide extends Gui {
             y += 10;
         }
 
-        // 底部提示
-        y += 4;
-        String keyName = getKeyDisplayName();
-        String hint = "§7按 [" + keyName + "] 关闭";
-        int hintWidth = fr.getStringWidth(hint);
-        fr.drawStringWithShadow(hint, centerX - hintWidth/2, y,
+        return y;
+    }
+
+    // ========== 人性值系统详细状态渲染 ==========
+    private static int renderHumanityDetailedStatus(int centerX, int y,
+            IHumanityData data, FontRenderer fr, int alphaInt, int bgAlpha) {
+
+        float humanity = data.getHumanity();
+
+        // 标题 - 根据人性值区间显示不同标题
+        String title;
+        int titleColor;
+        if (humanity >= 60) {
+            title = "§b✦ 人性值系统 - 猎人协议";
+            titleColor = 0x55FFFF;
+        } else if (humanity >= 40) {
+            title = "§e⚡ 人性值系统 - 灰域状态";
+            titleColor = 0xFFFF55;
+        } else {
+            title = "§5◈ 人性值系统 - 异常协议";
+            titleColor = 0xAA00AA;
+        }
+
+        int titleWidth = fr.getStringWidth(title);
+        drawRect(centerX - titleWidth/2 - 8, y - 2,
+                centerX + titleWidth/2 + 8, y + 11,
+                bgAlpha << 24);
+        fr.drawStringWithShadow(title, centerX - titleWidth/2, y,
+                titleColor | (alphaInt << 24));
+        y += 16;
+
+        // 分隔线
+        String separator = "§7═════════════════";
+        int sepWidth = fr.getStringWidth(separator);
+        fr.drawStringWithShadow(separator, centerX - sepWidth/2, y,
                 0x777777 | (alphaInt << 24));
+        y += 12;
+
+        // 人性值
+        TextFormatting humColor = getColorForHumanity(humanity);
+        String humText = humColor + String.format("人性值: %.1f%%", humanity);
+        int humWidth = fr.getStringWidth(humText);
+        drawRect(centerX - humWidth/2 - 5, y - 1,
+                centerX + humWidth/2 + 5, y + 10,
+                (bgAlpha - 50) << 24);
+        fr.drawStringWithShadow(humText, centerX - humWidth/2, y,
+                0xFFFFFF | (alphaInt << 24));
+        y += 12;
+
+        // 当前区间
+        String zoneText = getHumanityZoneText(humanity);
+        int zoneWidth = fr.getStringWidth(zoneText);
+        drawRect(centerX - zoneWidth/2 - 5, y - 1,
+                centerX + zoneWidth/2 + 5, y + 10,
+                (bgAlpha - 50) << 24);
+        fr.drawStringWithShadow(zoneText, centerX - zoneWidth/2, y,
+                0xFFFFFF | (alphaInt << 24));
+        y += 12;
+
+        // 档案槽位
+        int maxSlots = data.getMaxActiveProfiles();
+        int activeSlots = data.getActiveProfiles().size();
+        String slotText = "§7生物档案槽位: §f" + activeSlots + "/" + maxSlots;
+        int slotWidth = fr.getStringWidth(slotText);
+        drawRect(centerX - slotWidth/2 - 5, y - 1,
+                centerX + slotWidth/2 + 5, y + 10,
+                (bgAlpha - 50) << 24);
+        fr.drawStringWithShadow(slotText, centerX - slotWidth/2, y,
+                0xFFFFFF | (alphaInt << 24));
+        y += 14;
+
+        // 崩解状态
+        if (data.isDissolutionActive()) {
+            int dissolveSecs = data.getDissolutionTicks() / 20;
+            String dissolveText = "§4⚠ 存在崩解中: " + dissolveSecs + "秒";
+            int dissolveWidth = fr.getStringWidth(dissolveText);
+            drawRect(centerX - dissolveWidth/2 - 5, y - 1,
+                    centerX + dissolveWidth/2 + 5, y + 10,
+                    (bgAlpha - 50) << 24);
+            fr.drawStringWithShadow(dissolveText, centerX - dissolveWidth/2, y,
+                    0xFF4444 | (alphaInt << 24));
+            y += 12;
+        }
+
+        // 当前效果标题
+        y += 4;
+        String effectTitle = humanity >= 50 ? "§a【当前增益效果】" : "§5【当前异常效果】";
+        int effectTitleWidth = fr.getStringWidth(effectTitle);
+        drawRect(centerX - effectTitleWidth/2 - 5, y - 1,
+                centerX + effectTitleWidth/2 + 5, y + 10,
+                bgAlpha << 24);
+        fr.drawStringWithShadow(effectTitle, centerX - effectTitleWidth/2, y,
+                (humanity >= 50 ? 0x88FF88 : 0xAA55AA) | (alphaInt << 24));
+        y += 12;
+
+        // 效果列表
+        List<String> effects = getEffectsForHumanity(humanity);
+        for (String effect : effects) {
+            int effectWidth = fr.getStringWidth(effect);
+            drawRect(centerX - effectWidth/2 - 3, y - 1,
+                    centerX + effectWidth/2 + 3, y + 9,
+                    (bgAlpha - 100) << 24);
+            fr.drawStringWithShadow(effect, centerX - effectWidth/2, y,
+                    0xFFFFFF | (alphaInt << 24));
+            y += 10;
+        }
+
+        // 如何改变人性值标题
+        y += 6;
+        String changeTitle = humanity >= 50 ? "§7【如何降低人性值】" : "§7【如何提升人性值】";
+        int changeTitleWidth = fr.getStringWidth(changeTitle);
+        drawRect(centerX - changeTitleWidth/2 - 5, y - 1,
+                centerX + changeTitleWidth/2 + 5, y + 10,
+                bgAlpha << 24);
+        fr.drawStringWithShadow(changeTitle, centerX - changeTitleWidth/2, y,
+                0x888888 | (alphaInt << 24));
+        y += 12;
+
+        // 改变方法列表
+        List<String> changeTips = humanity >= 50 ?
+                getHumanityDecreaseTips() : getHumanityIncreaseTips();
+        for (String tip : changeTips) {
+            int tipWidth = fr.getStringWidth(tip);
+            drawRect(centerX - tipWidth/2 - 3, y - 1,
+                    centerX + tipWidth/2 + 3, y + 9,
+                    (bgAlpha - 100) << 24);
+            fr.drawStringWithShadow(tip, centerX - tipWidth/2, y,
+                    0xAAAAAA | (alphaInt << 24));
+            y += 10;
+        }
+
+        return y;
+    }
+
+    // 获取人性值区间文本
+    private static String getHumanityZoneText(float humanity) {
+        if (humanity >= 80) return "§a区间: 高度人性 (猎人协议完全激活)";
+        if (humanity >= 60) return "§b区间: 稳定人性 (猎人协议可用)";
+        if (humanity >= 40) return "§e区间: 灰域 (量子叠加不稳定)";
+        if (humanity >= 25) return "§5区间: 低人性 (异常协议激活)";
+        if (humanity >= 10) return "§4区间: 极低人性 (异常协议强化)";
+        return "§4区间: 临界崩解 (存在不稳定)";
+    }
+
+    // 获取人性值对应的效果
+    private static List<String> getEffectsForHumanity(float humanity) {
+        List<String> effects = new ArrayList<>();
+
+        if (humanity >= 60) {
+            // 高人性效果
+            effects.add("§a• 猎人协议: 已分析生物伤害+");
+            int slots = (int)(humanity / 10f);
+            effects.add("§a• 生物档案槽位: " + slots);
+            if (humanity >= 80) {
+                effects.add("§a• 未知敌人惩罚: 最小化");
+            }
+        } else if (humanity >= 40) {
+            // 灰域效果
+            effects.add("§e• 量子叠加: 致命伤害时可能坍缩");
+            effects.add("§e• 协议混合: 部分猎人+部分异常");
+            effects.add("§7• 异常场: 间歇激活");
+        } else {
+            // 低人性效果
+            float anomalyBonus = humanity <= 10 ? 60 : (humanity <= 25 ? 40 : 20);
+            effects.add("§5• 异常伤害加成: +" + (int)anomalyBonus + "%");
+            float radius = (50f - humanity) / 10f;
+            effects.add("§5• 异常场半径: " + String.format("%.1f", radius) + "格");
+            if (humanity <= 25) {
+                effects.add("§5• 凋零光环: 激活");
+            }
+            if (humanity <= 10) {
+                effects.add("§4• 畸变脉冲: 可能触发");
+            }
+            effects.add("§c• 治疗效果: 降低");
+        }
+
+        if (effects.isEmpty()) {
+            effects.add("§7无特殊效果");
+        }
+
+        return effects;
+    }
+
+    // 获取提升人性的方法
+    private static List<String> getHumanityIncreaseTips() {
+        List<String> tips = new ArrayList<>();
+        tips.add("§7• 睡眠休息 (最大恢复到75%)");
+        tips.add("§7• 食用熟食和复杂料理");
+        tips.add("§7• 与村民交易");
+        tips.add("§7• 收获作物");
+        tips.add("§7• 喂养动物");
+        tips.add("§7• 站在阳光下 (主世界)");
+        return tips;
+    }
+
+    // 获取降低人性的方法
+    private static List<String> getHumanityDecreaseTips() {
+        List<String> tips = new ArrayList<>();
+        tips.add("§7• 击杀村民 (大量消耗)");
+        tips.add("§7• 击杀被动动物");
+        tips.add("§7• 熬夜不睡觉");
+        tips.add("§7• 进入异常维度 (下界/末地)");
+        tips.add("§7• 低人性时持续战斗");
+        return tips;
+    }
+
+    // 获取人性值颜色
+    private static TextFormatting getColorForHumanity(float humanity) {
+        if (humanity >= 80) return TextFormatting.GREEN;
+        if (humanity >= 60) return TextFormatting.AQUA;
+        if (humanity >= 40) return TextFormatting.YELLOW;
+        if (humanity >= 25) return TextFormatting.LIGHT_PURPLE;
+        if (humanity >= 10) return TextFormatting.DARK_PURPLE;
+        return TextFormatting.DARK_RED;
     }
 
     // 获取排异值对应的负面效果
