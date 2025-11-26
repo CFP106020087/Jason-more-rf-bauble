@@ -26,7 +26,9 @@ import ichttt.mods.firstaid.api.damagesystem.AbstractDamageablePart;
 import ichttt.mods.firstaid.api.damagesystem.AbstractPlayerDamageModel;
 import ichttt.mods.firstaid.api.event.FirstAidLivingDamageEvent;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -39,8 +41,9 @@ import java.util.UUID;
 @Mod.EventBusSubscriber(modid = moremod.MODID)
 public class HumanityEventHandler {
 
-    // 防止AoE伤害递归的标记
-    private static final Set<UUID> aoeDamageInProgress = new HashSet<>();
+    // 防止AoE伤害递归的标记 - 使用时间戳而非简单标记
+    private static final Map<UUID, Long> aoeDamageCooldown = new HashMap<>();
+    private static final long AOE_COOLDOWN_MS = 100; // 100毫秒冷却
 
     // ========== 玩家Tick事件 ==========
 
@@ -161,10 +164,14 @@ public class HumanityEventHandler {
         event.setAmount(event.getAmount() * damageMultiplier);
 
         // 极低人性惩罚：攻击波及周围生物（包括友方）
-        // 检查是否已经在处理AoE伤害，防止递归
+        // 使用时间戳冷却防止递归和多目标攻击重复触发
         if (humanity < 10f && HumanityConfig.extremeLowHumanityAoEDamage) {
             UUID playerId = player.getUniqueID();
-            if (!aoeDamageInProgress.contains(playerId)) {
+            long now = System.currentTimeMillis();
+            Long lastAoE = aoeDamageCooldown.get(playerId);
+
+            if (lastAoE == null || (now - lastAoE) > AOE_COOLDOWN_MS) {
+                aoeDamageCooldown.put(playerId, now);
                 spreadDamageToNearby(player, target, event.getAmount());
             }
         }
@@ -174,39 +181,29 @@ public class HumanityEventHandler {
      * 将伤害波及到周围的生物（极低人性惩罚）
      */
     private static void spreadDamageToNearby(EntityPlayer player, EntityLivingBase originalTarget, float damage) {
-        UUID playerId = player.getUniqueID();
+        double range = HumanityConfig.extremeLowHumanityAoERange;
+        float aoeDamage = damage * (float) HumanityConfig.extremeLowHumanityAoEDamageRatio;
 
-        // 标记正在处理AoE伤害，防止递归
-        aoeDamageInProgress.add(playerId);
+        java.util.List<EntityLivingBase> nearbyEntities = player.world.getEntitiesWithinAABB(
+                EntityLivingBase.class,
+                originalTarget.getEntityBoundingBox().grow(range),
+                e -> e != originalTarget && e != player && e.isEntityAlive()
+        );
 
-        try {
-            double range = HumanityConfig.extremeLowHumanityAoERange;
-            float aoeDamage = damage * (float) HumanityConfig.extremeLowHumanityAoEDamageRatio;
-
-            java.util.List<EntityLivingBase> nearbyEntities = player.world.getEntitiesWithinAABB(
-                    EntityLivingBase.class,
-                    originalTarget.getEntityBoundingBox().grow(range),
-                    e -> e != originalTarget && e != player && e.isEntityAlive()
+        for (EntityLivingBase entity : nearbyEntities) {
+            // 波及伤害 - 使用 GENERIC 伤害源避免递归
+            entity.attackEntityFrom(
+                    net.minecraft.util.DamageSource.GENERIC.setDamageBypassesArmor(),
+                    aoeDamage
             );
+        }
 
-            for (EntityLivingBase entity : nearbyEntities) {
-                // 波及伤害
-                entity.attackEntityFrom(
-                        net.minecraft.util.DamageSource.causePlayerDamage(player).setDamageBypassesArmor(),
-                        aoeDamage
-                );
-            }
-
-            // 粒子效果
-            if (!nearbyEntities.isEmpty() && player.world instanceof net.minecraft.world.WorldServer) {
-                net.minecraft.world.WorldServer world = (net.minecraft.world.WorldServer) player.world;
-                world.spawnParticle(net.minecraft.util.EnumParticleTypes.SMOKE_LARGE,
-                        originalTarget.posX, originalTarget.posY + 1, originalTarget.posZ,
-                        10, range * 0.5, 0.5, range * 0.5, 0.01);
-            }
-        } finally {
-            // 清除标记
-            aoeDamageInProgress.remove(playerId);
+        // 粒子效果
+        if (!nearbyEntities.isEmpty() && player.world instanceof net.minecraft.world.WorldServer) {
+            net.minecraft.world.WorldServer world = (net.minecraft.world.WorldServer) player.world;
+            world.spawnParticle(net.minecraft.util.EnumParticleTypes.SMOKE_LARGE,
+                    originalTarget.posX, originalTarget.posY + 1, originalTarget.posZ,
+                    10, range * 0.5, 0.5, range * 0.5, 0.01);
         }
     }
 
