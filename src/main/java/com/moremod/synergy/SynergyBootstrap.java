@@ -54,11 +54,15 @@ public class SynergyBootstrap {
             ExampleSynergies.registerAll();
             System.out.println("[Synergy] ✓ Example synergies registered");
 
-            // 4. 注册高级 Synergy
+            // 4. 注册 Phase 1 Synergies (简化版)
+            Phase1Synergies.registerAll(manager);
+            System.out.println("[Synergy] ✓ Phase 1 synergies registered");
+
+            // 5. 注册高级 Synergy (复杂版 - Phase 2)
             registerAdvancedSynergies(manager);
             System.out.println("[Synergy] ✓ Advanced synergies registered");
 
-            // 5. 打印统计信息
+            // 6. 打印统计信息
             System.out.println("[Synergy] " + manager.getStats());
 
             initialized = true;
@@ -136,7 +140,7 @@ public class SynergyBootstrap {
     }
 
     /**
-     * 注册所有高级 Synergy
+     * 注册所有高级 Synergy (Phase 2 - 复杂版)
      *
      * 包含 6 大类共 18 个 Synergy:
      * - 空间/维度类 (3): Rift Walker, Gravity Anchor, Dimensional Pocket
@@ -145,6 +149,8 @@ public class SynergyBootstrap {
      * - 战斗规则类 (3): Counter Weave, Glass Cannon, Void Strike
      * - AI/实体类 (3): Hive Mind, Corruption Seed, Pack Hunter
      * - 环境/领域类 (3): Domain Expansion, Reality Fracture, Sanctuary
+     *
+     * 注意: Phase 1 简化版 Synergies 在 Phase1Synergies 中注册
      */
     private static void registerAdvancedSynergies(SynergyManager manager) {
         System.out.println("[Synergy] Registering advanced synergies...");
