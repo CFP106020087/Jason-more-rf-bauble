@@ -8,6 +8,8 @@ package com.moremod.synergy.core;
  */
 public enum SynergyEventType {
 
+    // ==================== 基础事件 ====================
+
     /**
      * 玩家 tick 事件（每 tick 触发）
      * 适用于：持续效果、周期性检测
@@ -38,6 +40,8 @@ public enum SynergyEventType {
      */
     DEATH("death", "死亡"),
 
+    // ==================== 能量事件 ====================
+
     /**
      * 能量消耗事件
      * 适用于：能量效率、返还
@@ -51,10 +55,51 @@ public enum SynergyEventType {
     ENERGY_RECHARGE("energy_recharge", "能量恢复"),
 
     /**
+     * 能量满事件
+     * 适用于：满能触发的技能
+     */
+    ENERGY_FULL("energy_full", "能量满"),
+
+    /**
+     * 能量低事件
+     * 适用于：低能量触发的技能
+     */
+    ENERGY_LOW("energy_low", "能量低"),
+
+    // ==================== 战斗事件 ====================
+
+    /**
      * 暴击事件
      * 适用于：暴击增强
      */
     CRITICAL_HIT("critical_hit", "暴击"),
+
+    /**
+     * 背刺事件（从背后攻击）
+     */
+    BACKSTAB("backstab", "背刺"),
+
+    /**
+     * 格挡事件
+     */
+    BLOCK("block", "格挡"),
+
+    /**
+     * 完美格挡事件
+     */
+    PERFECT_BLOCK("perfect_block", "完美格挡"),
+
+    /**
+     * 闪避事件
+     */
+    DODGE("dodge", "闪避"),
+
+    /**
+     * 连击事件（短时间内多次命中）
+     */
+    COMBO("combo", "连击"),
+
+    // ==================== 状态事件 ====================
 
     /**
      * 环境伤害事件（火、溺水、摔落等）
@@ -69,9 +114,53 @@ public enum SynergyEventType {
     POTION_EFFECT("potion", "状态效果"),
 
     /**
+     * 生命值低于阈值事件
+     */
+    LOW_HEALTH("low_health", "低生命"),
+
+    /**
+     * 致命伤害事件（HP将归零）
+     */
+    FATAL_DAMAGE("fatal_damage", "致命伤害"),
+
+    // ==================== 移动事件 ====================
+
+    /**
+     * 冲刺事件
+     */
+    SPRINT("sprint", "冲刺"),
+
+    /**
+     * 跳跃事件
+     */
+    JUMP("jump", "跳跃"),
+
+    /**
+     * 着陆事件
+     */
+    LAND("land", "着陆"),
+
+    /**
+     * 潜行事件
+     */
+    SNEAK("sneak", "潜行"),
+
+    // ==================== 特殊事件 ====================
+
+    /**
      * 手动触发（由其他系统或玩家操作触发）
      */
     MANUAL("manual", "手动"),
+
+    /**
+     * 技能激活事件
+     */
+    SKILL_ACTIVATE("skill_activate", "技能激活"),
+
+    /**
+     * Synergy 激活事件
+     */
+    SYNERGY_ACTIVATE("synergy_activate", "协同激活"),
 
     /**
      * 通用事件（匹配所有）
@@ -127,13 +216,31 @@ public enum SynergyEventType {
      * 是否为战斗相关事件
      */
     public boolean isCombatEvent() {
-        return this == ATTACK || this == HURT || this == KILL || this == CRITICAL_HIT;
+        return this == ATTACK || this == HURT || this == KILL ||
+               this == CRITICAL_HIT || this == BACKSTAB ||
+               this == BLOCK || this == PERFECT_BLOCK ||
+               this == DODGE || this == COMBO;
     }
 
     /**
      * 是否为能量相关事件
      */
     public boolean isEnergyEvent() {
-        return this == ENERGY_CONSUME || this == ENERGY_RECHARGE;
+        return this == ENERGY_CONSUME || this == ENERGY_RECHARGE ||
+               this == ENERGY_FULL || this == ENERGY_LOW;
+    }
+
+    /**
+     * 是否为移动相关事件
+     */
+    public boolean isMovementEvent() {
+        return this == SPRINT || this == JUMP || this == LAND || this == SNEAK;
+    }
+
+    /**
+     * 是否为生命值相关事件
+     */
+    public boolean isHealthEvent() {
+        return this == LOW_HEALTH || this == FATAL_DAMAGE || this == DEATH;
     }
 }

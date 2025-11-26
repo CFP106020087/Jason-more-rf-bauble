@@ -267,4 +267,42 @@ public class ExistingModuleBridge implements IModuleProvider {
             return 0;
         }
     }
+
+    /**
+     * 获取能量百分比
+     *
+     * @param player 玩家
+     * @return 能量百分比 (0-100)
+     */
+    public float getEnergyPercent(@Nonnull EntityPlayer player) {
+        int current = getCurrentEnergy(player);
+        int max = getMaxEnergy(player);
+        if (max <= 0) return 0f;
+        return (current / (float) max) * 100f;
+    }
+
+    /**
+     * 设置能量（供 Synergy 效果使用）
+     *
+     * @param player 玩家
+     * @param amount 能量数量
+     */
+    public void setEnergy(@Nonnull EntityPlayer player, int amount) {
+        ItemStack core = getMechanicalCore(player);
+        if (core == null || core.isEmpty()) {
+            return;
+        }
+        try {
+            // 先获取当前能量，计算差值
+            int current = getCurrentEnergy(player);
+            int diff = amount - current;
+            if (diff > 0) {
+                ItemMechanicalCore.addEnergy(core, diff);
+            } else if (diff < 0) {
+                ItemMechanicalCore.consumeEnergy(core, -diff);
+            }
+        } catch (Exception e) {
+            System.err.println("[SynergyBridge] Error setting energy: " + e.getMessage());
+        }
+    }
 }

@@ -4,6 +4,7 @@ import com.moremod.synergy.bridge.ExistingModuleBridge;
 import com.moremod.synergy.core.SynergyEventHandler;
 import com.moremod.synergy.core.SynergyManager;
 import com.moremod.synergy.examples.ExampleSynergies;
+import com.moremod.synergy.synergies.*;
 import net.minecraftforge.common.MinecraftForge;
 
 /**
@@ -53,7 +54,11 @@ public class SynergyBootstrap {
             ExampleSynergies.registerAll();
             System.out.println("[Synergy] ✓ Example synergies registered");
 
-            // 4. 打印统计信息
+            // 4. 注册高级 Synergy
+            registerAdvancedSynergies(manager);
+            System.out.println("[Synergy] ✓ Advanced synergies registered");
+
+            // 5. 打印统计信息
             System.out.println("[Synergy] " + manager.getStats());
 
             initialized = true;
@@ -128,5 +133,40 @@ public class SynergyBootstrap {
      */
     public static SynergyManager getManager() {
         return SynergyManager.getInstance();
+    }
+
+    /**
+     * 注册所有高级 Synergy
+     *
+     * 包含 6 大类共 18 个 Synergy:
+     * - 空间/维度类 (3): Rift Walker, Gravity Anchor, Dimensional Pocket
+     * - 时间类 (3): Temporal Debt, Causality Loop, Echo Chamber
+     * - 能量/资源类 (3): Meltdown Protocol, Parasitic Link, Energy Weaving
+     * - 战斗规则类 (3): Counter Weave, Glass Cannon, Void Strike
+     * - AI/实体类 (3): Hive Mind, Corruption Seed, Pack Hunter
+     * - 环境/领域类 (3): Domain Expansion, Reality Fracture, Sanctuary
+     */
+    private static void registerAdvancedSynergies(SynergyManager manager) {
+        System.out.println("[Synergy] Registering advanced synergies...");
+
+        // 空间/维度类
+        SpatialSynergies.registerAll(manager);
+
+        // 时间类
+        TemporalSynergies.registerAll(manager);
+
+        // 能量/资源类
+        EnergySynergies.registerAll(manager);
+
+        // 战斗规则类
+        CombatSynergies.registerAll(manager);
+
+        // AI/实体类
+        EntitySynergies.registerAll(manager);
+
+        // 环境/领域类
+        DomainSynergies.registerAll(manager);
+
+        System.out.println("[Synergy] Total advanced synergies: 18");
     }
 }
