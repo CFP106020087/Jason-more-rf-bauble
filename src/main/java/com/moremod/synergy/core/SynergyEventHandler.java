@@ -9,6 +9,7 @@ import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.gameevent.PlayerEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
 /**
@@ -276,6 +277,17 @@ public class SynergyEventHandler {
                 System.err.println("[Synergy] Error in player death event: " + e.getMessage());
             }
         }
+    }
+
+    /**
+     * 玩家登出事件 - 清理激活的 Synergy
+     */
+    @SubscribeEvent
+    public void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+        if (event.player.world.isRemote) return;
+
+        // 清理玩家的激活数据
+        manager.cleanupPlayer(event.player.getUniqueID());
     }
 
     /**

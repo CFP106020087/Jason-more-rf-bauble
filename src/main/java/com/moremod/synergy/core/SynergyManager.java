@@ -11,6 +11,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArraySet;
 
 /**
  * Synergy 管理器
@@ -48,6 +49,21 @@ public class SynergyManager {
 
     /** 调试模式 */
     private boolean debugMode = false;
+
+    // ==================== 玩家激活追踪 ====================
+
+    /**
+     * 玩家已激活的 Synergy
+     * Key: 玩家 UUID
+     * Value: 已激活的 Synergy ID 集合
+     */
+    private final Map<UUID, Set<String>> playerActivatedSynergies = new ConcurrentHashMap<>();
+
+    /**
+     * 是否需要通过方块激活才能使用 Synergy
+     * 如果为 false，则所有满足条件的 Synergy 自动生效（旧行为）
+     */
+    private boolean requireBlockActivation = true;
 
     // ==================== 构造器 ====================
 
@@ -226,6 +242,11 @@ public class SynergyManager {
 
         for (SynergyDefinition def : candidates) {
             try {
+                // 检查玩家是否已通过方块激活此 Synergy
+                if (!isSynergyActivatedForPlayer(player, def.getId())) {
+                    continue; // 未激活，跳过
+                }
+
                 if (def.matches(context)) {
                     if (debugMode) {
                         log("Triggering Synergy: " + def.getId() + " for player " + player.getName());
@@ -305,6 +326,113 @@ public class SynergyManager {
     @Nullable
     public IModuleProvider getModuleProvider() {
         return moduleProvider;
+    }
+
+    /**
+     * 设置是否需要通过方块激活
+     */
+    public void setRequireBlockActivation(boolean require) {
+        this.requireBlockActivation = require;
+        log("Block activation requirement: " + (require ? "enabled" : "disabled"));
+    }
+
+    /**
+     * 获取是否需要通过方块激活
+     */
+    public boolean isRequireBlockActivation() {
+        return requireBlockActivation;
+    }
+
+    // ==================== 玩家 Synergy 激活管理 ====================
+
+    /**
+     * 激活玩家的指定 Synergy
+     * @param player 玩家
+     * @param synergyId Synergy ID
+     * @return 是否成功激活
+     */
+    public boolean activateSynergyForPlayer(@Nonnull EntityPlayer player, @Nonnull String synergyId) {
+        if (!synergyMap.containsKey(synergyId)) {
+            log("Cannot activate unknown synergy: " + synergyId);
+            return false;
+        }
+
+        UUID playerId = player.getUniqueID();
+        Set<String> activated = playerActivatedSynergies.computeIfAbsent(playerId, k -> new CopyOnWriteArraySet<>());
+        boolean added = activated.add(synergyId);
+
+        if (added && debugMode) {
+            log("Activated synergy '" + synergyId + "' for player " + player.getName());
+        }
+        return added;
+    }
+
+    /**
+     * 停用玩家的指定 Synergy
+     * @param player 玩家
+     * @param synergyId Synergy ID
+     * @return 是否成功停用
+     */
+    public boolean deactivateSynergyForPlayer(@Nonnull EntityPlayer player, @Nonnull String synergyId) {
+        UUID playerId = player.getUniqueID();
+        Set<String> activated = playerActivatedSynergies.get(playerId);
+        if (activated == null) {
+            return false;
+        }
+
+        boolean removed = activated.remove(synergyId);
+        if (removed && debugMode) {
+            log("Deactivated synergy '" + synergyId + "' for player " + player.getName());
+        }
+        return removed;
+    }
+
+    /**
+     * 停用玩家的所有 Synergy
+     * @param player 玩家
+     */
+    public void deactivateAllSynergiesForPlayer(@Nonnull EntityPlayer player) {
+        UUID playerId = player.getUniqueID();
+        playerActivatedSynergies.remove(playerId);
+        if (debugMode) {
+            log("Deactivated all synergies for player " + player.getName());
+        }
+    }
+
+    /**
+     * 检查玩家是否已激活指定 Synergy
+     * @param player 玩家
+     * @param synergyId Synergy ID
+     * @return 是否已激活
+     */
+    public boolean isSynergyActivatedForPlayer(@Nonnull EntityPlayer player, @Nonnull String synergyId) {
+        if (!requireBlockActivation) {
+            return true; // 如果不需要方块激活，则所有 Synergy 都视为已激活
+        }
+
+        UUID playerId = player.getUniqueID();
+        Set<String> activated = playerActivatedSynergies.get(playerId);
+        return activated != null && activated.contains(synergyId);
+    }
+
+    /**
+     * 获取玩家已激活的所有 Synergy ID
+     * @param player 玩家
+     * @return 已激活的 Synergy ID 集合（不可修改）
+     */
+    @Nonnull
+    public Set<String> getActivatedSynergiesForPlayer(@Nonnull EntityPlayer player) {
+        UUID playerId = player.getUniqueID();
+        Set<String> activated = playerActivatedSynergies.get(playerId);
+        return activated != null ? Collections.unmodifiableSet(activated) : Collections.emptySet();
+    }
+
+    /**
+     * 清理玩家数据（玩家登出时调用）
+     * @param playerId 玩家 UUID
+     */
+    public void cleanupPlayer(@Nonnull UUID playerId) {
+        playerActivatedSynergies.remove(playerId);
     }
 
     // ==================== 统计 ====================

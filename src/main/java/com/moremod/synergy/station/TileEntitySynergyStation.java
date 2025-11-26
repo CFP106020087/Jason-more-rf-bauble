@@ -1,5 +1,7 @@
 package com.moremod.synergy.station;
 
+import com.moremod.synergy.core.SynergyDefinition;
+import com.moremod.synergy.core.SynergyManager;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
@@ -7,6 +9,8 @@ import net.minecraft.nbt.NBTTagString;
 import net.minecraft.network.NetworkManager;
 import net.minecraft.network.play.server.SPacketUpdateTileEntity;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.TextFormatting;
 import net.minecraftforge.common.util.Constants;
 
 import javax.annotation.Nullable;
@@ -40,6 +44,12 @@ public class TileEntitySynergyStation extends TileEntity {
 
     /** 是否已激活链结 */
     private boolean activated = false;
+
+    /** 激活此链结的玩家 UUID（用于追踪谁在使用此站点） */
+    private UUID activatedByPlayerUUID = null;
+
+    /** 匹配的 Synergy ID（缓存） */
+    private String matchedSynergyId = null;
 
     // ==================== 构造 ====================
 
@@ -166,17 +176,143 @@ public class TileEntitySynergyStation extends TileEntity {
         return activated;
     }
 
-    public void setActivated(boolean activated) {
+    /**
+     * 设置激活状态（内部使用，不触发 Synergy 激活）
+     */
+    private void setActivatedInternal(boolean activated) {
         this.activated = activated;
         markDirty();
         syncToClient();
     }
 
     /**
-     * 切换激活状态
+     * 激活链结（由玩家触发）
+     * @param player 激活链结的玩家
+     * @return 是否成功激活
      */
-    public void toggleActivated() {
-        setActivated(!activated);
+    public boolean activateLink(EntityPlayer player) {
+        if (world == null || world.isRemote) return false;
+        if (!hasValidLink()) {
+            player.sendMessage(new TextComponentString(
+                    TextFormatting.RED + "需要至少2个模块才能形成链结"));
+            return false;
+        }
+
+        // 查找匹配的 Synergy
+        String synergyId = findMatchingSynergy();
+        if (synergyId == null) {
+            player.sendMessage(new TextComponentString(
+                    TextFormatting.RED + "当前模块组合没有对应的 Synergy"));
+            return false;
+        }
+
+        // 如果已有其他玩家激活，先停用
+        if (activated && activatedByPlayerUUID != null) {
+            deactivateLinkInternal();
+        }
+
+        // 激活 Synergy
+        SynergyManager manager = SynergyManager.getInstance();
+        if (manager.activateSynergyForPlayer(player, synergyId)) {
+            this.activated = true;
+            this.activatedByPlayerUUID = player.getUniqueID();
+            this.matchedSynergyId = synergyId;
+            markDirty();
+            syncToClient();
+
+            player.sendMessage(new TextComponentString(
+                    TextFormatting.GREEN + "✓ Synergy 链结已激活: " +
+                    TextFormatting.GOLD + manager.get(synergyId).getDisplayName()));
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * 停用链结（由玩家触发）
+     * @param player 触发停用的玩家
+     */
+    public void deactivateLink(EntityPlayer player) {
+        if (world == null || world.isRemote) return;
+        if (!activated) return;
+
+        deactivateLinkInternal();
+
+        player.sendMessage(new TextComponentString(
+                TextFormatting.YELLOW + "Synergy 链结已停用"));
+    }
+
+    /**
+     * 内部停用方法
+     */
+    private void deactivateLinkInternal() {
+        if (activatedByPlayerUUID != null && matchedSynergyId != null) {
+            // 需要找到对应的玩家来停用
+            if (world != null && !world.isRemote) {
+                EntityPlayer player = world.getPlayerEntityByUUID(activatedByPlayerUUID);
+                if (player != null) {
+                    SynergyManager.getInstance().deactivateSynergyForPlayer(player, matchedSynergyId);
+                }
+            }
+        }
+
+        this.activated = false;
+        this.activatedByPlayerUUID = null;
+        this.matchedSynergyId = null;
+        markDirty();
+        syncToClient();
+    }
+
+    /**
+     * 切换激活状态（由玩家触发）
+     * @param player 触发切换的玩家
+     */
+    public void toggleActivated(EntityPlayer player) {
+        if (activated) {
+            deactivateLink(player);
+        } else {
+            activateLink(player);
+        }
+    }
+
+    /**
+     * 查找匹配当前链结模块的 Synergy
+     * @return 匹配的 Synergy ID，如果没有匹配返回 null
+     */
+    @Nullable
+    public String findMatchingSynergy() {
+        List<String> linkedModules = getLinkedModules();
+        if (linkedModules.size() < 2) return null;
+
+        SynergyManager manager = SynergyManager.getInstance();
+        Set<String> linkedSet = new HashSet<>(linkedModules);
+
+        // 遍历所有已注册的 Synergy，查找完全匹配的
+        for (SynergyDefinition def : manager.getAll()) {
+            Set<String> requiredModules = new HashSet<>(def.getRequiredModules());
+            if (requiredModules.equals(linkedSet)) {
+                return def.getId();
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * 获取激活此链结的玩家 UUID
+     */
+    @Nullable
+    public UUID getActivatedByPlayerUUID() {
+        return activatedByPlayerUUID;
+    }
+
+    /**
+     * 获取匹配的 Synergy ID
+     */
+    @Nullable
+    public String getMatchedSynergyId() {
+        return matchedSynergyId;
     }
 
     // ==================== 玩家交互 ====================
@@ -210,6 +346,16 @@ public class TileEntitySynergyStation extends TileEntity {
         // 保存激活状态
         compound.setBoolean("Activated", activated);
 
+        // 保存激活玩家 UUID
+        if (activatedByPlayerUUID != null) {
+            compound.setString("ActivatedByPlayer", activatedByPlayerUUID.toString());
+        }
+
+        // 保存匹配的 Synergy ID
+        if (matchedSynergyId != null) {
+            compound.setString("MatchedSynergyId", matchedSynergyId);
+        }
+
         return compound;
     }
 
@@ -230,6 +376,20 @@ public class TileEntitySynergyStation extends TileEntity {
 
         // 读取激活状态
         activated = compound.getBoolean("Activated");
+
+        // 读取激活玩家 UUID
+        if (compound.hasKey("ActivatedByPlayer")) {
+            try {
+                activatedByPlayerUUID = UUID.fromString(compound.getString("ActivatedByPlayer"));
+            } catch (IllegalArgumentException e) {
+                activatedByPlayerUUID = null;
+            }
+        }
+
+        // 读取匹配的 Synergy ID
+        if (compound.hasKey("MatchedSynergyId")) {
+            matchedSynergyId = compound.getString("MatchedSynergyId");
+        }
     }
 
     // ==================== 同步 ====================
