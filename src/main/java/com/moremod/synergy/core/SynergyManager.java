@@ -196,6 +196,7 @@ public class SynergyManager {
      * 处理事件并触发匹配的 Synergy
      *
      * 这是主要的入口点，由 SynergyEventHandler 调用
+     * 只有玩家在工作站启用的 Synergy 才会触发
      *
      * @param player 触发事件的玩家
      * @param eventType 事件类型
@@ -218,6 +219,12 @@ public class SynergyManager {
             return 0;
         }
 
+        // 获取玩家启用的 Synergy 列表
+        Set<String> enabledSynergies = PlayerSynergyConfig.getEnabledSynergies(player);
+        if (enabledSynergies.isEmpty()) {
+            return 0;
+        }
+
         int triggered = 0;
         List<SynergyDefinition> candidates = getByEventType(eventType);
 
@@ -226,6 +233,11 @@ public class SynergyManager {
 
         for (SynergyDefinition def : candidates) {
             try {
+                // 检查玩家是否启用了此 Synergy
+                if (!enabledSynergies.contains(def.getId())) {
+                    continue;
+                }
+
                 if (def.matches(context)) {
                     if (debugMode) {
                         log("Triggering Synergy: " + def.getId() + " for player " + player.getName());
