@@ -94,7 +94,32 @@ public class HumanityDataImpl implements IHumanityData {
 
     @Override
     public void deactivateSystem() {
+        // 1. 设置系统为非激活状态
         this.systemActive = false;
+
+        // 2. 终止崩解状态（如果还在进行中）
+        if (this.dissolutionActive) {
+            this.dissolutionActive = false;
+            this.dissolutionTicks = 0;
+        }
+
+        // 3. 取消正在进行的分析
+        if (this.analyzingEntity != null) {
+            BiologicalProfile profile = profiles.get(analyzingEntity);
+            if (profile != null) {
+                profile.setAnalysisProgress(0);
+            }
+            this.analyzingEntity = null;
+        }
+
+        // 4. 清除存在锚定（因为系统被停用，锚定也失去意义）
+        this.existenceAnchorUntil = 0;
+
+        // 5. 重置战斗状态
+        this.lastCombatTime = 0;
+
+        // 注意：保留人性值和生物档案数据，以便系统重新激活时可以恢复
+        // 但将人性值冻结在当前值（不重置）
     }
 
     // ========== 崩解状态 ==========

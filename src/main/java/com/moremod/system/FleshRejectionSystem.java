@@ -5,6 +5,7 @@ import com.moremod.item.ItemMechanicalCore;
 import com.moremod.item.ItemMechanicalCore.UpgradeType;
 import com.moremod.item.ItemMechanicalCoreExtended;
 import com.moremod.item.ItemMechanicalCoreExtended.UpgradeInfo;
+import com.moremod.system.humanity.HumanitySpectrumSystem;
 import com.moremod.util.BaublesSyncUtil;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -378,7 +379,10 @@ public class FleshRejectionSystem {
                 player.world.playSound(null, player.getPosition(),
                     net.minecraft.init.SoundEvents.ENTITY_WITHER_SPAWN,
                     net.minecraft.util.SoundCategory.PLAYERS, 0.5f, 0.5f);
-                    
+
+                // ★ 关键：停用人性值系统（执行完整重置）
+                HumanitySpectrumSystem.deactivateSystem(player);
+
                 // 强制同步
                 markForceSync(player);
             } else {

@@ -150,9 +150,26 @@ public class HumanitySpectrumSystem {
 
     /**
      * 检查玩家是否已激活人性值系统
+     *
+     * 人性值系统只在以下条件下激活：
+     * 1. 配置已启用
+     * 2. 排异系统已突破 (hasTranscended == true)
+     * 3. 排异值为0 (RejectionLevel == 0)
+     * 4. 内部状态 systemActive == true
+     *
+     * 当排异重新激活（适应度下降）时，人性值系统必须完全关闭
      */
     public static boolean isSystemActive(EntityPlayer player) {
         if (!HumanityConfig.enableHumanitySystem) return false;
+
+        // 检查排异系统状态 - 必须已突破且排异值为0
+        boolean transcended = FleshRejectionSystem.hasTranscended(player);
+        float rejectionLevel = FleshRejectionSystem.getRejectionLevel(player);
+
+        // 如果未突破或排异值>0，人性值系统不应该激活
+        if (!transcended || rejectionLevel > 0) {
+            return false;
+        }
 
         IHumanityData data = HumanityCapabilityHandler.getData(player);
         return data != null && data.isSystemActive();
@@ -246,6 +263,54 @@ public class HumanitySpectrumSystem {
             }
         }
 
+        markForceSync(player);
+    }
+
+    /**
+     * 停用人性值系统（当排异重新激活时调用）
+     *
+     * 执行完整的状态重置：
+     * - 设置 systemActive = false
+     * - 终止崩解状态
+     * - 取消分析进度
+     * - 清除临时状态
+     * - 强制同步到客户端
+     */
+    public static void deactivateSystem(EntityPlayer player) {
+        IHumanityData data = HumanityCapabilityHandler.getData(player);
+        if (data == null) return;
+
+        // 调用 IHumanityData 的停用方法（执行完整重置）
+        data.deactivateSystem();
+
+        // 发送消息通知玩家
+        player.sendMessage(new TextComponentString(
+                TextFormatting.DARK_RED + "═══════════════════════════════\n" +
+                TextFormatting.BOLD + "" + TextFormatting.DARK_RED + "【人性值系统已关闭】\n" +
+                TextFormatting.GRAY + "排异反应重新激活，人机融合状态中断。\n" +
+                TextFormatting.GRAY + "人性值系统进入休眠状态...\n" +
+                TextFormatting.DARK_RED + "═══════════════════════════════"
+        ));
+
+        // 粒子效果
+        if (player.world instanceof WorldServer) {
+            WorldServer world = (WorldServer) player.world;
+            for (int i = 0; i < 20; i++) {
+                double offsetX = (world.rand.nextDouble() - 0.5) * 2;
+                double offsetY = world.rand.nextDouble() * 2;
+                double offsetZ = (world.rand.nextDouble() - 0.5) * 2;
+
+                world.spawnParticle(
+                        EnumParticleTypes.SMOKE_LARGE,
+                        player.posX + offsetX,
+                        player.posY + offsetY,
+                        player.posZ + offsetZ,
+                        3, 0, 0.1, 0, 0.02
+                );
+            }
+        }
+
+        // 强制同步到客户端
         markForceSync(player);
     }
 
