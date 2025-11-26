@@ -28,10 +28,15 @@ public class RejectionSleepDecaySystem {
         if (!FleshRejectionConfig.enableSleepDecay) return;
 
         EntityPlayer player = event.getEntityPlayer();
-        
+
         // ✅ 【修复】：检查是否佩戴机械核心
         if (!FleshRejectionSystem.hasMechanicalCore(player)) return;
-        
+
+        // ✅ 【修复】：如果已突破且排异值为0（人性系统激活），不显示排异相关消息
+        if (FleshRejectionSystem.hasTranscended(player) && FleshRejectionSystem.getRejectionLevel(player) <= 0) {
+            return;
+        }
+
         if (!player.world.isRemote) {
             player.sendMessage(new TextComponentString("§b你進入深度休息，血肉排異正在平穩下降…"));
         }
@@ -47,6 +52,11 @@ public class RejectionSleepDecaySystem {
 
         // ✅ 【修复】：检查是否佩戴机械核心
         if (!FleshRejectionSystem.hasMechanicalCore(player)) return;
+
+        // ✅ 【修复】：如果已突破且排异值为0（人性系统激活），不显示排异相关消息
+        if (FleshRejectionSystem.hasTranscended(player) && FleshRejectionSystem.getRejectionLevel(player) <= 0) {
+            return;
+        }
 
         if (FleshRejectionConfig.continueDecayAfterWake) {
             postSleepTicks.put(player, FleshRejectionConfig.postSleepDecayDuration * 20);

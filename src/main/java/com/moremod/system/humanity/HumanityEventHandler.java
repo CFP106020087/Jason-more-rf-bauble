@@ -198,15 +198,22 @@ public class HumanityEventHandler {
 
         float humanity = HumanitySpectrumSystem.getHumanity(player);
 
-        // 极低人性惩罚：敌人更容易命中要害
+        // 极低人性惩罚：无痛麻木
+        // 玩家因为感受不到疼痛，更容易在受伤时伤害到自己的要害（头/躯干）
+        // 本质是自己伤害自己，而不是敌人命中率提升
         if (humanity < 10f) {
             if (player.world.rand.nextFloat() < HumanityConfig.extremeLowHumanityCritChance) {
-                float critMultiplier = (float) HumanityConfig.extremeLowHumanityCritMultiplier;
-                event.setAmount(event.getAmount() * critMultiplier);
+                // 额外的自我伤害（无痛麻木导致无法感知自己在伤害要害）
+                float selfDamageRatio = (float) HumanityConfig.extremeLowHumanityCritMultiplier - 1.0f;
+                float selfDamage = event.getAmount() * selfDamageRatio;
 
-                // 要害命中反馈
+                // 增加原伤害（模拟对自己要害的额外伤害）
+                event.setAmount(event.getAmount() + selfDamage);
+
+                // 发送警告
                 player.sendStatusMessage(new net.minecraft.util.text.TextComponentString(
-                        net.minecraft.util.text.TextFormatting.DARK_RED + "【要害命中】"
+                        net.minecraft.util.text.TextFormatting.DARK_RED + "【无痛麻木】" +
+                        net.minecraft.util.text.TextFormatting.GRAY + " 你无法感知自己的伤势..."
                 ), true);
             }
         }

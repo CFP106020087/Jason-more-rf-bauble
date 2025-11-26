@@ -306,18 +306,19 @@ public class HumanityConfig {
     // ============================================================
 
     @Config.Comment({
-            "极低人性(<10%)时，敌人攻击命中要害的概率",
-            "Chance for enemies to hit critical spots at extreme low humanity"
+            "极低人性(<10%)时，无痛麻木触发概率",
+            "玩家因感受不到疼痛而更容易伤害到自己的要害",
+            "Painless numbness trigger chance - player hurts own vital areas"
     })
-    @Config.Name("要害命中概率 | Critical Hit Chance")
+    @Config.Name("无痛麻木概率 | Painless Numbness Chance")
     @Config.RangeDouble(min = 0, max = 1)
     public static double extremeLowHumanityCritChance = 0.35;
 
     @Config.Comment({
-            "要害命中时的额外伤害倍率",
-            "Extra damage multiplier when enemies hit critical spots"
+            "无痛麻木时的额外自我伤害倍率",
+            "Additional self-damage multiplier from painless numbness"
     })
-    @Config.Name("要害伤害倍率 | Critical Damage Multiplier")
+    @Config.Name("自我伤害倍率 | Self Damage Multiplier")
     @Config.RangeDouble(min = 1.0, max = 3.0)
     public static double extremeLowHumanityCritMultiplier = 1.5;
 
