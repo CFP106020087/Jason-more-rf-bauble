@@ -463,7 +463,7 @@ public class GuiHandler implements IGuiHandler {
 
         if (te instanceof TileEntityPurificationAltar) {
             System.out.println("[GuiHandler] 打开提纯祭坛 GUI");
-            return new GuiPurificationAltarCodeDrawn(player.inventory, (ContainerPurificationAltar) createPurificationAltarContainer(player, world, x, y, z));
+            return new com.moremod.client.gui.GuiPurificationAltar(player.inventory, (ContainerPurificationAltar) createPurificationAltarContainer(player, world, x, y, z));
         }
         System.out.println("[GuiHandler] ❌ 未识别的提纯祭坛 TE(客户端): " + (te == null ? "null" : te.getClass().getName()));
         return null;

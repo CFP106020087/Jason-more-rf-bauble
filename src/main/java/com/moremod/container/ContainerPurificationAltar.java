@@ -6,52 +6,72 @@ import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.Container;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.items.SlotItemHandler;
 
 /**
  * 提纯祭坛 - Container
  * 
  * 槽位布局：
- * - 槽位 0-4: 输入槽（5个宝石）
- * - 槽位 5: 输出槽（提纯后的宝石）
- * - 槽位 6-41: 玩家背包+快捷栏
+ * - 槽位 0-5: 左侧6个垂直输入槽
+ * - 槽位 6: 右侧主输出槽
+ * - 槽位 7-33: 玩家背包 (27个)
+ * - 槽位 34-42: 快捷栏 (9个)
  */
 public class ContainerPurificationAltar extends Container {
     
     private final TileEntityPurificationAltar tile;
     private final EntityPlayer player;
     
+    // 槽位索引常量
+    private static final int INPUT_SLOT_START = 0;
+    private static final int INPUT_SLOT_END = 5;      // 包含
+    private static final int OUTPUT_SLOT = 6;
+    private static final int PLAYER_INV_START = 7;
+    private static final int PLAYER_INV_END = 33;     // 包含
+    private static final int HOTBAR_START = 34;
+    private static final int HOTBAR_END = 42;         // 包含
+    
     public ContainerPurificationAltar(InventoryPlayer playerInv, TileEntityPurificationAltar tile) {
         this.tile = tile;
         this.player = playerInv.player;
         
-        // 输入槽（5个）- 排列成弧形
-        // 槽位位置计算：以中心为基准，向两侧扩展
-        int[] xPositions = {26, 44, 62, 80, 98}; // 5个槽位的X坐标
-        int centerY = 26; // Y坐标
+        // ===============================
+        // 左侧6个垂直输入槽
+        // ===============================
+        int[] inputY = {30, 74, 119, 167, 213, 253};
+        int[] inputX = {46, 46, 46, 46, 47, 46};  // Slot 4 的x是47
         
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 6; i++) {
             this.addSlotToContainer(new SlotGemInput(tile.getInventory(), i, 
-                xPositions[i], centerY));
+                inputX[i], inputY[i]));
         }
         
-        // 输出槽 - 居中靠下
-        this.addSlotToContainer(new SlotOutput(tile.getInventory(), 5, 62, 70));
+        // ===============================
+        // 右侧主输出槽
+        // ===============================
+        this.addSlotToContainer(new SlotOutput(tile.getInventory(), 6, 190, 142));
         
+        // ===============================
         // 玩家背包（3行9列）
+        // ===============================
+        // 起始: (48, 319), 间距: 18  (原47,318 → 往右1往下1)
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
                 this.addSlotToContainer(new Slot(playerInv, 
-                    col + row * 9 + 9, 
-                    8 + col * 18, 
-                    98 + row * 18));
+                    col + row * 9 + 9,  // 背包槽位从9开始
+                    48 + col * 18, 
+                    319 + row * 18));
             }
         }
         
-        // 玩家快捷栏（1行9列）
+        // ===============================
+        // 快捷栏（1行9列）
+        // ===============================
+        // 起始: (48, 377), 间距: 18  (原47,376 → 往右1往下1)
         for (int col = 0; col < 9; col++) {
             this.addSlotToContainer(new Slot(playerInv, col, 
-                8 + col * 18, 156));
+                48 + col * 18, 377));
         }
     }
     
@@ -60,7 +80,7 @@ public class ContainerPurificationAltar extends Container {
     // ==========================================
     
     /**
-     * 宝石输入槽 - 只接受精炼宝石
+     * 宝石输入槽 - 只接受未鉴定宝石
      */
     private static class SlotGemInput extends SlotItemHandler {
         public SlotGemInput(net.minecraftforge.items.IItemHandler itemHandler, 
@@ -70,8 +90,7 @@ public class ContainerPurificationAltar extends Container {
         
         @Override
         public boolean isItemValid(ItemStack stack) {
-            // 可以添加更严格的检查
-            // 例如：只接受精炼宝石
+            // TODO: 添加检查 - 只接受未鉴定宝石
             return true;
         }
     }
@@ -113,32 +132,37 @@ public class ContainerPurificationAltar extends Container {
             ItemStack stackInSlot = slot.getStack();
             itemstack = stackInSlot.copy();
             
-            // 从输出槽取出
-            if (index == 5) {
-                // 输出槽 → 玩家背包
-                if (!this.mergeItemStack(stackInSlot, 6, 42, true)) {
+            // 从输出槽取出 (索引6)
+            if (index == OUTPUT_SLOT) {
+                // 输出槽 → 玩家背包+快捷栏
+                if (!this.mergeItemStack(stackInSlot, PLAYER_INV_START, HOTBAR_END + 1, true)) {
                     return ItemStack.EMPTY;
                 }
                 slot.onSlotChange(stackInSlot, itemstack);
             }
-            // 从玩家背包放入
-            else if (index >= 6) {
-                // 玩家背包 → 输入槽
-                if (!this.mergeItemStack(stackInSlot, 0, 5, false)) {
+            // 从玩家背包/快捷栏放入
+            else if (index >= PLAYER_INV_START) {
+                // 尝试放入输入槽 (0-5)
+                if (!this.mergeItemStack(stackInSlot, INPUT_SLOT_START, INPUT_SLOT_END + 1, false)) {
                     // 背包 ↔ 快捷栏
-                    if (index < 33) {
-                        if (!this.mergeItemStack(stackInSlot, 33, 42, false)) {
+                    if (index <= PLAYER_INV_END) {
+                        // 背包 → 快捷栏
+                        if (!this.mergeItemStack(stackInSlot, HOTBAR_START, HOTBAR_END + 1, false)) {
                             return ItemStack.EMPTY;
                         }
-                    } else if (index < 42 && 
-                              !this.mergeItemStack(stackInSlot, 6, 33, false)) {
-                        return ItemStack.EMPTY;
+                    } else {
+                        // 快捷栏 → 背包
+                        if (!this.mergeItemStack(stackInSlot, PLAYER_INV_START, PLAYER_INV_END + 1, false)) {
+                            return ItemStack.EMPTY;
+                        }
                     }
                 }
             }
-            // 从输入槽取出
-            else if (!this.mergeItemStack(stackInSlot, 6, 42, false)) {
-                return ItemStack.EMPTY;
+            // 从输入槽取出 (0-5)
+            else if (index <= INPUT_SLOT_END) {
+                if (!this.mergeItemStack(stackInSlot, PLAYER_INV_START, HOTBAR_END + 1, false)) {
+                    return ItemStack.EMPTY;
+                }
             }
             
             if (stackInSlot.isEmpty()) {
@@ -161,64 +185,44 @@ public class ContainerPurificationAltar extends Container {
     // 提纯控制
     // ==========================================
     
-    /**
-     * 开始提纯
-     */
     public boolean startPurifying() {
         return tile.startPurifying(player);
     }
     
-    /**
-     * 检查是否可以提纯
-     */
     public boolean canPurify() {
         return tile.canPurify();
     }
     
-    /**
-     * 获取输入宝石数量
-     */
     public int getInputGemCount() {
         return tile.getInputGemCount();
     }
     
-    /**
-     * 获取预测品质
-     */
     public int getPredictedQuality() {
         return tile.getPredictedQuality();
     }
     
-    /**
-     * 获取需要的经验
-     */
     public int getRequiredXP() {
         return tile.getRequiredXP();
     }
     
-    /**
-     * 是否正在提纯
-     */
     public boolean isPurifying() {
         return tile.isPurifying();
     }
     
-    /**
-     * 获取提纯进度
-     */
     public int getPurifyProgress() {
         return tile.getPurifyProgress();
     }
     
-    /**
-     * 获取最大提纯时间
-     */
     public int getMaxPurifyTime() {
         return tile.getMaxPurifyTime();
     }
     
     public TileEntityPurificationAltar getTile() {
         return tile;
+    }
+    
+    public BlockPos getTilePos() {
+        return tile.getPos();
     }
     
     public EntityPlayer getPlayer() {
