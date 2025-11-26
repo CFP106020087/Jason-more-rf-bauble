@@ -39,6 +39,11 @@ import com.moremod.tile.TileEntityPurificationAltar;
 import com.moremod.container.ContainerTransferStation;
 import com.moremod.tile.TileEntityTransferStation;
 
+// ⚡ Synergy 链结站GUI导入
+import com.moremod.synergy.station.ContainerSynergyStation;
+import com.moremod.synergy.station.GuiSynergyStation;
+import com.moremod.synergy.station.TileEntitySynergyStation;
+
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumHand;
@@ -77,6 +82,9 @@ public class GuiHandler implements IGuiHandler {
 
     // 🎨 转移台
     public static final int TRANSFER_STATION_GUI = 28;
+
+    // ⚡ Synergy 链结站
+    public static final int SYNERGY_STATION_GUI = 29;
 
     // ---------------- Server ----------------
     @Override
@@ -148,6 +156,10 @@ public class GuiHandler implements IGuiHandler {
                 }
                 case TRANSFER_STATION_GUI: { // 🎨 ID=28
                     result = createTransferStationContainer(player, world, x, y, z);
+                    break;
+                }
+                case SYNERGY_STATION_GUI: { // ⚡ ID=29
+                    result = createSynergyStationContainer(player, world, x, y, z);
                     break;
                 }
                 default:
@@ -231,6 +243,10 @@ public class GuiHandler implements IGuiHandler {
                 }
                 case TRANSFER_STATION_GUI: { // 🎨 ID=28
                     result = createTransferStationGui(player, world, x, y, z);
+                    break;
+                }
+                case SYNERGY_STATION_GUI: { // ⚡ ID=29
+                    result = createSynergyStationGui(player, world, x, y, z);
                     break;
                 }
                 default:
@@ -485,6 +501,31 @@ public class GuiHandler implements IGuiHandler {
         return null;
     }
 
+    // ====== ⚡ ID=29：Synergy 链结站 ======
+    private Object createSynergyStationContainer(EntityPlayer player, World world, int x, int y, int z) {
+        BlockPos pos = new BlockPos(x, y, z);
+        TileEntity te = world.getTileEntity(pos);
+
+        if (te instanceof TileEntitySynergyStation) {
+            System.out.println("[GuiHandler] 打开 Synergy 链结站 Container");
+            return new ContainerSynergyStation(player.inventory, (TileEntitySynergyStation) te);
+        }
+        System.out.println("[GuiHandler] ❌ 未识别的 Synergy 链结站 TE: " + (te == null ? "null" : te.getClass().getName()));
+        return null;
+    }
+
+    @SideOnly(Side.CLIENT)
+    private Object createSynergyStationGui(EntityPlayer player, World world, int x, int y, int z) {
+        BlockPos pos = new BlockPos(x, y, z);
+        TileEntity te = world.getTileEntity(pos);
+
+        if (te instanceof TileEntitySynergyStation) {
+            System.out.println("[GuiHandler] 打开 Synergy 链结站 GUI");
+            return new GuiSynergyStation(player, (TileEntitySynergyStation) te);
+        }
+        System.out.println("[GuiHandler] ❌ 未识别的 Synergy 链结站 TE(客户端): " + (te == null ? "null" : te.getClass().getName()));
+        return null;
+    }
 
     // ---------- 工具方法 ----------
     public static int getAccessoryBoxGuiId(int tier) {
@@ -511,7 +552,8 @@ public class GuiHandler implements IGuiHandler {
                 guiId == SWORD_UPGRADE_STATION_MATERIAL_GUI ||   // 新
                 guiId == GEM_EXTRACTION_STATION_GUI ||           // 💎 提取台
                 guiId == PURIFICATION_ALTAR_GUI ||               // 🔮 提纯祭坛
-                guiId == TRANSFER_STATION_GUI;                   // 🎨 转移台
+                guiId == TRANSFER_STATION_GUI ||                 // 🎨 转移台
+                guiId == SYNERGY_STATION_GUI;                    // ⚡ Synergy 链结站
     }
 
     public static boolean isItemBasedGui(int guiId) {

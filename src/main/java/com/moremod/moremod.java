@@ -643,6 +643,14 @@ public class moremod {
             System.err.println("[moremod] ⚠️ 模组配方注册失败: " + e.getMessage());
         }
 
+        // ========== Synergy 系统初始化（可选模块） ==========
+        try {
+            com.moremod.synergy.SynergyBootstrap.init();
+            System.out.println("[moremod] ✅ Synergy 系统初始化完成");
+        } catch (Exception e) {
+            System.err.println("[moremod] ⚠️ Synergy 系统初始化失败（不影响主体功能）: " + e.getMessage());
+        }
+
         System.out.println("[moremod] ========== 后初始化完成 ==========\n");
     }
 

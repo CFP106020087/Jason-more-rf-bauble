@@ -3,6 +3,7 @@
 item.identify_scroll.name=宝石鉴定卷轴
 # 方块
 tile.extraction_station.name=提取站
+tile.synergy_station.name=Synergy 链结站
 tile.moremodpurification_altar.name=净化祭坛
 tile.transfer_station.name=转移站
 item.bio_stabilizer.name=生物稳定剂

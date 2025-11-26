@@ -12,13 +12,15 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.init.MobEffects;
 import net.minecraft.init.SoundEvents;
+import net.minecraft.item.ItemShield;
+import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.network.datasync.DataParameter;
 import net.minecraft.network.datasync.DataSerializers;
 import net.minecraft.network.datasync.EntityDataManager;
-import net.minecraft.network.play.server.SPacketAnimation;
 import net.minecraft.potion.PotionEffect;
 import net.minecraft.util.DamageSource;
+import net.minecraft.util.EnumHand;
 import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.SoundEvent;
@@ -110,6 +112,7 @@ public class EntityVoidRipper extends EntityMob implements IAnimatable {
     private static final int LASER_FIRE_TIME = 80;
     private static final float LASER_DAMAGE_PER_TICK = 2.0F;
     private static final float LASER_RANGE = 120.0F;
+    private static final int LASER_DAMAGE_START_DELAY = 15; // 激光伤害延迟
 
     // ========== Gate 限伤系统 ==========
     private static final String CHUNK_ID = MODID + ".void_ripper_chunk";
@@ -1220,6 +1223,7 @@ public class EntityVoidRipper extends EntityMob implements IAnimatable {
         }
     }
 
+    // ========== 修复后的激光发射逻辑 ==========
     private void updateLaserFiring() {
         laserTimer--;
 
@@ -1238,6 +1242,7 @@ public class EntityVoidRipper extends EntityMob implements IAnimatable {
         Vec3d laserPos = getLaserEmissionPoint();
         Vec3d targetPos = new Vec3d(target.posX, target.posY + target.height * 0.5D, target.posZ);
 
+        // 生成激光实体 - 伤害设为0，让下面的代码完全控制伤害
         if (laserTimer == LASER_FIRE_TIME - 1 && !world.isRemote) {
             EntityLaserBeam beam = new EntityLaserBeam(
                     world,
@@ -1245,7 +1250,7 @@ public class EntityVoidRipper extends EntityMob implements IAnimatable {
                     target,
                     LASER_FIRE_TIME,
                     0.7F,
-                    LASER_DAMAGE_PER_TICK,
+                    0.0F,  // ★★★ 关键：伤害设为0 ★★★
                     0x0099FF
             );
             Vec3d emissionPoint = getLaserEmissionPoint();
@@ -1260,6 +1265,7 @@ public class EntityVoidRipper extends EntityMob implements IAnimatable {
         double laserLength = Math.min(LASER_RANGE, laserPos.distanceTo(targetPos));
         Vec3d endPos = laserPos.add(direction.x * laserLength, direction.y * laserLength, direction.z * laserLength);
 
+        // 粒子效果和方块破坏
         if (world instanceof WorldServer) {
             WorldServer ws = (WorldServer) world;
             int segments = (int)(laserLength * 4);
@@ -1295,130 +1301,27 @@ public class EntityVoidRipper extends EntityMob implements IAnimatable {
                     5, 0.5D, 0.5D, 0.5D, 0.1D);
         }
 
-        // ========== 激光即死判定（可用盾牌格挡）==========
-        if (!world.isRemote && laserTimer % 2 == 0) {
+        // ========== 激光伤害判定（修复版）==========
+        int ticksSinceFiring = LASER_FIRE_TIME - laserTimer;
+
+        // 前15tick不造成伤害，给玩家反应时间
+        if (!world.isRemote && laserTimer % 2 == 0 && ticksSinceFiring >= LASER_DAMAGE_START_DELAY) {
             if (target.getDistance(this) <= LASER_RANGE && canEntityBeSeen(target)) {
 
                 if (target instanceof EntityPlayer) {
                     EntityPlayer player = (EntityPlayer) target;
 
-                    // 检测是否在格挡
-                    if (player.isActiveItemStackBlocking()) {
+                    // 使用更可靠的格挡检测
+                    boolean isBlocking = isPlayerBlocking(player);
+
+                    if (isBlocking) {
                         // ========== 成功格挡 ==========
-
-                        // 1. 消耗盾牌耐久
-                        net.minecraft.item.ItemStack shield = player.getActiveItemStack();
-                        if (!shield.isEmpty()) {
-                            shield.damageItem(5, player);
-
-                            if (shield.getItemDamage() >= shield.getMaxDamage()) {
-                                player.sendMessage(new net.minecraft.util.text.TextComponentString(
-                                        "§c§l✦ 你的盾牌被激光击碎了！ ✦"));
-                                playSound(SoundEvents.ITEM_SHIELD_BREAK, 1.5F, 1.0F);
-                            }
-                        }
-
-                        // 2. 击退效果
-                        Vec3d laserDir = target.getPositionVector().subtract(this.getPositionVector()).normalize();
-                        double knockbackStrength = 0.6;
-                        player.motionX = laserDir.x * knockbackStrength;
-                        player.motionY = 0.4;
-                        player.motionZ = laserDir.z * knockbackStrength;
-                        player.velocityChanged = true;
-
-                        // 3. 造成少量穿透伤害
-                        player.attackEntityFrom(DamageSource.causeMobDamage(this), 5.0F);
-
-                        // 4. 格挡音效和粒子
-                        playSound(SoundEvents.ITEM_SHIELD_BLOCK, 2.0F, 0.8F);
-                        playSound(SoundEvents.ENTITY_GENERIC_EXPLODE, 0.5F, 2.0F);
-
-                        if (world instanceof WorldServer) {
-                            WorldServer ws = (WorldServer) world;
-
-                            // 格挡火花效果
-                            for (int i = 0; i < 30; i++) {
-                                double angle = rand.nextDouble() * Math.PI * 2;
-                                double speed = 0.3 + rand.nextDouble() * 0.3;
-                                ws.spawnParticle(EnumParticleTypes.FIREWORKS_SPARK,
-                                        player.posX,
-                                        player.posY + player.height * 0.5,
-                                        player.posZ,
-                                        1,
-                                        Math.cos(angle) * speed,
-                                        rand.nextDouble() * 0.3,
-                                        Math.sin(angle) * speed,
-                                        0.1);
-                            }
-
-                            // 护盾光环
-                            for (int i = 0; i < 16; i++) {
-                                double angle = (Math.PI * 2 * i) / 16;
-                                double px = player.posX + Math.cos(angle) * 1.5;
-                                double pz = player.posZ + Math.sin(angle) * 1.5;
-                                ws.spawnParticle(EnumParticleTypes.SPELL_WITCH,
-                                        px, player.posY + 1, pz,
-                                        1, 0, 0.2, 0.0, 0);
-                            }
-                        }
-
-                        // 5. 格挡成功提示
-                        if (laserTimer % 20 == 0) {
-                            player.sendMessage(new net.minecraft.util.text.TextComponentString(
-                                    "§e§l格挡成功！盾牌正在承受极大压力！"));
-                        }
+                        handleLaserBlocked(player);
 
                     } else {
                         // ========== 没有格挡 = 即死 ==========
-
-                        player.setHealth(0.0F);
-
-                        // 死亡特效
-                        if (world instanceof WorldServer) {
-                            WorldServer ws = (WorldServer) world;
-
-                            // 死亡爆炸粒子
-                            for (int i = 0; i < 100; i++) {
-                                double angle = rand.nextDouble() * Math.PI * 2;
-                                double pitch = rand.nextDouble() * Math.PI;
-                                double speed = 0.5 + rand.nextDouble() * 0.5;
-
-                                ws.spawnParticle(EnumParticleTypes.DRAGON_BREATH,
-                                        player.posX,
-                                        player.posY + player.height * 0.5,
-                                        player.posZ,
-                                        1,
-                                        Math.cos(angle) * Math.sin(pitch) * speed,
-                                        Math.cos(pitch) * speed,
-                                        Math.sin(angle) * Math.sin(pitch) * speed,
-                                        0.2);
-                            }
-
-                            // 黑色爆炸环
-                            for (int ring = 0; ring < 3; ring++) {
-                                double radius = (ring + 1) * 1.5;
-                                for (int i = 0; i < 32; i++) {
-                                    double angle = (Math.PI * 2 * i) / 32;
-                                    ws.spawnParticle(EnumParticleTypes.SMOKE_LARGE,
-                                            player.posX + Math.cos(angle) * radius,
-                                            player.posY + 0.1,
-                                            player.posZ + Math.sin(angle) * radius,
-                                            1, 0, 0.5, 0, 0.1);
-                                }
-                            }
-                        }
-
-                        // 即死音效
-                        playSound(SoundEvents.ENTITY_LIGHTNING_THUNDER, 2.0F, 0.5F);
-                        playSound(SoundEvents.ENTITY_GENERIC_EXPLODE, 2.0F, 0.5F);
-
-                        // 死亡消息
-                        player.sendMessage(new net.minecraft.util.text.TextComponentString(
-                                "§4§l✦ 你被虚空激光彻底撕裂了！ ✦"));
-
-                        // 取消激光
-                        cancelLaser();
-                        laserCooldown = 200;
+                        handleLaserHit(player);
+                        return; // 玩家死了，结束方法
                     }
 
                 } else {
@@ -1430,16 +1333,35 @@ public class EntityVoidRipper extends EntityMob implements IAnimatable {
                 }
             }
 
-            // 範圍傷害
+            // 范围伤害（激光终点附近）
             List<EntityLivingBase> nearbyEntities = world.getEntitiesWithinAABB(EntityLivingBase.class,
                     new AxisAlignedBB(endPos.x - 2, endPos.y - 2, endPos.z - 2,
                             endPos.x + 2, endPos.y + 2, endPos.z + 2));
 
             for (EntityLivingBase entity : nearbyEntities) {
                 if (entity != this && entity != target) {
-                    entity.attackEntityFrom(DamageSource.causeMobDamage(this), LASER_DAMAGE_PER_TICK * 2.0F);
-                    entity.setFire(2);
+                    // 范围伤害也检测格挡
+                    if (entity instanceof EntityPlayer) {
+                        EntityPlayer nearbyPlayer = (EntityPlayer) entity;
+                        if (!isPlayerBlocking(nearbyPlayer)) {
+                            entity.attackEntityFrom(DamageSource.causeMobDamage(this), LASER_DAMAGE_PER_TICK * 2.0F);
+                            entity.setFire(2);
+                        }
+                    } else {
+                        entity.attackEntityFrom(DamageSource.causeMobDamage(this), LASER_DAMAGE_PER_TICK * 2.0F);
+                        entity.setFire(2);
+                    }
                 }
+            }
+        }
+
+        // 前15tick的警告提示
+        if (!world.isRemote && ticksSinceFiring < LASER_DAMAGE_START_DELAY && ticksSinceFiring % 5 == 0) {
+            if (target instanceof EntityPlayer) {
+                EntityPlayer player = (EntityPlayer) target;
+                int ticksLeft = LASER_DAMAGE_START_DELAY - ticksSinceFiring;
+                player.sendStatusMessage(new net.minecraft.util.text.TextComponentString(
+                        "§c§l⚠ 激光即将命中！举起盾牌！ ⚠"), true);
             }
         }
 
@@ -1452,6 +1374,160 @@ public class EntityVoidRipper extends EntityMob implements IAnimatable {
             cancelLaser();
             laserCooldown = 200;
         }
+    }
+
+    // ★★★ 更可靠的格挡检测方法 ★★★
+    private boolean isPlayerBlocking(EntityPlayer player) {
+        // 方法1：直接检查isActiveItemStackBlocking
+        if (player.isActiveItemStackBlocking()) {
+            return true;
+        }
+
+        // 方法2：检查玩家是否正在使用物品且手中有盾牌
+        if (player.isHandActive()) {
+            ItemStack activeStack = player.getActiveItemStack();
+            if (!activeStack.isEmpty() && activeStack.getItem() instanceof ItemShield) {
+                return true;
+            }
+        }
+
+        // 方法3：检查副手盾牌 + 使用状态
+        ItemStack offHand = player.getHeldItemOffhand();
+        if (!offHand.isEmpty() && offHand.getItem() instanceof ItemShield) {
+            if (player.isHandActive() && player.getActiveHand() == EnumHand.OFF_HAND) {
+                return true;
+            }
+        }
+
+        // 方法4：检查主手盾牌
+        ItemStack mainHand = player.getHeldItemMainhand();
+        if (!mainHand.isEmpty() && mainHand.getItem() instanceof ItemShield) {
+            if (player.isHandActive() && player.getActiveHand() == EnumHand.MAIN_HAND) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // ★★★ 处理格挡成功 ★★★
+    private void handleLaserBlocked(EntityPlayer player) {
+        // 1. 消耗盾牌耐久
+        ItemStack shield = player.getActiveItemStack();
+        if (!shield.isEmpty()) {
+            shield.damageItem(5, player);
+
+            if (shield.getItemDamage() >= shield.getMaxDamage()) {
+                player.sendMessage(new net.minecraft.util.text.TextComponentString(
+                        "§c§l✦ 你的盾牌被激光击碎了！ ✦"));
+                playSound(SoundEvents.ITEM_SHIELD_BREAK, 1.5F, 1.0F);
+
+                // 盾牌碎了给20tick无敌，避免立即死亡
+                player.hurtResistantTime = 20;
+            }
+        }
+
+        // 2. 轻微击退效果
+        Vec3d laserDir = player.getPositionVector().subtract(this.getPositionVector()).normalize();
+        double knockbackStrength = 0.3;
+        player.motionX += laserDir.x * knockbackStrength;
+        player.motionY += 0.2;
+        player.motionZ += laserDir.z * knockbackStrength;
+        player.velocityChanged = true;
+
+        // 3. 造成少量穿透伤害
+        player.attackEntityFrom(DamageSource.causeMobDamage(this), 3.0F);
+
+        // 4. 格挡音效和粒子
+        playSound(SoundEvents.ITEM_SHIELD_BLOCK, 2.0F, 0.8F);
+
+        if (world instanceof WorldServer) {
+            WorldServer ws = (WorldServer) world;
+
+            // 格挡火花效果
+            for (int i = 0; i < 20; i++) {
+                double angle = rand.nextDouble() * Math.PI * 2;
+                double speed = 0.2 + rand.nextDouble() * 0.2;
+                ws.spawnParticle(EnumParticleTypes.FIREWORKS_SPARK,
+                        player.posX,
+                        player.posY + player.height * 0.5,
+                        player.posZ,
+                        1,
+                        Math.cos(angle) * speed,
+                        rand.nextDouble() * 0.2,
+                        Math.sin(angle) * speed,
+                        0.05);
+            }
+
+            // 护盾光环
+            for (int i = 0; i < 12; i++) {
+                double angle = (Math.PI * 2 * i) / 12;
+                double px = player.posX + Math.cos(angle) * 1.2;
+                double pz = player.posZ + Math.sin(angle) * 1.2;
+                ws.spawnParticle(EnumParticleTypes.SPELL_WITCH,
+                        px, player.posY + 1, pz,
+                        1, 0, 0.1, 0.0, 0);
+            }
+        }
+
+        // 5. 格挡成功提示（每20tick显示一次）
+        if ((LASER_FIRE_TIME - laserTimer) % 20 == 0) {
+            player.sendStatusMessage(new net.minecraft.util.text.TextComponentString(
+                    "§a§l✓ 格挡成功！保持举盾！"), true);
+        }
+    }
+
+    // ★★★ 处理激光命中（没有格挡）★★★
+    private void handleLaserHit(EntityPlayer player) {
+        // 即死
+        player.setHealth(0.0F);
+
+        // 死亡特效
+        if (world instanceof WorldServer) {
+            WorldServer ws = (WorldServer) world;
+
+            // 死亡爆炸粒子
+            for (int i = 0; i < 100; i++) {
+                double angle = rand.nextDouble() * Math.PI * 2;
+                double pitch = rand.nextDouble() * Math.PI;
+                double speed = 0.5 + rand.nextDouble() * 0.5;
+
+                ws.spawnParticle(EnumParticleTypes.DRAGON_BREATH,
+                        player.posX,
+                        player.posY + player.height * 0.5,
+                        player.posZ,
+                        1,
+                        Math.cos(angle) * Math.sin(pitch) * speed,
+                        Math.cos(pitch) * speed,
+                        Math.sin(angle) * Math.sin(pitch) * speed,
+                        0.2);
+            }
+
+            // 黑色爆炸环
+            for (int ring = 0; ring < 3; ring++) {
+                double radius = (ring + 1) * 1.5;
+                for (int i = 0; i < 32; i++) {
+                    double angle = (Math.PI * 2 * i) / 32;
+                    ws.spawnParticle(EnumParticleTypes.SMOKE_LARGE,
+                            player.posX + Math.cos(angle) * radius,
+                            player.posY + 0.1,
+                            player.posZ + Math.sin(angle) * radius,
+                            1, 0, 0.5, 0, 0.1);
+                }
+            }
+        }
+
+        // 即死音效
+        playSound(SoundEvents.ENTITY_LIGHTNING_THUNDER, 2.0F, 0.5F);
+        playSound(SoundEvents.ENTITY_GENERIC_EXPLODE, 2.0F, 0.5F);
+
+        // 死亡消息
+        player.sendMessage(new net.minecraft.util.text.TextComponentString(
+                "§4§l✦ 你被虚空激光彻底撕裂了！ ✦"));
+
+        // 取消激光
+        cancelLaser();
+        laserCooldown = 200;
     }
 
     private Vec3d getLaserEmissionPoint() {
@@ -1548,9 +1624,7 @@ public class EntityVoidRipper extends EntityMob implements IAnimatable {
         }
     }
 
-    // AI任务类（保持不变，这里省略以节省篇幅）
-    // ... [所有 AI 类的代码保持原样] ...
-
+    // AI任务类
     class AIAntiStuck extends EntityAIBase {
         private int checkTimer = 0;
 
