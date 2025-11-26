@@ -418,7 +418,7 @@ public class MechanicalCoreHUD extends Gui {
 
             // ========== 人性值显示 ==========
             IHumanityData humanityData = HumanityCapabilityHandler.getData(player);
-            if (humanityData != null && humanityData.isSystemActive()) {
+            if (humanityData != null) {
                 currentY += 2;
                 currentY = renderHumanityInfo(hudX, currentY, hudWidth, humanityData, fontRenderer);
             }
