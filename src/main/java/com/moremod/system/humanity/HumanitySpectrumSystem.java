@@ -399,13 +399,15 @@ public class HumanitySpectrumSystem {
         if (core.isEmpty()) return;
 
         // 获取可用能量
-        int availableEnergy = ItemMechanicalCore.getEnergy(core);
+        net.minecraftforge.energy.IEnergyStorage energyStorage = ItemMechanicalCore.getEnergyStorage(core);
+        if (energyStorage == null) return;
+        int availableEnergy = energyStorage.getEnergyStored();
         if (availableEnergy <= 0) return;
 
         // 消耗能量并推进分析
         int consumed = data.tickAnalysis(availableEnergy);
         if (consumed > 0) {
-            ItemMechanicalCore.extractEnergy(core, consumed);
+            energyStorage.extractEnergy(consumed, false);
 
             // 检查是否完成
             if (data.getAnalyzingEntity() == null) {
