@@ -199,21 +199,19 @@ public class HumanityEventHandler {
         float humanity = HumanitySpectrumSystem.getHumanity(player);
 
         // 极低人性惩罚：无痛麻木
-        // 玩家因为感受不到疼痛，更容易在受伤时伤害到自己的要害（头/躯干）
-        // 本质是自己伤害自己，而不是敌人命中率提升
+        // 伤害优先打在头/躯干等要害部位（与 First Aid 配合使用）
+        // 实现方式：增加伤害量，First Aid 会将伤害分配到身体各部位
+        // 因为玩家感受不到疼痛，无法及时保护要害
         if (humanity < 10f) {
             if (player.world.rand.nextFloat() < HumanityConfig.extremeLowHumanityCritChance) {
-                // 额外的自我伤害（无痛麻木导致无法感知自己在伤害要害）
-                float selfDamageRatio = (float) HumanityConfig.extremeLowHumanityCritMultiplier - 1.0f;
-                float selfDamage = event.getAmount() * selfDamageRatio;
-
-                // 增加原伤害（模拟对自己要害的额外伤害）
-                event.setAmount(event.getAmount() + selfDamage);
+                // 增加伤害量（First Aid 会将此伤害分配到身体各部位）
+                float vitalDamageMultiplier = (float) HumanityConfig.extremeLowHumanityCritMultiplier;
+                event.setAmount(event.getAmount() * vitalDamageMultiplier);
 
                 // 发送警告
                 player.sendStatusMessage(new net.minecraft.util.text.TextComponentString(
                         net.minecraft.util.text.TextFormatting.DARK_RED + "【无痛麻木】" +
-                        net.minecraft.util.text.TextFormatting.GRAY + " 你无法感知自己的伤势..."
+                        net.minecraft.util.text.TextFormatting.GRAY + " 伤害命中要害..."
                 ), true);
             }
         }
