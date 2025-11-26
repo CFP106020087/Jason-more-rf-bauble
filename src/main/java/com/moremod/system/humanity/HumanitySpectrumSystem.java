@@ -645,8 +645,8 @@ public class HumanitySpectrumSystem {
         );
 
         for (EntityLivingBase entity : entities) {
-            // 真实伤害，无视护甲
-            entity.attackEntityFrom(DamageSource.OUT_OF_WORLD, damage);
+            // 真实伤害，无视护甲 - 使用自定义伤害源防止递归
+            entity.attackEntityFrom(HumanityEventHandler.DISTORTION_DAMAGE, damage);
         }
 
         // 粒子效果

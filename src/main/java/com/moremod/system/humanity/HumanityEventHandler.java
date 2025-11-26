@@ -26,6 +26,8 @@ import ichttt.mods.firstaid.api.damagesystem.AbstractDamageablePart;
 import ichttt.mods.firstaid.api.damagesystem.AbstractPlayerDamageModel;
 import ichttt.mods.firstaid.api.event.FirstAidLivingDamageEvent;
 
+import net.minecraft.util.DamageSource;
+
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -41,9 +43,14 @@ import java.util.UUID;
 @Mod.EventBusSubscriber(modid = moremod.MODID)
 public class HumanityEventHandler {
 
-    // 防止AoE伤害递归的标记 - 使用时间戳而非简单标记
-    private static final Map<UUID, Long> aoeDamageCooldown = new HashMap<>();
-    private static final long AOE_COOLDOWN_MS = 100; // 100毫秒冷却
+    // ========== 防止AoE递归的机制 ==========
+
+    /** 自定义AoE伤害源 - 用于识别并跳过我们自己造成的伤害 */
+    public static final DamageSource AOE_DAMAGE = new DamageSource("moremod_aoe").setDamageBypassesArmor();
+    public static final DamageSource DISTORTION_DAMAGE = new DamageSource("moremod_distortion").setDamageBypassesArmor();
+
+    /** 正在处理AoE伤害的玩家 - 防止递归 */
+    private static final Set<UUID> processingAoE = new HashSet<>();
 
     // ========== 玩家Tick事件 ==========
 
@@ -101,6 +108,12 @@ public class HumanityEventHandler {
 
     @SubscribeEvent(priority = EventPriority.HIGH)
     public static void onLivingHurt(LivingHurtEvent event) {
+        // 跳过我们自己造成的AoE/畸变/反噬伤害，防止递归
+        String damageType = event.getSource().getDamageType();
+        if (damageType != null && damageType.startsWith("moremod_")) {
+            return;
+        }
+
         // 玩家造成伤害
         if (event.getSource().getTrueSource() instanceof EntityPlayer) {
             handlePlayerAttack(event);
@@ -118,6 +131,12 @@ public class HumanityEventHandler {
     private static void handlePlayerAttack(LivingHurtEvent event) {
         EntityPlayer player = (EntityPlayer) event.getSource().getTrueSource();
         EntityLivingBase target = event.getEntityLiving();
+        UUID playerId = player.getUniqueID();
+
+        // 防止递归：如果这个玩家正在处理AoE，跳过
+        if (processingAoE.contains(playerId)) {
+            return;
+        }
 
         if (!HumanitySpectrumSystem.isSystemActive(player)) return;
 
@@ -145,9 +164,14 @@ public class HumanityEventHandler {
         if (humanity < 50f) {
             damageMultiplier *= HumanitySpectrumSystem.calculateAnomalyProtocolDamageMultiplier(player);
 
-            // 检查畸变脉冲
+            // 检查畸变脉冲 - 使用AoE保护
             if (HumanitySpectrumSystem.checkDistortionPulse(player)) {
-                HumanitySpectrumSystem.triggerDistortionPulse(player);
+                processingAoE.add(playerId);
+                try {
+                    HumanitySpectrumSystem.triggerDistortionPulse(player);
+                } finally {
+                    processingAoE.remove(playerId);
+                }
             }
         }
 
@@ -156,23 +180,23 @@ public class HumanityEventHandler {
         if (data != null && data.isDissolutionActive()) {
             damageMultiplier *= 2.0f;
 
-            // 反噬
+            // 反噬 - 使用自定义伤害源避免触发其他事件
             float backlash = player.getMaxHealth() * 0.05f;
-            player.attackEntityFrom(net.minecraft.util.DamageSource.OUT_OF_WORLD, backlash);
+            player.attackEntityFrom(new DamageSource("moremod_backlash").setDamageBypassesArmor(), backlash);
         }
 
         event.setAmount(event.getAmount() * damageMultiplier);
 
         // 极低人性惩罚：攻击波及周围生物（包括友方）
-        // 使用时间戳冷却防止递归和多目标攻击重复触发
         if (humanity < 10f && HumanityConfig.extremeLowHumanityAoEDamage) {
-            UUID playerId = player.getUniqueID();
-            long now = System.currentTimeMillis();
-            Long lastAoE = aoeDamageCooldown.get(playerId);
-
-            if (lastAoE == null || (now - lastAoE) > AOE_COOLDOWN_MS) {
-                aoeDamageCooldown.put(playerId, now);
-                spreadDamageToNearby(player, target, event.getAmount());
+            // 使用AoE保护防止递归
+            if (!processingAoE.contains(playerId)) {
+                processingAoE.add(playerId);
+                try {
+                    spreadDamageToNearby(player, target, event.getAmount());
+                } finally {
+                    processingAoE.remove(playerId);
+                }
             }
         }
     }
@@ -191,11 +215,8 @@ public class HumanityEventHandler {
         );
 
         for (EntityLivingBase entity : nearbyEntities) {
-            // 波及伤害 - 使用 GENERIC 伤害源避免递归
-            entity.attackEntityFrom(
-                    net.minecraft.util.DamageSource.GENERIC.setDamageBypassesArmor(),
-                    aoeDamage
-            );
+            // 波及伤害 - 使用自定义伤害源，会在 onLivingHurt 开头被过滤
+            entity.attackEntityFrom(AOE_DAMAGE, aoeDamage);
         }
 
         // 粒子效果
