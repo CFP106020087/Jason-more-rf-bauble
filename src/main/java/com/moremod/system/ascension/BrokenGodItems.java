@@ -7,10 +7,11 @@ import com.moremod.item.ItemMechanicalCore;
 import com.moremod.item.broken.ItemBrokenEye;
 import com.moremod.item.broken.ItemBrokenHand;
 import com.moremod.item.broken.ItemBrokenHeart;
-import com.moremod.moremod;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /**
  * 破碎之神物品管理
@@ -19,6 +20,8 @@ import net.minecraft.item.ItemStack;
  * 管理破碎三件套的装备和卸除逻辑
  */
 public class BrokenGodItems {
+
+    private static final Logger LOGGER = LogManager.getLogger("moremod");
 
     // 物品实例（在 ModItems 中注册）
     public static ItemBrokenHand BROKEN_HAND;
@@ -34,7 +37,7 @@ public class BrokenGodItems {
 
         IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(player);
         if (baubles == null) {
-            moremod.logger.warn("[BrokenGod] Cannot get baubles handler for player {}", player.getName());
+            LOGGER.warn("[BrokenGod] Cannot get baubles handler for player {}", player.getName());
             return;
         }
 
@@ -88,7 +91,7 @@ public class BrokenGodItems {
             }
         }
 
-        moremod.logger.info("[BrokenGod] Replaced baubles for player {}", player.getName());
+        LOGGER.info("[BrokenGod] Replaced baubles for player {}", player.getName());
     }
 
     /**

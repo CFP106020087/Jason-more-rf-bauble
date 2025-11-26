@@ -243,7 +243,7 @@ public class GuiSynergyStation extends GuiScreen {
                                 "§e[链结站激活] §7当前无匹配协同（需要2个以上模块）"));
                     }
                 } else {
-                    player.playSound(net.minecraft.init.SoundEvents.BLOCK_BEACON_DEACTIVATE, 0.5f, 1.0f);
+                    player.playSound(net.minecraft.init.SoundEvents.BLOCK_BEACON_AMBIENT, 0.5f, 0.5f);
                     player.sendMessage(new net.minecraft.util.text.TextComponentString("§c[链结站关闭]"));
                 }
                 break;

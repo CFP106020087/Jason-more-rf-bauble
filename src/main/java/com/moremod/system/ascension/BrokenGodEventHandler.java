@@ -3,6 +3,8 @@ package com.moremod.system.ascension;
 import com.moremod.config.BrokenGodConfig;
 import com.moremod.moremod;
 import com.moremod.system.humanity.AscensionRoute;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import com.moremod.system.humanity.HumanityCapabilityHandler;
 import com.moremod.system.humanity.IHumanityData;
 import net.minecraft.entity.EntityLivingBase;
@@ -44,6 +46,8 @@ import java.util.List;
  */
 @Mod.EventBusSubscriber(modid = moremod.MODID)
 public class BrokenGodEventHandler {
+
+    private static final Logger LOGGER = LogManager.getLogger("moremod");
 
     // ========== 玩家Tick处理 ==========
 
@@ -197,7 +201,7 @@ public class BrokenGodEventHandler {
                 BrokenGodHandler.enterShutdown(player);
             }
 
-            moremod.logger.info("[BrokenGod] Intercepted death for player {}", player.getName());
+            LOGGER.info("[BrokenGod] Intercepted death for player {}", player.getName());
         }
     }
 

@@ -96,10 +96,10 @@ public class BrokenGodHandler {
                 TextFormatting.DARK_GRAY + "═══════════════════════════════"
         ));
 
-        // 停机音效
+        // 停机音效 - 使用 BLOCK_BEACON_AMBIENT 模拟停机音效（1.12.2兼容）
         player.world.playSound(null, player.posX, player.posY, player.posZ,
-                net.minecraft.init.SoundEvents.BLOCK_BEACON_DEACTIVATE,
-                net.minecraft.util.SoundCategory.PLAYERS, 1.0f, 0.5f);
+                net.minecraft.init.SoundEvents.BLOCK_BEACON_AMBIENT,
+                net.minecraft.util.SoundCategory.PLAYERS, 1.0f, 0.3f);
 
         // 粒子效果
         if (player.world instanceof WorldServer) {
