@@ -2,6 +2,7 @@ package com.moremod.client.gui;
 
 import baubles.api.BaublesApi;
 import baubles.api.cap.IBaublesItemHandler;
+import com.moremod.config.BrokenGodConfig;
 import com.moremod.event.EnergyPunishmentSystem;
 import com.moremod.item.ItemBatteryBauble;
 import com.moremod.item.ItemCreativeBatteryBauble;
@@ -9,6 +10,10 @@ import com.moremod.item.ItemMechanicalCore;
 import com.moremod.item.ItemMechanicalCoreExtended;
 import com.moremod.network.NetworkHandler;
 import com.moremod.network.PacketMechanicalCoreUpdate;
+import com.moremod.system.ascension.BrokenGodHandler;
+import com.moremod.system.humanity.AscensionRoute;
+import com.moremod.system.humanity.HumanityCapabilityHandler;
+import com.moremod.system.humanity.IHumanityData;
 import com.moremod.upgrades.energy.EnergyDepletionManager;
 
 import net.minecraft.client.gui.GuiButton;
@@ -47,6 +52,7 @@ public class MechanicalCoreGui extends GuiScreen {
     private static final int BUTTON_CLOSE = 0;
     private static final int BUTTON_PAUSE_ALL = 1;
     private static final int BUTTON_RESUME_ALL = 2;
+    private static final int BUTTON_ASCEND = 3;
 
     private static final int UPGRADES_PER_PAGE = 6;
 
@@ -555,6 +561,11 @@ public class MechanicalCoreGui extends GuiScreen {
         this.buttonList.add(new GuiButton(BUTTON_CLOSE, guiLeft + GUI_WIDTH - 25, guiTop + 5, 20, 20, "×"));
         this.buttonList.add(new GuiButton(BUTTON_PAUSE_ALL, guiLeft + 10, guiTop + 42, 100, 14, "⏸ 暂停非发电模块"));
         this.buttonList.add(new GuiButton(BUTTON_RESUME_ALL, guiLeft + 115, guiTop + 42, 100, 14, "▶ 恢复全部模块"));
+
+        // 添加破碎之神升格按钮（仅在满足条件时显示）
+        GuiButton ascendButton = new GuiButton(BUTTON_ASCEND, guiLeft + 10, guiTop + GUI_HEIGHT - 25, GUI_WIDTH - 20, 20, "");
+        ascendButton.visible = false; // 默认隐藏，在drawScreen中控制
+        this.buttonList.add(ascendButton);
     }
 
     @Override
@@ -571,6 +582,7 @@ public class MechanicalCoreGui extends GuiScreen {
         drawEnergyStatus();
         drawUpgradeList(mouseX, mouseY);
         drawScrollBar();
+        drawAscensionSection(mouseX, mouseY);
         super.drawScreen(mouseX, mouseY, partialTicks);
         drawTooltips(mouseX, mouseY);
     }
@@ -747,7 +759,93 @@ public class MechanicalCoreGui extends GuiScreen {
         int sliderH = Math.max(10, h * UPGRADES_PER_PAGE / availableUpgrades.size());
         int sy = y + (int)((h - sliderH) * ratio);
         drawRect(x + 1, sy, x + 9, sy + sliderH, 0xFFAAAAAA);
-    }// ===== Tooltip 绘制 =====
+    }
+
+    // ===== 破碎之神升格区域 =====
+
+    private void drawAscensionSection(int mouseX, int mouseY) {
+        IHumanityData data = HumanityCapabilityHandler.getData(player);
+        if (data == null || !data.isSystemActive()) {
+            hideAscensionButton();
+            return;
+        }
+
+        // 已经升格的情况
+        if (data.getAscensionRoute() != AscensionRoute.NONE) {
+            hideAscensionButton();
+            return;
+        }
+
+        // 获取升格条件状态
+        float humanity = data.getHumanity();
+        int dissolutionSurvivals = data.getDissolutionSurvivals();
+        ItemStack core = getCurrentCoreStack();
+        int installedCount = ItemMechanicalCore.getInstalledUpgradeCount(core);
+
+        boolean humanityMet = humanity <= BrokenGodConfig.ascensionHumanityThreshold;
+        boolean dissolutionMet = dissolutionSurvivals >= BrokenGodConfig.requiredDissolutionSurvivals;
+        boolean modulesMet = installedCount >= BrokenGodConfig.requiredModuleCount;
+
+        boolean canAscend = humanityMet && dissolutionMet && modulesMet;
+
+        // 更新升格按钮状态
+        for (GuiButton button : buttonList) {
+            if (button.id == BUTTON_ASCEND) {
+                button.visible = true;
+                button.enabled = canAscend;
+                if (canAscend) {
+                    button.displayString = TextFormatting.DARK_PURPLE + "✦ 升格为破碎之神 ✦";
+                } else {
+                    button.displayString = TextFormatting.GRAY + "升格条件未满足";
+                }
+                break;
+            }
+        }
+
+        // 绘制升格条件信息
+        int infoY = guiTop + GUI_HEIGHT - 45;
+        int infoX = guiLeft + 10;
+
+        // 背景
+        drawRect(guiLeft + 5, infoY - 5, guiLeft + GUI_WIDTH - 5, guiTop + GUI_HEIGHT - 28, 0x60000000);
+
+        // 条件列表
+        String conditionLine = "";
+
+        // 人性值
+        if (humanityMet) {
+            conditionLine += TextFormatting.GREEN + "✓人性≤" + (int)BrokenGodConfig.ascensionHumanityThreshold + "%  ";
+        } else {
+            conditionLine += TextFormatting.RED + "✗人性:" + String.format("%.0f", humanity) + "/" + (int)BrokenGodConfig.ascensionHumanityThreshold + "%  ";
+        }
+
+        // 崩解存活
+        if (dissolutionMet) {
+            conditionLine += TextFormatting.GREEN + "✓崩解存活≥" + BrokenGodConfig.requiredDissolutionSurvivals + "  ";
+        } else {
+            conditionLine += TextFormatting.RED + "✗崩解:" + dissolutionSurvivals + "/" + BrokenGodConfig.requiredDissolutionSurvivals + "  ";
+        }
+
+        // 模块数量
+        if (modulesMet) {
+            conditionLine += TextFormatting.GREEN + "✓模块≥" + BrokenGodConfig.requiredModuleCount;
+        } else {
+            conditionLine += TextFormatting.RED + "✗模块:" + installedCount + "/" + BrokenGodConfig.requiredModuleCount;
+        }
+
+        this.fontRenderer.drawString(conditionLine, infoX, infoY, 0xFFFFFF);
+    }
+
+    private void hideAscensionButton() {
+        for (GuiButton button : buttonList) {
+            if (button.id == BUTTON_ASCEND) {
+                button.visible = false;
+                break;
+            }
+        }
+    }
+
+    // ===== Tooltip 绘制 =====
 
     private void drawTooltips(int mouseX, int mouseY) {
         // 批量按钮提示
@@ -937,6 +1035,45 @@ public class MechanicalCoreGui extends GuiScreen {
             pauseAllNonGeneratorModules();
         } else if (button.id == BUTTON_RESUME_ALL) {
             resumeAllModules();
+        } else if (button.id == BUTTON_ASCEND) {
+            tryAscendToBrokenGod();
+        }
+    }
+
+    /**
+     * 尝试升格为破碎之神
+     */
+    private void tryAscendToBrokenGod() {
+        if (!BrokenGodHandler.canAscend(player)) {
+            player.sendStatusMessage(new TextComponentString(
+                    TextFormatting.RED + "升格条件未满足"
+            ), true);
+            return;
+        }
+
+        // 发送升格请求到服务器
+        try {
+            NetworkHandler.INSTANCE.sendToServer(new PacketMechanicalCoreUpdate(
+                    PacketMechanicalCoreUpdate.Action.BROKEN_GOD_ASCEND,
+                    "ASCEND",
+                    0,
+                    true
+            ));
+
+            // 播放音效
+            player.playSound(SoundEvents.ENTITY_WITHER_SPAWN, 1.0f, 0.5f);
+
+            // 关闭GUI
+            this.mc.displayGuiScreen(null);
+
+            player.sendStatusMessage(new TextComponentString(
+                    TextFormatting.DARK_PURPLE + "✦ 升格仪式开始... ✦"
+            ), true);
+
+        } catch (Throwable e) {
+            player.sendStatusMessage(new TextComponentString(
+                    TextFormatting.RED + "升格请求发送失败"
+            ), true);
         }
     }
 

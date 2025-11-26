@@ -16,6 +16,7 @@ import net.minecraft.util.SoundCategory;
 import com.moremod.item.ItemMechanicalCore;
 import com.moremod.item.ItemMechanicalCoreExtended;
 import com.moremod.event.EnergyPunishmentSystem;
+import com.moremod.system.ascension.BrokenGodHandler;
 import com.moremod.util.BaublesSyncUtil;
 
 import java.nio.charset.StandardCharsets;
@@ -29,7 +30,8 @@ public class PacketMechanicalCoreUpdate implements IMessage {
 
     public enum Action {
         SET_LEVEL,
-        REPAIR_UPGRADE
+        REPAIR_UPGRADE,
+        BROKEN_GOD_ASCEND
     }
 
     public Action action;
@@ -90,6 +92,11 @@ public class PacketMechanicalCoreUpdate implements IMessage {
 
                 if (msg.action == Action.REPAIR_UPGRADE) {
                     handleRepair(serverPlayer, msg.upgradeId, msg.level);
+                    return;
+                }
+
+                if (msg.action == Action.BROKEN_GOD_ASCEND) {
+                    handleBrokenGodAscension(serverPlayer);
                     return;
                 }
 
@@ -389,6 +396,22 @@ public class PacketMechanicalCoreUpdate implements IMessage {
                                 TextFormatting.GRAY + " (还需 " + repairsLeft + " 次, -" + levelCost + " 级)"));
             }
 
+            syncDirty(player);
+        }
+
+        // ================= 破碎之神升格 =================
+
+        private static void handleBrokenGodAscension(EntityPlayerMP player) {
+            if (!BrokenGodHandler.canAscend(player)) {
+                player.sendMessage(new TextComponentString(
+                        TextFormatting.RED + "升格条件未满足"));
+                return;
+            }
+
+            // 执行升格
+            BrokenGodHandler.performAscension(player);
+
+            // 同步饰品变更
             syncDirty(player);
         }
 
