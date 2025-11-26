@@ -247,7 +247,7 @@ public class BrokenGodHandler {
         if (core.isEmpty()) return false;
 
         // 条件4: 安装模块数量
-        int installedCount = ItemMechanicalCore.getInstalledUpgradeCount(core);
+        int installedCount = ItemMechanicalCore.getTotalInstalledUpgrades(core);
         if (installedCount < BrokenGodConfig.requiredModuleCount) return false;
 
         return true;

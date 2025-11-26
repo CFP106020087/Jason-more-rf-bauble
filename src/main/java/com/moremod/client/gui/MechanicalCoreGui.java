@@ -780,7 +780,7 @@ public class MechanicalCoreGui extends GuiScreen {
         float humanity = data.getHumanity();
         int dissolutionSurvivals = data.getDissolutionSurvivals();
         ItemStack core = getCurrentCoreStack();
-        int installedCount = ItemMechanicalCore.getInstalledUpgradeCount(core);
+        int installedCount = ItemMechanicalCore.getTotalInstalledUpgrades(core);
 
         boolean humanityMet = humanity <= BrokenGodConfig.ascensionHumanityThreshold;
         boolean dissolutionMet = dissolutionSurvivals >= BrokenGodConfig.requiredDissolutionSurvivals;
