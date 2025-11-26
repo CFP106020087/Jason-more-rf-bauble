@@ -24,14 +24,15 @@ public class BlockPurificationAltar extends Block implements ITileEntityProvider
     
     public static final String NAME = "purification_altar";
     public static final int GUI_ID = 27;
+    
     public BlockPurificationAltar() {
         super(Material.ROCK);
-        setTranslationKey( "moremod" + NAME);
+        setTranslationKey("moremod" + NAME);
         setRegistryName(NAME);
         setCreativeTab(moremodCreativeTab.moremod_TAB);
         setHardness(5.0F);
         setResistance(10.0F);
-        setHarvestLevel("pickaxe", 2); // 铁镐
+        setHarvestLevel("pickaxe", 2);
     }
     
     @Override
@@ -41,9 +42,8 @@ public class BlockPurificationAltar extends Block implements ITileEntityProvider
         if (!worldIn.isRemote) {
             TileEntity te = worldIn.getTileEntity(pos);
             if (te instanceof TileEntityPurificationAltar) {
-                // 打开GUI
-                playerIn.openGui(moremod.instance,
-                  GUI_ID,  worldIn, pos.getX(), pos.getY(), pos.getZ());
+                playerIn.openGui(moremod.instance, GUI_ID, worldIn, 
+                    pos.getX(), pos.getY(), pos.getZ());
             }
         }
         return true;
@@ -55,8 +55,8 @@ public class BlockPurificationAltar extends Block implements ITileEntityProvider
         if (te instanceof TileEntityPurificationAltar) {
             TileEntityPurificationAltar altar = (TileEntityPurificationAltar) te;
             
-            // 掉落所有物品
-            for (int i = 0; i < 6; i++) {
+            // 掉落所有物品（6个输入槽 + 1个输出槽 = 7个）
+            for (int i = 0; i < 7; i++) {
                 net.minecraft.item.ItemStack stack = altar.getStackInSlot(i);
                 if (!stack.isEmpty()) {
                     net.minecraft.inventory.InventoryHelper.spawnItemStack(

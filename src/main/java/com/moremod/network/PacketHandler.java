@@ -23,7 +23,12 @@ public class PacketHandler {
                 id++,
                 Side.CLIENT
         );
-
+        INSTANCE.registerMessage(
+                PacketPurificationReroll.Handler.class,
+                PacketPurificationReroll.class,
+                id++,
+                Side.SERVER
+        );
         // === 喷气背包相关（C->S）===
         INSTANCE.registerMessage(
                 MessageJetpackJumping.Handler.class,
