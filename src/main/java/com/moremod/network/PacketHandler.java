@@ -177,6 +177,14 @@ public class PacketHandler {
                     Side.SERVER
             );
 
+        // === 人性值系统数据同步 (S->C) ===
+        INSTANCE.registerMessage(
+                PacketSyncHumanityData.Handler.class,
+                PacketSyncHumanityData.class,
+                id++,
+                Side.CLIENT
+        );
+
         System.out.println("[MoreMod] 网络包注册完成，共 " + id + " 个消息类型");
     }
 }

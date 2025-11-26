@@ -254,6 +254,11 @@ public class moremod {
         );
         System.out.println("[moremod] ✅ 时光之心Capability注册完成");
 
+        // 注册人性值系统 Capability
+        com.moremod.system.humanity.HumanityCapabilityHandler.register();
+        MinecraftForge.EVENT_BUS.register(com.moremod.system.humanity.HumanityCapabilityHandler.class);
+        System.out.println("[moremod] ✅ 人性值系统Capability注册完成");
+
         // ========== Ritual 多方块：创建实例（不在这里注册）==========
         System.out.println("[moremod] 🔮 创建 Ritual 多方块实例...");
         RITUAL_CORE_BLOCK = new BlockRitualCore().setRegistryName(MODID, "ritual_core").setTranslationKey("ritual_core");
@@ -500,6 +505,8 @@ public class moremod {
             if (event.getSide().isClient()) {
                 MinecraftForge.EVENT_BUS.register(new EventHUDOverlay());
                 MinecraftForge.EVENT_BUS.register(new SmartRejectionGuide());
+                MinecraftForge.EVENT_BUS.register(com.moremod.client.gui.HumanityHUD.class);
+                System.out.println("[moremod] ✅ 人性值HUD注册完成");
             }
 
         System.out.println("[moremod] ========== 开始初始化 ==========");
@@ -514,6 +521,10 @@ public class moremod {
         // 初始化维度管理器
         PersonalDimensionManager.init();
         System.out.println("[moremod] ✅ 私人空间管理器初始化完成");
+
+        // 添加私人维度到人性值系统的异常维度列表
+        com.moremod.system.humanity.HumanitySpectrumSystem.addAbnormalDimension(PersonalDimensionManager.PERSONAL_DIM_ID);
+        System.out.println("[moremod] ✅ 人性值系统维度配置完成");
 
         // 注册事件处理器
         ItemDimensionalRipper.initChunkLoading();
