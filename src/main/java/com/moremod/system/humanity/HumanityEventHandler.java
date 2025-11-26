@@ -1,8 +1,10 @@
 package com.moremod.system.humanity;
 
 import com.moremod.config.HumanityConfig;
+import com.moremod.item.ItemMechanicalCore;
 import com.moremod.moremod;
 import com.moremod.system.FleshRejectionSystem;
+import net.minecraft.item.ItemStack;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.passive.EntityAnimal;
 import net.minecraft.entity.passive.EntityVillager;
@@ -62,9 +64,15 @@ public class HumanityEventHandler {
     /**
      * 检查是否需要激活人性值系统
      * 当排异系统突破时自动激活
+     *
+     * 前提条件：玩家必须装备机械核心
      */
     private static void checkSystemActivation(EntityPlayer player) {
         if (!HumanityConfig.enableHumanitySystem) return;
+
+        // 必须装备机械核心
+        ItemStack coreStack = ItemMechanicalCore.getCoreFromPlayer(player);
+        if (coreStack.isEmpty()) return;
 
         IHumanityData data = HumanityCapabilityHandler.getData(player);
         if (data == null || data.isSystemActive()) return;

@@ -153,14 +153,19 @@ public class HumanitySpectrumSystem {
      *
      * 人性值系统只在以下条件下激活：
      * 1. 配置已启用
-     * 2. 排异系统已突破 (hasTranscended == true)
-     * 3. 排异值为0 (RejectionLevel == 0)
-     * 4. 内部状态 systemActive == true
+     * 2. 玩家装备了机械核心
+     * 3. 排异系统已突破 (hasTranscended == true)
+     * 4. 排异值为0 (RejectionLevel == 0)
+     * 5. 内部状态 systemActive == true
      *
      * 当排异重新激活（适应度下降）时，人性值系统必须完全关闭
      */
     public static boolean isSystemActive(EntityPlayer player) {
         if (!HumanityConfig.enableHumanitySystem) return false;
+
+        // 必须装备机械核心
+        ItemStack coreStack = ItemMechanicalCore.getCoreFromPlayer(player);
+        if (coreStack.isEmpty()) return false;
 
         // 检查排异系统状态 - 必须已突破且排异值为0
         boolean transcended = FleshRejectionSystem.hasTranscended(player);
