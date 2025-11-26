@@ -1,0 +1,314 @@
+package com.moremod.system.ascension;
+
+import com.moremod.config.BrokenGodConfig;
+import com.moremod.item.ItemMechanicalCore;
+import com.moremod.moremod;
+import com.moremod.system.humanity.AscensionRoute;
+import com.moremod.system.humanity.HumanityCapabilityHandler;
+import com.moremod.system.humanity.IHumanityData;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.init.SoundEvents;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.EnumParticleTypes;
+import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.TextFormatting;
+import net.minecraft.world.WorldServer;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * 破碎之神处理器
+ * Broken God Handler
+ *
+ * 管理破碎之神升格的所有特殊逻辑：
+ * - 停机模式 (Shutdown Mode)
+ * - 升格条件检查
+ * - 升格执行
+ * - 扭曲脉冲冷却
+ */
+public class BrokenGodHandler {
+
+    // ========== 停机模式追踪 ==========
+
+    /** 玩家停机状态追踪 */
+    private static final Map<UUID, Integer> shutdownTimers = new HashMap<>();
+
+    /** 扭曲脉冲冷却追踪 */
+    private static final Map<UUID, Integer> pulseCooldowns = new HashMap<>();
+
+    // ========== 核心状态检查 ==========
+
+    /**
+     * 检查玩家是否是破碎之神
+     */
+    public static boolean isBrokenGod(EntityPlayer player) {
+        IHumanityData data = HumanityCapabilityHandler.getData(player);
+        return data != null && data.getAscensionRoute() == AscensionRoute.BROKEN_GOD;
+    }
+
+    /**
+     * 检查玩家是否处于停机状态
+     */
+    public static boolean isInShutdown(EntityPlayer player) {
+        return shutdownTimers.containsKey(player.getUniqueID()) &&
+                shutdownTimers.get(player.getUniqueID()) > 0;
+    }
+
+    /**
+     * 获取停机剩余时间
+     */
+    public static int getShutdownTimer(EntityPlayer player) {
+        return shutdownTimers.getOrDefault(player.getUniqueID(), 0);
+    }
+
+    // ========== 停机模式控制 ==========
+
+    /**
+     * 进入停机模式（代替死亡）
+     */
+    public static void enterShutdown(EntityPlayer player) {
+        if (!isBrokenGod(player)) return;
+        if (isInShutdown(player)) return;
+
+        UUID playerId = player.getUniqueID();
+        shutdownTimers.put(playerId, BrokenGodConfig.shutdownTicks);
+
+        // 设置 HP 为 1（不是 0，避免触发死亡）
+        player.setHealth(1.0f);
+
+        // 清除运动
+        player.motionX = 0;
+        player.motionY = 0;
+        player.motionZ = 0;
+
+        // 发送停机消息
+        player.sendMessage(new TextComponentString(
+                TextFormatting.DARK_GRAY + "═══════════════════════════════\n" +
+                TextFormatting.GRAY + "[ SYSTEM SHUTDOWN ]\n" +
+                TextFormatting.DARK_GRAY + "核心损伤检测...启动紧急重启协议\n" +
+                TextFormatting.DARK_GRAY + "预计恢复时间: " + (BrokenGodConfig.shutdownTicks / 20) + " 秒\n" +
+                TextFormatting.DARK_GRAY + "═══════════════════════════════"
+        ));
+
+        // 停机音效
+        player.world.playSound(null, player.posX, player.posY, player.posZ,
+                SoundEvents.BLOCK_PORTAL_TRIGGER,
+                net.minecraft.util.SoundCategory.PLAYERS, 1.0f, 0.5f);
+
+        // 粒子效果
+        if (player.world instanceof WorldServer) {
+            WorldServer world = (WorldServer) player.world;
+            world.spawnParticle(EnumParticleTypes.SMOKE_LARGE,
+                    player.posX, player.posY + 1, player.posZ,
+                    30, 0.5, 0.5, 0.5, 0.05);
+        }
+
+    }
+
+    /**
+     * 每 tick 更新停机状态
+     */
+    public static void tickShutdown(EntityPlayer player) {
+        UUID playerId = player.getUniqueID();
+
+        if (!shutdownTimers.containsKey(playerId)) return;
+
+        int timer = shutdownTimers.get(playerId);
+        if (timer <= 0) {
+            shutdownTimers.remove(playerId);
+            return;
+        }
+
+        // 减少计时器
+        timer--;
+        shutdownTimers.put(playerId, timer);
+
+        // 停机期间：
+        // - 禁止移动
+        player.motionX = 0;
+        player.motionY = Math.max(player.motionY, -0.1); // 允许轻微下落
+        player.motionZ = 0;
+
+        // - 保持最小血量
+        if (player.getHealth() < 1.0f) {
+            player.setHealth(1.0f);
+        }
+
+        // 停机粒子效果（每20tick）
+        if (timer % 20 == 0 && player.world instanceof WorldServer) {
+            WorldServer world = (WorldServer) player.world;
+            world.spawnParticle(EnumParticleTypes.REDSTONE,
+                    player.posX, player.posY + 1, player.posZ,
+                    5, 0.3, 0.3, 0.3, 0);
+        }
+
+        // 重启完成
+        if (timer == 0) {
+            exitShutdown(player);
+        }
+    }
+
+    /**
+     * 退出停机模式
+     */
+    private static void exitShutdown(EntityPlayer player) {
+        UUID playerId = player.getUniqueID();
+        shutdownTimers.remove(playerId);
+
+        // 恢复生命值
+        player.setHealth((float) BrokenGodConfig.restartHeal);
+
+        // 发送重启消息
+        player.sendMessage(new TextComponentString(
+                TextFormatting.GREEN + "═══════════════════════════════\n" +
+                TextFormatting.GREEN + "[ SYSTEM REBOOT COMPLETE ]\n" +
+                TextFormatting.GRAY + "所有系统已恢复运行\n" +
+                TextFormatting.GRAY + "核心状态: " + TextFormatting.GREEN + "在线\n" +
+                TextFormatting.GREEN + "═══════════════════════════════"
+        ));
+
+        // 重启音效
+        player.world.playSound(null, player.posX, player.posY, player.posZ,
+                SoundEvents.BLOCK_PORTAL_TRIGGER,
+                net.minecraft.util.SoundCategory.PLAYERS, 1.0f, 1.2f);
+
+        // 粒子效果
+        if (player.world instanceof WorldServer) {
+            WorldServer world = (WorldServer) player.world;
+            world.spawnParticle(EnumParticleTypes.END_ROD,
+                    player.posX, player.posY + 1, player.posZ,
+                    30, 0.5, 1, 0.5, 0.1);
+        }
+
+    }
+
+    // ========== 扭曲脉冲冷却 ==========
+
+    /**
+     * 检查扭曲脉冲是否可用
+     */
+    public static boolean canUseDistortionPulse(EntityPlayer player) {
+        return !pulseCooldowns.containsKey(player.getUniqueID()) ||
+                pulseCooldowns.get(player.getUniqueID()) <= 0;
+    }
+
+    /**
+     * 触发扭曲脉冲冷却
+     */
+    public static void triggerPulseCooldown(EntityPlayer player) {
+        pulseCooldowns.put(player.getUniqueID(), BrokenGodConfig.pulseCooldown);
+    }
+
+    /**
+     * 更新扭曲脉冲冷却
+     */
+    public static void tickPulseCooldown(EntityPlayer player) {
+        UUID playerId = player.getUniqueID();
+        if (pulseCooldowns.containsKey(playerId)) {
+            int cd = pulseCooldowns.get(playerId);
+            if (cd > 0) {
+                pulseCooldowns.put(playerId, cd - 1);
+            } else {
+                pulseCooldowns.remove(playerId);
+            }
+        }
+    }
+
+    // ========== 升格条件检查 ==========
+
+    /**
+     * 检查是否满足破碎之神升格条件
+     */
+    public static boolean canAscend(EntityPlayer player) {
+        IHumanityData data = HumanityCapabilityHandler.getData(player);
+        if (data == null || !data.isSystemActive()) return false;
+
+        // 已经升格
+        if (data.getAscensionRoute() != AscensionRoute.NONE) return false;
+
+        // 条件1: 人性值 <= 阈值
+        float humanity = data.getHumanity();
+        if (humanity > BrokenGodConfig.ascensionHumanityThreshold) return false;
+
+        // 条件2: 崩解存活次数
+        int dissolutionSurvivals = data.getDissolutionSurvivals();
+        if (dissolutionSurvivals < BrokenGodConfig.requiredDissolutionSurvivals) return false;
+
+        // 条件3: 装备机械核心
+        ItemStack core = ItemMechanicalCore.getCoreFromPlayer(player);
+        if (core.isEmpty()) return false;
+
+        // 条件4: 安装模块数量
+        int installedCount = ItemMechanicalCore.getTotalInstalledUpgrades(core);
+        if (installedCount < BrokenGodConfig.requiredModuleCount) return false;
+
+        return true;
+    }
+
+    /**
+     * 执行破碎之神升格
+     */
+    public static void performAscension(EntityPlayer player) {
+        IHumanityData data = HumanityCapabilityHandler.getData(player);
+        if (data == null) return;
+
+        // 设置升格路线
+        data.setAscensionRoute(AscensionRoute.BROKEN_GOD);
+
+        // 固定人性值为 0
+        data.setHumanity(0);
+
+        // 发送升格消息
+        player.sendMessage(new TextComponentString(
+                TextFormatting.DARK_PURPLE + "═══════════════════════════════\n" +
+                TextFormatting.BOLD + "" + TextFormatting.DARK_PURPLE + "[ Broken God ]\n" +
+                TextFormatting.GRAY + "你的情绪熄灭。\n" +
+                TextFormatting.GRAY + "你的灵魂沉静。\n" +
+                TextFormatting.GRAY + "你成为了纯粹的力量。\n" +
+                TextFormatting.DARK_PURPLE + "═══════════════════════════════"
+        ));
+
+        // 装备替换消息
+        player.sendMessage(new TextComponentString(
+                TextFormatting.DARK_RED + "\n所有饰品已被卸除。\n" +
+                TextFormatting.DARK_RED + "你的身体被重组为破碎机械的圣像。"
+        ));
+
+        // 替换饰品
+        BrokenGodItems.replacePlayerBaubles(player);
+
+        // 粒子效果
+        if (player.world instanceof WorldServer) {
+            WorldServer world = (WorldServer) player.world;
+            for (int i = 0; i < 100; i++) {
+                double angle = (i / 100.0) * Math.PI * 2;
+                double radius = 3.0 + (i % 10) * 0.3;
+                double x = player.posX + Math.cos(angle) * radius;
+                double z = player.posZ + Math.sin(angle) * radius;
+                double y = player.posY + (i / 100.0) * 5;
+
+                world.spawnParticle(EnumParticleTypes.PORTAL, x, y, z, 1, 0, 0, 0, 0.05);
+            }
+        }
+
+        // 音效
+        player.world.playSound(null, player.posX, player.posY, player.posZ,
+                net.minecraft.init.SoundEvents.ENTITY_WITHER_SPAWN,
+                net.minecraft.util.SoundCategory.PLAYERS, 1.0f, 0.5f);
+
+    }
+
+    // ========== 清理 ==========
+
+    /**
+     * 玩家退出时清理
+     */
+    public static void cleanupPlayer(UUID playerId) {
+        shutdownTimers.remove(playerId);
+        pulseCooldowns.remove(playerId);
+    }
+}

@@ -1,0 +1,12 @@
+{
+  "enabled": true,
+  "output": {
+    "item": "moremod:unformed_fabric",
+    "count": 1
+  },
+  "input": [
+ "moremod:unformed_fiber","moremod:unformed_fiber","moremod:unformed_fiber"
+    ,"moremod:unformed_fiber","moremod:unformed_fiber","moremod:unformed_fiber"
+    ,"moremod:unformed_fiber","moremod:unformed_fiber","moremod:unformed_fiber"
+  ]
+}

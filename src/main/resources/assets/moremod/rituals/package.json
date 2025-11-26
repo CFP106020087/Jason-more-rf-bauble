@@ -1,0 +1,22 @@
+{
+  "core": {
+    "item": "minecraft:dragon_breath"
+  },
+  "output": {
+    "item": "minecraft:elytra",
+    "count": 1
+  },
+  "pedestals": [
+    {"item": "minecraft:diamond"},
+    {"item": "minecraft:diamond"},
+    {"item": "minecraft:feather"},
+    {"item": "minecraft:feather"},
+    {"item": "minecraft:leather"},
+    {"item": "minecraft:leather"},
+    {"item": "minecraft:string"},
+    {"item": "minecraft:string"}
+  ],
+  "time": 800,
+  "energy": 25000,
+  "fail_chance": 0.15
+}

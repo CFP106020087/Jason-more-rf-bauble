@@ -1,0 +1,400 @@
+package com.moremod.system.humanity;
+
+import com.moremod.config.HumanityConfig;
+import com.moremod.moremod;
+import net.minecraft.entity.SharedMonsterAttributes;
+import net.minecraft.entity.ai.attributes.AttributeModifier;
+import net.minecraft.entity.ai.attributes.IAttributeInstance;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.potion.PotionEffect;
+import net.minecraftforge.event.entity.living.PotionEvent;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.common.eventhandler.Event;
+import net.minecraftforge.fml.common.eventhandler.EventPriority;
+import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+
+import java.util.UUID;
+
+/**
+ * 人性值效果管理器
+ * Humanity Effects Manager
+ *
+ * 管理人性值带来的各种效果：
+ * - MaxHP 修改（低人性减少最大生命值）
+ * - 药水免疫（破碎之神状态）
+ * - 访问控制（Synergy Station等）
+ */
+@Mod.EventBusSubscriber(modid = moremod.MODID)
+public class HumanityEffectsManager {
+
+    // ========== MaxHP 修改系统 ==========
+
+    /** MaxHP 修改器的 UUID */
+    private static final UUID HUMANITY_HP_MODIFIER_UUID = UUID.fromString("a5b6c7d8-e9f0-1234-5678-9abcdef01234");
+
+    /** 修改器名称 */
+    private static final String HUMANITY_HP_MODIFIER_NAME = "Humanity MaxHP Modifier";
+
+    /**
+     * 更新玩家的 MaxHP 基于人性值
+     * 在 PlayerTickEvent 中每秒调用
+     */
+    public static void updateMaxHP(EntityPlayer player) {
+        if (player.world.isRemote) return;
+
+        IHumanityData data = HumanityCapabilityHandler.getData(player);
+        if (data == null || !data.isSystemActive()) {
+            // 系统未激活，移除修改器
+            removeHPModifier(player);
+            return;
+        }
+
+        float humanity = data.getHumanity();
+
+        // 计算 HP 减少百分比
+        float hpReduction = calculateHPReduction(humanity, data);
+
+        // 应用修改器
+        applyHPModifier(player, hpReduction);
+    }
+
+    /**
+     * 计算生命值减少百分比
+     */
+    private static float calculateHPReduction(float humanity, IHumanityData data) {
+        // 破碎之神：+100 HP (不减少)
+        if (data.getAscensionRoute() == AscensionRoute.BROKEN_GOD) {
+            return -1.0f; // 负数表示增加
+        }
+
+        // Mekhane 合成人：无减少
+        if (data.getAscensionRoute() == AscensionRoute.MEKHANE_SYNTHETIC) {
+            return 0f;
+        }
+
+        // 基于人性值的减少
+        if (humanity <= 10f) {
+            return 0.50f; // -50% MaxHP (临界崩解)
+        } else if (humanity <= 25f) {
+            return 0.30f; // -30% MaxHP (深度异化)
+        } else if (humanity <= 40f) {
+            return 0.15f; // -15% MaxHP (异常协议)
+        }
+
+        return 0f; // 40%+ 人性：无减少
+    }
+
+    /**
+     * 应用 HP 修改器
+     */
+    private static void applyHPModifier(EntityPlayer player, float reduction) {
+        IAttributeInstance maxHealthAttr = player.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH);
+        if (maxHealthAttr == null) return;
+
+        // 移除旧修改器
+        AttributeModifier existingMod = maxHealthAttr.getModifier(HUMANITY_HP_MODIFIER_UUID);
+        if (existingMod != null) {
+            maxHealthAttr.removeModifier(existingMod);
+        }
+
+        // 如果没有减少，不添加修改器
+        if (reduction == 0f) return;
+
+        // 创建新修改器
+        // Operation 2 = 乘法 (最终值 * (1 + amount))
+        // 减少 50% 意味着 amount = -0.5
+        double amount;
+        if (reduction < 0) {
+            // 增加 HP (破碎之神)
+            amount = Math.abs(reduction); // +100% = 双倍
+        } else {
+            amount = -reduction; // 减少
+        }
+
+        AttributeModifier newMod = new AttributeModifier(
+                HUMANITY_HP_MODIFIER_UUID,
+                HUMANITY_HP_MODIFIER_NAME,
+                amount,
+                2 // Operation: Multiply
+        );
+
+        maxHealthAttr.applyModifier(newMod);
+
+        // 如果当前生命值超过最大值，调整
+        if (player.getHealth() > player.getMaxHealth()) {
+            player.setHealth(player.getMaxHealth());
+        }
+    }
+
+    /**
+     * 移除 HP 修改器
+     */
+    private static void removeHPModifier(EntityPlayer player) {
+        IAttributeInstance maxHealthAttr = player.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH);
+        if (maxHealthAttr == null) return;
+
+        AttributeModifier existingMod = maxHealthAttr.getModifier(HUMANITY_HP_MODIFIER_UUID);
+        if (existingMod != null) {
+            maxHealthAttr.removeModifier(existingMod);
+        }
+    }
+
+    // ========== 药水免疫系统（破碎之神）==========
+
+    /**
+     * 处理药水应用事件
+     */
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onPotionApplicable(PotionEvent.PotionApplicableEvent event) {
+        if (!(event.getEntityLiving() instanceof EntityPlayer)) return;
+
+        EntityPlayer player = (EntityPlayer) event.getEntityLiving();
+        IHumanityData data = HumanityCapabilityHandler.getData(player);
+
+        if (data == null || !data.isSystemActive()) return;
+
+        // 破碎之神：完全免疫所有药水
+        if (data.getAscensionRoute() == AscensionRoute.BROKEN_GOD) {
+            event.setResult(Event.Result.DENY);
+            return;
+        }
+
+        // 深度异化状态（人性 < 25%）：负面药水效果减半
+        // 这在 PotionAddedEvent 中处理
+    }
+
+    /**
+     * 处理药水添加事件（用于修改持续时间）
+     */
+    @SubscribeEvent(priority = EventPriority.HIGH)
+    public static void onPotionAdded(PotionEvent.PotionAddedEvent event) {
+        if (!(event.getEntityLiving() instanceof EntityPlayer)) return;
+
+        EntityPlayer player = (EntityPlayer) event.getEntityLiving();
+        IHumanityData data = HumanityCapabilityHandler.getData(player);
+
+        if (data == null || !data.isSystemActive()) return;
+
+        float humanity = data.getHumanity();
+        PotionEffect effect = event.getPotionEffect();
+
+        // 深度异化：药水持续时间修改
+        if (humanity < 25f && data.getAscensionRoute() == AscensionRoute.NONE) {
+            boolean isBeneficial = effect.getPotion().isBeneficial();
+
+            if (isBeneficial) {
+                // 正面效果 -50%
+                int newDuration = effect.getDuration() / 2;
+                // 无法直接修改，但可以通过反射或其他方式
+                // 这里简化处理：在 effect tick 中处理
+            } else {
+                // 负面效果 -30%
+                // 同上
+            }
+        }
+    }
+
+    // ========== 访问控制系统 ==========
+
+    /**
+     * 检查玩家是否可以使用 Synergy Station
+     */
+    public static boolean canUseSynergyStation(EntityPlayer player) {
+        if (!HumanityConfig.enableHumanitySystem) return true;
+
+        IHumanityData data = HumanityCapabilityHandler.getData(player);
+        if (data == null || !data.isSystemActive()) return true;
+
+        // 破碎之神：无法使用
+        if (data.getAscensionRoute() == AscensionRoute.BROKEN_GOD) {
+            return false;
+        }
+
+        // Mekhane 合成人：总是可以使用
+        if (data.getAscensionRoute() == AscensionRoute.MEKHANE_SYNTHETIC) {
+            return true;
+        }
+
+        // 普通状态：需要 60%+ 人性值
+        float humanity = data.getHumanity();
+        return humanity >= HumanityConfig.synergyStationThreshold;
+    }
+
+    /**
+     * 检查玩家是否可以与 NPC 交易
+     */
+    public static NPCInteractionLevel getNPCInteractionLevel(EntityPlayer player) {
+        if (!HumanityConfig.enableHumanitySystem) return NPCInteractionLevel.NORMAL;
+
+        IHumanityData data = HumanityCapabilityHandler.getData(player);
+        if (data == null || !data.isSystemActive()) return NPCInteractionLevel.NORMAL;
+
+        // 破碎之神：完全无法交互
+        if (data.getAscensionRoute() == AscensionRoute.BROKEN_GOD) {
+            return NPCInteractionLevel.INVISIBLE;
+        }
+
+        // Mekhane 合成人：特殊对话选项
+        if (data.getAscensionRoute() == AscensionRoute.MEKHANE_SYNTHETIC) {
+            return NPCInteractionLevel.TRUSTED;
+        }
+
+        // 基于人性值
+        float humanity = data.getHumanity();
+
+        if (humanity >= 80f) {
+            return NPCInteractionLevel.TRUSTED;     // 折扣
+        } else if (humanity >= 60f) {
+            return NPCInteractionLevel.NORMAL;      // 正常
+        } else if (humanity >= 40f) {
+            return NPCInteractionLevel.SUSPICIOUS;  // 加价 +50%
+        } else if (humanity >= 25f) {
+            return NPCInteractionLevel.HOSTILE;     // 拒绝交易
+        } else {
+            return NPCInteractionLevel.INVISIBLE;   // 完全无视
+        }
+    }
+
+    /**
+     * 获取交易价格倍率
+     */
+    public static float getTradePriceMultiplier(EntityPlayer player) {
+        NPCInteractionLevel level = getNPCInteractionLevel(player);
+
+        switch (level) {
+            case TRUSTED:
+                return 0.85f; // -15% 折扣
+            case NORMAL:
+                return 1.0f;
+            case SUSPICIOUS:
+                return 1.5f; // +50% 加价
+            default:
+                return 999f; // 不可交易
+        }
+    }
+
+    /**
+     * NPC 交互等级
+     */
+    public enum NPCInteractionLevel {
+        TRUSTED,      // 信任（折扣）
+        NORMAL,       // 正常
+        SUSPICIOUS,   // 怀疑（加价）
+        HOSTILE,      // 敌对（拒绝交易）
+        INVISIBLE     // 无视（完全无法交互）
+    }
+
+    // ========== 升格路线检查 ==========
+
+    /**
+     * 检查是否可以升格为 Mekhane 合成人
+     */
+    public static boolean canAscendToMekhane(EntityPlayer player) {
+        IHumanityData data = HumanityCapabilityHandler.getData(player);
+        if (data == null || !data.isSystemActive()) return false;
+
+        // 已经升格
+        if (data.getAscensionRoute() != AscensionRoute.NONE) return false;
+
+        // 条件：
+        // 1. 人性值 >= 80%
+        // 2. 安装模块数 >= 90%
+        // 3. 机械稳定度 >= 90%
+
+        float humanity = data.getHumanity();
+        if (humanity < 80f) return false;
+
+        // TODO: 检查模块安装数量
+        // TODO: 检查机械稳定度
+
+        return true;
+    }
+
+    /**
+     * 检查是否可以升格为破碎之神
+     */
+    public static boolean canAscendToBrokenGod(EntityPlayer player) {
+        IHumanityData data = HumanityCapabilityHandler.getData(player);
+        if (data == null || !data.isSystemActive()) return false;
+
+        // 已经升格
+        if (data.getAscensionRoute() != AscensionRoute.NONE) return false;
+
+        // 条件：
+        // 1. 人性值 <= 5%
+        // 2. 安装模块数 >= 90%
+        // 3. 存活过 3 次崩解周期
+
+        float humanity = data.getHumanity();
+        if (humanity > 5f) return false;
+
+        int dissolutionSurvivals = data.getDissolutionSurvivals();
+        if (dissolutionSurvivals < 3) return false;
+
+        // TODO: 检查模块安装数量
+
+        return true;
+    }
+
+    /**
+     * 执行升格
+     */
+    public static void performAscension(EntityPlayer player, AscensionRoute route) {
+        IHumanityData data = HumanityCapabilityHandler.getData(player);
+        if (data == null) return;
+
+        data.setAscensionRoute(route);
+
+        // 发送消息
+        String message;
+        switch (route) {
+            case MEKHANE_SYNTHETIC:
+                message = "§d═══════════════════════════════\n" +
+                        "§d§l【Mekhane 合成人】\n" +
+                        "§7机械服务于人类精神，而非取代它。\n" +
+                        "§7即使身体99%是金属，1%的人性足以定义整个存在。\n" +
+                        "§a你已获得完美协同、逻辑之盾等能力。\n" +
+                        "§d═══════════════════════════════";
+                break;
+
+            case BROKEN_GOD:
+                message = "§5═══════════════════════════════\n" +
+                        "§5§l【破碎之神 · Mekhane 的容器】\n" +
+                        "§8齿轮转动，但不知为何而转。\n" +
+                        "§8神在运行，但不理解目的。\n" +
+                        "§c你已获得药水免疫、存在干扰等能力。\n" +
+                        "§c但你失去了与人类世界的连接。\n" +
+                        "§5═══════════════════════════════";
+                break;
+
+            default:
+                return;
+        }
+
+        player.sendMessage(new net.minecraft.util.text.TextComponentString(message));
+
+        // 粒子效果
+        if (player.world instanceof net.minecraft.world.WorldServer) {
+            net.minecraft.world.WorldServer world = (net.minecraft.world.WorldServer) player.world;
+            for (int i = 0; i < 100; i++) {
+                double angle = (i / 100.0) * Math.PI * 2;
+                double radius = 3.0 + (i % 10) * 0.3;
+                double x = player.posX + Math.cos(angle) * radius;
+                double z = player.posZ + Math.sin(angle) * radius;
+                double y = player.posY + (i / 100.0) * 5;
+
+                net.minecraft.util.EnumParticleTypes particle =
+                        route == AscensionRoute.MEKHANE_SYNTHETIC ?
+                                net.minecraft.util.EnumParticleTypes.END_ROD :
+                                net.minecraft.util.EnumParticleTypes.PORTAL;
+
+                world.spawnParticle(particle, x, y, z, 1, 0, 0, 0, 0.05);
+            }
+        }
+
+        // 音效
+        player.world.playSound(null, player.posX, player.posY, player.posZ,
+                net.minecraft.init.SoundEvents.UI_TOAST_CHALLENGE_COMPLETE,
+                net.minecraft.util.SoundCategory.PLAYERS, 1.0f, 1.0f);
+    }
+}

@@ -1,0 +1,7 @@
+{
+  "parent": "block/cube_all",
+  "textures": {
+    "all": "moremod:blocks/quantum_field",
+    "particle": "moremod:blocks/quantum_field"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "enabled": true,
+  "output": {
+    "item": "moremod:chrono_fabric",
+    "count": 1
+  },
+  "input": [
+    "moremod:gaze_fragment","moremod:unformed_fabric","moremod:gaze_fragment"
+  ,"moremod:unformed_fabric","moremod:tear_of_stillness","moremod:unformed_fabric"
+  ,"moremod:gaze_fragment","moremod:unformed_fabric","moremod:gaze_fragment"
+  ]
+}

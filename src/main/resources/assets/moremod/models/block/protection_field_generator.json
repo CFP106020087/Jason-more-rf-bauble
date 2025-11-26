@@ -1,0 +1,12 @@
+{
+  "parent": "block/cube",
+  "textures": {
+    "particle": "moremod:blocks/pfgen_side",
+    "down": "moremod:blocks/pfgen_bottom",
+    "up": "moremod:blocks/pfgen_top",
+    "north": "moremod:blocks/pfgen_side",
+    "south": "moremod:blocks/pfgen_side",
+    "west": "moremod:blocks/pfgen_side",
+    "east": "moremod:blocks/pfgen_side"
+  }
+}

@@ -1,0 +1,117 @@
+{
+  "format_version": "1.12.0",
+  "minecraft:geometry": [
+    {
+      "description": {
+        "identifier": "geometry.exoskeleton",
+        "texture_width": 32,
+        "texture_height": 32,
+        "visible_bounds_width": 3,
+        "visible_bounds_height": 2.5,
+        "visible_bounds_offset": [0, 0.75, 0]
+      },
+      "bones": [
+        {
+          "name": "rightArm",
+          "pivot": [-5, 21.5, 0],
+          "cubes": [
+            {
+              "origin": [-8.75, 18, -2.5],
+              "size": [5, 6, 5],
+              "uv": {
+                "north": {"uv": [0, 0], "uv_size": [5, 6]},
+                "east": {"uv": [5, 0], "uv_size": [5, 6]},
+                "south": {"uv": [0, 6], "uv_size": [5, 6]},
+                "west": {"uv": [5, 6], "uv_size": [5, 6]},
+                "up": {"uv": [10, 0], "uv_size": [5, 5]},
+                "down": {"uv": [10, 10], "uv_size": [5, -5]}
+              }
+            }
+          ]
+        },
+        {
+          "name": "rightForeArm",
+          "parent": "rightArm",
+          "pivot": [-5, 17.5, 0]
+        },
+        {
+          "name": "leftArm2",
+          "parent": "rightForeArm",
+          "pivot": [-6.25, 17.425, 0.025],
+          "cubes": [
+            {
+              "origin": [-9, 15.5, -2],
+              "size": [5.5, 4, 4],
+              "pivot": [-6.25, 17.5, 0],
+              "rotation": [45, 0, 0],
+              "uv": {
+                "north": {"uv": [15, 0], "uv_size": [6, 4]},
+                "east": {"uv": [5, 19], "uv_size": [4, 4]},
+                "south": {"uv": [15, 4], "uv_size": [6, 4]},
+                "west": {"uv": [9, 19], "uv_size": [4, 4]},
+                "up": {"uv": [5, 15], "uv_size": [6, 4]},
+                "down": {"uv": [15, 12], "uv_size": [6, -4]}
+              }
+            },
+            {
+              "origin": [-8.75, 13, -2.5],
+              "size": [5, 4.25, 5],
+              "uv": {
+                "north": {"uv": [11, 15], "uv_size": [5, 4]},
+                "east": {"uv": [16, 12], "uv_size": [5, 4]},
+                "south": {"uv": [16, 16], "uv_size": [5, 4]},
+                "west": {"uv": [0, 17], "uv_size": [5, 4]},
+                "up": {"uv": [10, 10], "uv_size": [5, 5]},
+                "down": {"uv": [0, 17], "uv_size": [5, -5]}
+              }
+            },
+            {
+              "origin": [-8.75, 10, -2.5],
+              "size": [5, 3, 1.75],
+              "uv": {
+                "north": {"uv": [5, 12], "uv_size": [5, 3]},
+                "east": {"uv": [5, 23], "uv_size": [2, 3]},
+                "south": {"uv": [13, 20], "uv_size": [5, 3]},
+                "west": {"uv": [7, 23], "uv_size": [2, 3]},
+                "up": {"uv": [21, 6], "uv_size": [5, 2]},
+                "down": {"uv": [21, 10], "uv_size": [5, -2]}
+              }
+            },
+            {
+              "origin": [-8.75, 10, -0.75],
+              "size": [5, 3, 1.65],
+              "uv": {
+                "north": {"uv": [18, 20], "uv_size": [5, 3]},
+                "east": {"uv": [9, 23], "uv_size": [2, 3]},
+                "south": {"uv": [0, 21], "uv_size": [5, 3]},
+                "west": {"uv": [11, 23], "uv_size": [2, 3]},
+                "up": {"uv": [21, 10], "uv_size": [5, 2]},
+                "down": {"uv": [21, 14], "uv_size": [5, -2]}
+              }
+            },
+            {
+              "origin": [-8.75, 10, 0.9],
+              "size": [5, 3, 1.55],
+              "uv": {
+                "north": {"uv": [21, 0], "uv_size": [5, 3]},
+                "east": {"uv": [13, 23], "uv_size": [2, 3]},
+                "south": {"uv": [21, 3], "uv_size": [5, 3]},
+                "west": {"uv": [15, 23], "uv_size": [2, 3]},
+                "up": {"uv": [21, 14], "uv_size": [5, 2]},
+                "down": {"uv": [21, 18], "uv_size": [5, -2]}
+              }
+            }
+          ]
+        },
+        {
+          "name": "rightItem",
+          "parent": "rightForeArm",
+          "pivot": [-5, 13, 1],
+          "locators": {
+            "rightitemlocator": [-6, 12, 0]
+          }
+        }
+      ]
+    }
+  ]
+}
