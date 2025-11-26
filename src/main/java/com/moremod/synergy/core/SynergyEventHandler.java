@@ -3,6 +3,7 @@ package com.moremod.synergy.core;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.DamageSource;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
@@ -29,6 +30,27 @@ public class SynergyEventHandler {
 
     // Tick 计数器，用于控制 tick synergy 的触发频率
     private static final int TICK_INTERVAL = 20; // 每秒触发一次
+
+    /**
+     * Synergy 系统专用的伤害源 - 用于识别并跳过我们自己造成的伤害，防止递归循环
+     */
+    public static final String SYNERGY_DAMAGE_TYPE = "synergy_bonus";
+
+    /**
+     * 创建一个 Synergy 专用的伤害源
+     * @param player 造成伤害的玩家
+     * @return 带有 synergy 标记的伤害源
+     */
+    public static DamageSource causeSynergyDamage(EntityPlayer player) {
+        return new DamageSource(SYNERGY_DAMAGE_TYPE).setDamageBypassesArmor();
+    }
+
+    /**
+     * 检查伤害源是否是 Synergy 系统造成的
+     */
+    public static boolean isSynergyDamage(DamageSource source) {
+        return SYNERGY_DAMAGE_TYPE.equals(source.getDamageType());
+    }
 
     /**
      * 玩家 Tick 事件
@@ -65,6 +87,9 @@ public class SynergyEventHandler {
      */
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public void onLivingAttack(LivingAttackEvent event) {
+        // 跳过 Synergy 系统造成的伤害，防止递归循环
+        if (isSynergyDamage(event.getSource())) return;
+
         // 检查攻击者是否为玩家
         if (!(event.getSource().getTrueSource() instanceof EntityPlayer)) return;
         if (event.getSource().getTrueSource().world.isRemote) return;
@@ -98,6 +123,9 @@ public class SynergyEventHandler {
      */
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public void onLivingHurtByPlayer(LivingHurtEvent event) {
+        // 跳过 Synergy 系统造成的伤害，防止递归循环
+        if (isSynergyDamage(event.getSource())) return;
+
         // 检查攻击者是否为玩家
         if (!(event.getSource().getTrueSource() instanceof EntityPlayer)) return;
         if (event.getSource().getTrueSource().world.isRemote) return;

@@ -8,7 +8,6 @@ import com.moremod.synergy.effect.*;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.SoundEvents;
-import net.minecraft.util.DamageSource;
 import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.SoundCategory;
 import net.minecraft.util.math.AxisAlignedBB;
@@ -181,7 +180,8 @@ public class DomainSynergies {
                             // 基于层数的额外伤害
                             if (target != null) {
                                 float bonusDamage = context.getOriginalDamage() * 0.05f * attackStacks;
-                                target.attackEntityFrom(DamageSource.causePlayerDamage(player), bonusDamage);
+                                // 使用 Synergy 专用伤害源，防止递归循环
+                                target.attackEntityFrom(SynergyEventHandler.causeSynergyDamage(player), bonusDamage);
 
                                 // 攻击速度加成（通过标记实现）
                                 player.getEntityData().setLong("synergy_attack_speed_boost", currentTime + 40);
@@ -197,14 +197,16 @@ public class DomainSynergies {
                                 // 满层数爆发
                                 if (attackStacks >= maxStacks) {
                                     float burstDamage = context.getOriginalDamage() * 2.0f;
-                                    target.attackEntityFrom(DamageSource.causePlayerDamage(player), burstDamage);
+                                    // 使用 Synergy 专用伤害源，防止递归循环
+                                    target.attackEntityFrom(SynergyEventHandler.causeSynergyDamage(player), burstDamage);
 
                                     // 范围爆炸
                                     AxisAlignedBB area = target.getEntityBoundingBox().grow(3.0);
                                     List<EntityLivingBase> nearby = world.getEntitiesWithinAABB(EntityLivingBase.class, area,
                                             e -> e != player && e != target && !e.isDead);
                                     for (EntityLivingBase entity : nearby) {
-                                        entity.attackEntityFrom(DamageSource.causePlayerDamage(player), burstDamage * 0.5f);
+                                        // 使用 Synergy 专用伤害源，防止递归循环
+                                        entity.attackEntityFrom(SynergyEventHandler.causeSynergyDamage(player), burstDamage * 0.5f);
                                     }
 
                                     world.playSound(null, player.posX, player.posY, player.posZ,
