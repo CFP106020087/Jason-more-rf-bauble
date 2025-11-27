@@ -778,15 +778,16 @@ public class MechanicalCoreGui extends GuiScreen {
 
         // 获取升格条件状态
         float humanity = data.getHumanity();
-        int dissolutionSurvivals = data.getDissolutionSurvivals();
+        long lowHumanityTicks = data.getLowHumanityTicks();
+        long lowHumanitySeconds = lowHumanityTicks / 20;
         ItemStack core = getCurrentCoreStack();
         int installedCount = ItemMechanicalCore.getTotalInstalledUpgrades(core);
 
         boolean humanityMet = humanity <= BrokenGodConfig.ascensionHumanityThreshold;
-        boolean dissolutionMet = dissolutionSurvivals >= BrokenGodConfig.requiredDissolutionSurvivals;
+        boolean lowHumanityTimeMet = lowHumanitySeconds >= BrokenGodConfig.requiredLowHumanitySeconds;
         boolean modulesMet = installedCount >= BrokenGodConfig.requiredModuleCount;
 
-        boolean canAscend = humanityMet && dissolutionMet && modulesMet;
+        boolean canAscend = humanityMet && lowHumanityTimeMet && modulesMet;
 
         // 更新升格按钮状态
         for (GuiButton button : buttonList) {
@@ -819,11 +820,11 @@ public class MechanicalCoreGui extends GuiScreen {
             conditionLine += TextFormatting.RED + "✗人性:" + String.format("%.0f", humanity) + "/" + (int)BrokenGodConfig.ascensionHumanityThreshold + "%  ";
         }
 
-        // 崩解存活
-        if (dissolutionMet) {
-            conditionLine += TextFormatting.GREEN + "✓崩解存活≥" + BrokenGodConfig.requiredDissolutionSurvivals + "  ";
+        // 低人性累计时间
+        if (lowHumanityTimeMet) {
+            conditionLine += TextFormatting.GREEN + "✓低人性时间≥" + formatTime(BrokenGodConfig.requiredLowHumanitySeconds) + "  ";
         } else {
-            conditionLine += TextFormatting.RED + "✗崩解:" + dissolutionSurvivals + "/" + BrokenGodConfig.requiredDissolutionSurvivals + "  ";
+            conditionLine += TextFormatting.RED + "✗低人性:" + formatTime((int)lowHumanitySeconds) + "/" + formatTime(BrokenGodConfig.requiredLowHumanitySeconds) + "  ";
         }
 
         // 模块数量
@@ -842,6 +843,24 @@ public class MechanicalCoreGui extends GuiScreen {
                 button.visible = false;
                 break;
             }
+        }
+    }
+
+    /**
+     * 格式化秒数为可读时间格式 (例如: "30:00" 或 "1:30:00")
+     */
+    private String formatTime(int totalSeconds) {
+        if (totalSeconds < 60) {
+            return totalSeconds + "s";
+        } else if (totalSeconds < 3600) {
+            int minutes = totalSeconds / 60;
+            int seconds = totalSeconds % 60;
+            return String.format("%d:%02d", minutes, seconds);
+        } else {
+            int hours = totalSeconds / 3600;
+            int minutes = (totalSeconds % 3600) / 60;
+            int seconds = totalSeconds % 60;
+            return String.format("%d:%02d:%02d", hours, minutes, seconds);
         }
     }
 

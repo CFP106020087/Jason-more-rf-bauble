@@ -1,5 +1,6 @@
 package com.moremod.system.humanity;
 
+import com.moremod.config.BrokenGodConfig;
 import com.moremod.config.HumanityConfig;
 import com.moremod.moremod;
 import net.minecraft.entity.SharedMonsterAttributes;
@@ -321,15 +322,15 @@ public class HumanityEffectsManager {
         if (data.getAscensionRoute() != AscensionRoute.NONE) return false;
 
         // 条件：
-        // 1. 人性值 <= 5%
-        // 2. 安装模块数 >= 90%
-        // 3. 存活过 3 次崩解周期
+        // 1. 人性值 <= 阈值
+        // 2. 低人性累计时间 >= 配置值
+        // 3. 安装模块数 >= 配置值（待完善）
 
         float humanity = data.getHumanity();
-        if (humanity > 5f) return false;
+        if (humanity > BrokenGodConfig.ascensionHumanityThreshold) return false;
 
-        int dissolutionSurvivals = data.getDissolutionSurvivals();
-        if (dissolutionSurvivals < 3) return false;
+        long lowHumanitySeconds = data.getLowHumanityTicks() / 20;
+        if (lowHumanitySeconds < BrokenGodConfig.requiredLowHumanitySeconds) return false;
 
         // TODO: 检查模块安装数量
 

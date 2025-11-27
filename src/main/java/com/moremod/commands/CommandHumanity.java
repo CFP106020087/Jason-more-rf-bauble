@@ -1,5 +1,6 @@
 package com.moremod.commands;
 
+import com.moremod.config.BrokenGodConfig;
 import com.moremod.system.humanity.*;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.CommandException;
@@ -166,11 +167,11 @@ public class CommandHumanity extends CommandBase {
             ));
         }
 
-        // 崩解存活次数
-        int survivals = data.getDissolutionSurvivals();
-        if (survivals > 0) {
+        // 低人性累计时间
+        long lowHumanitySeconds = data.getLowHumanityTicks() / 20;
+        if (lowHumanitySeconds > 0) {
             player.sendMessage(new TextComponentString(
-                    "§5崩解存活: " + survivals + " 次"
+                    "§5低人性累计: " + formatSeconds((int)lowHumanitySeconds)
             ));
         }
 
@@ -233,7 +234,8 @@ public class CommandHumanity extends CommandBase {
      */
     private void checkAscensionConditions(EntityPlayer player, IHumanityData data) {
         float humanity = data.getHumanity();
-        int survivals = data.getDissolutionSurvivals();
+        long lowHumanitySeconds = data.getLowHumanityTicks() / 20;
+        int requiredSeconds = BrokenGodConfig.requiredLowHumanitySeconds;
 
         // Mekhane 合成人条件
         player.sendMessage(new TextComponentString("§d【Mekhane 合成人】升格条件:"));
@@ -245,12 +247,26 @@ public class CommandHumanity extends CommandBase {
         // 破碎之神条件
         player.sendMessage(new TextComponentString("§5【破碎之神】升格条件:"));
         player.sendMessage(new TextComponentString(
-                "  " + (humanity <= 5f ? "§a✓" : "§c✗") + " §7人性值 ≤ 5% (当前: " + String.format("%.1f%%", humanity) + ")"
+                "  " + (humanity <= BrokenGodConfig.ascensionHumanityThreshold ? "§a✓" : "§c✗") +
+                " §7人性值 ≤ " + (int)BrokenGodConfig.ascensionHumanityThreshold + "% (当前: " + String.format("%.1f%%", humanity) + ")"
         ));
         player.sendMessage(new TextComponentString(
-                "  " + (survivals >= 3 ? "§a✓" : "§c✗") + " §7崩解存活 ≥ 3次 (当前: " + survivals + ")"
+                "  " + (lowHumanitySeconds >= requiredSeconds ? "§a✓" : "§c✗") +
+                " §7低人性累计 ≥ " + formatSeconds(requiredSeconds) + " (当前: " + formatSeconds((int)lowHumanitySeconds) + ")"
         ));
-        player.sendMessage(new TextComponentString("  §e? §7模块安装数 ≥ 90%（待实现）"));
+        player.sendMessage(new TextComponentString("  §e? §7模块安装数 ≥ " + BrokenGodConfig.requiredModuleCount + "（待实现）"));
+    }
+
+    private String formatSeconds(int totalSeconds) {
+        if (totalSeconds < 60) {
+            return totalSeconds + "秒";
+        } else if (totalSeconds < 3600) {
+            return (totalSeconds / 60) + "分" + (totalSeconds % 60) + "秒";
+        } else {
+            int hours = totalSeconds / 3600;
+            int minutes = (totalSeconds % 3600) / 60;
+            return hours + "时" + minutes + "分";
+        }
     }
 
     /**
@@ -290,6 +306,7 @@ public class CommandHumanity extends CommandBase {
         player.sendMessage(new TextComponentString("§7人性值: " + data.getHumanity()));
         player.sendMessage(new TextComponentString("§7升格路线: " + data.getAscensionRoute()));
         player.sendMessage(new TextComponentString("§7崩解存活: " + data.getDissolutionSurvivals()));
+        player.sendMessage(new TextComponentString("§7低人性累计: " + formatSeconds((int)(data.getLowHumanityTicks() / 20))));
         player.sendMessage(new TextComponentString("§7系统激活: " + data.isSystemActive()));
         player.sendMessage(new TextComponentString("§7崩解中: " + data.isDissolutionActive()));
         player.sendMessage(new TextComponentString("§7崩解tick: " + data.getDissolutionTicks()));
