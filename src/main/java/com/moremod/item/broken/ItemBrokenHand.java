@@ -1,28 +1,15 @@
 package com.moremod.item.broken;
 
 import baubles.api.BaubleType;
-<<<<<<< HEAD
 import com.moremod.config.BrokenRelicConfig;
 import com.moremod.creativetab.moremodCreativeTab;
 import com.moremod.system.ascension.BrokenGodHandler;
-=======
-import baubles.api.IBauble;
-import com.moremod.config.BrokenGodConfig;
-import com.moremod.creativetab.moremodCreativeTab;
-import com.moremod.system.ascension.BrokenGodHandler;
-import com.moremod.system.ascension.BrokenGodItems;
->>>>>>> origin/newest
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.attributes.AttributeModifier;
-<<<<<<< HEAD
 import net.minecraft.entity.ai.attributes.IAttributeInstance;
 import net.minecraft.entity.player.EntityPlayer;
-=======
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.item.Item;
->>>>>>> origin/newest
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
@@ -34,7 +21,6 @@ import java.util.List;
 import java.util.UUID;
 
 /**
-<<<<<<< HEAD
  * 破碎_手 (Broken Hand)
  *
  * 终局饰品 - 无尽之握
@@ -51,20 +37,6 @@ import java.util.UUID;
  * 不可卸下，右键自动替换槽位饰品
  */
 public class ItemBrokenHand extends ItemBrokenBaubleBase {
-=======
- * 破碎之手
- * Broken Hand
- *
- * 破碎之神的武器臂组件：
- * - 近战伤害 +60%
- * - 攻击速度 +15%
- * - 无视无敌帧
- * - 造成真实伤害
- *
- * 不可卸下
- */
-public class ItemBrokenHand extends Item implements IBauble {
->>>>>>> origin/newest
 
     private static final UUID DAMAGE_MODIFIER_UUID = UUID.fromString("b1234567-89ab-cdef-0123-456789abcdef");
     private static final UUID SPEED_MODIFIER_UUID = UUID.fromString("b2345678-9abc-def0-1234-56789abcdef0");
@@ -73,10 +45,6 @@ public class ItemBrokenHand extends Item implements IBauble {
         setRegistryName("broken_hand");
         setTranslationKey("broken_hand");
         setCreativeTab(moremodCreativeTab.moremod_TAB);
-<<<<<<< HEAD
-=======
-        setMaxStackSize(1);
->>>>>>> origin/newest
     }
 
     @Override
@@ -87,10 +55,6 @@ public class ItemBrokenHand extends Item implements IBauble {
     @Override
     public void onEquipped(ItemStack itemstack, EntityLivingBase player) {
         if (player instanceof EntityPlayer) {
-<<<<<<< HEAD
-=======
-            // 应用攻击力加成
->>>>>>> origin/newest
             applyModifiers((EntityPlayer) player);
         }
     }
@@ -103,7 +67,6 @@ public class ItemBrokenHand extends Item implements IBauble {
     }
 
     @Override
-<<<<<<< HEAD
     public void onWornTick(ItemStack itemstack, EntityLivingBase entity) {
         if (!(entity instanceof EntityPlayer)) return;
         EntityPlayer player = (EntityPlayer) entity;
@@ -112,28 +75,11 @@ public class ItemBrokenHand extends Item implements IBauble {
         if (entity.ticksExisted % 100 == 0) {
             if (BrokenGodHandler.isBrokenGod(player)) {
                 applyModifiers(player);
-=======
-    public boolean canUnequip(ItemStack itemstack, EntityLivingBase player) {
-        // 破碎之神不能卸下
-        if (player instanceof EntityPlayer) {
-            return !BrokenGodHandler.isBrokenGod((EntityPlayer) player);
-        }
-        return true;
-    }
-
-    @Override
-    public void onWornTick(ItemStack itemstack, EntityLivingBase entity) {
-        // 确保修改器存在
-        if (entity instanceof EntityPlayer && entity.ticksExisted % 100 == 0) {
-            if (BrokenGodHandler.isBrokenGod((EntityPlayer) entity)) {
-                applyModifiers((EntityPlayer) entity);
->>>>>>> origin/newest
             }
         }
     }
 
     private void applyModifiers(EntityPlayer player) {
-<<<<<<< HEAD
         // 近战伤害加成
         IAttributeInstance damageAttr = player.getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE);
         if (damageAttr != null) {
@@ -145,22 +91,10 @@ public class ItemBrokenHand extends Item implements IBauble {
                         BrokenRelicConfig.handMeleeDamageBonus,
                         2 // 乘法
                 ));
-=======
-        // 攻击伤害加成
-        if (player.getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE) != null) {
-            AttributeModifier existing = player.getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE)
-                    .getModifier(DAMAGE_MODIFIER_UUID);
-            if (existing == null) {
-                player.getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).applyModifier(
-                        new AttributeModifier(DAMAGE_MODIFIER_UUID, "Broken Hand Damage",
-                                BrokenGodConfig.meleeDamageBonus, 2)
-                );
->>>>>>> origin/newest
             }
         }
 
         // 攻击速度加成
-<<<<<<< HEAD
         IAttributeInstance speedAttr = player.getEntityAttribute(SharedMonsterAttributes.ATTACK_SPEED);
         if (speedAttr != null) {
             AttributeModifier existing = speedAttr.getModifier(SPEED_MODIFIER_UUID);
@@ -173,22 +107,11 @@ public class ItemBrokenHand extends Item implements IBauble {
                         speedBonus,
                         2 // 乘法
                 ));
-=======
-        if (player.getEntityAttribute(SharedMonsterAttributes.ATTACK_SPEED) != null) {
-            AttributeModifier existing = player.getEntityAttribute(SharedMonsterAttributes.ATTACK_SPEED)
-                    .getModifier(SPEED_MODIFIER_UUID);
-            if (existing == null) {
-                player.getEntityAttribute(SharedMonsterAttributes.ATTACK_SPEED).applyModifier(
-                        new AttributeModifier(SPEED_MODIFIER_UUID, "Broken Hand Speed",
-                                BrokenGodConfig.attackSpeedBonus, 2)
-                );
->>>>>>> origin/newest
             }
         }
     }
 
     private void removeModifiers(EntityPlayer player) {
-<<<<<<< HEAD
         IAttributeInstance damageAttr = player.getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE);
         if (damageAttr != null) {
             damageAttr.removeModifier(DAMAGE_MODIFIER_UUID);
@@ -240,45 +163,11 @@ public class ItemBrokenHand extends Item implements IBauble {
         tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"无尽之握，速度的极致\"");
         tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"攻击如同呼吸般自然\"");
         tooltip.add(TextFormatting.DARK_RED + "═══════════════════════════");
-=======
-        if (player.getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE) != null) {
-            player.getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE)
-                    .removeModifier(DAMAGE_MODIFIER_UUID);
-        }
-        if (player.getEntityAttribute(SharedMonsterAttributes.ATTACK_SPEED) != null) {
-            player.getEntityAttribute(SharedMonsterAttributes.ATTACK_SPEED)
-                    .removeModifier(SPEED_MODIFIER_UUID);
-        }
-    }
-
-    @Override
-    @SideOnly(Side.CLIENT)
-    public void addInformation(ItemStack stack, @Nullable World worldIn, List<String> tooltip, ITooltipFlag flagIn) {
-        tooltip.add(TextFormatting.DARK_PURPLE + "═════════════════════");
-        tooltip.add(TextFormatting.LIGHT_PURPLE + "破碎之手");
-        tooltip.add(TextFormatting.GRAY + "Broken Hand");
-        tooltip.add("");
-        tooltip.add(TextFormatting.RED + "◆ 近战伤害 +" + (int)(BrokenGodConfig.meleeDamageBonus * 100) + "%");
-        tooltip.add(TextFormatting.GOLD + "◆ 攻击速度 +" + (int)(BrokenGodConfig.attackSpeedBonus * 100) + "%");
-        if (BrokenGodConfig.bypassInvulnerability) {
-            tooltip.add(TextFormatting.DARK_RED + "◆ 无视无敌帧");
-        }
-        if (BrokenGodConfig.trueDamage) {
-            tooltip.add(TextFormatting.DARK_RED + "◆ 造成真实伤害");
-        }
-        tooltip.add("");
-        tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"手已成为纯粹的武器\"");
-        tooltip.add(TextFormatting.DARK_PURPLE + "═════════════════════");
->>>>>>> origin/newest
         tooltip.add(TextFormatting.DARK_RED + "⚠ 无法卸除");
     }
 
     @Override
     public boolean hasEffect(ItemStack stack) {
-<<<<<<< HEAD
         return true;
-=======
-        return true; // 发光效果
->>>>>>> origin/newest
     }
 }
