@@ -45,6 +45,10 @@ public class MechanicalCoreGui extends GuiScreen {
     private static final int GUI_WIDTH = 256;
     private static final int GUI_HEIGHT = 180;
 
+    // 升格侧边栏尺寸
+    private static final int SIDE_PANEL_WIDTH = 85;
+    private static final int SIDE_PANEL_HEIGHT = 90;
+
     private static final ResourceLocation GUI_TEXTURE =
             new ResourceLocation("moremod", "textures/gui/mechanical_core_gui.png");
 
@@ -562,8 +566,10 @@ public class MechanicalCoreGui extends GuiScreen {
         this.buttonList.add(new GuiButton(BUTTON_PAUSE_ALL, guiLeft + 10, guiTop + 42, 100, 14, "⏸ 暂停非发电模块"));
         this.buttonList.add(new GuiButton(BUTTON_RESUME_ALL, guiLeft + 115, guiTop + 42, 100, 14, "▶ 恢复全部模块"));
 
-        // 添加破碎之神升格按钮（仅在满足条件时显示）
-        GuiButton ascendButton = new GuiButton(BUTTON_ASCEND, guiLeft + 10, guiTop + GUI_HEIGHT - 25, GUI_WIDTH - 20, 20, "");
+        // 添加破碎之神升格按钮（在侧边栏）
+        int sidePanelX = guiLeft + GUI_WIDTH + 5;
+        int sidePanelY = guiTop + 20;
+        GuiButton ascendButton = new GuiButton(BUTTON_ASCEND, sidePanelX + 5, sidePanelY + SIDE_PANEL_HEIGHT - 25, SIDE_PANEL_WIDTH - 10, 18, "");
         ascendButton.visible = false; // 默认隐藏，在drawScreen中控制
         this.buttonList.add(ascendButton);
     }
@@ -761,7 +767,7 @@ public class MechanicalCoreGui extends GuiScreen {
         drawRect(x + 1, sy, x + 9, sy + sliderH, 0xFFAAAAAA);
     }
 
-    // ===== 破碎之神升格区域 =====
+    // ===== 破碎之神升格区域（侧边栏） =====
 
     private void drawAscensionSection(int mouseX, int mouseY) {
         IHumanityData data = HumanityCapabilityHandler.getData(player);
@@ -789,52 +795,77 @@ public class MechanicalCoreGui extends GuiScreen {
 
         boolean canAscend = humanityMet && lowHumanityTimeMet && modulesMet;
 
-        // 更新升格按钮状态
+        // 侧边栏位置
+        int panelX = guiLeft + GUI_WIDTH + 5;
+        int panelY = guiTop + 20;
+
+        // 绘制侧边栏背景
+        drawRect(panelX, panelY, panelX + SIDE_PANEL_WIDTH, panelY + SIDE_PANEL_HEIGHT, 0xC0101010);
+        drawRect(panelX + 1, panelY + 1, panelX + SIDE_PANEL_WIDTH - 1, panelY + SIDE_PANEL_HEIGHT - 1, 0xC0383838);
+
+        // 标题栏
+        drawRect(panelX + 1, panelY + 1, panelX + SIDE_PANEL_WIDTH - 1, panelY + 14, 0xC0505050);
+        String title = "升格";
+        int titleX = panelX + (SIDE_PANEL_WIDTH - this.fontRenderer.getStringWidth(title)) / 2;
+        this.fontRenderer.drawStringWithShadow(title, titleX, panelY + 4, 0xAA88FF);
+
+        // 更新升格按钮状态和位置
         for (GuiButton button : buttonList) {
             if (button.id == BUTTON_ASCEND) {
+                button.x = panelX + 5;
+                button.y = panelY + SIDE_PANEL_HEIGHT - 22;
+                button.width = SIDE_PANEL_WIDTH - 10;
                 button.visible = true;
                 button.enabled = canAscend;
                 if (canAscend) {
-                    button.displayString = TextFormatting.DARK_PURPLE + "✦ 升格为破碎之神 ✦";
+                    button.displayString = TextFormatting.DARK_PURPLE + "✦ 升格 ✦";
                 } else {
-                    button.displayString = TextFormatting.GRAY + "升格条件未满足";
+                    button.displayString = TextFormatting.GRAY + "未满足";
                 }
                 break;
             }
         }
 
-        // 绘制升格条件信息
-        int infoY = guiTop + GUI_HEIGHT - 45;
-        int infoX = guiLeft + 10;
+        // 绘制条件列表（紧凑版）
+        int lineY = panelY + 18;
+        int lineX = panelX + 4;
 
-        // 背景
-        drawRect(guiLeft + 5, infoY - 5, guiLeft + GUI_WIDTH - 5, guiTop + GUI_HEIGHT - 28, 0x60000000);
-
-        // 条件列表
-        String conditionLine = "";
-
-        // 人性值
+        // 人性值条件
         if (humanityMet) {
-            conditionLine += TextFormatting.GREEN + "✓人性≤" + (int)BrokenGodConfig.ascensionHumanityThreshold + "%  ";
+            this.fontRenderer.drawString(TextFormatting.GREEN + "✓" + TextFormatting.GRAY + "人性≤" + (int)BrokenGodConfig.ascensionHumanityThreshold + "%", lineX, lineY, 0xFFFFFF);
         } else {
-            conditionLine += TextFormatting.RED + "✗人性:" + String.format("%.0f", humanity) + "/" + (int)BrokenGodConfig.ascensionHumanityThreshold + "%  ";
+            this.fontRenderer.drawString(TextFormatting.RED + "✗" + TextFormatting.GRAY + String.format("%.0f", humanity) + "/" + (int)BrokenGodConfig.ascensionHumanityThreshold + "%", lineX, lineY, 0xFFFFFF);
         }
 
-        // 低人性累计时间
+        // 低人性时间条件
+        lineY += 12;
         if (lowHumanityTimeMet) {
-            conditionLine += TextFormatting.GREEN + "✓低人性时间≥" + formatTime(BrokenGodConfig.requiredLowHumanitySeconds) + "  ";
+            this.fontRenderer.drawString(TextFormatting.GREEN + "✓" + TextFormatting.GRAY + "时间OK", lineX, lineY, 0xFFFFFF);
         } else {
-            conditionLine += TextFormatting.RED + "✗低人性:" + formatTime((int)lowHumanitySeconds) + "/" + formatTime(BrokenGodConfig.requiredLowHumanitySeconds) + "  ";
+            String timeStr = formatTimeCompact((int)lowHumanitySeconds) + "/" + formatTimeCompact(BrokenGodConfig.requiredLowHumanitySeconds);
+            this.fontRenderer.drawString(TextFormatting.RED + "✗" + TextFormatting.GRAY + timeStr, lineX, lineY, 0xFFFFFF);
         }
 
-        // 模块数量
+        // 模块数量条件
+        lineY += 12;
         if (modulesMet) {
-            conditionLine += TextFormatting.GREEN + "✓模块≥" + BrokenGodConfig.requiredModuleCount;
+            this.fontRenderer.drawString(TextFormatting.GREEN + "✓" + TextFormatting.GRAY + "模块≥" + BrokenGodConfig.requiredModuleCount, lineX, lineY, 0xFFFFFF);
         } else {
-            conditionLine += TextFormatting.RED + "✗模块:" + installedCount + "/" + BrokenGodConfig.requiredModuleCount;
+            this.fontRenderer.drawString(TextFormatting.RED + "✗" + TextFormatting.GRAY + installedCount + "/" + BrokenGodConfig.requiredModuleCount + "模块", lineX, lineY, 0xFFFFFF);
         }
+    }
 
-        this.fontRenderer.drawString(conditionLine, infoX, infoY, 0xFFFFFF);
+    /**
+     * 紧凑版时间格式化
+     */
+    private String formatTimeCompact(int totalSeconds) {
+        if (totalSeconds < 60) {
+            return totalSeconds + "s";
+        } else if (totalSeconds < 3600) {
+            return (totalSeconds / 60) + "m";
+        } else {
+            return (totalSeconds / 3600) + "h";
+        }
     }
 
     private void hideAscensionButton() {
