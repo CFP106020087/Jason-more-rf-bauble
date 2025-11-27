@@ -16,8 +16,6 @@ import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.Optional;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -36,8 +34,6 @@ import java.util.UUID;
  * - 扭曲脉冲冷却
  */
 public class BrokenGodHandler {
-
-    private static final Logger LOGGER = LogManager.getLogger("moremod");
 
     // ========== 状态追踪（用于 ASM 钩子可靠性） ==========
 
@@ -83,7 +79,6 @@ public class BrokenGodHandler {
      */
     public static void registerBrokenGod(EntityPlayer player) {
         brokenGodBackup.add(player.getUniqueID());
-        LOGGER.debug("[BrokenGod] Registered player {} in backup set", player.getName());
     }
 
     /**
@@ -181,8 +176,6 @@ public class BrokenGodHandler {
                     player.posX, player.posY + 1, player.posZ,
                     30, 0.5, 0.5, 0.5, 0.05);
         }
-
-        LOGGER.info("[BrokenGod] Player {} entered shutdown mode", player.getName());
     }
 
     /**
@@ -301,8 +294,6 @@ public class BrokenGodHandler {
                     player.posX, player.posY + 1, player.posZ,
                     30, 0.5, 1, 0.5, 0.1);
         }
-
-        LOGGER.info("[BrokenGod] Player {} exited shutdown mode", player.getName());
     }
 
     // ========== 扭曲脉冲冷却 ==========
@@ -421,8 +412,6 @@ public class BrokenGodHandler {
         player.world.playSound(null, player.posX, player.posY, player.posZ,
                 net.minecraft.init.SoundEvents.ENTITY_WITHER_SPAWN,
                 net.minecraft.util.SoundCategory.PLAYERS, 1.0f, 0.5f);
-
-        LOGGER.info("[BrokenGod] Player {} has ascended to Broken God", player.getName());
     }
 
     // ========== 清理 ==========
@@ -450,8 +439,7 @@ public class BrokenGodHandler {
         if (!isFirstAidLoaded()) return;
         try {
             healFirstAidFullInternal(player);
-        } catch (Throwable e) {
-            LOGGER.debug("[BrokenGod] First Aid heal failed: {}", e.getMessage());
+        } catch (Throwable ignored) {
         }
     }
 
@@ -473,10 +461,7 @@ public class BrokenGodHandler {
             model.RIGHT_ARM.currentHealth = model.RIGHT_ARM.getMaxHealth();
             model.LEFT_LEG.currentHealth = model.LEFT_LEG.getMaxHealth();
             model.RIGHT_LEG.currentHealth = model.RIGHT_LEG.getMaxHealth();
-
-            LOGGER.debug("[BrokenGod] Healed all First Aid body parts for {}", player.getName());
-        } catch (Throwable e) {
-            LOGGER.debug("[BrokenGod] First Aid heal error: {}", e.getMessage());
+        } catch (Throwable ignored) {
         }
     }
 
@@ -488,8 +473,7 @@ public class BrokenGodHandler {
         if (!isFirstAidLoaded()) return;
         try {
             setFirstAidMinHealthInternal(player);
-        } catch (Throwable e) {
-            LOGGER.debug("[BrokenGod] First Aid min health failed: {}", e.getMessage());
+        } catch (Throwable ignored) {
         }
     }
 
@@ -511,10 +495,7 @@ public class BrokenGodHandler {
             model.RIGHT_ARM.currentHealth = Math.max(1.0f, model.RIGHT_ARM.currentHealth);
             model.LEFT_LEG.currentHealth = Math.max(1.0f, model.LEFT_LEG.currentHealth);
             model.RIGHT_LEG.currentHealth = Math.max(1.0f, model.RIGHT_LEG.currentHealth);
-
-            LOGGER.debug("[BrokenGod] Set First Aid min health for {}", player.getName());
-        } catch (Throwable e) {
-            LOGGER.debug("[BrokenGod] First Aid min health error: {}", e.getMessage());
+        } catch (Throwable ignored) {
         }
     }
 }
