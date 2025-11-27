@@ -420,8 +420,19 @@ public class BrokenGodHandler {
      * 玩家退出时清理
      */
     public static void cleanupPlayer(UUID playerId) {
+        brokenGodBackup.remove(playerId);
         shutdownBackup.remove(playerId);
         pulseCooldowns.remove(playerId);
+    }
+
+    /**
+     * 世界卸载时清空所有静态状态
+     * 防止跨存档数据污染
+     */
+    public static void clearAllState() {
+        brokenGodBackup.clear();
+        shutdownBackup.clear();
+        pulseCooldowns.clear();
     }
 
     // ========== First Aid 兼容 ==========

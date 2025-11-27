@@ -326,6 +326,17 @@ public class BrokenGodEventHandler {
         BrokenGodHandler.cleanupPlayer(event.player.getUniqueID());
     }
 
+    // ========== 世界卸载（防止跨存档数据污染） ==========
+
+    @SubscribeEvent
+    public static void onWorldUnload(net.minecraftforge.event.world.WorldEvent.Unload event) {
+        // 只在服务端主世界卸载时清空（避免维度切换时误清）
+        if (!event.getWorld().isRemote && event.getWorld().provider.getDimension() == 0) {
+            BrokenGodHandler.clearAllState();
+            LOGGER.info("[BrokenGod] Cleared all static state on world unload");
+        }
+    }
+
     // ========== 玩家克隆（死亡重生） ==========
 
     @SubscribeEvent
