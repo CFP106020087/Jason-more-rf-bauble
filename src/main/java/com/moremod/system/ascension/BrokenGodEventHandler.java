@@ -177,7 +177,7 @@ public class BrokenGodEventHandler {
 
                 // 扭曲脉冲触发条件
                 if (damage >= BrokenGodConfig.pulseTriggerDamage &&
-                    BrokenGodHandler.canUseDistortionPulse(player)) {
+                        BrokenGodHandler.canUseDistortionPulse(player)) {
 
                     triggerDistortionPulse(player);
                     BrokenGodHandler.triggerPulseCooldown(player);
@@ -259,7 +259,7 @@ public class BrokenGodEventHandler {
         // 消息
         player.sendMessage(new TextComponentString(
                 TextFormatting.DARK_PURPLE + "[扭曲脉冲] " +
-                TextFormatting.GRAY + "释放异常能量波"
+                        TextFormatting.GRAY + "释放异常能量波"
         ));
 
         // 音效

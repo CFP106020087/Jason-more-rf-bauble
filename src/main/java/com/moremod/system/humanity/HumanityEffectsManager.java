@@ -346,15 +346,6 @@ public class HumanityEffectsManager {
 
         data.setAscensionRoute(route);
 
-        // 破碎之神升格时：取消崩解状态，清除存在锚定
-        if (route == AscensionRoute.BROKEN_GOD) {
-            if (data.isDissolutionActive()) {
-                data.endDissolution(true);
-            }
-            data.setExistenceAnchorUntil(0); // 清除锚定，破碎之神不需要
-            data.setHumanity(0f); // 人性值固定为0
-        }
-
         // 发送消息
         String message;
         switch (route) {

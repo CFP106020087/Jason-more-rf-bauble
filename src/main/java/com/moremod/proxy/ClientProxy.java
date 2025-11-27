@@ -10,7 +10,7 @@ import com.moremod.client.render.fx.RenderLightningArc;
 import com.moremod.client.render.fx.RenderPlayerLaserBeam;
 import com.moremod.client.render.fx.RenderRiftLightning;
 import com.moremod.entity.*;
-import com.moremod.entity.boss.EntityRiftwarden;
+import com.moremod.entity.boss.riftwarden.EntityRiftwarden;
 import com.moremod.entity.boss.EntityStoneSentinel;
 import com.moremod.entity.fx.EntityLaserBeam;
 import com.moremod.entity.fx.EntityLightningArc;
@@ -105,7 +105,7 @@ public class ClientProxy extends CommonProxy {
     @Override
     public void init(FMLInitializationEvent event) {
         super.init(event);
-
+        MoBendsCompat.init();
         // =========================
         // 注册 NumPad Debug 按键
         // =========================
@@ -234,10 +234,15 @@ public class ClientProxy extends CommonProxy {
 
     private static void registerMechanicalExoskeletonLayer() {}
 
-    private static void registerMechanicalOverlayLayer() {
-        try {
-            com.moremod.client.render.LayerMechanicalOverlay.register();
-        } catch (Throwable ignored) {}
+
+    private void registerMechanicalOverlayLayer() {
+        Map<String, RenderPlayer> skinMap = Minecraft.getMinecraft().getRenderManager().getSkinMap();
+
+        // "default" = Steve 模型（4像素手臂）
+        // "slim" = Alex 模型（3像素手臂）
+        for (RenderPlayer renderPlayer : skinMap.values()) {
+            renderPlayer.addLayer(new LayerMechanicalOverlay(renderPlayer));
+        }
     }
 
     // ✨ 新增：注册鲜血欢愉渲染层（玩家红色光晕）

@@ -339,9 +339,6 @@ public class HumanitySpectrumSystem {
         IHumanityData data = HumanityCapabilityHandler.getData(player);
         if (data == null || !data.isSystemActive()) return;
 
-        // 破碎之神免疫崩解
-        if (data.getAscensionRoute() == AscensionRoute.BROKEN_GOD) return;
-
         data.startDissolution();
 
         player.sendMessage(new TextComponentString(
@@ -357,7 +354,7 @@ public class HumanitySpectrumSystem {
     }
 
     /**
-     * 处理崩解状态tick（每秒调用一次）
+     * 处理崩解状态tick
      */
     public static void tickDissolution(EntityPlayer player) {
         IHumanityData data = HumanityCapabilityHandler.getData(player);
@@ -371,26 +368,19 @@ public class HumanitySpectrumSystem {
             return;
         }
 
-        // 每秒减少20 tick（因为此方法每秒调用一次）
-        data.setDissolutionTicks(remaining - 20);
-
-        int seconds = remaining / 20;
+        data.setDissolutionTicks(remaining - 1);
 
         // 每秒发送提醒
-        player.sendStatusMessage(new TextComponentString(
-                TextFormatting.DARK_RED + "【崩解中】" + TextFormatting.RED + seconds + "秒"
-        ), true);
+        if (remaining % 20 == 0) {
+            int seconds = remaining / 20;
+            player.sendStatusMessage(new TextComponentString(
+                    TextFormatting.DARK_RED + "【崩解中】" + TextFormatting.RED + seconds + "秒"
+            ), true);
 
-        // 崩解伤害：每秒造成真实伤害（无视护甲）
-        float dissolutionDamage = (float) HumanityConfig.dissolutionDamagePerSec;
-        if (dissolutionDamage > 0) {
-            // 使用特殊伤害源，无视护甲
-            player.attackEntityFrom(DamageSource.OUT_OF_WORLD, dissolutionDamage);
-        }
-
-        // 粒子效果
-        if (player.world instanceof WorldServer) {
-            spawnDissolutionParticles(player);
+            // 粒子效果
+            if (player.world instanceof WorldServer) {
+                spawnDissolutionParticles(player);
+            }
         }
 
         markDirty(player);
@@ -398,24 +388,22 @@ public class HumanitySpectrumSystem {
 
     /**
      * 崩解存活结束
-     * 注意：不重置人性值，保持当前低人性状态，允许继续追求破碎之神升格
      */
     private static void endDissolutionSurvived(EntityPlayer player) {
         IHumanityData data = HumanityCapabilityHandler.getData(player);
         if (data == null) return;
 
         data.endDissolution(true);
-        // 不重置人性值！保持当前人性（通常为0或接近0）
-        // 这样玩家可以继续累积低人性时间，追求破碎之神升格
+        data.setHumanity(15f);
 
-        // 应用存在锚定（防止连续崩解，但不阻止破碎之神升格）
+        // 应用存在锚定（24小时）
         long anchorDuration = (long) HumanityConfig.existenceAnchorDuration * 60 * 60 * 20;
         data.setExistenceAnchorUntil(player.world.getTotalWorldTime() + anchorDuration);
 
         player.sendMessage(new TextComponentString(
                 TextFormatting.LIGHT_PURPLE + "【崩解终止】" + TextFormatting.GRAY +
                 " 你的存在被强制锚定。" + HumanityConfig.existenceAnchorDuration +
-                "小时内人性值无法低于10%。"
+                "小时内无法再次进入崩解状态。"
         ));
 
         markForceSync(player);

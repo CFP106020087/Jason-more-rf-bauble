@@ -60,8 +60,8 @@ public class BrokenGodConfig {
             "Shutdown mode duration in ticks"
     })
     @Config.Name("停机时间 | Shutdown Ticks")
-    @Config.RangeInt(min = 20, max = 200)
-    public static int shutdownTicks = 40;
+    @Config.RangeInt(min = 20, max = 400)
+    public static int shutdownTicks = 400;
 
     @Config.Comment({
             "重启后恢复的生命值",

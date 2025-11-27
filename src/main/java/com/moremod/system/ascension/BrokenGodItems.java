@@ -4,12 +4,18 @@ import baubles.api.BaubleType;
 import baubles.api.BaublesApi;
 import baubles.api.cap.IBaublesItemHandler;
 import com.moremod.item.ItemMechanicalCore;
+<<<<<<< HEAD
 import com.moremod.item.broken.ItemBrokenArm;
 import com.moremod.item.broken.ItemBrokenHand;
 import com.moremod.item.broken.ItemBrokenHeart;
 import com.moremod.item.broken.ItemBrokenShackles;
 import com.moremod.item.broken.ItemBrokenProjection;
 import com.moremod.item.broken.ItemBrokenTerminus;
+=======
+import com.moremod.item.broken.ItemBrokenEye;
+import com.moremod.item.broken.ItemBrokenHand;
+import com.moremod.item.broken.ItemBrokenHeart;
+>>>>>>> origin/newest
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
@@ -26,6 +32,7 @@ public class BrokenGodItems {
 
     private static final Logger LOGGER = LogManager.getLogger("moremod");
 
+<<<<<<< HEAD
     // 物品实例（在 RegisterItem 中注册）
     public static ItemBrokenHand BROKEN_HAND;
     public static ItemBrokenHeart BROKEN_HEART;
@@ -33,6 +40,12 @@ public class BrokenGodItems {
     public static ItemBrokenShackles BROKEN_SHACKLES;
     public static ItemBrokenProjection BROKEN_PROJECTION;
     public static ItemBrokenTerminus BROKEN_TERMINUS;
+=======
+    // 物品实例（在 ModItems 中注册）
+    public static ItemBrokenHand BROKEN_HAND;
+    public static ItemBrokenHeart BROKEN_HEART;
+    public static ItemBrokenEye BROKEN_EYE;
+>>>>>>> origin/newest
 
     /**
      * 替换玩家的所有饰品为破碎三件套
@@ -56,7 +69,13 @@ public class BrokenGodItems {
                     continue;
                 }
                 // 检查是否已经是破碎套装 - 保留
+<<<<<<< HEAD
                 if (isBrokenItem(stack)) {
+=======
+                if (stack.getItem() instanceof ItemBrokenHand ||
+                    stack.getItem() instanceof ItemBrokenHeart ||
+                    stack.getItem() instanceof ItemBrokenEye) {
+>>>>>>> origin/newest
                     continue;
                 }
 
@@ -87,6 +106,7 @@ public class BrokenGodItems {
             }
         }
 
+<<<<<<< HEAD
         // 破碎之臂 - 第二个 RING 槽位
         if (BROKEN_ARM != null) {
             int ringSlot2 = findSecondRingSlot(baubles);
@@ -135,6 +155,17 @@ public class BrokenGodItems {
             return 1;
         }
         return -1;
+=======
+        // 破碎之眼 - HEAD 槽位
+        if (BROKEN_EYE != null) {
+            int headSlot = findEmptySlotForType(baubles, BaubleType.HEAD);
+            if (headSlot >= 0) {
+                baubles.setStackInSlot(headSlot, new ItemStack(BROKEN_EYE));
+            }
+        }
+
+        LOGGER.info("[BrokenGod] Replaced baubles for player {}", player.getName());
+>>>>>>> origin/newest
     }
 
     /**
@@ -173,7 +204,11 @@ public class BrokenGodItems {
     }
 
     /**
+<<<<<<< HEAD
      * 检查玩家是否装备了完整的破碎套装（基础三件）
+=======
+     * 检查玩家是否装备了完整的破碎套装
+>>>>>>> origin/newest
      */
     public static boolean hasFullBrokenSet(EntityPlayer player) {
         IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(player);
@@ -181,12 +216,17 @@ public class BrokenGodItems {
 
         boolean hasHand = false;
         boolean hasHeart = false;
+<<<<<<< HEAD
         boolean hasArm = false;
+=======
+        boolean hasEye = false;
+>>>>>>> origin/newest
 
         for (int i = 0; i < baubles.getSlots(); i++) {
             ItemStack stack = baubles.getStackInSlot(i);
             if (stack.getItem() instanceof ItemBrokenHand) hasHand = true;
             if (stack.getItem() instanceof ItemBrokenHeart) hasHeart = true;
+<<<<<<< HEAD
             if (stack.getItem() instanceof ItemBrokenArm) hasArm = true;
         }
 
@@ -218,6 +258,12 @@ public class BrokenGodItems {
         }
 
         return hasHand && hasHeart && hasArm && hasShackles && hasProjection && hasTerminus;
+=======
+            if (stack.getItem() instanceof ItemBrokenEye) hasEye = true;
+        }
+
+        return hasHand && hasHeart && hasEye;
+>>>>>>> origin/newest
     }
 
     /**
@@ -227,9 +273,13 @@ public class BrokenGodItems {
         if (stack.isEmpty()) return false;
         return stack.getItem() instanceof ItemBrokenHand ||
                stack.getItem() instanceof ItemBrokenHeart ||
+<<<<<<< HEAD
                stack.getItem() instanceof ItemBrokenArm ||
                stack.getItem() instanceof ItemBrokenShackles ||
                stack.getItem() instanceof ItemBrokenProjection ||
                stack.getItem() instanceof ItemBrokenTerminus;
+=======
+               stack.getItem() instanceof ItemBrokenEye;
+>>>>>>> origin/newest
     }
 }

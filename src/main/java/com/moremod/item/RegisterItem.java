@@ -6,10 +6,14 @@ import com.moremod.items.BloodyThirstMask;
 import com.moremod.item.battery.*;
 import com.moremod.item.broken.ItemBrokenHand;
 import com.moremod.item.broken.ItemBrokenHeart;
+<<<<<<< HEAD
 import com.moremod.item.broken.ItemBrokenArm;
 import com.moremod.item.broken.ItemBrokenShackles;
 import com.moremod.item.broken.ItemBrokenProjection;
 import com.moremod.item.broken.ItemBrokenTerminus;
+=======
+import com.moremod.item.broken.ItemBrokenEye;
+>>>>>>> origin/newest
 import com.moremod.system.ascension.BrokenGodItems;
 
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
@@ -187,6 +191,7 @@ public class RegisterItem {
 
     public static Item DIMENSIONALANCOR;
 
+<<<<<<< HEAD
     // 破碎之神终局饰品
     public static Item BROKEN_HAND;
     public static Item BROKEN_HEART;
@@ -194,6 +199,12 @@ public class RegisterItem {
     public static Item BROKEN_SHACKLES;
     public static Item BROKEN_PROJECTION;
     public static Item BROKEN_TERMINUS;
+=======
+    // 破碎之神套装
+    public static Item BROKEN_HAND;
+    public static Item BROKEN_HEART;
+    public static Item BROKEN_EYE;
+>>>>>>> origin/newest
 
     // 战斗类升级
     public static Item DAMAGE_BOOST_LV1;
@@ -302,6 +313,7 @@ public class RegisterItem {
         ENCHANT_RING_T3 = newSafe(() -> new EnchantmentBoostBauble("enchant_ring_t3", 5), "enchant_ring_t3");
         ENCHANT_RING_ULTIMATE = newSafe(() -> new EnchantmentBoostBauble("enchant_ring_ultimate", 10), "enchant_ring_ultimate");
 
+<<<<<<< HEAD
         // 破碎之神终局饰品
         BROKEN_HAND = newSafe(ItemBrokenHand::new, "broken_hand");
         BROKEN_HEART = newSafe(ItemBrokenHeart::new, "broken_heart");
@@ -316,6 +328,16 @@ public class RegisterItem {
         BrokenGodItems.BROKEN_SHACKLES = (ItemBrokenShackles) BROKEN_SHACKLES;
         BrokenGodItems.BROKEN_PROJECTION = (ItemBrokenProjection) BROKEN_PROJECTION;
         BrokenGodItems.BROKEN_TERMINUS = (ItemBrokenTerminus) BROKEN_TERMINUS;
+=======
+        // 破碎之神套装
+        BROKEN_HAND = newSafe(ItemBrokenHand::new, "broken_hand");
+        BROKEN_HEART = newSafe(ItemBrokenHeart::new, "broken_heart");
+        BROKEN_EYE = newSafe(ItemBrokenEye::new, "broken_eye");
+        // 同步到 BrokenGodItems
+        BrokenGodItems.BROKEN_HAND = (ItemBrokenHand) BROKEN_HAND;
+        BrokenGodItems.BROKEN_HEART = (ItemBrokenHeart) BROKEN_HEART;
+        BrokenGodItems.BROKEN_EYE = (ItemBrokenEye) BROKEN_EYE;
+>>>>>>> origin/newest
 
         // SimpleDifficulty（按需）
         initSimpleDifficultyItems();
@@ -468,7 +490,11 @@ public class RegisterItem {
                 ANTIKYTHERA_GEAR, TOGGLE_RENDER,DIMENSIONALRIPPER,DIMENSIONALANCOR,SPACETIME_SHARD,ANCHORKEY,
                 ENCHANT_RING_T1,ENCHANT_RING_T2,ENCHANT_RING_T3,ENCHANT_RING_ULTIMATE,TIME_BLOCK,LIGHTING_BOLT,
                 SAGEBOOK,HOLY_WATER,
+<<<<<<< HEAD
                 BROKEN_HAND, BROKEN_HEART, BROKEN_ARM, BROKEN_SHACKLES, BROKEN_PROJECTION, BROKEN_TERMINUS
+=======
+                BROKEN_HAND, BROKEN_HEART, BROKEN_EYE
+>>>>>>> origin/newest
         );
         if (SIMPLE_DIFFICULTY_LOADED) {
             addIfNotNull(itemsToRegister, TEMPERATURE_REGULATOR, THIRST_PROCESSOR);

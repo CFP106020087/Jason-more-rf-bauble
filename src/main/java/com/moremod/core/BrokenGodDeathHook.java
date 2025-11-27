@@ -48,17 +48,6 @@ public class BrokenGodDeathHook {
                 return true;
             }
 
-            // ★ 关键修复：在 attackEntityFrom 阶段就预判致命伤害 ★
-            // 这样可以在 First Aid 处理伤害之前就进入停机状态
-            float currentHealth = player.getHealth();
-            // 粗略估算伤害（未经护甲减免，所以用较宽松的阈值）
-            if (currentHealth <= amount * 0.5f || currentHealth <= 2.0f) {
-                // 可能是致命攻击，提前进入停机
-                BrokenGodHandler.enterShutdown(player);
-                System.out.println("[BrokenGodDeathHook] Pre-emptive shutdown at attackEntityFrom: " + player.getName());
-                return true;
-            }
-
             return false;
 
         } catch (Throwable t) {
