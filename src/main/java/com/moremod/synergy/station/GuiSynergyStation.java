@@ -232,8 +232,8 @@ public class GuiSynergyStation extends GuiScreen {
 
                 // 激活状态反馈（基于切换后的预期状态）
                 if (!wasActivated) {
-                    // 从关闭变为激活
-                    player.playSound(net.minecraft.init.SoundEvents.BLOCK_BEACON_ACTIVATE, 0.5f, 1.5f);
+                    // 从关闭变为激活 - 使用经验球拾取音效
+                    player.playSound(net.minecraft.init.SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, 0.5f, 1.2f);
                     if (!matchingSynergies.isEmpty()) {
                         StringBuilder sb = new StringBuilder("§a[链结站激活] §f生效中的协同效果:");
                         for (SynergyDefinition synergy : matchingSynergies) {
@@ -245,8 +245,8 @@ public class GuiSynergyStation extends GuiScreen {
                                 "§e[链结站激活] §7当前无匹配协同（需要2个以上模块）"));
                     }
                 } else {
-                    // 从激活变为关闭
-                    player.playSound(net.minecraft.init.SoundEvents.BLOCK_BEACON_AMBIENT, 0.5f, 0.5f);
+                    // 从激活变为关闭 - 使用拉杆音效
+                    player.playSound(net.minecraft.init.SoundEvents.BLOCK_LEVER_CLICK, 0.5f, 0.5f);
                     player.sendMessage(new net.minecraft.util.text.TextComponentString("§c[链结站关闭]"));
                 }
                 break;

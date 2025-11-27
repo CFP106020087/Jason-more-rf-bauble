@@ -169,9 +169,9 @@ public class BrokenGodHandler {
                 TextFormatting.DARK_GRAY + "═══════════════════════════════"
         ));
 
-        // 停机音效 - 使用 BLOCK_BEACON_AMBIENT 模拟停机音效（1.12.2兼容）
+        // 停机音效 - 使用铁傀儡受伤音效模拟机械停机
         player.world.playSound(null, player.posX, player.posY, player.posZ,
-                net.minecraft.init.SoundEvents.BLOCK_BEACON_AMBIENT,
+                net.minecraft.init.SoundEvents.ENTITY_IRONGOLEM_HURT,
                 net.minecraft.util.SoundCategory.PLAYERS, 1.0f, 0.3f);
 
         // 粒子效果
@@ -289,10 +289,10 @@ public class BrokenGodHandler {
                 TextFormatting.GREEN + "═══════════════════════════════"
         ));
 
-        // 重启音效
+        // 重启音效 - 使用经验升级音效表示系统恢复
         player.world.playSound(null, player.posX, player.posY, player.posZ,
-                net.minecraft.init.SoundEvents.BLOCK_BEACON_ACTIVATE,
-                net.minecraft.util.SoundCategory.PLAYERS, 1.0f, 1.2f);
+                net.minecraft.init.SoundEvents.ENTITY_PLAYER_LEVELUP,
+                net.minecraft.util.SoundCategory.PLAYERS, 0.8f, 1.2f);
 
         // 粒子效果
         if (player.world instanceof WorldServer) {
