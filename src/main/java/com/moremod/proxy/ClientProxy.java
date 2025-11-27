@@ -143,6 +143,9 @@ public class ClientProxy extends CommonProxy {
         // ✨ 新增：注册锯刃剑鲜血欢愉渲染层
         registerBloodEuphoriaLayer();
 
+        // ✨ 新增：注册人性值机械化叠加渲染层
+        registerMechanicalOverlayLayer();
+
         ClientEventHandler.init(event);
     }
 
@@ -230,6 +233,12 @@ public class ClientProxy extends CommonProxy {
     }
 
     private static void registerMechanicalExoskeletonLayer() {}
+
+    private static void registerMechanicalOverlayLayer() {
+        try {
+            com.moremod.client.render.LayerMechanicalOverlay.register();
+        } catch (Throwable ignored) {}
+    }
 
     // ✨ 新增：注册鲜血欢愉渲染层（玩家红色光晕）
     /**
