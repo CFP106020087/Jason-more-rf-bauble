@@ -1199,8 +1199,8 @@ public class MechanicalCoreHUD extends Gui {
             currentY += 10;
         }
 
-        // 崩解状态警告
-        if (data.isDissolutionActive()) {
+        // 崩解状态警告（升格为破碎之神后不显示）
+        if (data.isDissolutionActive() && route != AscensionRoute.BROKEN_GOD) {
             int seconds = data.getDissolutionTicks() / 20;
             String warningText = TextFormatting.DARK_RED + "💀 崩解中! " + TextFormatting.RED + seconds + "s";
             if (animationTick % 10 < 5) {

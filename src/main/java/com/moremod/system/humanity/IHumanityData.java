@@ -305,6 +305,23 @@ public interface IHumanityData {
      */
     void modifyOperationValue(int delta);
 
+    // ========== 停机模式 (Shutdown Mode) ==========
+
+    /**
+     * 检查是否处于停机状态
+     */
+    boolean isInShutdown();
+
+    /**
+     * 获取停机剩余时间（ticks）
+     */
+    int getShutdownTimer();
+
+    /**
+     * 设置停机剩余时间
+     */
+    void setShutdownTimer(int ticks);
+
     // ========== NBT序列化 ==========
 
     /**

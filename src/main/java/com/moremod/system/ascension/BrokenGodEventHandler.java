@@ -116,6 +116,15 @@ public class BrokenGodEventHandler {
 
     @SubscribeEvent(priority = EventPriority.HIGH)
     public static void onLivingHurt(LivingHurtEvent event) {
+        // 停机期间完全免疫伤害
+        if (event.getEntityLiving() instanceof EntityPlayer) {
+            EntityPlayer player = (EntityPlayer) event.getEntityLiving();
+            if (BrokenGodHandler.isBrokenGod(player) && BrokenGodHandler.isInShutdown(player)) {
+                event.setCanceled(true);
+                return;
+            }
+        }
+
         // 破碎之神造成伤害
         if (event.getSource().getTrueSource() instanceof EntityPlayer) {
             EntityPlayer attacker = (EntityPlayer) event.getSource().getTrueSource();

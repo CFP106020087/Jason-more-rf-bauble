@@ -2,13 +2,14 @@ package com.moremod.system.ascension;
 
 import com.moremod.config.BrokenGodConfig;
 import com.moremod.item.ItemMechanicalCore;
+import com.moremod.network.PacketHandler;
+import com.moremod.network.PacketSyncHumanityData;
 import com.moremod.system.humanity.AscensionRoute;
 import com.moremod.system.humanity.HumanityCapabilityHandler;
 import com.moremod.system.humanity.IHumanityData;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
@@ -36,9 +37,6 @@ public class BrokenGodHandler {
 
     // ========== 停机模式追踪 ==========
 
-    /** 玩家停机状态追踪 */
-    private static final Map<UUID, Integer> shutdownTimers = new HashMap<>();
-
     /** 扭曲脉冲冷却追踪 */
     private static final Map<UUID, Integer> pulseCooldowns = new HashMap<>();
 
@@ -56,15 +54,16 @@ public class BrokenGodHandler {
      * 检查玩家是否处于停机状态
      */
     public static boolean isInShutdown(EntityPlayer player) {
-        return shutdownTimers.containsKey(player.getUniqueID()) &&
-                shutdownTimers.get(player.getUniqueID()) > 0;
+        IHumanityData data = HumanityCapabilityHandler.getData(player);
+        return data != null && data.isInShutdown();
     }
 
     /**
      * 获取停机剩余时间
      */
     public static int getShutdownTimer(EntityPlayer player) {
-        return shutdownTimers.getOrDefault(player.getUniqueID(), 0);
+        IHumanityData data = HumanityCapabilityHandler.getData(player);
+        return data != null ? data.getShutdownTimer() : 0;
     }
 
     // ========== 停机模式控制 ==========
@@ -76,8 +75,15 @@ public class BrokenGodHandler {
         if (!isBrokenGod(player)) return;
         if (isInShutdown(player)) return;
 
-        UUID playerId = player.getUniqueID();
-        shutdownTimers.put(playerId, BrokenGodConfig.shutdownTicks);
+        IHumanityData data = HumanityCapabilityHandler.getData(player);
+        if (data == null) return;
+
+        data.setShutdownTimer(BrokenGodConfig.shutdownTicks);
+
+        // 同步到客户端（用于显示 overlay）
+        if (player instanceof EntityPlayerMP) {
+            PacketHandler.INSTANCE.sendTo(new PacketSyncHumanityData(data), (EntityPlayerMP) player);
+        }
 
         // 设置 HP 为 1（不是 0，避免触发死亡）
         player.setHealth(1.0f);
@@ -116,19 +122,22 @@ public class BrokenGodHandler {
      * 每 tick 更新停机状态
      */
     public static void tickShutdown(EntityPlayer player) {
-        UUID playerId = player.getUniqueID();
+        IHumanityData data = HumanityCapabilityHandler.getData(player);
+        if (data == null) return;
 
-        if (!shutdownTimers.containsKey(playerId)) return;
-
-        int timer = shutdownTimers.get(playerId);
+        int timer = data.getShutdownTimer();
         if (timer <= 0) {
-            shutdownTimers.remove(playerId);
             return;
         }
 
         // 减少计时器
         timer--;
-        shutdownTimers.put(playerId, timer);
+        data.setShutdownTimer(timer);
+
+        // 每5tick同步到客户端（用于 overlay 进度更新）
+        if (timer % 5 == 0 && player instanceof EntityPlayerMP) {
+            PacketHandler.INSTANCE.sendTo(new PacketSyncHumanityData(data), (EntityPlayerMP) player);
+        }
 
         // 停机期间：
         // - 禁止移动
@@ -159,8 +168,14 @@ public class BrokenGodHandler {
      * 退出停机模式
      */
     private static void exitShutdown(EntityPlayer player) {
-        UUID playerId = player.getUniqueID();
-        shutdownTimers.remove(playerId);
+        IHumanityData data = HumanityCapabilityHandler.getData(player);
+        if (data != null) {
+            data.setShutdownTimer(0);
+            // 同步到客户端
+            if (player instanceof EntityPlayerMP) {
+                PacketHandler.INSTANCE.sendTo(new PacketSyncHumanityData(data), (EntityPlayerMP) player);
+            }
+        }
 
         // 恢复生命值
         player.setHealth((float) BrokenGodConfig.restartHeal);
@@ -313,7 +328,6 @@ public class BrokenGodHandler {
      * 玩家退出时清理
      */
     public static void cleanupPlayer(UUID playerId) {
-        shutdownTimers.remove(playerId);
         pulseCooldowns.remove(playerId);
     }
 }

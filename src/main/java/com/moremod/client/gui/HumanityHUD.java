@@ -1,6 +1,7 @@
 package com.moremod.client.gui;
 
 import com.moremod.config.HumanityConfig;
+import com.moremod.system.humanity.AscensionRoute;
 import com.moremod.system.humanity.BiologicalProfile;
 import com.moremod.system.humanity.HumanityCapabilityHandler;
 import com.moremod.system.humanity.IHumanityData;
@@ -123,8 +124,9 @@ public class HumanityHUD extends Gui {
         int barWidth = (int) (displayedHumanity);
         Gui.drawRect(x, y, x + barWidth, y + 8, color);
 
-        // 崩解状态特殊效果
-        if (data.isDissolutionActive()) {
+        // 崩解状态特殊效果（升格后不显示）
+        boolean isBrokenGod = data.getAscensionRoute() == AscensionRoute.BROKEN_GOD;
+        if (data.isDissolutionActive() && !isBrokenGod) {
             int dissolutionColor = 0xFFFF0000;
             float pulse = 0.5f + 0.5f * (float) Math.sin(System.currentTimeMillis() / 100.0);
             int alpha = (int) (pulse * 255);
@@ -143,8 +145,8 @@ public class HumanityHUD extends Gui {
             mc.fontRenderer.drawStringWithShadow(label, x, y + 12, getStatusLabelColor(data));
         }
 
-        // 崩解倒计时
-        if (data.isDissolutionActive()) {
+        // 崩解倒计时（升格后不显示）
+        if (data.isDissolutionActive() && !isBrokenGod) {
             int seconds = data.getDissolutionTicks() / 20;
             String warning = "\u00a74【崩解中】\u00a7c " + seconds + "s";
             mc.fontRenderer.drawStringWithShadow(warning, x, y + 22, 0xFFFF0000);
