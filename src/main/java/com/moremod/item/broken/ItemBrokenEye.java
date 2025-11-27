@@ -1,16 +1,13 @@
 package com.moremod.item.broken;
 
 import baubles.api.BaubleType;
-import baubles.api.IBauble;
 import com.moremod.config.BrokenGodConfig;
 import com.moremod.config.BrokenRelicConfig;
 import com.moremod.creativetab.moremodCreativeTab;
-import com.moremod.system.ascension.BrokenGodHandler;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.MobEffects;
-import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.potion.PotionEffect;
 import net.minecraft.util.text.TextFormatting;
@@ -35,15 +32,14 @@ import java.util.List;
  *
  * 附带: 夜视、免疫失明、实体高亮
  *
- * 不可卸下
+ * 不可卸下，右键自动替换槽位饰品
  */
-public class ItemBrokenEye extends Item implements IBauble {
+public class ItemBrokenEye extends ItemBrokenBaubleBase {
 
     public ItemBrokenEye() {
         setRegistryName("broken_eye");
         setTranslationKey("broken_eye");
         setCreativeTab(moremodCreativeTab.moremod_TAB);
-        setMaxStackSize(1);
     }
 
     @Override
@@ -64,14 +60,6 @@ public class ItemBrokenEye extends Item implements IBauble {
         if (player instanceof EntityPlayer) {
             player.removePotionEffect(MobEffects.NIGHT_VISION);
         }
-    }
-
-    @Override
-    public boolean canUnequip(ItemStack itemstack, EntityLivingBase player) {
-        if (player instanceof EntityPlayer) {
-            return !BrokenGodHandler.isBrokenGod((EntityPlayer) player);
-        }
-        return true;
     }
 
     @Override

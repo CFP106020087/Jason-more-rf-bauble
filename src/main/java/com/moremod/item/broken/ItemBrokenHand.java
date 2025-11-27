@@ -1,7 +1,6 @@
 package com.moremod.item.broken;
 
 import baubles.api.BaubleType;
-import baubles.api.IBauble;
 import com.moremod.config.BrokenGodConfig;
 import com.moremod.config.BrokenRelicConfig;
 import com.moremod.creativetab.moremodCreativeTab;
@@ -11,7 +10,6 @@ import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.attributes.AttributeModifier;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
@@ -35,9 +33,9 @@ import java.util.UUID;
  *   - 每次攻击追加一次额外伤害（原伤害40%）
  *   - 追加伤害走真伤系统，无视无敌帧
  *
- * 不可卸下
+ * 不可卸下，右键自动替换槽位饰品
  */
-public class ItemBrokenHand extends Item implements IBauble {
+public class ItemBrokenHand extends ItemBrokenBaubleBase {
 
     private static final UUID DAMAGE_MODIFIER_UUID = UUID.fromString("b1234567-89ab-cdef-0123-456789abcdef");
     private static final UUID SPEED_MODIFIER_UUID = UUID.fromString("b2345678-9abc-def0-1234-56789abcdef0");
@@ -46,7 +44,6 @@ public class ItemBrokenHand extends Item implements IBauble {
         setRegistryName("broken_hand");
         setTranslationKey("broken_hand");
         setCreativeTab(moremodCreativeTab.moremod_TAB);
-        setMaxStackSize(1);
     }
 
     @Override
@@ -66,14 +63,6 @@ public class ItemBrokenHand extends Item implements IBauble {
         if (player instanceof EntityPlayer) {
             removeModifiers((EntityPlayer) player);
         }
-    }
-
-    @Override
-    public boolean canUnequip(ItemStack itemstack, EntityLivingBase player) {
-        if (player instanceof EntityPlayer) {
-            return !BrokenGodHandler.isBrokenGod((EntityPlayer) player);
-        }
-        return true;
     }
 
     @Override

@@ -1,7 +1,6 @@
 package com.moremod.item.broken;
 
 import baubles.api.BaubleType;
-import baubles.api.IBauble;
 import com.moremod.config.BrokenRelicConfig;
 import com.moremod.creativetab.moremodCreativeTab;
 import com.moremod.system.ascension.BrokenGodHandler;
@@ -11,7 +10,6 @@ import com.moremod.system.humanity.IHumanityData;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.text.TextFormatting;
@@ -36,15 +34,14 @@ import java.util.List;
  *   - 每5秒消耗人性值
  *   - 每秒损失少量生命
  *
- * 不可卸下
+ * 不可卸下，右键自动替换槽位饰品
  */
-public class ItemBrokenTerminus extends Item implements IBauble {
+public class ItemBrokenTerminus extends ItemBrokenBaubleBase {
 
     public ItemBrokenTerminus() {
         setRegistryName("broken_terminus");
         setTranslationKey("broken_terminus");
         setCreativeTab(moremodCreativeTab.moremod_TAB);
-        setMaxStackSize(1);
     }
 
     @Override
@@ -60,14 +57,6 @@ public class ItemBrokenTerminus extends Item implements IBauble {
     @Override
     public void onUnequipped(ItemStack itemstack, EntityLivingBase player) {
         // 无特殊效果
-    }
-
-    @Override
-    public boolean canUnequip(ItemStack itemstack, EntityLivingBase player) {
-        if (player instanceof EntityPlayer) {
-            return !BrokenGodHandler.isBrokenGod((EntityPlayer) player);
-        }
-        return true;
     }
 
     @Override

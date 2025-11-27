@@ -1,17 +1,14 @@
 package com.moremod.item.broken;
 
 import baubles.api.BaubleType;
-import baubles.api.IBauble;
 import com.moremod.config.BrokenRelicConfig;
 import com.moremod.creativetab.moremodCreativeTab;
-import com.moremod.system.ascension.BrokenGodHandler;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.attributes.AttributeModifier;
 import net.minecraft.entity.ai.attributes.IAttributeInstance;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
@@ -34,9 +31,9 @@ import java.util.UUID;
  *   - 造成伤害的80%立即治疗自己
  *   - 溢出的治疗转化为吸收之心（上限8HP）
  *
- * 不可卸下
+ * 不可卸下，右键自动替换槽位饰品
  */
-public class ItemBrokenHeart extends Item implements IBauble {
+public class ItemBrokenHeart extends ItemBrokenBaubleBase {
 
     private static final UUID HP_COMPRESS_UUID = UUID.fromString("c1234567-89ab-cdef-0123-456789abcdef");
 
@@ -44,7 +41,6 @@ public class ItemBrokenHeart extends Item implements IBauble {
         setRegistryName("broken_heart");
         setTranslationKey("broken_heart");
         setCreativeTab(moremodCreativeTab.moremod_TAB);
-        setMaxStackSize(1);
     }
 
     @Override
@@ -65,14 +61,6 @@ public class ItemBrokenHeart extends Item implements IBauble {
         if (player instanceof EntityPlayer) {
             removeHPCompression((EntityPlayer) player);
         }
-    }
-
-    @Override
-    public boolean canUnequip(ItemStack itemstack, EntityLivingBase player) {
-        if (player instanceof EntityPlayer) {
-            return !BrokenGodHandler.isBrokenGod((EntityPlayer) player);
-        }
-        return true;
     }
 
     @Override

@@ -1,14 +1,10 @@
 package com.moremod.item.broken;
 
 import baubles.api.BaubleType;
-import baubles.api.IBauble;
 import com.moremod.config.BrokenRelicConfig;
 import com.moremod.creativetab.moremodCreativeTab;
-import com.moremod.system.ascension.BrokenGodHandler;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
@@ -32,15 +28,14 @@ import java.util.List;
  *   - 当目标生命值 < 35% 时
  *   - 幻象打击变为斩杀执行（直接归零）
  *
- * 不可卸下
+ * 不可卸下，右键自动替换槽位饰品
  */
-public class ItemBrokenProjection extends Item implements IBauble {
+public class ItemBrokenProjection extends ItemBrokenBaubleBase {
 
     public ItemBrokenProjection() {
         setRegistryName("broken_projection");
         setTranslationKey("broken_projection");
         setCreativeTab(moremodCreativeTab.moremod_TAB);
-        setMaxStackSize(1);
     }
 
     @Override
@@ -56,14 +51,6 @@ public class ItemBrokenProjection extends Item implements IBauble {
     @Override
     public void onUnequipped(ItemStack itemstack, EntityLivingBase player) {
         // 无特殊效果
-    }
-
-    @Override
-    public boolean canUnequip(ItemStack itemstack, EntityLivingBase player) {
-        if (player instanceof EntityPlayer) {
-            return !BrokenGodHandler.isBrokenGod((EntityPlayer) player);
-        }
-        return true;
     }
 
     @Override

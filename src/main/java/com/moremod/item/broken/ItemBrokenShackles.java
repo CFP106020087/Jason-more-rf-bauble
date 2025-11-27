@@ -1,7 +1,6 @@
 package com.moremod.item.broken;
 
 import baubles.api.BaubleType;
-import baubles.api.IBauble;
 import com.moremod.config.BrokenRelicConfig;
 import com.moremod.creativetab.moremodCreativeTab;
 import com.moremod.system.ascension.BrokenGodHandler;
@@ -13,7 +12,6 @@ import net.minecraft.entity.ai.attributes.IAttributeInstance;
 import net.minecraft.entity.monster.IMob;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.MobEffects;
-import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.potion.PotionEffect;
 import net.minecraft.util.math.AxisAlignedBB;
@@ -38,9 +36,9 @@ import java.util.UUID;
  *   - 移动速度 -30%
  *   - 所受伤害 -30%
  *
- * 不可卸下
+ * 不可卸下，右键自动替换槽位饰品
  */
-public class ItemBrokenShackles extends Item implements IBauble {
+public class ItemBrokenShackles extends ItemBrokenBaubleBase {
 
     private static final UUID SPEED_MODIFIER_UUID = UUID.fromString("d1234567-89ab-cdef-0123-456789abcdef");
 
@@ -48,7 +46,6 @@ public class ItemBrokenShackles extends Item implements IBauble {
         setRegistryName("broken_shackles");
         setTranslationKey("broken_shackles");
         setCreativeTab(moremodCreativeTab.moremod_TAB);
-        setMaxStackSize(1);
     }
 
     @Override
@@ -68,14 +65,6 @@ public class ItemBrokenShackles extends Item implements IBauble {
         if (player instanceof EntityPlayer) {
             removeSpeedReduction((EntityPlayer) player);
         }
-    }
-
-    @Override
-    public boolean canUnequip(ItemStack itemstack, EntityLivingBase player) {
-        if (player instanceof EntityPlayer) {
-            return !BrokenGodHandler.isBrokenGod((EntityPlayer) player);
-        }
-        return true;
     }
 
     @Override
