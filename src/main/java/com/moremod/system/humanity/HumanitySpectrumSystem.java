@@ -1,5 +1,6 @@
 package com.moremod.system.humanity;
 
+import com.moremod.config.BrokenGodConfig;
 import com.moremod.config.HumanityConfig;
 import com.moremod.item.ItemMechanicalCore;
 import com.moremod.network.PacketHandler;
@@ -236,17 +237,26 @@ public class HumanitySpectrumSystem {
         IHumanityData data = HumanityCapabilityHandler.getData(player);
         if (data == null || data.isSystemActive()) return;
 
-        data.activateSystem();
-        data.setHumanity((float) HumanityConfig.initialHumanity);
+        // 检查是否是首次激活（人性值为默认值或0）
+        float currentHumanity = data.getHumanity();
+        boolean isFirstActivation = (currentHumanity == HumanityDataImpl.DEFAULT_HUMANITY || currentHumanity <= 0);
 
-        // 发送消息
+        data.activateSystem();
+
+        // 只有首次激活时才重置为初始值，否则保留之前的人性值
+        if (isFirstActivation) {
+            data.setHumanity((float) HumanityConfig.initialHumanity);
+        }
+
+        // 发送消息 - 使用实际人性值
+        float displayHumanity = data.getHumanity();
         player.sendMessage(new TextComponentString(
                 TextFormatting.LIGHT_PURPLE + "═══════════════════════════════\n" +
                 TextFormatting.BOLD + "" + TextFormatting.LIGHT_PURPLE + "【人机融合完成】\n" +
                 TextFormatting.GRAY + "你的肉体已接纳机械。\n" +
                 TextFormatting.GRAY + "但世界开始重新审视你的存在...\n" +
                 TextFormatting.YELLOW + "人性值系统已激活。当前人性值: " +
-                String.format("%.0f%%", HumanityConfig.initialHumanity) + "\n" +
+                String.format("%.0f%%", displayHumanity) + "\n" +
                 TextFormatting.LIGHT_PURPLE + "═══════════════════════════════"
         ));
 
@@ -464,12 +474,21 @@ public class HumanitySpectrumSystem {
             modifyHumanity(player, delta);
         }
 
+        // 追踪低人性累计时间（用于破碎之神升格条件）
+        // 注意：此方法每秒调用一次（ticksExisted % 20 == 0）
+        if (humanity < BrokenGodConfig.lowHumanityThreshold) {
+            // 每秒累加20 tick
+            data.addLowHumanityTicks(20);
+        }
+
         // 调试模式
         if (HumanityConfig.debugMode) {
+            long lowHumanitySeconds = data.getLowHumanityTicks() / 20;
             player.sendStatusMessage(new TextComponentString(
-                    String.format("§7[人性] %.1f%% | 变化:%.3f/s | 战斗:%s",
+                    String.format("§7[人性] %.1f%% | 变化:%.3f/s | 战斗:%s | 低人性时间:%ds",
                             data.getHumanity(), delta,
-                            data.isInCombat(player.ticksExisted, COMBAT_TIMEOUT) ? "是" : "否")
+                            data.isInCombat(player.ticksExisted, COMBAT_TIMEOUT) ? "是" : "否",
+                            lowHumanitySeconds)
             ), true);
         }
     }

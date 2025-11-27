@@ -238,9 +238,9 @@ public class BrokenGodHandler {
         float humanity = data.getHumanity();
         if (humanity > BrokenGodConfig.ascensionHumanityThreshold) return false;
 
-        // 条件2: 崩解存活次数
-        int dissolutionSurvivals = data.getDissolutionSurvivals();
-        if (dissolutionSurvivals < BrokenGodConfig.requiredDissolutionSurvivals) return false;
+        // 条件2: 低人性累计时间（秒）
+        long lowHumanitySeconds = data.getLowHumanityTicks() / 20;
+        if (lowHumanitySeconds < BrokenGodConfig.requiredLowHumanitySeconds) return false;
 
         // 条件3: 装备机械核心
         ItemStack core = ItemMechanicalCore.getCoreFromPlayer(player);

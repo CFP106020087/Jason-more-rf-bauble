@@ -30,6 +30,7 @@ public class HumanityDataImpl implements IHumanityData {
     public static final String NBT_TICKS_SINCE_SLEEP = "ticks_since_sleep";
     public static final String NBT_ASCENSION_ROUTE = "ascension_route";
     public static final String NBT_DISSOLUTION_SURVIVALS = "dissolution_survivals";
+    public static final String NBT_LOW_HUMANITY_TICKS = "low_humanity_ticks";
     public static final String NBT_HUMANITY_BEHAVIOR_SCORE = "humanity_behavior_score";
     public static final String NBT_OPERATION_VALUE = "operation_value";
 
@@ -60,6 +61,7 @@ public class HumanityDataImpl implements IHumanityData {
     // 升格系统
     private AscensionRoute ascensionRoute = AscensionRoute.NONE;
     private int dissolutionSurvivals = 0;
+    private long lowHumanityTicks = 0; // 低人性值累计时间
     private int humanityBehaviorScore = 100; // Mekhane 专用
     private int operationValue = 100; // 破碎之神专用
 
@@ -414,6 +416,23 @@ public class HumanityDataImpl implements IHumanityData {
         this.dissolutionSurvivals++;
     }
 
+    // ========== 低人性累计时间 ==========
+
+    @Override
+    public long getLowHumanityTicks() {
+        return lowHumanityTicks;
+    }
+
+    @Override
+    public void setLowHumanityTicks(long ticks) {
+        this.lowHumanityTicks = Math.max(0, ticks);
+    }
+
+    @Override
+    public void addLowHumanityTicks(long ticks) {
+        this.lowHumanityTicks = Math.max(0, this.lowHumanityTicks + ticks);
+    }
+
     // ========== Mekhane 合成人专用 ==========
 
     @Override
@@ -493,6 +512,7 @@ public class HumanityDataImpl implements IHumanityData {
         // 升格系统
         nbt.setString(NBT_ASCENSION_ROUTE, ascensionRoute.getId());
         nbt.setInteger(NBT_DISSOLUTION_SURVIVALS, dissolutionSurvivals);
+        nbt.setLong(NBT_LOW_HUMANITY_TICKS, lowHumanityTicks);
         nbt.setInteger(NBT_HUMANITY_BEHAVIOR_SCORE, humanityBehaviorScore);
         nbt.setInteger(NBT_OPERATION_VALUE, operationValue);
 
@@ -550,6 +570,7 @@ public class HumanityDataImpl implements IHumanityData {
         // 升格系统
         this.ascensionRoute = AscensionRoute.fromId(nbt.getString(NBT_ASCENSION_ROUTE));
         this.dissolutionSurvivals = nbt.getInteger(NBT_DISSOLUTION_SURVIVALS);
+        this.lowHumanityTicks = nbt.getLong(NBT_LOW_HUMANITY_TICKS);
         this.humanityBehaviorScore = nbt.hasKey(NBT_HUMANITY_BEHAVIOR_SCORE) ? nbt.getInteger(NBT_HUMANITY_BEHAVIOR_SCORE) : 100;
         this.operationValue = nbt.hasKey(NBT_OPERATION_VALUE) ? nbt.getInteger(NBT_OPERATION_VALUE) : 100;
     }
@@ -579,6 +600,7 @@ public class HumanityDataImpl implements IHumanityData {
         // 升格系统
         this.ascensionRoute = other.getAscensionRoute();
         this.dissolutionSurvivals = other.getDissolutionSurvivals();
+        this.lowHumanityTicks = other.getLowHumanityTicks();
         this.humanityBehaviorScore = other.getHumanityBehaviorScore();
         this.operationValue = other.getOperationValue();
     }

@@ -253,6 +253,22 @@ public interface IHumanityData {
      */
     void incrementDissolutionSurvivals();
 
+    /**
+     * 获取低人性值累计时间（tick）
+     * 用于破碎之神升格条件
+     */
+    long getLowHumanityTicks();
+
+    /**
+     * 设置低人性值累计时间
+     */
+    void setLowHumanityTicks(long ticks);
+
+    /**
+     * 增加低人性值累计时间
+     */
+    void addLowHumanityTicks(long ticks);
+
     // ========== Mekhane 合成人专用 ==========
 
     /**

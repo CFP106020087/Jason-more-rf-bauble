@@ -35,12 +35,21 @@ public class BrokenGodConfig {
     public static int requiredModuleCount = 20;
 
     @Config.Comment({
-            "升格所需的崩解存活次数",
-            "Dissolution survivals required for ascension"
+            "升格所需的低人性值累计时间（秒）",
+            "Cumulative time at low humanity required for ascension (seconds)",
+            "当人性值低于阈值时，每秒累计1秒"
     })
-    @Config.Name("崩解存活次数 | Dissolution Survivals")
-    @Config.RangeInt(min = 1, max = 10)
-    public static int requiredDissolutionSurvivals = 3;
+    @Config.Name("低人性累计时间 | Low Humanity Time")
+    @Config.RangeInt(min = 60, max = 36000)
+    public static int requiredLowHumanitySeconds = 1800; // 默认30分钟
+
+    @Config.Comment({
+            "低人性值阈值（低于此值时开始累计时间）",
+            "Low humanity threshold (accumulates time when below this)"
+    })
+    @Config.Name("低人性阈值 | Low Humanity Threshold")
+    @Config.RangeDouble(min = 5, max = 30)
+    public static double lowHumanityThreshold = 15.0;
 
     // ============================================================
     // 停机模式 (Shutdown Mode)

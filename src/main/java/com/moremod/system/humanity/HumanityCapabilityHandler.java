@@ -3,12 +3,14 @@ package com.moremod.system.humanity;
 import com.moremod.moremod;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.common.capabilities.CapabilityManager;
 import net.minecraftforge.event.AttachCapabilitiesEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerRespawnEvent;
 
 /**
  * 人性值能力处理器
@@ -87,5 +89,17 @@ public class HumanityCapabilityHandler {
      */
     public static boolean hasCapability(EntityPlayer player) {
         return player.hasCapability(HumanityDataProvider.HUMANITY_CAP, null);
+    }
+
+    /**
+     * 玩家重生后强制同步人性值数据到客户端
+     * 解决死亡后 HUD 脱节问题
+     */
+    @SubscribeEvent
+    public static void onPlayerRespawn(PlayerRespawnEvent event) {
+        if (event.player instanceof EntityPlayerMP) {
+            // 延迟一点同步，确保客户端准备好
+            HumanitySpectrumSystem.forceSync(event.player);
+        }
     }
 }
