@@ -1,6 +1,7 @@
 package com.moremod.system.ascension;
 
 import com.moremod.moremod;
+import ichttt.mods.firstaid.api.CapabilityExtendedHealthSystem;
 import ichttt.mods.firstaid.api.damagesystem.AbstractDamageablePart;
 import ichttt.mods.firstaid.api.damagesystem.AbstractPlayerDamageModel;
 import ichttt.mods.firstaid.api.event.FirstAidLivingDamageEvent;
@@ -13,8 +14,6 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.Optional;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 /**
  * 破碎之神 - First Aid 模组兼容层
@@ -26,8 +25,6 @@ import org.apache.logging.log4j.Logger;
  */
 @Mod.EventBusSubscriber(modid = moremod.MODID)
 public class BrokenGodFirstAidCompat {
-
-    private static final Logger LOGGER = LogManager.getLogger("moremod");
 
     /**
      * 拦截 First Aid 的伤害事件
@@ -50,7 +47,6 @@ public class BrokenGodFirstAidCompat {
                         part.heal(part.getMaxHealth(), null, false);
                     }
                 }
-                LOGGER.debug("[BrokenGod-FA] Restored all parts during shutdown for {}", player.getName());
                 return;
             }
 
@@ -61,7 +57,6 @@ public class BrokenGodFirstAidCompat {
                     hasFatalDamage = true;
                     // 立即恢复该部位到 1 点血量，阻止死亡判定
                     part.heal(1.0f, null, false);
-                    LOGGER.debug("[BrokenGod-FA] Healed fatal part {} to prevent death", part.getMaxHealth());
                 }
             }
 
@@ -69,20 +64,19 @@ public class BrokenGodFirstAidCompat {
             if (hasFatalDamage) {
                 if (!BrokenGodHandler.isInShutdown(player)) {
                     BrokenGodHandler.enterShutdown(player);
-                    LOGGER.info("[BrokenGod-FA] Intercepted fatal First Aid damage, entering shutdown for {}", player.getName());
                 }
 
-                // 同步到客户端
+                // 同步到客户端 - 从 Capability 获取 model
                 if (player instanceof EntityPlayerMP) {
-                    AbstractPlayerDamageModel model = event.getAfterDamage().iterator().next().model;
+                    AbstractPlayerDamageModel model = (AbstractPlayerDamageModel)
+                            player.getCapability(CapabilityExtendedHealthSystem.INSTANCE, null);
                     if (model != null) {
                         FirstAid.NETWORKING.sendTo(new MessageSyncDamageModel(model, false), (EntityPlayerMP) player);
                     }
                 }
             }
 
-        } catch (Throwable e) {
-            LOGGER.warn("[BrokenGod-FA] Error handling First Aid event: {}", e.getMessage());
+        } catch (Throwable ignored) {
         }
     }
 
