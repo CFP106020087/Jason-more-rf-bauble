@@ -112,6 +112,9 @@ public class BrokenGodHandler {
         // 设置 HP 为 1（不是 0，避免触发死亡）
         player.setHealth(1.0f);
 
+        // 给予无敌帧，防止进入停机后立即被其他伤害杀死
+        player.hurtResistantTime = Math.max(player.hurtResistantTime, 20);
+
         // 清除运动
         player.motionX = 0;
         player.motionY = 0;
@@ -206,7 +209,16 @@ public class BrokenGodHandler {
     private static void exitShutdown(EntityPlayer player) {
         UUID playerId = player.getUniqueID();
 
-        // 清除备用 Map
+        // ⚠️ 重要：先恢复生命值和给予无敌帧，再清除停机状态
+        // 这样可以防止在清除状态后立即被伤害杀死
+
+        // 恢复生命值（在清除保护状态之前）
+        player.setHealth((float) BrokenGodConfig.restartHeal);
+
+        // 给予短暂无敌帧，防止退出停机后立即受伤
+        player.hurtResistantTime = 40; // 2秒无敌帧
+
+        // 现在才清除备用 Map
         shutdownBackup.remove(playerId);
 
         // 清除 Capability
@@ -218,9 +230,6 @@ public class BrokenGodHandler {
                 PacketHandler.INSTANCE.sendTo(new PacketSyncHumanityData(data), (EntityPlayerMP) player);
             }
         }
-
-        // 恢复生命值
-        player.setHealth((float) BrokenGodConfig.restartHeal);
 
         // 发送重启消息
         player.sendMessage(new TextComponentString(
