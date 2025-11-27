@@ -24,10 +24,11 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
  * 处理所有破碎饰品的战斗效果
  *
  * 设计说明：
- * - LivingHurtEvent LOWEST: 应用伤害倍率（暴击×3、护甲穿透100%、狂战士、终结×2）
+ * - LivingHurtEvent LOWEST: 应用伤害倍率（暴击×3、狂战士、终结×2）
  * - LivingDamageEvent LOWEST: 基于最终伤害计算真伤（投影100%真伤）
  * - AttackEntityEvent: 重置攻击冷却（手）
  * - LivingDeathEvent: 击杀效果（终结）
+ * - 护甲粉碎: 由ItemBrokenArm的onWornTick光环处理
  */
 @Mod.EventBusSubscriber(modid = moremod.MODID)
 public class BrokenRelicEventHandler {
@@ -57,18 +58,11 @@ public class BrokenRelicEventHandler {
 
         float modifiedDamage = event.getAmount();
 
-        // ========== 破碎_臂: 必定暴击×3 + 100%护甲穿透 ==========
+        // ========== 破碎_臂: 必定暴击×3 ==========
+        // 护甲粉碎效果由ItemBrokenArm的光环处理（周围敌人护甲归零）
         if (hasBrokenArm(player)) {
             // 暴击伤害 ×3
             modifiedDamage *= ItemBrokenArm.getCritMultiplier();
-
-            // 100%护甲穿透（转为真伤效果，在这里增加伤害来模拟）
-            float armorPen = ItemBrokenArm.getArmorPenetration();
-            if (armorPen >= 1.0f) {
-                // 完全无视护甲，直接使用伤害源设置
-                // 但因为我们在LOWEST，护甲计算已经做过了，所以用TrueDamageHelper补偿
-                modifiedDamage = TrueDamageHelper.calculateArmorBypassDamage(modifiedDamage, armorPen);
-            }
         }
 
         // ========== 破碎_心核: 狂战士（血量越低伤害越高，最高×5） ==========

@@ -65,12 +65,12 @@ public class BrokenRelicConfig {
     public static double armCritMultiplier = 3.0;
 
     @Config.Comment({
-            "护甲穿透比例 (1.0 = 100%无视护甲)",
-            "Armor penetration ratio"
+            "护甲粉碎光环范围（格）",
+            "Armor shred aura range in blocks"
     })
-    @Config.Name("破碎臂:护甲穿透 | Arm: Armor Penetration")
-    @Config.RangeDouble(min = 0.5, max = 1.0)
-    public static double armArmorPenetration = 1.0;
+    @Config.Name("破碎臂:护甲粉碎范围 | Arm: Armor Shred Range")
+    @Config.RangeDouble(min = 5, max = 20)
+    public static double armArmorShredRange = 10.0;
 
     @Config.Comment({
             "攻击距离延长（格）",
