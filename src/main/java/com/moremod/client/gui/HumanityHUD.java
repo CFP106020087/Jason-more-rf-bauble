@@ -51,6 +51,9 @@ public class HumanityHUD extends Gui {
         IHumanityData data = HumanityCapabilityHandler.getData(player);
         if (data == null || !data.isSystemActive()) return;
 
+        // 破碎之神不显示人性值HUD（已超越人性）
+        if (data.getAscensionRoute() == AscensionRoute.BROKEN_GOD) return;
+
         // 更新动画
         updateAnimations(data);
 

@@ -5,6 +5,7 @@ import com.moremod.config.FleshRejectionConfig;
 import com.moremod.config.HumanityConfig;
 import com.moremod.item.ItemMechanicalCore;
 import com.moremod.system.FleshRejectionSystem;
+import com.moremod.system.humanity.AscensionRoute;
 import com.moremod.system.humanity.HumanityCapabilityHandler;
 import com.moremod.system.humanity.IHumanityData;
 import net.minecraft.client.Minecraft;
@@ -58,6 +59,7 @@ public class SmartRejectionGuide extends Gui {
     private static float lastAdaptation = -1;
     private static float lastHumanity = -1;
     private static boolean wasInHumanitySystem = false; // 追踪是否在人性值系统中
+    private static boolean wasBrokenGod = false; // 追踪是否是破碎之神
     private static Set<String> shownMilestones = new HashSet<>();
     private static boolean hadCore = false;
 
@@ -91,6 +93,7 @@ public class SmartRejectionGuide extends Gui {
                 currentGuide = null;
                 pendingGuide = null;
                 hadCore = false;
+                wasBrokenGod = false;
             }
             return;
         }
@@ -123,6 +126,13 @@ public class SmartRejectionGuide extends Gui {
             }
             wasInHumanitySystem = humanitySystemActive;
         }
+
+        // 检测破碎之神升格
+        boolean isBrokenGod = humanityData != null && humanityData.getAscensionRoute() == AscensionRoute.BROKEN_GOD;
+        if (isBrokenGod && !wasBrokenGod) {
+            showBrokenGodAscensionGuide();
+        }
+        wasBrokenGod = isBrokenGod;
 
         // 只有在不显示详细信息时才检查里程碑
         if (!showingDetailedStatus) {
@@ -168,6 +178,18 @@ public class SmartRejectionGuide extends Gui {
                 "§c排异反应重新激活！",
                 "§7人机融合状态中断...",
                 "§7需要重新达成突破条件"
+        ), true);
+    }
+
+    private static void showBrokenGodAscensionGuide() {
+        showGuide(new GuideInfo(
+                "§6✦ 破碎之神升格完成", 400, 10,
+                "§e你已超越人性，成为破碎之神",
+                "§7人性值系统已失效",
+                "§a新能力: §7致命伤害触发停机模式",
+                "§a新能力: §7机械共鸣脉冲",
+                "§a新能力: §7机械吸收恢复",
+                "§7按状态键查看完整能力列表"
         ), true);
     }
 
@@ -444,6 +466,9 @@ public class SmartRejectionGuide extends Gui {
         boolean inHumanitySystem = humanityData != null && humanityData.isSystemActive()
                 && rejStatus.transcended && rejStatus.rejection <= 0;
 
+        // 检查是否是破碎之神
+        boolean isBrokenGod = humanityData != null && humanityData.getAscensionRoute() == AscensionRoute.BROKEN_GOD;
+
         FontRenderer fr = mc.fontRenderer;
 
         // 淡入淡出
@@ -456,7 +481,10 @@ public class SmartRejectionGuide extends Gui {
         int alphaInt = (int)(alpha * 255);
         int bgAlpha = (int)(alpha * 200);
 
-        if (inHumanitySystem) {
+        if (isBrokenGod) {
+            // ========== 破碎之神详细状态 ==========
+            y = renderBrokenGodDetailedStatus(centerX, y, humanityData, fr, alphaInt, bgAlpha);
+        } else if (inHumanitySystem) {
             // ========== 人性值系统详细状态 ==========
             y = renderHumanityDetailedStatus(centerX, y, humanityData, fr, alphaInt, bgAlpha);
         } else {
@@ -722,6 +750,116 @@ public class SmartRejectionGuide extends Gui {
         }
 
         return y;
+    }
+
+    // ========== 破碎之神详细状态渲染 ==========
+    private static int renderBrokenGodDetailedStatus(int centerX, int y,
+            IHumanityData data, FontRenderer fr, int alphaInt, int bgAlpha) {
+
+        // 标题
+        String title = "§6✦ 破碎之神 - 机械升格";
+        int titleWidth = fr.getStringWidth(title);
+        drawRect(centerX - titleWidth/2 - 8, y - 2,
+                centerX + titleWidth/2 + 8, y + 11,
+                bgAlpha << 24);
+        fr.drawStringWithShadow(title, centerX - titleWidth/2, y,
+                0xFFD700 | (alphaInt << 24));
+        y += 16;
+
+        // 分隔线
+        String separator = "§7═════════════════";
+        int sepWidth = fr.getStringWidth(separator);
+        fr.drawStringWithShadow(separator, centerX - sepWidth/2, y,
+                0x777777 | (alphaInt << 24));
+        y += 12;
+
+        // 状态说明
+        String statusText = "§e状态: §f已超越人性限制";
+        int statusWidth = fr.getStringWidth(statusText);
+        drawRect(centerX - statusWidth/2 - 5, y - 1,
+                centerX + statusWidth/2 + 5, y + 10,
+                (bgAlpha - 50) << 24);
+        fr.drawStringWithShadow(statusText, centerX - statusWidth/2, y,
+                0xFFFFFF | (alphaInt << 24));
+        y += 12;
+
+        String descText = "§7人性值系统已失效";
+        int descWidth = fr.getStringWidth(descText);
+        drawRect(centerX - descWidth/2 - 5, y - 1,
+                centerX + descWidth/2 + 5, y + 10,
+                (bgAlpha - 50) << 24);
+        fr.drawStringWithShadow(descText, centerX - descWidth/2, y,
+                0xAAAAAA | (alphaInt << 24));
+        y += 14;
+
+        // 能力标题
+        y += 4;
+        String abilityTitle = "§6【破碎之神能力】";
+        int abilityTitleWidth = fr.getStringWidth(abilityTitle);
+        drawRect(centerX - abilityTitleWidth/2 - 5, y - 1,
+                centerX + abilityTitleWidth/2 + 5, y + 10,
+                bgAlpha << 24);
+        fr.drawStringWithShadow(abilityTitle, centerX - abilityTitleWidth/2, y,
+                0xFFD700 | (alphaInt << 24));
+        y += 12;
+
+        // 能力列表
+        List<String> abilities = getBrokenGodAbilities();
+        for (String ability : abilities) {
+            int abilityWidth = fr.getStringWidth(ability);
+            drawRect(centerX - abilityWidth/2 - 3, y - 1,
+                    centerX + abilityWidth/2 + 3, y + 9,
+                    (bgAlpha - 100) << 24);
+            fr.drawStringWithShadow(ability, centerX - abilityWidth/2, y,
+                    0xFFFFFF | (alphaInt << 24));
+            y += 10;
+        }
+
+        // 机制说明标题
+        y += 6;
+        String mechTitle = "§7【机制说明】";
+        int mechTitleWidth = fr.getStringWidth(mechTitle);
+        drawRect(centerX - mechTitleWidth/2 - 5, y - 1,
+                centerX + mechTitleWidth/2 + 5, y + 10,
+                bgAlpha << 24);
+        fr.drawStringWithShadow(mechTitle, centerX - mechTitleWidth/2, y,
+                0x888888 | (alphaInt << 24));
+        y += 12;
+
+        // 机制说明列表
+        List<String> mechanics = getBrokenGodMechanics();
+        for (String mechanic : mechanics) {
+            int mechWidth = fr.getStringWidth(mechanic);
+            drawRect(centerX - mechWidth/2 - 3, y - 1,
+                    centerX + mechWidth/2 + 3, y + 9,
+                    (bgAlpha - 100) << 24);
+            fr.drawStringWithShadow(mechanic, centerX - mechWidth/2, y,
+                    0xAAAAAA | (alphaInt << 24));
+            y += 10;
+        }
+
+        return y;
+    }
+
+    // 获取破碎之神能力列表
+    private static List<String> getBrokenGodAbilities() {
+        List<String> abilities = new ArrayList<>();
+        abilities.add("§a✦ 停机模式: §7致命伤害时进入保护状态");
+        abilities.add("§a✦ 机械共鸣: §7周期性脉冲治愈附近机械");
+        abilities.add("§a✦ 机械吸收: §7攻击机械生物可恢复生命");
+        abilities.add("§a✦ 免疫排异: §7永久免疫血肉排异反应");
+        abilities.add("§a✦ 存在稳固: §7不受崩解威胁");
+        return abilities;
+    }
+
+    // 获取破碎之神机制说明
+    private static List<String> getBrokenGodMechanics() {
+        List<String> mechanics = new ArrayList<>();
+        mechanics.add("§7• 停机模式持续3秒，期间完全无敌");
+        mechanics.add("§7• 停机冷却时间较长，避免连续触发");
+        mechanics.add("§7• 机械共鸣脉冲对附近机械生物有治愈效果");
+        mechanics.add("§7• 攻击铁傀儡等机械可吸收生命");
+        return mechanics;
     }
 
     // 获取人性值区间文本
