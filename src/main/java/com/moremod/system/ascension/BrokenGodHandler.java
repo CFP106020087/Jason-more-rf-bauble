@@ -2,6 +2,7 @@ package com.moremod.system.ascension;
 
 import com.moremod.config.BrokenGodConfig;
 import com.moremod.item.ItemMechanicalCore;
+import com.moremod.network.PacketAscensionAnimation;
 import com.moremod.network.PacketHandler;
 import com.moremod.network.PacketSyncHumanityData;
 import com.moremod.system.humanity.AscensionRoute;
@@ -376,15 +377,14 @@ public class BrokenGodHandler {
         // 固定人性值为 0
         data.setHumanity(0);
 
-        // 发送升格消息
-        player.sendMessage(new TextComponentString(
-                TextFormatting.DARK_PURPLE + "═══════════════════════════════\n" +
-                TextFormatting.BOLD + "" + TextFormatting.DARK_PURPLE + "[ Broken God ]\n" +
-                TextFormatting.GRAY + "你的情绪熄灭。\n" +
-                TextFormatting.GRAY + "你的灵魂沉静。\n" +
-                TextFormatting.GRAY + "你成为了纯粹的力量。\n" +
-                TextFormatting.DARK_PURPLE + "═══════════════════════════════"
-        ));
+        // 发送升格动画包到客户端
+        if (player instanceof EntityPlayerMP) {
+            PacketHandler.INSTANCE.sendTo(new PacketAscensionAnimation(), (EntityPlayerMP) player);
+        }
+
+        // 发送升格消息（延迟显示，让动画先播放）
+        // 消息将在动画结束后由客户端显示，这里不再发送
+        // player.sendMessage(...) 改为由动画结束触发
 
         // 装备替换消息
         player.sendMessage(new TextComponentString(

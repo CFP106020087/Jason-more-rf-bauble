@@ -193,6 +193,14 @@ public class PacketHandler {
                 Side.SERVER
         );
 
+        // === 破碎之神升格动画 (S->C) ===
+        INSTANCE.registerMessage(
+                PacketAscensionAnimation.Handler.class,
+                PacketAscensionAnimation.class,
+                id++,
+                Side.CLIENT
+        );
+
         System.out.println("[MoreMod] 网络包注册完成，共 " + id + " 个消息类型");
     }
 }
