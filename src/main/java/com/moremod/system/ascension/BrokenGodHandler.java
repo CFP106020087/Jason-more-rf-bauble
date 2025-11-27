@@ -18,7 +18,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -35,10 +37,16 @@ public class BrokenGodHandler {
 
     private static final Logger LOGGER = LogManager.getLogger("moremod");
 
-    // ========== 停机模式追踪 ==========
+    // ========== 状态追踪（用于 ASM 钩子可靠性） ==========
 
     /**
-     * 备用停机状态追踪（用于 ASM 钩子的可靠性）
+     * 备用破碎之神状态追踪
+     * 当 Capability 不可用时使用此 Set 作为后备
+     */
+    private static final Set<UUID> brokenGodBackup = new HashSet<>();
+
+    /**
+     * 备用停机状态追踪
      * 当 Capability 不可用时使用此 Map 作为后备
      */
     private static final Map<UUID, Integer> shutdownBackup = new HashMap<>();
@@ -50,10 +58,37 @@ public class BrokenGodHandler {
 
     /**
      * 检查玩家是否是破碎之神
+     * 同时检查 Capability 和备用 Set（确保 ASM 钩子可靠性）
      */
     public static boolean isBrokenGod(EntityPlayer player) {
+        UUID playerId = player.getUniqueID();
+        // 优先检查备用 Set（ASM 钩子可靠性）
+        if (brokenGodBackup.contains(playerId)) {
+            return true;
+        }
+        // 然后检查 Capability
         IHumanityData data = HumanityCapabilityHandler.getData(player);
-        return data != null && data.getAscensionRoute() == AscensionRoute.BROKEN_GOD;
+        boolean isBrokenGod = data != null && data.getAscensionRoute() == AscensionRoute.BROKEN_GOD;
+        // 如果 Capability 确认是破碎之神，同步到备用 Set
+        if (isBrokenGod) {
+            brokenGodBackup.add(playerId);
+        }
+        return isBrokenGod;
+    }
+
+    /**
+     * 注册玩家为破碎之神（在玩家登录时调用，确保备用追踪有效）
+     */
+    public static void registerBrokenGod(EntityPlayer player) {
+        brokenGodBackup.add(player.getUniqueID());
+        LOGGER.debug("[BrokenGod] Registered player {} in backup set", player.getName());
+    }
+
+    /**
+     * 取消注册破碎之神状态
+     */
+    public static void unregisterBrokenGod(EntityPlayer player) {
+        brokenGodBackup.remove(player.getUniqueID());
     }
 
     /**
@@ -325,6 +360,9 @@ public class BrokenGodHandler {
     public static void performAscension(EntityPlayer player) {
         IHumanityData data = HumanityCapabilityHandler.getData(player);
         if (data == null) return;
+
+        // 添加到备用 Set（确保 ASM 钩子可靠性）
+        brokenGodBackup.add(player.getUniqueID());
 
         // 设置升格路线
         data.setAscensionRoute(AscensionRoute.BROKEN_GOD);

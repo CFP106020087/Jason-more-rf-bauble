@@ -28,6 +28,7 @@ import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerLoggedInEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerLoggedOutEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
@@ -304,7 +305,21 @@ public class BrokenGodEventHandler {
         }
     }
 
-    // ========== 玩家退出清理 ==========
+    // ========== 玩家登录/退出 ==========
+
+    /**
+     * 玩家登录时注册破碎之神状态到备用追踪
+     * 确保 ASM 钩子在 Capability 不可用时仍能正常工作
+     */
+    @SubscribeEvent
+    public static void onPlayerLogin(PlayerLoggedInEvent event) {
+        EntityPlayer player = event.player;
+        IHumanityData data = HumanityCapabilityHandler.getData(player);
+        if (data != null && data.getAscensionRoute() == AscensionRoute.BROKEN_GOD) {
+            BrokenGodHandler.registerBrokenGod(player);
+            LOGGER.info("[BrokenGod] Registered returning Broken God player: {}", player.getName());
+        }
+    }
 
     @SubscribeEvent
     public static void onPlayerLogout(PlayerLoggedOutEvent event) {
