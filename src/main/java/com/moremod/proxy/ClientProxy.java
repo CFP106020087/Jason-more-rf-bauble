@@ -143,6 +143,9 @@ public class ClientProxy extends CommonProxy {
         // ✨ 新增：注册锯刃剑鲜血欢愉渲染层
         registerBloodEuphoriaLayer();
 
+        // ✨ 新增：注册人性值机械化叠加渲染层
+        registerMechanicalOverlayLayer();
+
         ClientEventHandler.init(event);
     }
 
@@ -230,6 +233,17 @@ public class ClientProxy extends CommonProxy {
     }
 
     private static void registerMechanicalExoskeletonLayer() {}
+
+
+    private void registerMechanicalOverlayLayer() {
+        Map<String, RenderPlayer> skinMap = Minecraft.getMinecraft().getRenderManager().getSkinMap();
+
+        // "default" = Steve 模型（4像素手臂）
+        // "slim" = Alex 模型（3像素手臂）
+        for (RenderPlayer renderPlayer : skinMap.values()) {
+            renderPlayer.addLayer(new LayerMechanicalOverlay(renderPlayer));
+        }
+    }
 
     // ✨ 新增：注册鲜血欢愉渲染层（玩家红色光晕）
     /**
