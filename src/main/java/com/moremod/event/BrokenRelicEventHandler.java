@@ -40,7 +40,10 @@ public class BrokenRelicEventHandler {
         // 必须是破碎之神才能触发效果
         if (!BrokenGodHandler.isBrokenGod(player)) return;
 
-        // 防止真伤处理递归
+        // 如果是我们的真伤伤害源，不要再叠加效果（防止递归）
+        if (TrueDamageHelper.isTrueDamageSource(event.getSource())) return;
+        if (TrueDamageHelper.isInTrueDamageContext()) return;
+
         EntityLivingBase target = event.getEntityLiving();
         if (TrueDamageHelper.isProcessingTrueDamage(target)) return;
 

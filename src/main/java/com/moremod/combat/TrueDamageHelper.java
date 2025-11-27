@@ -15,18 +15,16 @@ import java.util.UUID;
  * 高级真伤系统
  * Advanced True Damage System
  *
- * 使用 setHealth 包装的真伤逻辑，绕过无敌帧和部分防御机制
- * 但保留正常的受击、死亡流程
+ * 正确实现：通过 attackEntityFrom + 无敌帧重置 + 绕过护甲的 DamageSource
+ * 确保完整的伤害流程：LivingHurtEvent → LivingDamageEvent → 死亡 → 掉落
  */
 public class TrueDamageHelper {
 
     /** 正在处理真伤的实体（防止递归） */
     private static final Set<UUID> processingEntities = new HashSet<>();
 
-    /** 自定义真伤伤害源 */
-    public static final DamageSource TRUE_DAMAGE = new DamageSource("moremod_true_damage")
-            .setDamageBypassesArmor()
-            .setDamageIsAbsolute();
+    /** 标记当前是否在真伤处理中（供外部事件检查） */
+    private static final ThreadLocal<Boolean> IN_TRUE_DAMAGE = ThreadLocal.withInitial(() -> false);
 
     /**
      * 真伤类型标记
@@ -39,7 +37,24 @@ public class TrueDamageHelper {
     }
 
     /**
+     * 创建绕过护甲的真伤伤害源
+     */
+    public static DamageSource createTrueDamageSource(@Nullable Entity source) {
+        if (source instanceof EntityPlayer) {
+            return new EntityDamageSource("moremod.true_damage", source)
+                    .setDamageBypassesArmor()
+                    .setDamageIsAbsolute();
+        }
+        return new DamageSource("moremod.true_damage")
+                .setDamageBypassesArmor()
+                .setDamageIsAbsolute();
+    }
+
+    /**
      * 应用包装真伤
+     *
+     * 通过重置无敌帧 + 使用绕过护甲的伤害源，走完整伤害流程
+     * 这样 LivingHurtEvent, LivingDamageEvent, 死亡, 掉落都会正常触发
      *
      * @param target 目标实体
      * @param source 伤害来源（可为null）
@@ -63,96 +78,64 @@ public class TrueDamageHelper {
 
         try {
             processingEntities.add(targetId);
+            IN_TRUE_DAMAGE.set(true);
 
-            float before = target.getHealth();
-            if (before <= 0) return false;
+            // 重置无敌帧，确保伤害能打进去
+            target.hurtResistantTime = 0;
 
-            float after = Math.max(0, before - trueDamage);
+            // 使用绕过护甲的伤害源，走正常伤害流程
+            DamageSource dmgSource = createTrueDamageSource(source);
 
-            // 触发受击动画和音效（使用极小伤害）
-            // 这样不会造成实际伤害但能触发视觉效果
-            DamageSource dmgSource = createDamageSource(source, flag);
+            // 这会触发完整的伤害链：
+            // attackEntityFrom → applyPotionDamageCalculations →
+            // LivingHurtEvent → damageEntity → LivingDamageEvent →
+            // 如果死亡 → onDeath → LivingDeathEvent → LivingDropsEvent
+            boolean result = target.attackEntityFrom(dmgSource, trueDamage);
 
-            // 先尝试触发受击效果（0.01伤害不会改变血量太多）
-            target.hurtResistantTime = 0; // 重置无敌帧
-            target.attackEntityFrom(dmgSource, 0.01f);
-
-            // 使用 setHealth 应用真正的伤害
-            target.setHealth(after);
-
-            // 如果目标死亡，确保死亡流程正常触发
-            if (after <= 0 && !target.isDead) {
-                target.onDeath(dmgSource);
-            }
-
-            return true;
+            return result;
 
         } finally {
             processingEntities.remove(targetId);
+            IN_TRUE_DAMAGE.set(false);
         }
     }
 
     /**
-     * 应用斩杀真伤（直接将目标生命归零）
+     * 应用斩杀真伤（造成目标当前血量的伤害）
      */
     public static boolean applyExecuteDamage(EntityLivingBase target,
                                               @Nullable Entity source) {
         if (target == null || target.world.isRemote) return false;
 
-        UUID targetId = target.getUniqueID();
-        if (processingEntities.contains(targetId)) {
-            return false;
-        }
-
-        try {
-            processingEntities.add(targetId);
-
-            float before = target.getHealth();
-            if (before <= 0) return false;
-
-            DamageSource dmgSource = createDamageSource(source, TrueDamageFlag.EXECUTE);
-
-            // 触发受击
-            target.hurtResistantTime = 0;
-            target.attackEntityFrom(dmgSource, 0.01f);
-
-            // 直接归零
-            target.setHealth(0);
-
-            // 触发死亡
-            if (!target.isDead) {
-                target.onDeath(dmgSource);
-            }
-
-            return true;
-
-        } finally {
-            processingEntities.remove(targetId);
-        }
+        // 造成目标当前血量 + 10 的伤害，确保击杀
+        float executeDamage = target.getHealth() + 10f;
+        return applyWrappedTrueDamage(target, source, executeDamage, TrueDamageFlag.EXECUTE);
     }
 
     /**
-     * 检查是否正在处理真伤（用于外部判断防止递归）
+     * 检查是否正在处理真伤（用于外部事件判断，防止递归）
      */
     public static boolean isProcessingTrueDamage(EntityLivingBase entity) {
         return processingEntities.contains(entity.getUniqueID());
     }
 
     /**
-     * 创建伤害源
+     * 检查当前线程是否在真伤处理中
      */
-    private static DamageSource createDamageSource(@Nullable Entity source, TrueDamageFlag flag) {
-        if (source instanceof EntityPlayer) {
-            return new EntityDamageSource("moremod_true_damage", source)
-                    .setDamageBypassesArmor()
-                    .setDamageIsAbsolute();
-        }
-        return TRUE_DAMAGE;
+    public static boolean isInTrueDamageContext() {
+        return IN_TRUE_DAMAGE.get();
+    }
+
+    /**
+     * 检查伤害源是否是我们的真伤
+     */
+    public static boolean isTrueDamageSource(DamageSource source) {
+        return source != null && "moremod.true_damage".equals(source.getDamageType());
     }
 
     /**
      * 计算无视护甲后的等效伤害
-     * 用于模拟"忽略50%护甲"等效果
+     * 用于模拟"忽略50%护甲"等效果（非真伤场景）
      *
      * @param baseDamage 基础伤害
      * @param armorIgnorePercent 护甲忽略百分比 (0.5 = 50%)
