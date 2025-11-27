@@ -7,7 +7,6 @@ import com.moremod.system.ascension.BrokenGodHandler;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.SharedMonsterAttributes;
-import net.minecraft.entity.ai.attributes.AttributeModifier;
 import net.minecraft.entity.ai.attributes.IAttributeInstance;
 import net.minecraft.entity.monster.IMob;
 import net.minecraft.entity.player.EntityPlayer;
@@ -22,7 +21,6 @@ import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * 破碎_臂 (Broken Arm)
@@ -43,10 +41,20 @@ import java.util.UUID;
  */
 public class ItemBrokenArm extends ItemBrokenBaubleBase {
 
-    private static final UUID ARMOR_SHRED_UUID = UUID.fromString("a1234567-89ab-cdef-0123-456789abcdef");
+    // 追踪已经被护甲粉碎的实体及其原始护甲值
+    private static final Map<Integer, ArmorData> shreddedEntities = new HashMap<>();
 
-    // 追踪已经被护甲粉碎的实体
-    private static final Map<Integer, Long> shreddedEntities = new HashMap<>();
+    private static class ArmorData {
+        long lastUpdateTime;
+        double originalArmor;
+        double originalToughness;
+
+        ArmorData(long time, double armor, double toughness) {
+            this.lastUpdateTime = time;
+            this.originalArmor = armor;
+            this.originalToughness = toughness;
+        }
+    }
 
     public ItemBrokenArm() {
         setRegistryName("broken_arm");
@@ -84,7 +92,7 @@ public class ItemBrokenArm extends ItemBrokenBaubleBase {
     }
 
     /**
-     * 应用护甲粉碎光环 - 使用属性修改将护甲归零
+     * 应用护甲粉碎光环 - 直接设置护甲和韧性为0
      */
     private void applyArmorShredAura(EntityPlayer player) {
         double range = BrokenRelicConfig.armArmorShredRange;
@@ -99,35 +107,45 @@ public class ItemBrokenArm extends ItemBrokenBaubleBase {
         long currentTime = player.world.getTotalWorldTime();
 
         for (EntityLivingBase target : entities) {
+            int entityId = target.getEntityId();
             IAttributeInstance armorAttr = target.getEntityAttribute(SharedMonsterAttributes.ARMOR);
-            if (armorAttr == null) continue;
+            IAttributeInstance toughnessAttr = target.getEntityAttribute(SharedMonsterAttributes.ARMOR_TOUGHNESS);
 
-            // 应用护甲粉碎修改器（将护甲设为0）
-            AttributeModifier shredMod = armorAttr.getModifier(ARMOR_SHRED_UUID);
-            if (shredMod == null) {
-                // 使用 -1.0 和 operation 2（乘法）将护甲归零
-                armorAttr.applyModifier(new AttributeModifier(
-                        ARMOR_SHRED_UUID,
-                        "Broken Arm Armor Shred",
-                        -1.0,
-                        2 // 乘法 = 护甲 × 0
-                ));
+            // 如果是新目标，保存原始值
+            if (!shreddedEntities.containsKey(entityId)) {
+                double originalArmor = armorAttr != null ? armorAttr.getBaseValue() : 0;
+                double originalToughness = toughnessAttr != null ? toughnessAttr.getBaseValue() : 0;
+                shreddedEntities.put(entityId, new ArmorData(currentTime, originalArmor, originalToughness));
+
+                // 设置护甲和韧性为0
+                if (armorAttr != null) {
+                    armorAttr.setBaseValue(0);
+                }
+                if (toughnessAttr != null) {
+                    toughnessAttr.setBaseValue(0);
+                }
+            } else {
+                // 更新时间
+                shreddedEntities.get(entityId).lastUpdateTime = currentTime;
             }
-
-            // 记录粉碎时间
-            shreddedEntities.put(target.getEntityId(), currentTime);
         }
 
-        // 清理离开范围的实体的护甲粉碎效果
+        // 清理离开范围的实体，恢复其护甲
         shreddedEntities.entrySet().removeIf(entry -> {
-            if (currentTime - entry.getValue() > 10) {
+            if (currentTime - entry.getValue().lastUpdateTime > 10) {
                 // 超过10tick没更新，说明已离开范围
                 net.minecraft.entity.Entity e = player.world.getEntityByID(entry.getKey());
                 if (e instanceof EntityLivingBase) {
-                    IAttributeInstance armorAttr = ((EntityLivingBase) e).getEntityAttribute(
-                            SharedMonsterAttributes.ARMOR);
+                    EntityLivingBase target = (EntityLivingBase) e;
+                    IAttributeInstance armorAttr = target.getEntityAttribute(SharedMonsterAttributes.ARMOR);
+                    IAttributeInstance toughnessAttr = target.getEntityAttribute(SharedMonsterAttributes.ARMOR_TOUGHNESS);
+
+                    // 恢复原始护甲值
                     if (armorAttr != null) {
-                        armorAttr.removeModifier(ARMOR_SHRED_UUID);
+                        armorAttr.setBaseValue(entry.getValue().originalArmor);
+                    }
+                    if (toughnessAttr != null) {
+                        toughnessAttr.setBaseValue(entry.getValue().originalToughness);
                     }
                 }
                 return true;
