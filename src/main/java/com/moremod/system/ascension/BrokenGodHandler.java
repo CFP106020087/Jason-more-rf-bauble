@@ -17,11 +17,10 @@ import net.minecraft.world.WorldServer;
 import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.Optional;
 
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 破碎之神处理器
@@ -40,17 +39,19 @@ public class BrokenGodHandler {
     /**
      * 备用破碎之神状态追踪
      * 当 Capability 不可用时使用此 Set 作为后备
+     * 使用 ConcurrentHashMap.newKeySet() 确保线程安全
      */
-    private static final Set<UUID> brokenGodBackup = new HashSet<>();
+    private static final Set<UUID> brokenGodBackup = ConcurrentHashMap.newKeySet();
 
     /**
      * 备用停机状态追踪
      * 当 Capability 不可用时使用此 Map 作为后备
+     * 使用 ConcurrentHashMap 确保线程安全
      */
-    private static final Map<UUID, Integer> shutdownBackup = new HashMap<>();
+    private static final Map<UUID, Integer> shutdownBackup = new ConcurrentHashMap<>();
 
-    /** 扭曲脉冲冷却追踪 */
-    private static final Map<UUID, Integer> pulseCooldowns = new HashMap<>();
+    /** 扭曲脉冲冷却追踪 - 使用 ConcurrentHashMap 确保线程安全 */
+    private static final Map<UUID, Integer> pulseCooldowns = new ConcurrentHashMap<>();
 
     // ========== 核心状态检查 ==========
 
