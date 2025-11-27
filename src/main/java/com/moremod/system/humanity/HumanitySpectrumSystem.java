@@ -354,7 +354,7 @@ public class HumanitySpectrumSystem {
     }
 
     /**
-     * 处理崩解状态tick
+     * 处理崩解状态tick（每秒调用一次）
      */
     public static void tickDissolution(EntityPlayer player) {
         IHumanityData data = HumanityCapabilityHandler.getData(player);
@@ -368,19 +368,26 @@ public class HumanitySpectrumSystem {
             return;
         }
 
-        data.setDissolutionTicks(remaining - 1);
+        // 每秒减少20 tick（因为此方法每秒调用一次）
+        data.setDissolutionTicks(remaining - 20);
+
+        int seconds = remaining / 20;
 
         // 每秒发送提醒
-        if (remaining % 20 == 0) {
-            int seconds = remaining / 20;
-            player.sendStatusMessage(new TextComponentString(
-                    TextFormatting.DARK_RED + "【崩解中】" + TextFormatting.RED + seconds + "秒"
-            ), true);
+        player.sendStatusMessage(new TextComponentString(
+                TextFormatting.DARK_RED + "【崩解中】" + TextFormatting.RED + seconds + "秒"
+        ), true);
 
-            // 粒子效果
-            if (player.world instanceof WorldServer) {
-                spawnDissolutionParticles(player);
-            }
+        // 崩解伤害：每秒造成真实伤害（无视护甲）
+        float dissolutionDamage = (float) HumanityConfig.dissolutionDamagePerSec;
+        if (dissolutionDamage > 0) {
+            // 使用特殊伤害源，无视护甲
+            player.attackEntityFrom(DamageSource.OUT_OF_WORLD, dissolutionDamage);
+        }
+
+        // 粒子效果
+        if (player.world instanceof WorldServer) {
+            spawnDissolutionParticles(player);
         }
 
         markDirty(player);

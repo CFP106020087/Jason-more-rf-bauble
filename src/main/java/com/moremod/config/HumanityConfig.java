@@ -42,6 +42,14 @@ public class HumanityConfig {
     public static int dissolutionDuration = 60;
 
     @Config.Comment({
+            "崩解期间每秒造成的真实伤害（无视护甲）",
+            "True damage dealt per second during dissolution (bypasses armor)"
+    })
+    @Config.Name("崩解伤害/秒 | Dissolution Damage/sec")
+    @Config.RangeDouble(min = 0, max = 5)
+    public static double dissolutionDamagePerSec = 1.0;
+
+    @Config.Comment({
             "存在锚定持续时间(小时)",
             "Existence anchor duration in hours"
     })
