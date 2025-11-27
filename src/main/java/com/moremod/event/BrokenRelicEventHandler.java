@@ -3,7 +3,6 @@ package com.moremod.event;
 import baubles.api.BaublesApi;
 import baubles.api.cap.IBaublesItemHandler;
 import com.moremod.combat.TrueDamageHelper;
-import com.moremod.config.BrokenRelicConfig;
 import com.moremod.item.broken.*;
 import com.moremod.moremod;
 import com.moremod.system.ascension.BrokenGodHandler;
@@ -11,7 +10,9 @@ import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.event.entity.living.LivingDamageEvent;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.minecraftforge.event.entity.player.AttackEntityEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
@@ -23,8 +24,10 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
  * 处理所有破碎饰品的战斗效果
  *
  * 设计说明：
- * - LivingHurtEvent LOWEST: 应用伤害倍率（暴击、护甲穿透、伤害放大）
- * - LivingDamageEvent LOWEST: 基于最终伤害计算真伤（兼容所有增伤）
+ * - LivingHurtEvent LOWEST: 应用伤害倍率（暴击×3、护甲穿透100%、狂战士、终结×2）
+ * - LivingDamageEvent LOWEST: 基于最终伤害计算真伤（投影100%真伤）
+ * - AttackEntityEvent: 重置攻击冷却（手）
+ * - LivingDeathEvent: 击杀效果（终结）
  */
 @Mod.EventBusSubscriber(modid = moremod.MODID)
 public class BrokenRelicEventHandler {
@@ -54,19 +57,27 @@ public class BrokenRelicEventHandler {
 
         float modifiedDamage = event.getAmount();
 
-        // ========== 破碎_眼: 必定暴击 + 护甲穿透 ==========
-        if (hasBrokenEye(player)) {
-            // 暴击伤害
-            modifiedDamage *= ItemBrokenEye.getCritMultiplier();
+        // ========== 破碎_臂: 必定暴击×3 + 100%护甲穿透 ==========
+        if (hasBrokenArm(player)) {
+            // 暴击伤害 ×3
+            modifiedDamage *= ItemBrokenArm.getCritMultiplier();
 
-            // 护甲穿透（增加伤害来模拟）
-            modifiedDamage = TrueDamageHelper.calculateArmorBypassDamage(
-                    modifiedDamage,
-                    ItemBrokenEye.getArmorIgnoreRatio()
-            );
+            // 100%护甲穿透（转为真伤效果，在这里增加伤害来模拟）
+            float armorPen = ItemBrokenArm.getArmorPenetration();
+            if (armorPen >= 1.0f) {
+                // 完全无视护甲，直接使用伤害源设置
+                // 但因为我们在LOWEST，护甲计算已经做过了，所以用TrueDamageHelper补偿
+                modifiedDamage = TrueDamageHelper.calculateArmorBypassDamage(modifiedDamage, armorPen);
+            }
         }
 
-        // ========== 破碎_终结: 伤害放大 ==========
+        // ========== 破碎_心核: 狂战士（血量越低伤害越高，最高×5） ==========
+        if (hasBrokenHeart(player)) {
+            float berserkerMultiplier = ItemBrokenHeart.getBerserkerMultiplier(player);
+            modifiedDamage *= berserkerMultiplier;
+        }
+
+        // ========== 破碎_终结: 伤害×2 ==========
         if (hasBrokenTerminus(player)) {
             modifiedDamage *= ItemBrokenTerminus.getDamageMultiplier();
         }
@@ -80,9 +91,6 @@ public class BrokenRelicEventHandler {
     /**
      * 处理玩家造成的最终伤害 - 应用真伤
      * 优先级 LOWEST 确保获取到所有增伤后的最终数值
-     *
-     * 在此阶段，event.getAmount() 是经过护甲、附魔、其他mod增伤后的最终伤害
-     * 真伤基于此数值计算，从而兼容各种增伤效果
      */
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onPlayerDealFinalDamage(LivingDamageEvent event) {
@@ -105,26 +113,16 @@ public class BrokenRelicEventHandler {
         float finalDamage = event.getAmount();
         float trueDamageToApply = 0;
 
-        // ========== 破碎_终结: 追加真伤（基于最终伤害） ==========
-        if (hasBrokenTerminus(player)) {
-            trueDamageToApply += finalDamage * ItemBrokenTerminus.getTrueDamageRatio();
-        }
-
-        // ========== 破碎_手: 幻象打击真伤（基于最终伤害） ==========
-        if (hasBrokenHand(player)) {
-            trueDamageToApply += finalDamage * ItemBrokenHand.getPhantomDamageRatio();
-        }
-
-        // ========== 破碎_投影: 幻象分身 / 斩杀（基于最终伤害） ==========
+        // ========== 破碎_投影: 幻影打击 / 斩杀执行 ==========
         if (hasBrokenProjection(player)) {
             if (ItemBrokenProjection.canExecute(target)) {
-                // 斩杀执行
+                // 斩杀执行 - 目标 <50% HP 直接击杀
                 TrueDamageHelper.applyExecuteDamage(target, player);
                 // 斩杀后不需要其他真伤
                 trueDamageToApply = 0;
             } else {
-                // 幻象分身
-                trueDamageToApply += finalDamage * ItemBrokenProjection.getTwinDamageRatio();
+                // 幻影打击 - 100%额外真伤
+                trueDamageToApply += finalDamage * ItemBrokenProjection.getTrueDamageRatio();
             }
         }
 
@@ -138,11 +136,50 @@ public class BrokenRelicEventHandler {
             );
         }
 
-        // ========== 破碎_心核: 生命汲取（基于最终伤害+真伤） ==========
+        // ========== 破碎_心核: 生命汲取（100%吸血） ==========
         if (hasBrokenHeart(player)) {
             // 使用最终伤害（包括真伤）计算吸血
             float totalDamage = finalDamage + trueDamageToApply;
             ItemBrokenHeart.applyLifesteal(player, totalDamage);
+        }
+    }
+
+    // ========== 攻击事件：重置冷却 ==========
+
+    /**
+     * 攻击后重置冷却（破碎_手）
+     */
+    @SubscribeEvent
+    public static void onPlayerAttack(AttackEntityEvent event) {
+        EntityPlayer player = event.getEntityPlayer();
+        if (player.world.isRemote) return;
+
+        if (!BrokenGodHandler.isBrokenGod(player)) return;
+
+        // ========== 破碎_手: 攻击后重置冷却 ==========
+        if (hasBrokenHand(player) && ItemBrokenHand.shouldResetCooldown()) {
+            // 重置攻击冷却
+            player.resetCooldown();
+        }
+    }
+
+    // ========== 击杀事件：终结效果 ==========
+
+    /**
+     * 击杀敌人时触发终结效果
+     */
+    @SubscribeEvent
+    public static void onEntityKilled(LivingDeathEvent event) {
+        if (!(event.getSource().getTrueSource() instanceof EntityPlayer)) return;
+
+        EntityPlayer player = (EntityPlayer) event.getSource().getTrueSource();
+        if (player.world.isRemote) return;
+
+        if (!BrokenGodHandler.isBrokenGod(player)) return;
+
+        // ========== 破碎_终结: 死亡收割 ==========
+        if (hasBrokenTerminus(player)) {
+            ItemBrokenTerminus.applyKillEffect(player);
         }
     }
 
@@ -163,7 +200,7 @@ public class BrokenRelicEventHandler {
 
         float damage = event.getAmount();
 
-        // ========== 破碎_枷锁: 伤害减免 ==========
+        // ========== 破碎_枷锁: 伤害减免50% ==========
         if (hasBrokenShackles(player)) {
             float reduction = ItemBrokenShackles.getDamageReduction();
             damage *= (1.0f - reduction);
@@ -178,8 +215,8 @@ public class BrokenRelicEventHandler {
         return hasBrokenItem(player, ItemBrokenHeart.class);
     }
 
-    private static boolean hasBrokenEye(EntityPlayer player) {
-        return hasBrokenItem(player, ItemBrokenEye.class);
+    private static boolean hasBrokenArm(EntityPlayer player) {
+        return hasBrokenItem(player, ItemBrokenArm.class);
     }
 
     private static boolean hasBrokenHand(EntityPlayer player) {

@@ -22,14 +22,22 @@ import java.util.UUID;
 /**
  * 破碎_心核 (Broken Heartcore)
  *
- * 终局饰品 - 疯狂生存 + 自残风格
+ * 终局饰品 - 不朽引擎
  *
- * 能力1: 极限生命上限压缩
- *   - 最大生命值强制压到固定值（默认10HP/5心）
+ * 能力1: 极限生命压缩
+ *   - 最大生命值固定为10HP
  *
- * 能力2: 极高生命汲取
- *   - 造成伤害的80%立即治疗自己
- *   - 溢出的治疗转化为吸收之心（上限8HP）
+ * 能力2: 完全生命汲取
+ *   - 100%伤害转化为治疗
+ *   - 溢出治疗转为吸收之心（上限20HP）
+ *
+ * 能力3: 狂战士
+ *   - 血量越低伤害越高
+ *   - 最高×5倍伤害（1HP时）
+ *
+ * 能力4: 不朽
+ *   - HP不会低于1
+ *   - 免疫凋零/中毒/出血
  *
  * 不可卸下，右键自动替换槽位饰品
  */
@@ -76,6 +84,11 @@ public class ItemBrokenHeart extends ItemBrokenBaubleBase {
         // 清除负面效果
         if (entity.ticksExisted % 20 == 0) {
             clearNegativeEffects(entity);
+        }
+
+        // 确保HP不会低于1（不朽效果）
+        if (!player.world.isRemote && player.getHealth() < 1.0f && player.isEntityAlive()) {
+            player.setHealth(1.0f);
         }
     }
 
@@ -142,6 +155,24 @@ public class ItemBrokenHeart extends ItemBrokenBaubleBase {
     }
 
     /**
+     * 计算狂战士伤害倍率（由事件处理器调用）
+     * 血量越低伤害越高，满血×1，1HP时×5
+     *
+     * 公式: multiplier = maxMultiplier - (maxMultiplier - 1) * (currentHP / maxHP)
+     */
+    public static float getBerserkerMultiplier(EntityPlayer player) {
+        float currentHP = player.getHealth();
+        float maxHP = player.getMaxHealth();
+        float maxMultiplier = (float) BrokenRelicConfig.heartcoreBerserkerMaxMultiplier;
+
+        if (maxHP <= 0) return 1.0f;
+
+        float hpRatio = Math.max(0, Math.min(1, currentHP / maxHP));
+        // 满血时 = 1，空血时 = maxMultiplier
+        return maxMultiplier - (maxMultiplier - 1.0f) * hpRatio;
+    }
+
+    /**
      * 应用生命汲取（由事件处理器调用）
      */
     public static void applyLifesteal(EntityPlayer player, float damageDealt) {
@@ -182,14 +213,20 @@ public class ItemBrokenHeart extends ItemBrokenBaubleBase {
         tooltip.add(TextFormatting.GOLD + "◆ 极限生命压缩");
         tooltip.add(TextFormatting.GRAY + "  最大生命值固定为 " + (int) BrokenRelicConfig.heartcoreCompressedHP + " HP");
         tooltip.add("");
-        tooltip.add(TextFormatting.GREEN + "◆ 极高生命汲取");
+        tooltip.add(TextFormatting.GREEN + "◆ 完全生命汲取");
         tooltip.add(TextFormatting.GRAY + "  伤害的 " + (int)(BrokenRelicConfig.heartcoreLifestealRatio * 100) + "% 转化为治疗");
-        tooltip.add(TextFormatting.GRAY + "  溢出治疗转为吸收之心(上限 " + (int) BrokenRelicConfig.heartcoreMaxAbsorption + " HP)");
+        tooltip.add(TextFormatting.GRAY + "  溢出转吸收之心 (上限 " + (int) BrokenRelicConfig.heartcoreMaxAbsorption + " HP)");
         tooltip.add("");
-        tooltip.add(TextFormatting.AQUA + "◆ 免疫: 凋零/中毒/出血");
+        tooltip.add(TextFormatting.RED + "◆ 狂战士");
+        tooltip.add(TextFormatting.GRAY + "  血量越低伤害越高");
+        tooltip.add(TextFormatting.YELLOW + "  最高 ×" + (int) BrokenRelicConfig.heartcoreBerserkerMaxMultiplier + " 倍伤害");
         tooltip.add("");
-        tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"心脏变为永恒机器\"");
-        tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"代价是再也无法成长\"");
+        tooltip.add(TextFormatting.AQUA + "◆ 不朽");
+        tooltip.add(TextFormatting.GRAY + "  HP不会低于1");
+        tooltip.add(TextFormatting.GRAY + "  免疫: 凋零/中毒/出血");
+        tooltip.add("");
+        tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"不朽引擎，永不停息\"");
+        tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"越接近死亡，越是强大\"");
         tooltip.add(TextFormatting.DARK_RED + "═══════════════════════════");
         tooltip.add(TextFormatting.DARK_RED + "⚠ 无法卸除");
     }

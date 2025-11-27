@@ -17,16 +17,15 @@ import java.util.List;
 /**
  * 破碎_投影 (Broken Projection)
  *
- * 终局饰品 - 幻象分身 + 斩杀执行
+ * 终局饰品 - 死亡幻影
  *
- * 能力1: 幻象分身 (Phantom Twin)
- *   - 每次近战攻击生成一次幻象打击
- *   - 造成原伤害50%的包装真伤
+ * 能力1: 幻影打击
+ *   - 每次攻击额外造成 100% 真伤
  *   - 无视无敌帧
  *
- * 能力2: 幻影溢出
- *   - 当目标生命值 < 35% 时
- *   - 幻象打击变为斩杀执行（直接归零）
+ * 能力2: 斩杀执行
+ *   - 目标血量 < 50% 时
+ *   - 直接击杀
  *
  * 不可卸下，右键自动替换槽位饰品
  */
@@ -59,10 +58,10 @@ public class ItemBrokenProjection extends ItemBrokenBaubleBase {
     }
 
     /**
-     * 获取幻象分身伤害比例
+     * 获取幻影打击真伤比例
      */
-    public static float getTwinDamageRatio() {
-        return (float) BrokenRelicConfig.projectionTwinDamageRatio;
+    public static float getTrueDamageRatio() {
+        return (float) BrokenRelicConfig.projectionTrueDamageRatio;
     }
 
     /**
@@ -88,16 +87,16 @@ public class ItemBrokenProjection extends ItemBrokenBaubleBase {
         tooltip.add(TextFormatting.RED + "" + TextFormatting.BOLD + "破碎_投影");
         tooltip.add(TextFormatting.DARK_GRAY + "Broken Projection");
         tooltip.add("");
-        tooltip.add(TextFormatting.LIGHT_PURPLE + "◆ 幻象分身");
-        tooltip.add(TextFormatting.GRAY + "  每次攻击生成幻象打击");
-        tooltip.add(TextFormatting.GRAY + "  造成 " + (int)(BrokenRelicConfig.projectionTwinDamageRatio * 100) + "% 包装真伤");
+        tooltip.add(TextFormatting.LIGHT_PURPLE + "◆ 幻影打击");
+        tooltip.add(TextFormatting.GRAY + "  每次攻击额外造成");
+        tooltip.add(TextFormatting.YELLOW + "  +" + (int)(BrokenRelicConfig.projectionTrueDamageRatio * 100) + "% 真伤");
         tooltip.add(TextFormatting.GRAY + "  无视无敌帧");
         tooltip.add("");
-        tooltip.add(TextFormatting.DARK_RED + "◆ 幻影溢出");
-        tooltip.add(TextFormatting.GRAY + "  目标生命 < " + (int)(BrokenRelicConfig.projectionExecuteThreshold * 100) + "% 时");
-        tooltip.add(TextFormatting.RED + "  幻象打击 → 斩杀执行");
+        tooltip.add(TextFormatting.DARK_RED + "◆ 斩杀执行");
+        tooltip.add(TextFormatting.GRAY + "  目标血量 < " + (int)(BrokenRelicConfig.projectionExecuteThreshold * 100) + "%");
+        tooltip.add(TextFormatting.RED + "  直接击杀");
         tooltip.add("");
-        tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"影子比本体更致命\"");
+        tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"死亡幻影，必杀之击\"");
         tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"没有目标能承受两次打击\"");
         tooltip.add(TextFormatting.DARK_RED + "═══════════════════════════");
         tooltip.add(TextFormatting.DARK_RED + "⚠ 无法卸除");

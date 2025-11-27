@@ -11,9 +11,7 @@ import net.minecraft.entity.ai.attributes.AttributeModifier;
 import net.minecraft.entity.ai.attributes.IAttributeInstance;
 import net.minecraft.entity.monster.IMob;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.MobEffects;
 import net.minecraft.item.ItemStack;
-import net.minecraft.potion.PotionEffect;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
@@ -21,26 +19,35 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 import javax.annotation.Nullable;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
  * 破碎_枷锁 (Broken Shackles)
  *
- * 终局饰品 - 控制 + 牺牲机动
+ * 终局饰品 - 绝对领域
  *
- * 能力1: 强制减速光环
- *   - 8格内的敌对生物被强制减速（Slowness III）
+ * 能力1: 时空冻结
+ *   - 10格内敌人移速归零（属性修改）
  *
- * 能力2: 自身减速换防御
- *   - 移动速度 -30%
- *   - 所受伤害 -30%
+ * 能力2: 混乱领域
+ *   - 范围内敌人陷入混乱
+ *
+ * 能力3: 坚守代价
+ *   - 自身移速 -30%
+ *   - 所受伤害 -50%
  *
  * 不可卸下，右键自动替换槽位饰品
  */
 public class ItemBrokenShackles extends ItemBrokenBaubleBase {
 
-    private static final UUID SPEED_MODIFIER_UUID = UUID.fromString("d1234567-89ab-cdef-0123-456789abcdef");
+    private static final UUID SELF_SPEED_UUID = UUID.fromString("d1234567-89ab-cdef-0123-456789abcdef");
+    private static final UUID FREEZE_MODIFIER_UUID = UUID.fromString("d2345678-9abc-def0-1234-56789abcdef0");
+
+    // 追踪已经被冻结的实体
+    private static final Map<Integer, Long> frozenEntities = new HashMap<>();
 
     public ItemBrokenShackles() {
         setRegistryName("broken_shackles");
@@ -80,18 +87,17 @@ public class ItemBrokenShackles extends ItemBrokenBaubleBase {
             applySpeedReduction(player);
         }
 
-        // 每10tick应用减速光环
-        if (entity.ticksExisted % 10 == 0) {
-            applySlowAura(player);
+        // 每5tick应用时空冻结光环
+        if (entity.ticksExisted % 5 == 0) {
+            applyFreezeAura(player);
         }
     }
 
     /**
-     * 应用减速光环
+     * 应用时空冻结光环 - 使用属性修改而非药水
      */
-    private void applySlowAura(EntityPlayer player) {
+    private void applyFreezeAura(EntityPlayer player) {
         double range = BrokenRelicConfig.shacklesAuraRange;
-        int slowLevel = BrokenRelicConfig.shacklesSlowLevel;
 
         AxisAlignedBB aabb = player.getEntityBoundingBox().grow(range);
 
@@ -100,12 +106,50 @@ public class ItemBrokenShackles extends ItemBrokenBaubleBase {
                 e -> e != player && e instanceof IMob && e.isEntityAlive()
         );
 
+        long currentTime = player.world.getTotalWorldTime();
+
         for (EntityLivingBase target : entities) {
-            // 应用短时间减速（15tick），避免无限叠加
-            target.addPotionEffect(new PotionEffect(
-                    MobEffects.SLOWNESS, 15, slowLevel, true, false
-            ));
+            IAttributeInstance speedAttr = target.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED);
+            if (speedAttr == null) continue;
+
+            // 应用冻结修改器（将速度设为0）
+            AttributeModifier freezeMod = speedAttr.getModifier(FREEZE_MODIFIER_UUID);
+            if (freezeMod == null) {
+                // 使用 -1.0 和 operation 2（乘法）将速度归零
+                speedAttr.applyModifier(new AttributeModifier(
+                        FREEZE_MODIFIER_UUID,
+                        "Broken Shackles Freeze",
+                        -1.0,
+                        2 // 乘法 = 速度 × 0
+                ));
+            }
+
+            // 记录冻结时间
+            frozenEntities.put(target.getEntityId(), currentTime);
+
+            // 应用混乱效果（随机移动方向）
+            if (target.ticksExisted % 20 == 0) {
+                // 随机改变目标的朝向
+                target.rotationYaw += (player.world.rand.nextFloat() - 0.5f) * 180;
+            }
         }
+
+        // 清理离开范围的实体的冻结效果
+        frozenEntities.entrySet().removeIf(entry -> {
+            if (currentTime - entry.getValue() > 10) {
+                // 超过10tick没更新，说明已离开范围
+                net.minecraft.entity.Entity e = player.world.getEntityByID(entry.getKey());
+                if (e instanceof EntityLivingBase) {
+                    IAttributeInstance speedAttr = ((EntityLivingBase) e).getEntityAttribute(
+                            SharedMonsterAttributes.MOVEMENT_SPEED);
+                    if (speedAttr != null) {
+                        speedAttr.removeModifier(FREEZE_MODIFIER_UUID);
+                    }
+                }
+                return true;
+            }
+            return false;
+        });
     }
 
     /**
@@ -115,12 +159,12 @@ public class ItemBrokenShackles extends ItemBrokenBaubleBase {
         IAttributeInstance speedAttr = player.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED);
         if (speedAttr == null) return;
 
-        AttributeModifier existing = speedAttr.getModifier(SPEED_MODIFIER_UUID);
+        AttributeModifier existing = speedAttr.getModifier(SELF_SPEED_UUID);
         if (existing == null) {
             double reduction = -BrokenRelicConfig.shacklesSelfSlow;
             speedAttr.applyModifier(new AttributeModifier(
-                    SPEED_MODIFIER_UUID,
-                    "Broken Shackles Speed Reduction",
+                    SELF_SPEED_UUID,
+                    "Broken Shackles Self Slow",
                     reduction,
                     2 // 乘法
             ));
@@ -134,7 +178,7 @@ public class ItemBrokenShackles extends ItemBrokenBaubleBase {
         IAttributeInstance speedAttr = player.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED);
         if (speedAttr == null) return;
 
-        AttributeModifier existing = speedAttr.getModifier(SPEED_MODIFIER_UUID);
+        AttributeModifier existing = speedAttr.getModifier(SELF_SPEED_UUID);
         if (existing != null) {
             speedAttr.removeModifier(existing);
         }
@@ -147,6 +191,13 @@ public class ItemBrokenShackles extends ItemBrokenBaubleBase {
         return (float) BrokenRelicConfig.shacklesDamageReduction;
     }
 
+    /**
+     * 获取光环范围
+     */
+    public static float getAuraRange() {
+        return (float) BrokenRelicConfig.shacklesAuraRange;
+    }
+
     @Override
     @SideOnly(Side.CLIENT)
     public void addInformation(ItemStack stack, @Nullable World worldIn, List<String> tooltip, ITooltipFlag flagIn) {
@@ -154,23 +205,21 @@ public class ItemBrokenShackles extends ItemBrokenBaubleBase {
         tooltip.add(TextFormatting.RED + "" + TextFormatting.BOLD + "破碎_枷锁");
         tooltip.add(TextFormatting.DARK_GRAY + "Broken Shackles");
         tooltip.add("");
-        tooltip.add(TextFormatting.BLUE + "◆ 强制减速光环");
-        tooltip.add(TextFormatting.GRAY + "  " + (int) BrokenRelicConfig.shacklesAuraRange + " 格内敌人减速");
-        tooltip.add(TextFormatting.GRAY + "  (Slowness " + toRoman(BrokenRelicConfig.shacklesSlowLevel + 1) + ")");
+        tooltip.add(TextFormatting.BLUE + "◆ 时空冻结");
+        tooltip.add(TextFormatting.GRAY + "  " + (int) BrokenRelicConfig.shacklesAuraRange + " 格内敌人");
+        tooltip.add(TextFormatting.AQUA + "  移动速度归零");
         tooltip.add("");
-        tooltip.add(TextFormatting.YELLOW + "◆ 坚守阵地");
-        tooltip.add(TextFormatting.RED + "  移动速度 -" + (int)(BrokenRelicConfig.shacklesSelfSlow * 100) + "%");
+        tooltip.add(TextFormatting.LIGHT_PURPLE + "◆ 混乱领域");
+        tooltip.add(TextFormatting.GRAY + "  范围内敌人陷入混乱");
+        tooltip.add("");
+        tooltip.add(TextFormatting.YELLOW + "◆ 坚守代价");
+        tooltip.add(TextFormatting.RED + "  自身移速 -" + (int)(BrokenRelicConfig.shacklesSelfSlow * 100) + "%");
         tooltip.add(TextFormatting.GREEN + "  所受伤害 -" + (int)(BrokenRelicConfig.shacklesDamageReduction * 100) + "%");
         tooltip.add("");
-        tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"枷锁束缚了敌人\"");
-        tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"也束缚了自己\"");
+        tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"绝对领域，时空静止\"");
+        tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"在此范围内，一切归于沉寂\"");
         tooltip.add(TextFormatting.DARK_RED + "═══════════════════════════");
         tooltip.add(TextFormatting.DARK_RED + "⚠ 无法卸除");
-    }
-
-    private String toRoman(int num) {
-        String[] romans = {"I", "II", "III", "IV", "V"};
-        return num > 0 && num <= 5 ? romans[num - 1] : String.valueOf(num);
     }
 
     @Override

@@ -1,7 +1,6 @@
 package com.moremod.item.broken;
 
 import baubles.api.BaubleType;
-import com.moremod.config.BrokenGodConfig;
 import com.moremod.config.BrokenRelicConfig;
 import com.moremod.creativetab.moremodCreativeTab;
 import com.moremod.system.ascension.BrokenGodHandler;
@@ -9,6 +8,7 @@ import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.attributes.AttributeModifier;
+import net.minecraft.entity.ai.attributes.IAttributeInstance;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.text.TextFormatting;
@@ -23,15 +23,16 @@ import java.util.UUID;
 /**
  * 破碎_手 (Broken Hand)
  *
- * 终局饰品 - 攻速 + 多段打击
+ * 终局饰品 - 无尽之握
  *
- * 能力1: 攻速与冷却重置
- *   - 攻击冷却缩短50%
- *   - 大幅提升攻击速度
+ * 能力1: 疯狂攻速
+ *   - 攻击速度 ×3
  *
- * 能力2: 幻象打击
- *   - 每次攻击追加一次额外伤害（原伤害40%）
- *   - 追加伤害走真伤系统，无视无敌帧
+ * 能力2: 近战强化
+ *   - 近战伤害 +100%
+ *
+ * 能力3: 无冷却
+ *   - 攻击后立即重置冷却
  *
  * 不可卸下，右键自动替换槽位饰品
  */
@@ -76,61 +77,71 @@ public class ItemBrokenHand extends ItemBrokenBaubleBase {
                 applyModifiers(player);
             }
         }
-
-        // 强制减少攻击冷却（每tick）
-        if (!player.world.isRemote && BrokenGodHandler.isBrokenGod(player)) {
-            // 加速攻击冷却恢复
-            float cooldownReduction = (float) BrokenRelicConfig.handCooldownReduction;
-            // MC的攻击冷却每tick自然恢复，我们额外加速
-            // 这里通过直接操作ticksSinceLastSwing来实现
-            // 但该字段私有，我们改用其他方式：在事件中处理
-        }
     }
 
     private void applyModifiers(EntityPlayer player) {
-        // 攻击伤害加成
-        if (player.getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE) != null) {
-            AttributeModifier existing = player.getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE)
-                    .getModifier(DAMAGE_MODIFIER_UUID);
+        // 近战伤害加成
+        IAttributeInstance damageAttr = player.getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE);
+        if (damageAttr != null) {
+            AttributeModifier existing = damageAttr.getModifier(DAMAGE_MODIFIER_UUID);
             if (existing == null) {
-                player.getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).applyModifier(
-                        new AttributeModifier(DAMAGE_MODIFIER_UUID, "Broken Hand Damage",
-                                BrokenGodConfig.meleeDamageBonus, 2)
-                );
+                damageAttr.applyModifier(new AttributeModifier(
+                        DAMAGE_MODIFIER_UUID,
+                        "Broken Hand Damage",
+                        BrokenRelicConfig.handMeleeDamageBonus,
+                        2 // 乘法
+                ));
             }
         }
 
-        // 攻击速度大幅加成
-        if (player.getEntityAttribute(SharedMonsterAttributes.ATTACK_SPEED) != null) {
-            AttributeModifier existing = player.getEntityAttribute(SharedMonsterAttributes.ATTACK_SPEED)
-                    .getModifier(SPEED_MODIFIER_UUID);
+        // 攻击速度加成
+        IAttributeInstance speedAttr = player.getEntityAttribute(SharedMonsterAttributes.ATTACK_SPEED);
+        if (speedAttr != null) {
+            AttributeModifier existing = speedAttr.getModifier(SPEED_MODIFIER_UUID);
             if (existing == null) {
-                // 使用更高的攻速加成
-                double speedBonus = 1.0 - BrokenRelicConfig.handCooldownReduction; // 0.5 -> +50% 攻速
-                player.getEntityAttribute(SharedMonsterAttributes.ATTACK_SPEED).applyModifier(
-                        new AttributeModifier(SPEED_MODIFIER_UUID, "Broken Hand Speed",
-                                speedBonus, 2)
-                );
+                // 攻速×3 = 原来的基础上+200%
+                double speedBonus = BrokenRelicConfig.handSpeedMultiplier - 1.0;
+                speedAttr.applyModifier(new AttributeModifier(
+                        SPEED_MODIFIER_UUID,
+                        "Broken Hand Speed",
+                        speedBonus,
+                        2 // 乘法
+                ));
             }
         }
     }
 
     private void removeModifiers(EntityPlayer player) {
-        if (player.getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE) != null) {
-            player.getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE)
-                    .removeModifier(DAMAGE_MODIFIER_UUID);
+        IAttributeInstance damageAttr = player.getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE);
+        if (damageAttr != null) {
+            damageAttr.removeModifier(DAMAGE_MODIFIER_UUID);
         }
-        if (player.getEntityAttribute(SharedMonsterAttributes.ATTACK_SPEED) != null) {
-            player.getEntityAttribute(SharedMonsterAttributes.ATTACK_SPEED)
-                    .removeModifier(SPEED_MODIFIER_UUID);
+
+        IAttributeInstance speedAttr = player.getEntityAttribute(SharedMonsterAttributes.ATTACK_SPEED);
+        if (speedAttr != null) {
+            speedAttr.removeModifier(SPEED_MODIFIER_UUID);
         }
     }
 
     /**
-     * 获取幻象打击伤害比例（由事件处理器调用）
+     * 获取攻速倍率
      */
-    public static float getPhantomDamageRatio() {
-        return (float) BrokenRelicConfig.handPhantomDamageRatio;
+    public static float getSpeedMultiplier() {
+        return (float) BrokenRelicConfig.handSpeedMultiplier;
+    }
+
+    /**
+     * 获取近战伤害加成
+     */
+    public static float getMeleeDamageBonus() {
+        return (float) BrokenRelicConfig.handMeleeDamageBonus;
+    }
+
+    /**
+     * 是否重置攻击冷却
+     */
+    public static boolean shouldResetCooldown() {
+        return BrokenRelicConfig.handResetCooldown;
     }
 
     @Override
@@ -141,14 +152,15 @@ public class ItemBrokenHand extends ItemBrokenBaubleBase {
         tooltip.add(TextFormatting.DARK_GRAY + "Broken Hand");
         tooltip.add("");
         tooltip.add(TextFormatting.GOLD + "◆ 疯狂攻速");
-        tooltip.add(TextFormatting.GRAY + "  攻击冷却 -" + (int)((1.0 - BrokenRelicConfig.handCooldownReduction) * 100) + "%");
-        tooltip.add(TextFormatting.GRAY + "  近战伤害 +" + (int)(BrokenGodConfig.meleeDamageBonus * 100) + "%");
+        tooltip.add(TextFormatting.YELLOW + "  攻击速度 ×" + (int) BrokenRelicConfig.handSpeedMultiplier);
         tooltip.add("");
-        tooltip.add(TextFormatting.LIGHT_PURPLE + "◆ 幻象打击");
-        tooltip.add(TextFormatting.GRAY + "  每次攻击追加 " + (int)(BrokenRelicConfig.handPhantomDamageRatio * 100) + "% 真伤");
-        tooltip.add(TextFormatting.GRAY + "  无视无敌帧");
+        tooltip.add(TextFormatting.RED + "◆ 近战强化");
+        tooltip.add(TextFormatting.GRAY + "  近战伤害 +" + (int)(BrokenRelicConfig.handMeleeDamageBonus * 100) + "%");
         tooltip.add("");
-        tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"手已成为纯粹的武器\"");
+        tooltip.add(TextFormatting.LIGHT_PURPLE + "◆ 无冷却");
+        tooltip.add(TextFormatting.GRAY + "  攻击后立即重置冷却");
+        tooltip.add("");
+        tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"无尽之握，速度的极致\"");
         tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"攻击如同呼吸般自然\"");
         tooltip.add(TextFormatting.DARK_RED + "═══════════════════════════");
         tooltip.add(TextFormatting.DARK_RED + "⚠ 无法卸除");
