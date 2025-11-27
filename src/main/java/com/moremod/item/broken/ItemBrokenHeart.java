@@ -2,11 +2,14 @@ package com.moremod.item.broken;
 
 import baubles.api.BaubleType;
 import baubles.api.IBauble;
-import com.moremod.config.BrokenGodConfig;
+import com.moremod.config.BrokenRelicConfig;
 import com.moremod.creativetab.moremodCreativeTab;
 import com.moremod.system.ascension.BrokenGodHandler;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.SharedMonsterAttributes;
+import net.minecraft.entity.ai.attributes.AttributeModifier;
+import net.minecraft.entity.ai.attributes.IAttributeInstance;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -17,20 +20,25 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.UUID;
 
 /**
- * 破碎之心
- * Broken Heart
+ * 破碎_心核 (Broken Heartcore)
  *
- * 破碎之神的核心组件：
- * - 永久免疫恐惧
- * - 免疫 Wither、Poison、Bleeding
- * - 免疫 FirstAid 部位伤害
- * - 生命值不会低于最小值（除停机模式）
+ * 终局饰品 - 疯狂生存 + 自残风格
+ *
+ * 能力1: 极限生命上限压缩
+ *   - 最大生命值强制压到固定值（默认10HP/5心）
+ *
+ * 能力2: 极高生命汲取
+ *   - 造成伤害的80%立即治疗自己
+ *   - 溢出的治疗转化为吸收之心（上限8HP）
  *
  * 不可卸下
  */
 public class ItemBrokenHeart extends Item implements IBauble {
+
+    private static final UUID HP_COMPRESS_UUID = UUID.fromString("c1234567-89ab-cdef-0123-456789abcdef");
 
     public ItemBrokenHeart() {
         setRegistryName("broken_heart");
@@ -46,20 +54,21 @@ public class ItemBrokenHeart extends Item implements IBauble {
 
     @Override
     public void onEquipped(ItemStack itemstack, EntityLivingBase player) {
-        // 装备时移除负面效果
         if (player instanceof EntityPlayer) {
+            applyHPCompression((EntityPlayer) player);
             clearNegativeEffects(player);
         }
     }
 
     @Override
     public void onUnequipped(ItemStack itemstack, EntityLivingBase player) {
-        // 卸下时无特殊操作
+        if (player instanceof EntityPlayer) {
+            removeHPCompression((EntityPlayer) player);
+        }
     }
 
     @Override
     public boolean canUnequip(ItemStack itemstack, EntityLivingBase player) {
-        // 破碎之神不能卸下
         if (player instanceof EntityPlayer) {
             return !BrokenGodHandler.isBrokenGod((EntityPlayer) player);
         }
@@ -71,69 +80,134 @@ public class ItemBrokenHeart extends Item implements IBauble {
         if (!(entity instanceof EntityPlayer)) return;
         EntityPlayer player = (EntityPlayer) entity;
 
-        if (!BrokenGodHandler.isBrokenGod(player)) return;
+        // 每100tick确保HP压缩生效
+        if (entity.ticksExisted % 100 == 0) {
+            applyHPCompression(player);
+        }
 
-        // 每 tick 检查并移除负面效果
-        clearNegativeEffects(entity);
-
-        // 确保最小血量（除非在停机模式）
-        if (!BrokenGodHandler.isInShutdown(player)) {
-            float minHealth = (float) BrokenGodConfig.minimumHealth;
-            if (entity.getHealth() < minHealth && entity.getHealth() > 0) {
-                entity.setHealth(minHealth);
-            }
+        // 清除负面效果
+        if (entity.ticksExisted % 20 == 0) {
+            clearNegativeEffects(entity);
         }
     }
 
     /**
-     * 清除特定负面效果
+     * 应用生命值压缩
+     */
+    private void applyHPCompression(EntityPlayer player) {
+        IAttributeInstance maxHealthAttr = player.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH);
+        if (maxHealthAttr == null) return;
+
+        // 移除旧的修改器
+        AttributeModifier existing = maxHealthAttr.getModifier(HP_COMPRESS_UUID);
+        if (existing != null) {
+            maxHealthAttr.removeModifier(existing);
+        }
+
+        // 计算需要减少多少HP
+        double currentMax = maxHealthAttr.getBaseValue();
+        double targetMax = BrokenRelicConfig.heartcoreCompressedHP;
+        double reduction = targetMax - currentMax; // 负数表示减少
+
+        if (reduction < 0) {
+            AttributeModifier mod = new AttributeModifier(
+                    HP_COMPRESS_UUID,
+                    "Broken Heartcore HP Compression",
+                    reduction,
+                    0 // Operation 0 = 加法
+            );
+            maxHealthAttr.applyModifier(mod);
+        }
+
+        // 如果当前血量超过最大值，调整
+        if (player.getHealth() > player.getMaxHealth()) {
+            player.setHealth(player.getMaxHealth());
+        }
+    }
+
+    /**
+     * 移除生命值压缩
+     */
+    private void removeHPCompression(EntityPlayer player) {
+        IAttributeInstance maxHealthAttr = player.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH);
+        if (maxHealthAttr == null) return;
+
+        AttributeModifier existing = maxHealthAttr.getModifier(HP_COMPRESS_UUID);
+        if (existing != null) {
+            maxHealthAttr.removeModifier(existing);
+        }
+    }
+
+    /**
+     * 清除负面效果
      */
     private void clearNegativeEffects(EntityLivingBase entity) {
-        // Wither
         entity.removePotionEffect(net.minecraft.init.MobEffects.WITHER);
-
-        // Poison
         entity.removePotionEffect(net.minecraft.init.MobEffects.POISON);
-
-        // Blindness (由破碎之眼处理，这里也加一层保护)
-        // entity.removePotionEffect(net.minecraft.init.MobEffects.BLINDNESS);
-
-        // Nausea (恐惧/混乱)
         entity.removePotionEffect(net.minecraft.init.MobEffects.NAUSEA);
 
-        // Hunger (模拟"无痛")
-        // entity.removePotionEffect(net.minecraft.init.MobEffects.HUNGER);
-
-        // 尝试清除模组添加的出血效果
+        // 清除模组出血效果
         entity.getActivePotionEffects().removeIf(effect -> {
             String effectName = effect.getPotion().getRegistryName().toString().toLowerCase();
             return effectName.contains("bleed") || effectName.contains("bleeding");
         });
     }
 
+    /**
+     * 应用生命汲取（由事件处理器调用）
+     */
+    public static void applyLifesteal(EntityPlayer player, float damageDealt) {
+        if (player.world.isRemote) return;
+
+        float healAmount = damageDealt * (float) BrokenRelicConfig.heartcoreLifestealRatio;
+
+        float currentHealth = player.getHealth();
+        float maxHealth = player.getMaxHealth();
+        float missingHealth = maxHealth - currentHealth;
+
+        if (missingHealth > 0) {
+            // 先治疗缺失的血量
+            float actualHeal = Math.min(healAmount, missingHealth);
+            player.heal(actualHeal);
+            healAmount -= actualHeal;
+        }
+
+        // 溢出部分转为吸收之心
+        if (healAmount > 0) {
+            float currentAbsorption = player.getAbsorptionAmount();
+            float maxAbsorption = (float) BrokenRelicConfig.heartcoreMaxAbsorption;
+
+            if (currentAbsorption < maxAbsorption) {
+                float newAbsorption = Math.min(currentAbsorption + healAmount, maxAbsorption);
+                player.setAbsorptionAmount(newAbsorption);
+            }
+        }
+    }
+
     @Override
     @SideOnly(Side.CLIENT)
     public void addInformation(ItemStack stack, @Nullable World worldIn, List<String> tooltip, ITooltipFlag flagIn) {
-        tooltip.add(TextFormatting.DARK_PURPLE + "═════════════════════");
-        tooltip.add(TextFormatting.LIGHT_PURPLE + "破碎之心");
-        tooltip.add(TextFormatting.GRAY + "Broken Heart");
+        tooltip.add(TextFormatting.DARK_RED + "═══════════════════════════");
+        tooltip.add(TextFormatting.RED + "" + TextFormatting.BOLD + "破碎_心核");
+        tooltip.add(TextFormatting.DARK_GRAY + "Broken Heartcore");
         tooltip.add("");
-        tooltip.add(TextFormatting.AQUA + "◆ 永久免疫恐惧");
-        tooltip.add(TextFormatting.AQUA + "◆ 无痛模式");
-        tooltip.add(TextFormatting.GREEN + "◆ 免疫凋零效果");
-        tooltip.add(TextFormatting.GREEN + "◆ 免疫中毒效果");
-        tooltip.add(TextFormatting.GREEN + "◆ 免疫出血效果");
-        tooltip.add(TextFormatting.YELLOW + "◆ 生命值稳定器");
-        tooltip.add(TextFormatting.GRAY + "  (最低保持 " + BrokenGodConfig.minimumHealth + " HP)");
+        tooltip.add(TextFormatting.GOLD + "◆ 极限生命压缩");
+        tooltip.add(TextFormatting.GRAY + "  最大生命值固定为 " + (int) BrokenRelicConfig.heartcoreCompressedHP + " HP");
         tooltip.add("");
-        tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"心脏不再跳动\"");
-        tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"但齿轮永不停止\"");
-        tooltip.add(TextFormatting.DARK_PURPLE + "═════════════════════");
+        tooltip.add(TextFormatting.GREEN + "◆ 极高生命汲取");
+        tooltip.add(TextFormatting.GRAY + "  伤害的 " + (int)(BrokenRelicConfig.heartcoreLifestealRatio * 100) + "% 转化为治疗");
+        tooltip.add(TextFormatting.GRAY + "  溢出治疗转为吸收之心(上限 " + (int) BrokenRelicConfig.heartcoreMaxAbsorption + " HP)");
+        tooltip.add("");
+        tooltip.add(TextFormatting.AQUA + "◆ 免疫: 凋零/中毒/出血");
+        tooltip.add("");
+        tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"心脏变为永恒机器\"");
+        tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"代价是再也无法成长\"");
+        tooltip.add(TextFormatting.DARK_RED + "═══════════════════════════");
         tooltip.add(TextFormatting.DARK_RED + "⚠ 无法卸除");
     }
 
     @Override
     public boolean hasEffect(ItemStack stack) {
-        return true; // 发光效果
+        return true;
     }
 }

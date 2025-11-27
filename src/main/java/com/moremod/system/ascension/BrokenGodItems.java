@@ -7,6 +7,9 @@ import com.moremod.item.ItemMechanicalCore;
 import com.moremod.item.broken.ItemBrokenEye;
 import com.moremod.item.broken.ItemBrokenHand;
 import com.moremod.item.broken.ItemBrokenHeart;
+import com.moremod.item.broken.ItemBrokenShackles;
+import com.moremod.item.broken.ItemBrokenProjection;
+import com.moremod.item.broken.ItemBrokenTerminus;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
@@ -23,10 +26,13 @@ public class BrokenGodItems {
 
     private static final Logger LOGGER = LogManager.getLogger("moremod");
 
-    // 物品实例（在 ModItems 中注册）
+    // 物品实例（在 RegisterItem 中注册）
     public static ItemBrokenHand BROKEN_HAND;
     public static ItemBrokenHeart BROKEN_HEART;
     public static ItemBrokenEye BROKEN_EYE;
+    public static ItemBrokenShackles BROKEN_SHACKLES;
+    public static ItemBrokenProjection BROKEN_PROJECTION;
+    public static ItemBrokenTerminus BROKEN_TERMINUS;
 
     /**
      * 替换玩家的所有饰品为破碎三件套
@@ -50,9 +56,7 @@ public class BrokenGodItems {
                     continue;
                 }
                 // 检查是否已经是破碎套装 - 保留
-                if (stack.getItem() instanceof ItemBrokenHand ||
-                    stack.getItem() instanceof ItemBrokenHeart ||
-                    stack.getItem() instanceof ItemBrokenEye) {
+                if (isBrokenItem(stack)) {
                     continue;
                 }
 
@@ -91,7 +95,31 @@ public class BrokenGodItems {
             }
         }
 
-        LOGGER.info("[BrokenGod] Replaced baubles for player {}", player.getName());
+        // 破碎_枷锁 - BELT 槽位
+        if (BROKEN_SHACKLES != null) {
+            int beltSlot = findEmptySlotForType(baubles, BaubleType.BELT);
+            if (beltSlot >= 0) {
+                baubles.setStackInSlot(beltSlot, new ItemStack(BROKEN_SHACKLES));
+            }
+        }
+
+        // 破碎_投影 - CHARM 槽位
+        if (BROKEN_PROJECTION != null) {
+            int charmSlot = findEmptySlotForType(baubles, BaubleType.CHARM);
+            if (charmSlot >= 0) {
+                baubles.setStackInSlot(charmSlot, new ItemStack(BROKEN_PROJECTION));
+            }
+        }
+
+        // 破碎_终结 - BODY 槽位
+        if (BROKEN_TERMINUS != null) {
+            int bodySlot = findEmptySlotForType(baubles, BaubleType.BODY);
+            if (bodySlot >= 0) {
+                baubles.setStackInSlot(bodySlot, new ItemStack(BROKEN_TERMINUS));
+            }
+        }
+
+        LOGGER.info("[BrokenGod] Replaced baubles for player {} with full broken set", player.getName());
     }
 
     /**
@@ -130,7 +158,7 @@ public class BrokenGodItems {
     }
 
     /**
-     * 检查玩家是否装备了完整的破碎套装
+     * 检查玩家是否装备了完整的破碎套装（基础三件）
      */
     public static boolean hasFullBrokenSet(EntityPlayer player) {
         IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(player);
@@ -151,12 +179,42 @@ public class BrokenGodItems {
     }
 
     /**
+     * 检查玩家是否装备了完整的破碎终局套装（全部六件）
+     */
+    public static boolean hasFullEndgameSet(EntityPlayer player) {
+        IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(player);
+        if (baubles == null) return false;
+
+        boolean hasHand = false;
+        boolean hasHeart = false;
+        boolean hasEye = false;
+        boolean hasShackles = false;
+        boolean hasProjection = false;
+        boolean hasTerminus = false;
+
+        for (int i = 0; i < baubles.getSlots(); i++) {
+            ItemStack stack = baubles.getStackInSlot(i);
+            if (stack.getItem() instanceof ItemBrokenHand) hasHand = true;
+            if (stack.getItem() instanceof ItemBrokenHeart) hasHeart = true;
+            if (stack.getItem() instanceof ItemBrokenEye) hasEye = true;
+            if (stack.getItem() instanceof ItemBrokenShackles) hasShackles = true;
+            if (stack.getItem() instanceof ItemBrokenProjection) hasProjection = true;
+            if (stack.getItem() instanceof ItemBrokenTerminus) hasTerminus = true;
+        }
+
+        return hasHand && hasHeart && hasEye && hasShackles && hasProjection && hasTerminus;
+    }
+
+    /**
      * 检查某物品是否是破碎套装
      */
     public static boolean isBrokenItem(ItemStack stack) {
         if (stack.isEmpty()) return false;
         return stack.getItem() instanceof ItemBrokenHand ||
                stack.getItem() instanceof ItemBrokenHeart ||
-               stack.getItem() instanceof ItemBrokenEye;
+               stack.getItem() instanceof ItemBrokenEye ||
+               stack.getItem() instanceof ItemBrokenShackles ||
+               stack.getItem() instanceof ItemBrokenProjection ||
+               stack.getItem() instanceof ItemBrokenTerminus;
     }
 }
