@@ -37,6 +37,12 @@ public class BrokenGodHandler {
 
     // ========== 停机模式追踪 ==========
 
+    /**
+     * 备用停机状态追踪（用于 ASM 钩子的可靠性）
+     * 当 Capability 不可用时使用此 Map 作为后备
+     */
+    private static final Map<UUID, Integer> shutdownBackup = new HashMap<>();
+
     /** 扭曲脉冲冷却追踪 */
     private static final Map<UUID, Integer> pulseCooldowns = new HashMap<>();
 
@@ -52,8 +58,15 @@ public class BrokenGodHandler {
 
     /**
      * 检查玩家是否处于停机状态
+     * 同时检查 Capability 和备用 Map（确保 ASM 钩子可靠性）
      */
     public static boolean isInShutdown(EntityPlayer player) {
+        // 优先检查备用 Map（ASM 钩子可靠性）
+        UUID playerId = player.getUniqueID();
+        if (shutdownBackup.containsKey(playerId) && shutdownBackup.get(playerId) > 0) {
+            return true;
+        }
+        // 然后检查 Capability
         IHumanityData data = HumanityCapabilityHandler.getData(player);
         return data != null && data.isInShutdown();
     }
@@ -62,8 +75,13 @@ public class BrokenGodHandler {
      * 获取停机剩余时间
      */
     public static int getShutdownTimer(EntityPlayer player) {
+        // 优先从 Capability 获取
         IHumanityData data = HumanityCapabilityHandler.getData(player);
-        return data != null ? data.getShutdownTimer() : 0;
+        if (data != null && data.getShutdownTimer() > 0) {
+            return data.getShutdownTimer();
+        }
+        // 备用 Map
+        return shutdownBackup.getOrDefault(player.getUniqueID(), 0);
     }
 
     // ========== 停机模式控制 ==========
@@ -75,14 +93,20 @@ public class BrokenGodHandler {
         if (!isBrokenGod(player)) return;
         if (isInShutdown(player)) return;
 
+        int shutdownTicks = BrokenGodConfig.shutdownTicks;
+        UUID playerId = player.getUniqueID();
+
+        // 设置备用 Map（确保 ASM 钩子可靠性）
+        shutdownBackup.put(playerId, shutdownTicks);
+
+        // 尝试设置 Capability
         IHumanityData data = HumanityCapabilityHandler.getData(player);
-        if (data == null) return;
-
-        data.setShutdownTimer(BrokenGodConfig.shutdownTicks);
-
-        // 同步到客户端（用于显示 overlay）
-        if (player instanceof EntityPlayerMP) {
-            PacketHandler.INSTANCE.sendTo(new PacketSyncHumanityData(data), (EntityPlayerMP) player);
+        if (data != null) {
+            data.setShutdownTimer(shutdownTicks);
+            // 同步到客户端（用于显示 overlay）
+            if (player instanceof EntityPlayerMP) {
+                PacketHandler.INSTANCE.sendTo(new PacketSyncHumanityData(data), (EntityPlayerMP) player);
+            }
         }
 
         // 设置 HP 为 1（不是 0，避免触发死亡）
@@ -122,21 +146,33 @@ public class BrokenGodHandler {
      * 每 tick 更新停机状态
      */
     public static void tickShutdown(EntityPlayer player) {
+        UUID playerId = player.getUniqueID();
         IHumanityData data = HumanityCapabilityHandler.getData(player);
-        if (data == null) return;
 
-        int timer = data.getShutdownTimer();
+        // 获取当前计时器（优先 Capability，备用 Map）
+        int timer;
+        if (data != null && data.getShutdownTimer() > 0) {
+            timer = data.getShutdownTimer();
+        } else {
+            timer = shutdownBackup.getOrDefault(playerId, 0);
+        }
+
         if (timer <= 0) {
+            shutdownBackup.remove(playerId);
             return;
         }
 
         // 减少计时器
         timer--;
-        data.setShutdownTimer(timer);
 
-        // 每5tick同步到客户端（用于 overlay 进度更新）
-        if (timer % 5 == 0 && player instanceof EntityPlayerMP) {
-            PacketHandler.INSTANCE.sendTo(new PacketSyncHumanityData(data), (EntityPlayerMP) player);
+        // 同时更新 Capability 和备用 Map
+        shutdownBackup.put(playerId, timer);
+        if (data != null) {
+            data.setShutdownTimer(timer);
+            // 每5tick同步到客户端（用于 overlay 进度更新）
+            if (timer % 5 == 0 && player instanceof EntityPlayerMP) {
+                PacketHandler.INSTANCE.sendTo(new PacketSyncHumanityData(data), (EntityPlayerMP) player);
+            }
         }
 
         // 停机期间：
@@ -168,6 +204,12 @@ public class BrokenGodHandler {
      * 退出停机模式
      */
     private static void exitShutdown(EntityPlayer player) {
+        UUID playerId = player.getUniqueID();
+
+        // 清除备用 Map
+        shutdownBackup.remove(playerId);
+
+        // 清除 Capability
         IHumanityData data = HumanityCapabilityHandler.getData(player);
         if (data != null) {
             data.setShutdownTimer(0);
@@ -328,6 +370,7 @@ public class BrokenGodHandler {
      * 玩家退出时清理
      */
     public static void cleanupPlayer(UUID playerId) {
+        shutdownBackup.remove(playerId);
         pulseCooldowns.remove(playerId);
     }
 }
