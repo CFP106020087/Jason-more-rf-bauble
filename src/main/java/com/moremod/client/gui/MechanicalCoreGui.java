@@ -767,7 +767,7 @@ public class MechanicalCoreGui extends GuiScreen {
         drawRect(x + 1, sy, x + 9, sy + sliderH, 0xFFAAAAAA);
     }
 
-    // ===== 破碎之神升格区域（侧边栏） =====
+    // ===== 破碎之神升格区域（悬停显示侧边栏） =====
 
     private void drawAscensionSection(int mouseX, int mouseY) {
         IHumanityData data = HumanityCapabilityHandler.getData(player);
@@ -795,9 +795,39 @@ public class MechanicalCoreGui extends GuiScreen {
 
         boolean canAscend = humanityMet && lowHumanityTimeMet && modulesMet;
 
+        // 触发区位置（主GUI右侧的小标签）
+        int triggerX = guiLeft + GUI_WIDTH;
+        int triggerY = guiTop + 20;
+        int triggerW = 18;
+        int triggerH = 50;
+
         // 侧边栏位置
-        int panelX = guiLeft + GUI_WIDTH + 5;
-        int panelY = guiTop + 20;
+        int panelX = triggerX + triggerW;
+        int panelY = triggerY;
+
+        // 检测鼠标是否在触发区或侧边栏内
+        boolean hoverTrigger = mouseX >= triggerX && mouseX <= triggerX + triggerW &&
+                               mouseY >= triggerY && mouseY <= triggerY + triggerH;
+        boolean hoverPanel = mouseX >= panelX && mouseX <= panelX + SIDE_PANEL_WIDTH &&
+                             mouseY >= panelY && mouseY <= panelY + SIDE_PANEL_HEIGHT;
+        boolean showPanel = hoverTrigger || hoverPanel;
+
+        // 绘制触发标签（始终显示）
+        int triggerColor = canAscend ? 0xC0442266 : 0xC0333333;
+        int triggerHoverColor = canAscend ? 0xC0663388 : 0xC0444444;
+        drawRect(triggerX, triggerY, triggerX + triggerW, triggerY + triggerH,
+                 (hoverTrigger || hoverPanel) ? triggerHoverColor : triggerColor);
+
+        // 垂直文字 "升格" 或图标
+        String label = canAscend ? "✦" : "▶";
+        int labelColor = canAscend ? 0xFFAA88FF : 0xFFAAAAAA;
+        this.fontRenderer.drawStringWithShadow(label, triggerX + 5, triggerY + 20, labelColor);
+
+        if (!showPanel) {
+            // 不显示侧边栏时隐藏按钮
+            hideAscensionButton();
+            return;
+        }
 
         // 绘制侧边栏背景
         drawRect(panelX, panelY, panelX + SIDE_PANEL_WIDTH, panelY + SIDE_PANEL_HEIGHT, 0xC0101010);
@@ -805,7 +835,7 @@ public class MechanicalCoreGui extends GuiScreen {
 
         // 标题栏
         drawRect(panelX + 1, panelY + 1, panelX + SIDE_PANEL_WIDTH - 1, panelY + 14, 0xC0505050);
-        String title = "升格";
+        String title = "升格条件";
         int titleX = panelX + (SIDE_PANEL_WIDTH - this.fontRenderer.getStringWidth(title)) / 2;
         this.fontRenderer.drawStringWithShadow(title, titleX, panelY + 4, 0xAA88FF);
 
