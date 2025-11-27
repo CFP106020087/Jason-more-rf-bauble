@@ -4,6 +4,7 @@ import com.moremod.config.HumanityConfig;
 import com.moremod.item.ItemMechanicalCore;
 import com.moremod.moremod;
 import com.moremod.system.FleshRejectionSystem;
+import com.moremod.system.ascension.BrokenGodHandler;
 import net.minecraft.item.ItemStack;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.passive.EntityAnimal;
@@ -140,6 +141,9 @@ public class HumanityEventHandler {
 
         if (!HumanitySpectrumSystem.isSystemActive(player)) return;
 
+        // 破碎之神有独立的战斗系统，跳过人性值战斗效果
+        if (BrokenGodHandler.isBrokenGod(player)) return;
+
         // 标记战斗状态
         HumanitySpectrumSystem.markCombat(player);
 
@@ -175,9 +179,10 @@ public class HumanityEventHandler {
             }
         }
 
-        // 崩解状态：攻击力翻倍
+        // 崩解状态：攻击力翻倍（破碎之神不会进入崩解状态）
         IHumanityData data = HumanityCapabilityHandler.getData(player);
-        if (data != null && data.isDissolutionActive()) {
+        boolean isBrokenGod = BrokenGodHandler.isBrokenGod(player);
+        if (data != null && data.isDissolutionActive() && !isBrokenGod) {
             damageMultiplier *= 2.0f;
 
             // 反噬 - 使用自定义伤害源避免触发其他事件
@@ -187,8 +192,8 @@ public class HumanityEventHandler {
 
         event.setAmount(event.getAmount() * damageMultiplier);
 
-        // 极低人性惩罚：攻击波及周围生物（包括友方）
-        if (humanity < 10f && HumanityConfig.extremeLowHumanityAoEDamage) {
+        // 极低人性惩罚：攻击波及周围生物（破碎之神不受此惩罚）
+        if (humanity < 10f && HumanityConfig.extremeLowHumanityAoEDamage && !isBrokenGod) {
             // 使用AoE保护防止递归
             if (!processingAoE.contains(playerId)) {
                 processingAoE.add(playerId);
@@ -235,6 +240,9 @@ public class HumanityEventHandler {
         EntityPlayer player = (EntityPlayer) event.getEntityLiving();
 
         if (!HumanitySpectrumSystem.isSystemActive(player)) return;
+
+        // 破碎之神有独立的防御系统，跳过人性值防御效果
+        if (BrokenGodHandler.isBrokenGod(player)) return;
 
         // 标记战斗状态
         HumanitySpectrumSystem.markCombat(player);

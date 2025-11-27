@@ -222,8 +222,9 @@ public class HumanitySpectrumSystem {
         data.setHumanity(newValue);
         markDirty(player);
 
-        // 检查崩解
-        if (data.getHumanity() <= 0f && !data.isDissolutionActive()) {
+        // 检查崩解（破碎之神不受崩解影响）
+        if (data.getHumanity() <= 0f && !data.isDissolutionActive()
+                && data.getAscensionRoute() != AscensionRoute.BROKEN_GOD) {
             startDissolution(player);
         }
     }
@@ -433,6 +434,11 @@ public class HumanitySpectrumSystem {
 
         IHumanityData data = HumanityCapabilityHandler.getData(player);
         if (data == null || !data.isSystemActive()) return;
+
+        // 破碎之神不受人性值系统影响（人性值固定为0）
+        if (data.getAscensionRoute() == AscensionRoute.BROKEN_GOD) {
+            return;
+        }
 
         // 处理崩解状态
         if (data.isDissolutionActive()) {
