@@ -14,6 +14,8 @@ import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.WorldServer;
+import net.minecraftforge.fml.common.Loader;
+import net.minecraftforge.fml.common.Optional;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -147,6 +149,9 @@ public class BrokenGodHandler {
         // 设置 HP 为 1（不是 0，避免触发死亡）
         player.setHealth(1.0f);
 
+        // First Aid 兼容：设置所有身体部位为最小血量
+        setFirstAidMinHealth(player);
+
         // 给予无敌帧，防止进入停机后立即被其他伤害杀死
         player.hurtResistantTime = Math.max(player.hurtResistantTime, 20);
 
@@ -224,6 +229,9 @@ public class BrokenGodHandler {
             player.setHealth(1.0f);
         }
 
+        // - First Aid 兼容：每 tick 确保所有身体部位不会降到 0
+        setFirstAidMinHealth(player);
+
         // 停机粒子效果（每20tick）
         if (timer % 20 == 0 && player.world instanceof WorldServer) {
             WorldServer world = (WorldServer) player.world;
@@ -247,11 +255,17 @@ public class BrokenGodHandler {
         // ⚠️ 重要：先恢复生命值和给予无敌帧，再清除停机状态
         // 这样可以防止在清除状态后立即被伤害杀死
 
+        // First Aid 兼容：先恢复所有身体部位到满血（必须在 setHealth 之前）
+        healFirstAidFull(player);
+
         // 恢复生命值（在清除保护状态之前）
         player.setHealth((float) BrokenGodConfig.restartHeal);
 
+        // First Aid 兼容：再次确保所有部位满血（防止 setHealth 触发同步问题）
+        healFirstAidFull(player);
+
         // 给予短暂无敌帧，防止退出停机后立即受伤
-        player.hurtResistantTime = 40; // 2秒无敌帧
+        player.hurtResistantTime = 60; // 3秒无敌帧（增加以确保安全）
 
         // 现在才清除备用 Map
         shutdownBackup.remove(playerId);
@@ -419,5 +433,88 @@ public class BrokenGodHandler {
     public static void cleanupPlayer(UUID playerId) {
         shutdownBackup.remove(playerId);
         pulseCooldowns.remove(playerId);
+    }
+
+    // ========== First Aid 兼容 ==========
+
+    /** 检查 First Aid 是否已加载 */
+    private static boolean isFirstAidLoaded() {
+        return Loader.isModLoaded("firstaid");
+    }
+
+    /**
+     * 治愈 First Aid 所有身体部位到满血
+     * 在停机结束时调用，防止 First Aid 的延迟伤害结算导致死亡
+     */
+    public static void healFirstAidFull(EntityPlayer player) {
+        if (!isFirstAidLoaded()) return;
+        try {
+            healFirstAidFullInternal(player);
+        } catch (Throwable e) {
+            LOGGER.debug("[BrokenGod] First Aid heal failed: {}", e.getMessage());
+        }
+    }
+
+    @Optional.Method(modid = "firstaid")
+    private static void healFirstAidFullInternal(EntityPlayer player) {
+        try {
+            if (!player.hasCapability(ichttt.mods.firstaid.api.CapabilityExtendedHealthSystem.INSTANCE, null)) {
+                return;
+            }
+            ichttt.mods.firstaid.api.damagesystem.AbstractPlayerDamageModel model =
+                    (ichttt.mods.firstaid.api.damagesystem.AbstractPlayerDamageModel)
+                            player.getCapability(ichttt.mods.firstaid.api.CapabilityExtendedHealthSystem.INSTANCE, null);
+            if (model == null) return;
+
+            // 恢复所有部位到满血
+            model.HEAD.currentHealth = model.HEAD.getMaxHealth();
+            model.BODY.currentHealth = model.BODY.getMaxHealth();
+            model.LEFT_ARM.currentHealth = model.LEFT_ARM.getMaxHealth();
+            model.RIGHT_ARM.currentHealth = model.RIGHT_ARM.getMaxHealth();
+            model.LEFT_LEG.currentHealth = model.LEFT_LEG.getMaxHealth();
+            model.RIGHT_LEG.currentHealth = model.RIGHT_LEG.getMaxHealth();
+
+            LOGGER.debug("[BrokenGod] Healed all First Aid body parts for {}", player.getName());
+        } catch (Throwable e) {
+            LOGGER.debug("[BrokenGod] First Aid heal error: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * 设置 First Aid 所有身体部位为最小血量（1点）
+     * 在进入停机时调用
+     */
+    public static void setFirstAidMinHealth(EntityPlayer player) {
+        if (!isFirstAidLoaded()) return;
+        try {
+            setFirstAidMinHealthInternal(player);
+        } catch (Throwable e) {
+            LOGGER.debug("[BrokenGod] First Aid min health failed: {}", e.getMessage());
+        }
+    }
+
+    @Optional.Method(modid = "firstaid")
+    private static void setFirstAidMinHealthInternal(EntityPlayer player) {
+        try {
+            if (!player.hasCapability(ichttt.mods.firstaid.api.CapabilityExtendedHealthSystem.INSTANCE, null)) {
+                return;
+            }
+            ichttt.mods.firstaid.api.damagesystem.AbstractPlayerDamageModel model =
+                    (ichttt.mods.firstaid.api.damagesystem.AbstractPlayerDamageModel)
+                            player.getCapability(ichttt.mods.firstaid.api.CapabilityExtendedHealthSystem.INSTANCE, null);
+            if (model == null) return;
+
+            // 设置所有部位为 1 点血量（防止任何部位为 0 触发死亡）
+            model.HEAD.currentHealth = Math.max(1.0f, model.HEAD.currentHealth);
+            model.BODY.currentHealth = Math.max(1.0f, model.BODY.currentHealth);
+            model.LEFT_ARM.currentHealth = Math.max(1.0f, model.LEFT_ARM.currentHealth);
+            model.RIGHT_ARM.currentHealth = Math.max(1.0f, model.RIGHT_ARM.currentHealth);
+            model.LEFT_LEG.currentHealth = Math.max(1.0f, model.LEFT_LEG.currentHealth);
+            model.RIGHT_LEG.currentHealth = Math.max(1.0f, model.RIGHT_LEG.currentHealth);
+
+            LOGGER.debug("[BrokenGod] Set First Aid min health for {}", player.getName());
+        } catch (Throwable e) {
+            LOGGER.debug("[BrokenGod] First Aid min health error: {}", e.getMessage());
+        }
     }
 }
