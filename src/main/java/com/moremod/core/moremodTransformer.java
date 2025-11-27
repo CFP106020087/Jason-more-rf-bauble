@@ -953,10 +953,11 @@ public class moremodTransformer implements IClassTransformer {
             // ========== 1. attackEntityFrom 注入 ==========
             // 方法签名: public boolean attackEntityFrom(DamageSource source, float amount)
             // SRG名: func_70097_a
+            // 描述符模式: (L...;F)Z (接受一个对象和float，返回boolean)
             if (("attackEntityFrom".equals(mn.name) || "func_70097_a".equals(mn.name))
-                    && "(Lnet/minecraft/util/DamageSource;F)Z".equals(mn.desc)) {
+                    && mn.desc.startsWith("(L") && mn.desc.endsWith(";F)Z")) {
 
-                System.out.println("[moremodTransformer]   Patching attackEntityFrom...");
+                System.out.println("[moremodTransformer]   Patching attackEntityFrom... (desc: " + mn.desc + ")");
 
                 InsnList inject = new InsnList();
                 LabelNode continueLabel = new LabelNode();
@@ -985,10 +986,11 @@ public class moremodTransformer implements IClassTransformer {
             // ========== 2. damageEntity 注入 ==========
             // 方法签名: protected void damageEntity(DamageSource source, float damage)
             // SRG名: func_70665_d
+            // 描述符模式: (L...;F)V (接受一个对象和float，返回void)
             if (("damageEntity".equals(mn.name) || "func_70665_d".equals(mn.name))
-                    && "(Lnet/minecraft/util/DamageSource;F)V".equals(mn.desc)) {
+                    && mn.desc.startsWith("(L") && mn.desc.endsWith(";F)V")) {
 
-                System.out.println("[moremodTransformer]   Patching damageEntity...");
+                System.out.println("[moremodTransformer]   Patching damageEntity... (desc: " + mn.desc + ")");
 
                 InsnList inject = new InsnList();
                 LabelNode continueLabel = new LabelNode();
@@ -1016,10 +1018,11 @@ public class moremodTransformer implements IClassTransformer {
             // ========== 3. onDeath 注入（最终防线） ==========
             // 方法签名: public void onDeath(DamageSource cause)
             // SRG名: func_70645_a
+            // 描述符模式: (L...;)V (接受一个对象，返回void)
             if (("onDeath".equals(mn.name) || "func_70645_a".equals(mn.name))
-                    && "(Lnet/minecraft/util/DamageSource;)V".equals(mn.desc)) {
+                    && mn.desc.startsWith("(L") && mn.desc.endsWith(";)V")) {
 
-                System.out.println("[moremodTransformer]   Patching onDeath...");
+                System.out.println("[moremodTransformer]   Patching onDeath... (desc: " + mn.desc + ")");
 
                 InsnList inject = new InsnList();
                 LabelNode continueLabel = new LabelNode();
@@ -1046,6 +1049,14 @@ public class moremodTransformer implements IClassTransformer {
 
         if (!modified) {
             System.out.println("[moremodTransformer]   WARNING: No methods were modified!");
+            // 打印所有方法名帮助调试
+            System.out.println("[moremodTransformer]   Available methods in EntityLivingBase:");
+            for (MethodNode mn : cn.methods) {
+                if (mn.name.contains("Death") || mn.name.contains("attack") || mn.name.contains("damage")
+                        || mn.name.startsWith("func_706")) {
+                    System.out.println("[moremodTransformer]     - " + mn.name + " " + mn.desc);
+                }
+            }
             return bytes;
         }
 
