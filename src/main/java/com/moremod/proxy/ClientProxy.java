@@ -10,7 +10,7 @@ import com.moremod.client.render.fx.RenderLightningArc;
 import com.moremod.client.render.fx.RenderPlayerLaserBeam;
 import com.moremod.client.render.fx.RenderRiftLightning;
 import com.moremod.entity.*;
-import com.moremod.entity.boss.EntityRiftwarden;
+import com.moremod.entity.boss.riftwarden.EntityRiftwarden;
 import com.moremod.entity.boss.EntityStoneSentinel;
 import com.moremod.entity.fx.EntityLaserBeam;
 import com.moremod.entity.fx.EntityLightningArc;
@@ -105,7 +105,7 @@ public class ClientProxy extends CommonProxy {
     @Override
     public void init(FMLInitializationEvent event) {
         super.init(event);
-
+        MoBendsCompat.init();
         // =========================
         // 注册 NumPad Debug 按键
         // =========================

@@ -381,14 +381,27 @@ public class GemLootRuleManager {
                     }
                 }
 
-                // 类名匹配（精确匹配）
+                // 类名匹配（改进版）
                 if (!basicMatched) {
                     for (String cls : classNames) {
-                        // 使用精确匹配或者以.ClassName结尾（避免EntityWither匹配EntityWitherSkeleton）
-                        if (simpleClassName.equals(cls) || 
-                            className.endsWith("." + cls)) {  // 完整类名匹配
-                            basicMatched = true;
-                            break;
+                        // 三种匹配模式：
+                        // 1. 简单类名精确匹配：EntityWither == EntityWither
+                        // 2. 完整路径匹配：endsWith(".EntityWither")
+                        // 3. 完整类名匹配：完整类名equals
+                        
+                        if (cls.contains(".")) {
+                            // 如果包含点，认为是完整类名，使用精确匹配
+                            if (className.equals(cls)) {
+                                basicMatched = true;
+                                break;
+                            }
+                        } else {
+                            // 简单类名，必须精确匹配
+                            if (simpleClassName.equals(cls) || 
+                                className.endsWith("." + cls)) {
+                                basicMatched = true;
+                                break;
+                            }
                         }
                     }
                 }
