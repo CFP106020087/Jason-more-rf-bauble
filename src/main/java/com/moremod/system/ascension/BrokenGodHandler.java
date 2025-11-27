@@ -454,13 +454,15 @@ public class BrokenGodHandler {
                             player.getCapability(ichttt.mods.firstaid.api.CapabilityExtendedHealthSystem.INSTANCE, null);
             if (model == null) return;
 
-            // 恢复所有部位到满血
+            // 恢复所有部位到满血（包括 FOOT）
             model.HEAD.currentHealth = model.HEAD.getMaxHealth();
             model.BODY.currentHealth = model.BODY.getMaxHealth();
             model.LEFT_ARM.currentHealth = model.LEFT_ARM.getMaxHealth();
             model.RIGHT_ARM.currentHealth = model.RIGHT_ARM.getMaxHealth();
             model.LEFT_LEG.currentHealth = model.LEFT_LEG.getMaxHealth();
             model.RIGHT_LEG.currentHealth = model.RIGHT_LEG.getMaxHealth();
+            model.LEFT_FOOT.currentHealth = model.LEFT_FOOT.getMaxHealth();
+            model.RIGHT_FOOT.currentHealth = model.RIGHT_FOOT.getMaxHealth();
         } catch (Throwable ignored) {
         }
     }
@@ -495,6 +497,8 @@ public class BrokenGodHandler {
             model.RIGHT_ARM.currentHealth = Math.max(1.0f, model.RIGHT_ARM.currentHealth);
             model.LEFT_LEG.currentHealth = Math.max(1.0f, model.LEFT_LEG.currentHealth);
             model.RIGHT_LEG.currentHealth = Math.max(1.0f, model.RIGHT_LEG.currentHealth);
+            model.LEFT_FOOT.currentHealth = Math.max(1.0f, model.LEFT_FOOT.currentHealth);
+            model.RIGHT_FOOT.currentHealth = Math.max(1.0f, model.RIGHT_FOOT.currentHealth);
         } catch (Throwable ignored) {
         }
     }
