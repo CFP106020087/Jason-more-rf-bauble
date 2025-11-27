@@ -1,0 +1,12 @@
+{
+  "enabled": true,
+  "output": {
+    "item": "moremod:otherworldly_fiber",
+    "count": 2
+  },
+  "input": [
+    "moremod:ethereal_shard","moremod:unformed_fabric","moremod:ethereal_shard"
+  ,"moremod:unformed_fabric","moremod:void_ichor","moremod:unformed_fabric"
+  ,"moremod:ethereal_shard","moremod:unformed_fabric","moremod:ethereal_shard"
+  ]
+}

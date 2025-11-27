@@ -1,0 +1,6 @@
+{
+  "parent": "block/cube_all",
+  "textures": {
+    "all": "moremod:blocks/time_controller_on"
+  }
+}

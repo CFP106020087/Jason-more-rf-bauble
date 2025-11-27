@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "normal": {
+      "model": "moremod:protection_field_generator"
+    }
+  }
+}

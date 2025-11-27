@@ -1,0 +1,42 @@
+{
+  "format_version": "1.12.0",
+  "minecraft:geometry": [
+    {
+      "description": {
+        "identifier": "geometry.sword_chengyue_scabbard",
+        "texture_width": 256,
+        "texture_height": 256,
+        "visible_bounds_width": 12,
+        "visible_bounds_height": 10,
+        "visible_bounds_offset": [0, 1, 0]
+      },
+      "bones": [
+        {
+          "name": "scabbard",
+          "pivot": [0, 104, 2],
+          "rotation": [32.5, 0, 0],
+          "cubes": [
+            {"origin": [-1.1, 101.7, -33.2], "size": [2, 4.6, 2], "inflate": 0.02, "pivot": [-0.1, 104, -32.2], "rotation": [-12.5, 0, 0], "uv": [0, 195]},
+            {"origin": [-1.1, 101.7, -35.2], "size": [2, 2.6, 2], "inflate": 0.02, "pivot": [-0.1, 104, -32.2], "rotation": [-12.5, 0, 0], "uv": [0, 207]},
+            {"origin": [-1.1, 101.7, -30.4], "size": [2, 4.6, 2], "inflate": 0.02, "pivot": [-0.1, 104, -29.4], "rotation": [-2.5, 0, 0], "uv": [0, 195]},
+            {"origin": [-1.1, 101.7, -28],   "size": [2, 4.6, 2], "inflate": 0.02, "pivot": [-0.1, 104, -27],   "rotation": [10, 0, 0],  "uv": [0, 195]},
+            {"origin": [-1.1, 101.7, -31.9], "size": [2, 4.6, 2], "inflate": 0.04, "pivot": [-0.1, 104, -30.9], "rotation": [2.5, 0, 0], "uv": [9, 201]},
+            {"origin": [-1.1, 101.7, -28.9], "size": [2, 4.6, 2], "inflate": 0.04, "pivot": [-0.1, 104, -27.9], "rotation": [-17.5, 0, 0], "uv": [9, 208]},
+            {"origin": [-1.1, 101.7, -26.5], "size": [2, 4.6, 2], "inflate": 0.04, "uv": [0, 195]},
+            {"origin": [-1.1, 103.7, -24.4], "size": [2, 2.6, 2], "inflate": 0.04, "uv": [0, 202]},
+            {"origin": [-1.1, 102.2, -56.6], "size": [2, 3.6, 56], "uv": [0, 131]}
+          ]
+        },
+        {
+          "name": "scabbard1_2",
+          "parent": "scabbard",
+          "pivot": [-0.1, 102.25, -56.6],
+          "rotation": [-30, 0, 0],
+          "cubes": [
+            {"origin": [-1.1, 102.2, -59.6], "size": [2, 3.8, 3], "inflate": 0.02, "uv": [0, 171]}
+          ]
+        }
+      ]
+    }
+  ]
+}

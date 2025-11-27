@@ -1,0 +1,8 @@
+#PARSE_ESCAPES
+#items
+key.categories.moremod=moremod
+key.moremod.jetpack_toggle=Jetpack toggle
+key.moremod.hover_toggle=Hover toggle
+
+# Synergy System
+tile.synergy_station.name=Synergy Linking Station

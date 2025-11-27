@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "facing=north": { "model": "moremod:advanced_item_transporter" },
+    "facing=south": { "model": "moremod:advanced_item_transporter", "y": 180 },
+    "facing=west":  { "model": "moremod:advanced_item_transporter", "y": 270 },
+    "facing=east":  { "model": "moremod:advanced_item_transporter", "y": 90  },
+    "facing=up":    { "model": "moremod:advanced_item_transporter", "x": 270 },
+    "facing=down":  { "model": "moremod:advanced_item_transporter", "x": 90  }
+  }
+}

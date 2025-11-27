@@ -1,0 +1,7 @@
+{
+  "heartbeat": {
+    "sounds": [
+      { "name": "moremod:heartbeat" }
+    ]
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "format_version": "1.8.0",
+  "animations": {
+    "animation.exoskeleton.idle": {
+      "loop": true,
+      "bones": {
+        "rightArm": {
+          "rotation": [
+            { "time": 0,    "angle": [0, 0, 0] },
+            { "time": 0.5,  "angle": [2, 0, 0] },
+            { "time": 1.0,  "angle": [0, 0, 0] }
+          ]
+        }
+      }
+    }
+  }
+}

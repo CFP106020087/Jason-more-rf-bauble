@@ -1,0 +1,12 @@
+{
+  "parent": "block/cube",
+  "textures": {
+    "particle": "moremod:blocks/item_transporter_side",
+    "down": "moremod:blocks/item_transporter_bottom",
+    "up": "moremod:blocks/item_transporter_top_lit_purple",
+    "north": "moremod:blocks/item_transporter_front_lit_purple",
+    "south": "moremod:blocks/item_transporter_side",
+    "west": "moremod:blocks/item_transporter_side",
+    "east": "moremod:blocks/item_transporter_side"
+  }
+}
