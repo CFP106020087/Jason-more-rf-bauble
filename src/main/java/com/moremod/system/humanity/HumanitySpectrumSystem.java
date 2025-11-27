@@ -339,6 +339,9 @@ public class HumanitySpectrumSystem {
         IHumanityData data = HumanityCapabilityHandler.getData(player);
         if (data == null || !data.isSystemActive()) return;
 
+        // 破碎之神免疫崩解
+        if (data.getAscensionRoute() == AscensionRoute.BROKEN_GOD) return;
+
         data.startDissolution();
 
         player.sendMessage(new TextComponentString(
@@ -395,22 +398,24 @@ public class HumanitySpectrumSystem {
 
     /**
      * 崩解存活结束
+     * 注意：不重置人性值，保持当前低人性状态，允许继续追求破碎之神升格
      */
     private static void endDissolutionSurvived(EntityPlayer player) {
         IHumanityData data = HumanityCapabilityHandler.getData(player);
         if (data == null) return;
 
         data.endDissolution(true);
-        data.setHumanity(15f);
+        // 不重置人性值！保持当前人性（通常为0或接近0）
+        // 这样玩家可以继续累积低人性时间，追求破碎之神升格
 
-        // 应用存在锚定（24小时）
+        // 应用存在锚定（防止连续崩解，但不阻止破碎之神升格）
         long anchorDuration = (long) HumanityConfig.existenceAnchorDuration * 60 * 60 * 20;
         data.setExistenceAnchorUntil(player.world.getTotalWorldTime() + anchorDuration);
 
         player.sendMessage(new TextComponentString(
                 TextFormatting.LIGHT_PURPLE + "【崩解终止】" + TextFormatting.GRAY +
                 " 你的存在被强制锚定。" + HumanityConfig.existenceAnchorDuration +
-                "小时内无法再次进入崩解状态。"
+                "小时内人性值无法低于10%。"
         ));
 
         markForceSync(player);
