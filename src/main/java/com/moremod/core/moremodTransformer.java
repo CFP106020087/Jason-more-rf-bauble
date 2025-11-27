@@ -932,21 +932,16 @@ public class moremodTransformer implements IClassTransformer {
     }
 
     // ============================================================
-    // 破碎之神死亡拦截转换
+    // 破碎之神死亡拦截转换（增强版）
     // ============================================================
 
     /**
-     * 转换 EntityLivingBase.onDeath 方法
-     * 在方法开头注入破碎之神死亡检查
+     * 转换 EntityLivingBase 以支持破碎之神停机系统
      *
-     * 原始代码:
-     * public void onDeath(DamageSource cause) { ... }
-     *
-     * 转换后:
-     * public void onDeath(DamageSource cause) {
-     *     if (BrokenGodDeathHook.shouldPreventDeath(this, cause)) return;
-     *     ... 原始代码 ...
-     * }
+     * 注入点：
+     * 1. attackEntityFrom HEAD - 停机时完全免疫攻击
+     * 2. damageEntity HEAD - 检测致命伤害并触发停机
+     * 3. onDeath HEAD - 最终防线
      */
     private byte[] transformEntityLivingBaseOnDeath(byte[] bytes) {
         ClassNode cn = new ClassNode();
@@ -954,22 +949,84 @@ public class moremodTransformer implements IClassTransformer {
         boolean modified = false;
 
         for (MethodNode mn : cn.methods) {
-            // 查找 onDeath 方法 (SRG名: func_70645_a)
+
+            // ========== 1. attackEntityFrom 注入 ==========
+            // 方法签名: public boolean attackEntityFrom(DamageSource source, float amount)
+            // SRG名: func_70097_a
+            if (("attackEntityFrom".equals(mn.name) || "func_70097_a".equals(mn.name))
+                    && "(Lnet/minecraft/util/DamageSource;F)Z".equals(mn.desc)) {
+
+                System.out.println("[moremodTransformer]   Patching attackEntityFrom...");
+
+                InsnList inject = new InsnList();
+                LabelNode continueLabel = new LabelNode();
+
+                // if (BrokenGodDeathHook.shouldCancelAttack(this, source, amount)) return false;
+                inject.add(new VarInsnNode(Opcodes.ALOAD, 0));  // this
+                inject.add(new VarInsnNode(Opcodes.ALOAD, 1));  // source
+                inject.add(new VarInsnNode(Opcodes.FLOAD, 2));  // amount
+                inject.add(new MethodInsnNode(
+                        Opcodes.INVOKESTATIC,
+                        "com/moremod/core/BrokenGodDeathHook",
+                        "shouldCancelAttack",
+                        "(Lnet/minecraft/entity/EntityLivingBase;Lnet/minecraft/util/DamageSource;F)Z",
+                        false
+                ));
+                inject.add(new JumpInsnNode(Opcodes.IFEQ, continueLabel));
+                inject.add(new InsnNode(Opcodes.ICONST_0));  // return false
+                inject.add(new InsnNode(Opcodes.IRETURN));
+                inject.add(continueLabel);
+
+                mn.instructions.insert(inject);
+                modified = true;
+                System.out.println("[moremodTransformer]     + Injected shutdown check at attackEntityFrom HEAD");
+            }
+
+            // ========== 2. damageEntity 注入 ==========
+            // 方法签名: protected void damageEntity(DamageSource source, float damage)
+            // SRG名: func_70665_d
+            if (("damageEntity".equals(mn.name) || "func_70665_d".equals(mn.name))
+                    && "(Lnet/minecraft/util/DamageSource;F)V".equals(mn.desc)) {
+
+                System.out.println("[moremodTransformer]   Patching damageEntity...");
+
+                InsnList inject = new InsnList();
+                LabelNode continueLabel = new LabelNode();
+
+                // if (BrokenGodDeathHook.checkAndTriggerShutdown(this, source, damage)) return;
+                inject.add(new VarInsnNode(Opcodes.ALOAD, 0));  // this
+                inject.add(new VarInsnNode(Opcodes.ALOAD, 1));  // source
+                inject.add(new VarInsnNode(Opcodes.FLOAD, 2));  // damage
+                inject.add(new MethodInsnNode(
+                        Opcodes.INVOKESTATIC,
+                        "com/moremod/core/BrokenGodDeathHook",
+                        "checkAndTriggerShutdown",
+                        "(Lnet/minecraft/entity/EntityLivingBase;Lnet/minecraft/util/DamageSource;F)Z",
+                        false
+                ));
+                inject.add(new JumpInsnNode(Opcodes.IFEQ, continueLabel));
+                inject.add(new InsnNode(Opcodes.RETURN));  // void return
+                inject.add(continueLabel);
+
+                mn.instructions.insert(inject);
+                modified = true;
+                System.out.println("[moremodTransformer]     + Injected shutdown trigger check at damageEntity HEAD");
+            }
+
+            // ========== 3. onDeath 注入（最终防线） ==========
+            // 方法签名: public void onDeath(DamageSource cause)
+            // SRG名: func_70645_a
             if (("onDeath".equals(mn.name) || "func_70645_a".equals(mn.name))
                     && "(Lnet/minecraft/util/DamageSource;)V".equals(mn.desc)) {
 
-                System.out.println("[moremodTransformer]   Found onDeath method: " + mn.name);
+                System.out.println("[moremodTransformer]   Patching onDeath...");
 
-                // 创建注入代码
                 InsnList inject = new InsnList();
+                LabelNode continueLabel = new LabelNode();
 
-                // 加载 this (EntityLivingBase)
+                // if (BrokenGodDeathHook.shouldPreventDeath(this, cause)) return;
                 inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
-
-                // 加载 cause (DamageSource, 参数1)
                 inject.add(new VarInsnNode(Opcodes.ALOAD, 1));
-
-                // 调用 BrokenGodDeathHook.shouldPreventDeath(this, cause)
                 inject.add(new MethodInsnNode(
                         Opcodes.INVOKESTATIC,
                         "com/moremod/core/BrokenGodDeathHook",
@@ -977,29 +1034,24 @@ public class moremodTransformer implements IClassTransformer {
                         "(Lnet/minecraft/entity/EntityLivingBase;Lnet/minecraft/util/DamageSource;)Z",
                         false
                 ));
-
-                // 如果返回 true (1)，直接 return
-                LabelNode continueLabel = new LabelNode();
                 inject.add(new JumpInsnNode(Opcodes.IFEQ, continueLabel));
                 inject.add(new InsnNode(Opcodes.RETURN));
                 inject.add(continueLabel);
 
-                // 在方法开头注入
                 mn.instructions.insert(inject);
-
                 modified = true;
-                System.out.println("[moremodTransformer]   + Injected Broken God death check into onDeath");
+                System.out.println("[moremodTransformer]     + Injected death prevention at onDeath HEAD");
             }
         }
 
         if (!modified) {
-            System.out.println("[moremodTransformer]   WARNING: Could not find onDeath method to patch!");
+            System.out.println("[moremodTransformer]   WARNING: No methods were modified!");
             return bytes;
         }
 
         ClassWriter cw = new SafeClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
         cn.accept(cw);
-        System.out.println("[moremodTransformer]   ✓ EntityLivingBase.onDeath patched for Broken God");
+        System.out.println("[moremodTransformer]   ✓ EntityLivingBase patched for Broken God shutdown system");
         return cw.toByteArray();
     }
 
