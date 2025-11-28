@@ -91,7 +91,7 @@ public class HumanityConfig {
     })
     @Config.Name("虚空发电机消耗 | Void Generator Drain")
     @Config.RangeDouble(min = 0, max = 20)
-    public static double voidGeneratorDrain = 3.0;
+    public static double voidGeneratorDrain = 0.5;
 
     @Config.Comment({
             "使用裂隙脉冲消耗的人性值",
@@ -99,7 +99,7 @@ public class HumanityConfig {
     })
     @Config.Name("裂隙脉冲消耗 | Rift Pulse Drain")
     @Config.RangeDouble(min = 0, max = 20)
-    public static double riftPulseDrain = 5.0;
+    public static double riftPulseDrain = 1.0;
 
     @Config.Comment({
             "使用相位转移消耗的人性值",
@@ -107,7 +107,7 @@ public class HumanityConfig {
     })
     @Config.Name("相位转移消耗 | Phase Shift Drain")
     @Config.RangeDouble(min = 0, max = 20)
-    public static double phaseShiftDrain = 2.0;
+    public static double phaseShiftDrain = 0.4;
 
     @Config.Comment({
             "维度跳跃消耗的人性值",
@@ -115,7 +115,7 @@ public class HumanityConfig {
     })
     @Config.Name("维度跳跃消耗 | Dimension Hop Drain")
     @Config.RangeDouble(min = 0, max = 30)
-    public static double dimensionHopDrain = 8.0;
+    public static double dimensionHopDrain = 1.5;
 
     // ============================================================
     // 人性值流失配置 - 持续消耗
@@ -127,7 +127,7 @@ public class HumanityConfig {
     })
     @Config.Name("超限模式消耗/秒 | Overclock Drain/sec")
     @Config.RangeDouble(min = 0, max = 1)
-    public static double overclockDrainPerSec = 0.05;
+    public static double overclockDrainPerSec = 0.01;
 
     @Config.Comment({
             "熬夜开始消耗人性值的时间(分钟游戏时间)",
@@ -143,7 +143,7 @@ public class HumanityConfig {
     })
     @Config.Name("熬夜消耗/秒 | Sleep Deprivation Drain/sec")
     @Config.RangeDouble(min = 0, max = 0.5)
-    public static double sleepDeprivationDrainPerSec = 0.02;
+    public static double sleepDeprivationDrainPerSec = 0.004;
 
     @Config.Comment({
             "异常维度滞留每秒消耗的人性值",
@@ -151,7 +151,7 @@ public class HumanityConfig {
     })
     @Config.Name("异常维度消耗/秒 | Abnormal Dimension Drain/sec")
     @Config.RangeDouble(min = 0, max = 0.5)
-    public static double abnormalDimensionDrainPerSec = 0.03;
+    public static double abnormalDimensionDrainPerSec = 0.006;
 
     @Config.Comment({
             "屠杀被动生物消耗的人性值",
@@ -159,7 +159,7 @@ public class HumanityConfig {
     })
     @Config.Name("杀死被动生物消耗 | Kill Passive Mob Drain")
     @Config.RangeDouble(min = 0, max = 5)
-    public static double killPassiveMobDrain = 0.5;
+    public static double killPassiveMobDrain = 0.1;
 
     @Config.Comment({
             "屠杀村民消耗的人性值",
@@ -167,7 +167,7 @@ public class HumanityConfig {
     })
     @Config.Name("杀死村民消耗 | Kill Villager Drain")
     @Config.RangeDouble(min = 0, max = 15)
-    public static double killVillagerDrain = 3.0;
+    public static double killVillagerDrain = 0.5;
 
     @Config.Comment({
             "低人性战斗状态每秒消耗的人性值（人性<50%时）",
@@ -175,7 +175,7 @@ public class HumanityConfig {
     })
     @Config.Name("低人性战斗消耗/秒 | Low Humanity Combat Drain/sec")
     @Config.RangeDouble(min = 0, max = 0.5)
-    public static double combatDrainPerSec = 0.1;
+    public static double combatDrainPerSec = 0.02;
 
     // ============================================================
     // 人性值恢复配置
@@ -187,7 +187,7 @@ public class HumanityConfig {
     })
     @Config.Name("睡眠恢复 | Sleep Restore")
     @Config.RangeDouble(min = 0, max = 30)
-    public static double sleepRestore = 8.0;
+    public static double sleepRestore = 1.5;
 
     @Config.Comment({
             "睡眠最多恢复到的人性值上限",
@@ -203,7 +203,7 @@ public class HumanityConfig {
     })
     @Config.Name("熟食恢复 | Cooked Food Restore")
     @Config.RangeDouble(min = 0, max = 2)
-    public static double cookedFoodRestore = 0.3;
+    public static double cookedFoodRestore = 0.05;
 
     @Config.Comment({
             "吃复杂料理恢复的人性值",
@@ -211,7 +211,7 @@ public class HumanityConfig {
     })
     @Config.Name("复杂料理恢复 | Complex Meal Restore")
     @Config.RangeDouble(min = 0, max = 3)
-    public static double complexMealRestore = 0.8;
+    public static double complexMealRestore = 0.15;
 
     @Config.Comment({
             "吃金苹果等恢复的人性值",
@@ -219,7 +219,7 @@ public class HumanityConfig {
     })
     @Config.Name("金苹果恢复 | Golden Food Restore")
     @Config.RangeDouble(min = 0, max = 5)
-    public static double goldenFoodRestore = 1.5;
+    public static double goldenFoodRestore = 0.3;
 
     @Config.Comment({
             "主世界日光下每秒恢复的人性值",
@@ -227,7 +227,7 @@ public class HumanityConfig {
     })
     @Config.Name("日光恢复/秒 | Sunlight Restore/sec")
     @Config.RangeDouble(min = 0, max = 0.1)
-    public static double sunlightRestorePerSec = 0.01;
+    public static double sunlightRestorePerSec = 0.002;
 
     @Config.Comment({
             "与村民交易恢复的人性值",
@@ -235,7 +235,7 @@ public class HumanityConfig {
     })
     @Config.Name("交易恢复 | Trade Restore")
     @Config.RangeDouble(min = 0, max = 5)
-    public static double villagerTradeRestore = 1.5;
+    public static double villagerTradeRestore = 0.3;
 
     @Config.Comment({
             "收获作物恢复的人性值",
@@ -243,7 +243,7 @@ public class HumanityConfig {
     })
     @Config.Name("收获恢复 | Harvest Restore")
     @Config.RangeDouble(min = 0, max = 1)
-    public static double harvestRestore = 0.2;
+    public static double harvestRestore = 0.05;
 
     @Config.Comment({
             "喂养动物恢复的人性值",
@@ -251,7 +251,7 @@ public class HumanityConfig {
     })
     @Config.Name("喂养恢复 | Feed Animal Restore")
     @Config.RangeDouble(min = 0, max = 1)
-    public static double feedAnimalRestore = 0.3;
+    public static double feedAnimalRestore = 0.05;
 
     // ============================================================
     // 猎人协议配置
@@ -436,7 +436,7 @@ public class HumanityConfig {
     })
     @Config.Name("相位闪烁消耗 | Phase Blink Cost")
     @Config.RangeDouble(min = 0, max = 15)
-    public static double phaseBlinkCost = 3.0;
+    public static double phaseBlinkCost = 0.5;
 
     @Config.Comment({
             "虚空撕裂消耗的人性值",
@@ -444,7 +444,7 @@ public class HumanityConfig {
     })
     @Config.Name("虚空撕裂消耗 | Void Tear Cost")
     @Config.RangeDouble(min = 0, max = 20)
-    public static double voidTearCost = 5.0;
+    public static double voidTearCost = 1.0;
 
     @Config.Comment({
             "存在抹消消耗的人性值",
@@ -452,7 +452,7 @@ public class HumanityConfig {
     })
     @Config.Name("存在抹消消耗 | Existence Erasure Cost")
     @Config.RangeDouble(min = 0, max = 30)
-    public static double existenceErasureCost = 10.0;
+    public static double existenceErasureCost = 2.0;
 
     // ============================================================
     // 调试选项
