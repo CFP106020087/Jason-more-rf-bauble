@@ -3,6 +3,7 @@ package com.moremod.item.broken;
 import baubles.api.BaubleType;
 import com.moremod.config.BrokenRelicConfig;
 import com.moremod.creativetab.moremodCreativeTab;
+import com.moremod.moremod;
 import com.moremod.system.ascension.BrokenGodHandler;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.EntityLivingBase;
@@ -14,11 +15,16 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.event.world.WorldEvent;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 import javax.annotation.Nullable;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -42,18 +48,28 @@ import java.util.Map;
 public class ItemBrokenArm extends ItemBrokenBaubleBase {
 
     // 追踪已经被护甲粉碎的实体及其原始护甲值
-    private static final Map<Integer, ArmorData> shreddedEntities = new HashMap<>();
+    // Key: "dimensionId:entityId" 避免跨维度ID冲突
+    private static final Map<String, ArmorData> shreddedEntities = new HashMap<>();
 
     private static class ArmorData {
         long lastUpdateTime;
         double originalArmor;
         double originalToughness;
+        int dimensionId;
 
-        ArmorData(long time, double armor, double toughness) {
+        ArmorData(long time, double armor, double toughness, int dimension) {
             this.lastUpdateTime = time;
             this.originalArmor = armor;
             this.originalToughness = toughness;
+            this.dimensionId = dimension;
         }
+    }
+
+    /**
+     * 生成实体的唯一键
+     */
+    private static String getEntityKey(EntityLivingBase entity) {
+        return entity.world.provider.getDimension() + ":" + entity.getEntityId();
     }
 
     public ItemBrokenArm() {
@@ -96,6 +112,7 @@ public class ItemBrokenArm extends ItemBrokenBaubleBase {
      */
     private void applyArmorShredAura(EntityPlayer player) {
         double range = BrokenRelicConfig.armArmorShredRange;
+        int dimensionId = player.world.provider.getDimension();
 
         AxisAlignedBB aabb = player.getEntityBoundingBox().grow(range);
 
@@ -107,15 +124,15 @@ public class ItemBrokenArm extends ItemBrokenBaubleBase {
         long currentTime = player.world.getTotalWorldTime();
 
         for (EntityLivingBase target : entities) {
-            int entityId = target.getEntityId();
+            String entityKey = getEntityKey(target);
             IAttributeInstance armorAttr = target.getEntityAttribute(SharedMonsterAttributes.ARMOR);
             IAttributeInstance toughnessAttr = target.getEntityAttribute(SharedMonsterAttributes.ARMOR_TOUGHNESS);
 
             // 如果是新目标，保存原始值
-            if (!shreddedEntities.containsKey(entityId)) {
+            if (!shreddedEntities.containsKey(entityKey)) {
                 double originalArmor = armorAttr != null ? armorAttr.getBaseValue() : 0;
                 double originalToughness = toughnessAttr != null ? toughnessAttr.getBaseValue() : 0;
-                shreddedEntities.put(entityId, new ArmorData(currentTime, originalArmor, originalToughness));
+                shreddedEntities.put(entityKey, new ArmorData(currentTime, originalArmor, originalToughness, dimensionId));
 
                 // 设置护甲和韧性为0
                 if (armorAttr != null) {
@@ -126,32 +143,72 @@ public class ItemBrokenArm extends ItemBrokenBaubleBase {
                 }
             } else {
                 // 更新时间
-                shreddedEntities.get(entityId).lastUpdateTime = currentTime;
+                shreddedEntities.get(entityKey).lastUpdateTime = currentTime;
             }
         }
 
         // 清理离开范围的实体，恢复其护甲
-        shreddedEntities.entrySet().removeIf(entry -> {
-            if (currentTime - entry.getValue().lastUpdateTime > 10) {
-                // 超过10tick没更新，说明已离开范围
-                net.minecraft.entity.Entity e = player.world.getEntityByID(entry.getKey());
-                if (e instanceof EntityLivingBase) {
-                    EntityLivingBase target = (EntityLivingBase) e;
-                    IAttributeInstance armorAttr = target.getEntityAttribute(SharedMonsterAttributes.ARMOR);
-                    IAttributeInstance toughnessAttr = target.getEntityAttribute(SharedMonsterAttributes.ARMOR_TOUGHNESS);
+        Iterator<Map.Entry<String, ArmorData>> iterator = shreddedEntities.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<String, ArmorData> entry = iterator.next();
+            ArmorData data = entry.getValue();
 
-                    // 恢复原始护甲值
-                    if (armorAttr != null) {
-                        armorAttr.setBaseValue(entry.getValue().originalArmor);
-                    }
-                    if (toughnessAttr != null) {
-                        toughnessAttr.setBaseValue(entry.getValue().originalToughness);
-                    }
+            // 只处理当前维度的实体
+            if (data.dimensionId != dimensionId) continue;
+
+            if (currentTime - data.lastUpdateTime > 10) {
+                // 超过10tick没更新，说明已离开范围
+                // 解析 entityId
+                String[] parts = entry.getKey().split(":");
+                if (parts.length == 2) {
+                    try {
+                        int entityId = Integer.parseInt(parts[1]);
+                        net.minecraft.entity.Entity e = player.world.getEntityByID(entityId);
+                        if (e instanceof EntityLivingBase) {
+                            restoreArmor((EntityLivingBase) e, data);
+                        }
+                    } catch (NumberFormatException ignored) {}
                 }
-                return true;
+                iterator.remove();
             }
-            return false;
-        });
+        }
+    }
+
+    /**
+     * 恢复实体护甲值
+     */
+    private static void restoreArmor(EntityLivingBase target, ArmorData data) {
+        IAttributeInstance armorAttr = target.getEntityAttribute(SharedMonsterAttributes.ARMOR);
+        IAttributeInstance toughnessAttr = target.getEntityAttribute(SharedMonsterAttributes.ARMOR_TOUGHNESS);
+
+        if (armorAttr != null) {
+            armorAttr.setBaseValue(data.originalArmor);
+        }
+        if (toughnessAttr != null) {
+            toughnessAttr.setBaseValue(data.originalToughness);
+        }
+    }
+
+    /**
+     * 清理指定实体（实体死亡时调用）
+     */
+    public static void cleanupEntity(EntityLivingBase entity) {
+        String key = getEntityKey(entity);
+        shreddedEntities.remove(key);
+    }
+
+    /**
+     * 清理指定维度的所有实体（世界卸载时调用）
+     */
+    public static void cleanupDimension(int dimensionId) {
+        shreddedEntities.entrySet().removeIf(entry -> entry.getValue().dimensionId == dimensionId);
+    }
+
+    /**
+     * 清理所有追踪的实体
+     */
+    public static void cleanupAll() {
+        shreddedEntities.clear();
     }
 
     /**
@@ -210,5 +267,29 @@ public class ItemBrokenArm extends ItemBrokenBaubleBase {
     @Override
     public boolean hasEffect(ItemStack stack) {
         return true;
+    }
+
+    // ========== 事件处理器 - 清理内存泄漏 ==========
+
+    @Mod.EventBusSubscriber(modid = moremod.MODID)
+    public static class ArmorShredCleanupHandler {
+
+        /**
+         * 实体死亡时清理
+         */
+        @SubscribeEvent
+        public static void onEntityDeath(LivingDeathEvent event) {
+            if (event.getEntityLiving().world.isRemote) return;
+            cleanupEntity(event.getEntityLiving());
+        }
+
+        /**
+         * 世界卸载时清理该维度的所有追踪
+         */
+        @SubscribeEvent
+        public static void onWorldUnload(WorldEvent.Unload event) {
+            if (event.getWorld().isRemote) return;
+            cleanupDimension(event.getWorld().provider.getDimension());
+        }
     }
 }
