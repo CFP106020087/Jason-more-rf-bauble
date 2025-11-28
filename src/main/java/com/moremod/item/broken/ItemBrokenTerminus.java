@@ -1,7 +1,7 @@
 package com.moremod.item.broken;
 
 import baubles.api.BaubleType;
-import com.moremod.config.BrokenRelicConfig;
+import com.moremod.config.BrokenGodConfig;
 import com.moremod.creativetab.moremodCreativeTab;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.EntityLivingBase;
@@ -63,21 +63,21 @@ public class ItemBrokenTerminus extends ItemBrokenBaubleBase {
      * 获取伤害倍率
      */
     public static float getDamageMultiplier() {
-        return (float) BrokenRelicConfig.terminusDamageMultiplier;
+        return (float) BrokenGodConfig.terminusDamageMultiplier;
     }
 
     /**
      * 击杀回复HP
      */
     public static float getKillHeal() {
-        return (float) BrokenRelicConfig.terminusKillHeal;
+        return (float) BrokenGodConfig.terminusKillHeal;
     }
 
     /**
      * 击杀获得吸收之心
      */
     public static float getKillAbsorption() {
-        return (float) BrokenRelicConfig.terminusKillAbsorption;
+        return (float) BrokenGodConfig.terminusKillAbsorption;
     }
 
     /**
@@ -104,11 +104,11 @@ public class ItemBrokenTerminus extends ItemBrokenBaubleBase {
         tooltip.add(TextFormatting.DARK_GRAY + "Broken Terminus");
         tooltip.add("");
         tooltip.add(TextFormatting.GOLD + "◆ 伤害倍增");
-        tooltip.add(TextFormatting.YELLOW + "  所有伤害 ×" + (int) BrokenRelicConfig.terminusDamageMultiplier);
+        tooltip.add(TextFormatting.YELLOW + "  所有伤害 ×" + (int) BrokenGodConfig.terminusDamageMultiplier);
         tooltip.add("");
         tooltip.add(TextFormatting.GREEN + "◆ 死亡收割");
-        tooltip.add(TextFormatting.GRAY + "  击杀敌人回复 " + (int) BrokenRelicConfig.terminusKillHeal + " HP");
-        tooltip.add(TextFormatting.GRAY + "  击杀敌人获得 " + (int) BrokenRelicConfig.terminusKillAbsorption + " 吸收");
+        tooltip.add(TextFormatting.GRAY + "  击杀敌人回复 " + (int) BrokenGodConfig.terminusKillHeal + " HP");
+        tooltip.add(TextFormatting.GRAY + "  击杀敌人获得 " + (int) BrokenGodConfig.terminusKillAbsorption + " 吸收");
         tooltip.add("");
         tooltip.add(TextFormatting.AQUA + "※ 顶点饰品 - 纯增益");
         tooltip.add("");

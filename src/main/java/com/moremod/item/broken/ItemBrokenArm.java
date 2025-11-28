@@ -1,7 +1,7 @@
 package com.moremod.item.broken;
 
 import baubles.api.BaubleType;
-import com.moremod.config.BrokenRelicConfig;
+import com.moremod.config.BrokenGodConfig;
 import com.moremod.creativetab.moremodCreativeTab;
 import com.moremod.moremod;
 import com.moremod.system.ascension.BrokenGodHandler;
@@ -111,7 +111,7 @@ public class ItemBrokenArm extends ItemBrokenBaubleBase {
      * 应用护甲粉碎光环 - 直接设置护甲和韧性为0
      */
     private void applyArmorShredAura(EntityPlayer player) {
-        double range = BrokenRelicConfig.armArmorShredRange;
+        double range = BrokenGodConfig.armArmorShredRange;
         int dimensionId = player.world.provider.getDimension();
 
         AxisAlignedBB aabb = player.getEntityBoundingBox().grow(range);
@@ -215,28 +215,28 @@ public class ItemBrokenArm extends ItemBrokenBaubleBase {
      * 获取基础伤害倍率
      */
     public static float getDamageMultiplier() {
-        return (float) BrokenRelicConfig.armDamageMultiplier;
+        return (float) BrokenGodConfig.armDamageMultiplier;
     }
 
     /**
      * 获取暴击伤害倍率
      */
     public static float getCritMultiplier() {
-        return (float) BrokenRelicConfig.armCritMultiplier;
+        return (float) BrokenGodConfig.armCritMultiplier;
     }
 
     /**
      * 获取护甲粉碎光环范围
      */
     public static float getArmorShredRange() {
-        return (float) BrokenRelicConfig.armArmorShredRange;
+        return (float) BrokenGodConfig.armArmorShredRange;
     }
 
     /**
      * 获取攻击距离延长
      */
     public static float getRangeExtension() {
-        return (float) BrokenRelicConfig.armRangeExtension;
+        return (float) BrokenGodConfig.armRangeExtension;
     }
 
     @Override
@@ -248,14 +248,14 @@ public class ItemBrokenArm extends ItemBrokenBaubleBase {
         tooltip.add("");
         tooltip.add(TextFormatting.GOLD + "◆ 绝对暴击");
         tooltip.add(TextFormatting.GRAY + "  所有攻击必定暴击");
-        tooltip.add(TextFormatting.YELLOW + "  伤害 ×" + BrokenRelicConfig.armDamageMultiplier);
-        tooltip.add(TextFormatting.YELLOW + "  暴击伤害 ×" + BrokenRelicConfig.armCritMultiplier);
+        tooltip.add(TextFormatting.YELLOW + "  伤害 ×" + BrokenGodConfig.armDamageMultiplier);
+        tooltip.add(TextFormatting.YELLOW + "  暴击伤害 ×" + BrokenGodConfig.armCritMultiplier);
         tooltip.add("");
         tooltip.add(TextFormatting.LIGHT_PURPLE + "◆ 极限延伸");
-        tooltip.add(TextFormatting.GRAY + "  攻击距离 +" + (int) BrokenRelicConfig.armRangeExtension + " 格");
+        tooltip.add(TextFormatting.GRAY + "  攻击距离 +" + (int) BrokenGodConfig.armRangeExtension + " 格");
         tooltip.add("");
         tooltip.add(TextFormatting.RED + "◆ 护甲粉碎领域");
-        tooltip.add(TextFormatting.GRAY + "  " + (int) BrokenRelicConfig.armArmorShredRange + " 格内敌人");
+        tooltip.add(TextFormatting.GRAY + "  " + (int) BrokenGodConfig.armArmorShredRange + " 格内敌人");
         tooltip.add(TextFormatting.AQUA + "  护甲归零");
         tooltip.add("");
         tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"机械之臂，粉碎一切防御\"");

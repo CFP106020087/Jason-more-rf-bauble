@@ -468,6 +468,62 @@ public class FleshRejectionConfig {
     public static boolean hudDebugInfo = false;
 
     // ============================================================
+    // HUD提示配置
+    // ============================================================
+
+    @Config.Comment("启用HUD提示系统")
+    @Config.Name("啟用HUD提示 | Enable HUD Hints")
+    public static boolean enableHUD = true;
+
+    @Config.Comment("启用新手引导提示（首次触发机制时显示）")
+    @Config.Name("啟用引導 | Enable Guides")
+    public static boolean enableGuides = true;
+
+    @Config.Comment("显示排异值变化提示")
+    @Config.Name("顯示排異變化 | Show Rejection Changes")
+    public static boolean showRejectionChanges = true;
+
+    @Config.Comment("显示状态效果提示（失误、出血等）")
+    @Config.Name("顯示狀態效果 | Show Status Effects")
+    public static boolean showStatusEffects = true;
+
+    @Config.Comment("显示恢复提示（睡眠、急救等）")
+    @Config.Name("顯示恢復提示 | Show Recovery Hints")
+    public static boolean showRecoveryHints = true;
+
+    @Config.Comment("显示警告提示（高排异警告）")
+    @Config.Name("顯示警告 | Show Warnings")
+    public static boolean showWarnings = true;
+
+    @Config.Comment("显示里程碑提示（适应度进度）")
+    @Config.Name("顯示里程碑 | Show Milestones")
+    public static boolean showMilestones = true;
+
+    @Config.Comment("最小显示排异变化值（低于此值不显示）")
+    @Config.Name("最小變化顯示值 | Min Change To Show")
+    @Config.RangeDouble(min = 0.1, max = 5.0)
+    public static double minChangeToShow = 0.5;
+
+    @Config.Comment("HUD消息显示时间（毫秒）")
+    @Config.Name("HUD消息時長 | HUD Message Duration")
+    @Config.RangeInt(min = 500, max = 5000)
+    public static int hudMessageDuration = 1500;
+
+    @Config.Comment("HUD消息冷却时间（毫秒，防止刷屏）")
+    @Config.Name("HUD消息冷卻 | HUD Cooldown")
+    @Config.RangeInt(min = 500, max = 5000)
+    public static int hudCooldown = 2000;
+
+    @Config.Comment("HUD位置（0=右中，1=右上，2=右下，3=左中）")
+    @Config.Name("HUD位置 | HUD Position")
+    @Config.RangeInt(min = 0, max = 3)
+    public static int hudPosition = 0;
+
+    @Config.Comment("详细模式（显示更多技术细节）")
+    @Config.Name("詳細模式 | Verbose Mode")
+    public static boolean verboseMode = false;
+
+    // ============================================================
     // 配置變更監聽
     // ============================================================
 

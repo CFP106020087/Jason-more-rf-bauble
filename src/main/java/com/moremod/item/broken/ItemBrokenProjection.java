@@ -1,7 +1,7 @@
 package com.moremod.item.broken;
 
 import baubles.api.BaubleType;
-import com.moremod.config.BrokenRelicConfig;
+import com.moremod.config.BrokenGodConfig;
 import com.moremod.creativetab.moremodCreativeTab;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.EntityLivingBase;
@@ -61,14 +61,14 @@ public class ItemBrokenProjection extends ItemBrokenBaubleBase {
      * 获取幻影打击真伤比例
      */
     public static float getTrueDamageRatio() {
-        return (float) BrokenRelicConfig.projectionTrueDamageRatio;
+        return (float) BrokenGodConfig.projectionTrueDamageRatio;
     }
 
     /**
      * 获取斩杀阈值
      */
     public static float getExecuteThreshold() {
-        return (float) BrokenRelicConfig.projectionExecuteThreshold;
+        return (float) BrokenGodConfig.projectionExecuteThreshold;
     }
 
     /**
@@ -89,11 +89,11 @@ public class ItemBrokenProjection extends ItemBrokenBaubleBase {
         tooltip.add("");
         tooltip.add(TextFormatting.LIGHT_PURPLE + "◆ 幻影打击");
         tooltip.add(TextFormatting.GRAY + "  每次攻击额外造成");
-        tooltip.add(TextFormatting.YELLOW + "  +" + (int)(BrokenRelicConfig.projectionTrueDamageRatio * 100) + "% 真伤");
+        tooltip.add(TextFormatting.YELLOW + "  +" + (int)(BrokenGodConfig.projectionTrueDamageRatio * 100) + "% 真伤");
         tooltip.add(TextFormatting.GRAY + "  无视无敌帧");
         tooltip.add("");
         tooltip.add(TextFormatting.DARK_RED + "◆ 斩杀执行");
-        tooltip.add(TextFormatting.GRAY + "  目标血量 < " + (int)(BrokenRelicConfig.projectionExecuteThreshold * 100) + "%");
+        tooltip.add(TextFormatting.GRAY + "  目标血量 < " + (int)(BrokenGodConfig.projectionExecuteThreshold * 100) + "%");
         tooltip.add(TextFormatting.RED + "  直接击杀");
         tooltip.add("");
         tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"死亡幻影，必杀之击\"");

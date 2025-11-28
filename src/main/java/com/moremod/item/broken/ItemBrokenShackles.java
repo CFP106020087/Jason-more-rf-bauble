@@ -1,7 +1,7 @@
 package com.moremod.item.broken;
 
 import baubles.api.BaubleType;
-import com.moremod.config.BrokenRelicConfig;
+import com.moremod.config.BrokenGodConfig;
 import com.moremod.creativetab.moremodCreativeTab;
 import com.moremod.system.ascension.BrokenGodHandler;
 import net.minecraft.client.util.ITooltipFlag;
@@ -97,7 +97,7 @@ public class ItemBrokenShackles extends ItemBrokenBaubleBase {
      * 应用时空冻结光环 - 使用属性修改而非药水
      */
     private void applyFreezeAura(EntityPlayer player) {
-        double range = BrokenRelicConfig.shacklesAuraRange;
+        double range = BrokenGodConfig.shacklesAuraRange;
 
         AxisAlignedBB aabb = player.getEntityBoundingBox().grow(range);
 
@@ -161,7 +161,7 @@ public class ItemBrokenShackles extends ItemBrokenBaubleBase {
 
         AttributeModifier existing = speedAttr.getModifier(SELF_SPEED_UUID);
         if (existing == null) {
-            double reduction = -BrokenRelicConfig.shacklesSelfSlow;
+            double reduction = -BrokenGodConfig.shacklesSelfSlow;
             speedAttr.applyModifier(new AttributeModifier(
                     SELF_SPEED_UUID,
                     "Broken Shackles Self Slow",
@@ -188,14 +188,14 @@ public class ItemBrokenShackles extends ItemBrokenBaubleBase {
      * 获取伤害减免比例（由事件处理器调用）
      */
     public static float getDamageReduction() {
-        return (float) BrokenRelicConfig.shacklesDamageReduction;
+        return (float) BrokenGodConfig.shacklesDamageReduction;
     }
 
     /**
      * 获取光环范围
      */
     public static float getAuraRange() {
-        return (float) BrokenRelicConfig.shacklesAuraRange;
+        return (float) BrokenGodConfig.shacklesAuraRange;
     }
 
     @Override
@@ -206,15 +206,15 @@ public class ItemBrokenShackles extends ItemBrokenBaubleBase {
         tooltip.add(TextFormatting.DARK_GRAY + "Broken Shackles");
         tooltip.add("");
         tooltip.add(TextFormatting.BLUE + "◆ 时空冻结");
-        tooltip.add(TextFormatting.GRAY + "  " + (int) BrokenRelicConfig.shacklesAuraRange + " 格内敌人");
+        tooltip.add(TextFormatting.GRAY + "  " + (int) BrokenGodConfig.shacklesAuraRange + " 格内敌人");
         tooltip.add(TextFormatting.AQUA + "  移动速度归零");
         tooltip.add("");
         tooltip.add(TextFormatting.LIGHT_PURPLE + "◆ 混乱领域");
         tooltip.add(TextFormatting.GRAY + "  范围内敌人陷入混乱");
         tooltip.add("");
         tooltip.add(TextFormatting.YELLOW + "◆ 坚守代价");
-        tooltip.add(TextFormatting.RED + "  自身移速 -" + (int)(BrokenRelicConfig.shacklesSelfSlow * 100) + "%");
-        tooltip.add(TextFormatting.GREEN + "  所受伤害 -" + (int)(BrokenRelicConfig.shacklesDamageReduction * 100) + "%");
+        tooltip.add(TextFormatting.RED + "  自身移速 -" + (int)(BrokenGodConfig.shacklesSelfSlow * 100) + "%");
+        tooltip.add(TextFormatting.GREEN + "  所受伤害 -" + (int)(BrokenGodConfig.shacklesDamageReduction * 100) + "%");
         tooltip.add("");
         tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"绝对领域，时空静止\"");
         tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"在此范围内，一切归于沉寂\"");

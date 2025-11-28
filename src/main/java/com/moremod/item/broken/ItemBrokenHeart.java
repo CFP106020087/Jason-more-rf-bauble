@@ -1,7 +1,7 @@
 package com.moremod.item.broken;
 
 import baubles.api.BaubleType;
-import com.moremod.config.BrokenRelicConfig;
+import com.moremod.config.BrokenGodConfig;
 import com.moremod.creativetab.moremodCreativeTab;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.EntityLivingBase;
@@ -107,7 +107,7 @@ public class ItemBrokenHeart extends ItemBrokenBaubleBase {
 
         // 计算需要减少多少HP
         double currentMax = maxHealthAttr.getBaseValue();
-        double targetMax = BrokenRelicConfig.heartcoreCompressedHP;
+        double targetMax = BrokenGodConfig.heartcoreCompressedHP;
         double reduction = targetMax - currentMax; // 负数表示减少
 
         if (reduction < 0) {
@@ -163,7 +163,7 @@ public class ItemBrokenHeart extends ItemBrokenBaubleBase {
     public static float getBerserkerMultiplier(EntityPlayer player) {
         float currentHP = player.getHealth();
         float maxHP = player.getMaxHealth();
-        float maxMultiplier = (float) BrokenRelicConfig.heartcoreBerserkerMaxMultiplier;
+        float maxMultiplier = (float) BrokenGodConfig.heartcoreBerserkerMaxMultiplier;
 
         if (maxHP <= 0) return 1.0f;
 
@@ -178,7 +178,7 @@ public class ItemBrokenHeart extends ItemBrokenBaubleBase {
     public static void applyLifesteal(EntityPlayer player, float damageDealt) {
         if (player.world.isRemote) return;
 
-        float healAmount = damageDealt * (float) BrokenRelicConfig.heartcoreLifestealRatio;
+        float healAmount = damageDealt * (float) BrokenGodConfig.heartcoreLifestealRatio;
 
         float currentHealth = player.getHealth();
         float maxHealth = player.getMaxHealth();
@@ -194,7 +194,7 @@ public class ItemBrokenHeart extends ItemBrokenBaubleBase {
         // 溢出部分转为吸收之心
         if (healAmount > 0) {
             float currentAbsorption = player.getAbsorptionAmount();
-            float maxAbsorption = (float) BrokenRelicConfig.heartcoreMaxAbsorption;
+            float maxAbsorption = (float) BrokenGodConfig.heartcoreMaxAbsorption;
 
             if (currentAbsorption < maxAbsorption) {
                 float newAbsorption = Math.min(currentAbsorption + healAmount, maxAbsorption);
@@ -211,15 +211,15 @@ public class ItemBrokenHeart extends ItemBrokenBaubleBase {
         tooltip.add(TextFormatting.DARK_GRAY + "Broken Heartcore");
         tooltip.add("");
         tooltip.add(TextFormatting.GOLD + "◆ 极限生命压缩");
-        tooltip.add(TextFormatting.GRAY + "  最大生命值固定为 " + (int) BrokenRelicConfig.heartcoreCompressedHP + " HP");
+        tooltip.add(TextFormatting.GRAY + "  最大生命值固定为 " + (int) BrokenGodConfig.heartcoreCompressedHP + " HP");
         tooltip.add("");
         tooltip.add(TextFormatting.GREEN + "◆ 完全生命汲取");
-        tooltip.add(TextFormatting.GRAY + "  伤害的 " + (int)(BrokenRelicConfig.heartcoreLifestealRatio * 100) + "% 转化为治疗");
-        tooltip.add(TextFormatting.GRAY + "  溢出转吸收之心 (上限 " + (int) BrokenRelicConfig.heartcoreMaxAbsorption + " HP)");
+        tooltip.add(TextFormatting.GRAY + "  伤害的 " + (int)(BrokenGodConfig.heartcoreLifestealRatio * 100) + "% 转化为治疗");
+        tooltip.add(TextFormatting.GRAY + "  溢出转吸收之心 (上限 " + (int) BrokenGodConfig.heartcoreMaxAbsorption + " HP)");
         tooltip.add("");
         tooltip.add(TextFormatting.RED + "◆ 狂战士");
         tooltip.add(TextFormatting.GRAY + "  血量越低伤害越高");
-        tooltip.add(TextFormatting.YELLOW + "  最高 ×" + (int) BrokenRelicConfig.heartcoreBerserkerMaxMultiplier + " 倍伤害");
+        tooltip.add(TextFormatting.YELLOW + "  最高 ×" + (int) BrokenGodConfig.heartcoreBerserkerMaxMultiplier + " 倍伤害");
         tooltip.add("");
         tooltip.add(TextFormatting.AQUA + "◆ 不朽");
         tooltip.add(TextFormatting.GRAY + "  HP不会低于1");

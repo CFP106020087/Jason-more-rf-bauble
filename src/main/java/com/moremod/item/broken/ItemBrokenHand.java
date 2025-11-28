@@ -1,7 +1,7 @@
 package com.moremod.item.broken;
 
 import baubles.api.BaubleType;
-import com.moremod.config.BrokenRelicConfig;
+import com.moremod.config.BrokenGodConfig;
 import com.moremod.creativetab.moremodCreativeTab;
 import com.moremod.system.ascension.BrokenGodHandler;
 import net.minecraft.client.util.ITooltipFlag;
@@ -88,7 +88,7 @@ public class ItemBrokenHand extends ItemBrokenBaubleBase {
                 damageAttr.applyModifier(new AttributeModifier(
                         DAMAGE_MODIFIER_UUID,
                         "Broken Hand Damage",
-                        BrokenRelicConfig.handMeleeDamageBonus,
+                        BrokenGodConfig.handMeleeDamageBonus,
                         2 // 乘法
                 ));
             }
@@ -100,7 +100,7 @@ public class ItemBrokenHand extends ItemBrokenBaubleBase {
             AttributeModifier existing = speedAttr.getModifier(SPEED_MODIFIER_UUID);
             if (existing == null) {
                 // 攻速×3 = 原来的基础上+200%
-                double speedBonus = BrokenRelicConfig.handSpeedMultiplier - 1.0;
+                double speedBonus = BrokenGodConfig.handSpeedMultiplier - 1.0;
                 speedAttr.applyModifier(new AttributeModifier(
                         SPEED_MODIFIER_UUID,
                         "Broken Hand Speed",
@@ -127,21 +127,21 @@ public class ItemBrokenHand extends ItemBrokenBaubleBase {
      * 获取攻速倍率
      */
     public static float getSpeedMultiplier() {
-        return (float) BrokenRelicConfig.handSpeedMultiplier;
+        return (float) BrokenGodConfig.handSpeedMultiplier;
     }
 
     /**
      * 获取近战伤害加成
      */
     public static float getMeleeDamageBonus() {
-        return (float) BrokenRelicConfig.handMeleeDamageBonus;
+        return (float) BrokenGodConfig.handMeleeDamageBonus;
     }
 
     /**
      * 是否重置攻击冷却
      */
     public static boolean shouldResetCooldown() {
-        return BrokenRelicConfig.handResetCooldown;
+        return BrokenGodConfig.handResetCooldown;
     }
 
     @Override
@@ -152,10 +152,10 @@ public class ItemBrokenHand extends ItemBrokenBaubleBase {
         tooltip.add(TextFormatting.DARK_GRAY + "Broken Hand");
         tooltip.add("");
         tooltip.add(TextFormatting.GOLD + "◆ 疯狂攻速");
-        tooltip.add(TextFormatting.YELLOW + "  攻击速度 ×" + (int) BrokenRelicConfig.handSpeedMultiplier);
+        tooltip.add(TextFormatting.YELLOW + "  攻击速度 ×" + (int) BrokenGodConfig.handSpeedMultiplier);
         tooltip.add("");
         tooltip.add(TextFormatting.RED + "◆ 近战强化");
-        tooltip.add(TextFormatting.GRAY + "  近战伤害 +" + (int)(BrokenRelicConfig.handMeleeDamageBonus * 100) + "%");
+        tooltip.add(TextFormatting.GRAY + "  近战伤害 +" + (int)(BrokenGodConfig.handMeleeDamageBonus * 100) + "%");
         tooltip.add("");
         tooltip.add(TextFormatting.LIGHT_PURPLE + "◆ 无冷却");
         tooltip.add(TextFormatting.GRAY + "  攻击后立即重置冷却");
