@@ -180,19 +180,8 @@ public class HumanityEffectsManager {
         PotionEffect effect = event.getPotionEffect();
 
         // 深度异化：药水持续时间修改
-        if (humanity < 25f && data.getAscensionRoute() == AscensionRoute.NONE) {
-            boolean isBeneficial = effect.getPotion().isBeneficial();
 
-            if (isBeneficial) {
-                // 正面效果 -50%
-                int newDuration = effect.getDuration() / 2;
-                // 无法直接修改，但可以通过反射或其他方式
-                // 这里简化处理：在 effect tick 中处理
-            } else {
-                // 负面效果 -30%
-                // 同上
-            }
-        }
+
     }
 
     // ========== 访问控制系统 ==========
