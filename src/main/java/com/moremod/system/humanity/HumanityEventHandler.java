@@ -17,6 +17,8 @@ import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.event.entity.player.PlayerSleepInBedEvent;
 import net.minecraftforge.event.entity.player.PlayerWakeUpEvent;
+import net.minecraftforge.event.entity.living.LivingEntityUseItemEvent;
+import net.minecraftforge.event.world.BlockEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.Optional;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
@@ -469,6 +471,53 @@ public class HumanityEventHandler {
                     villager.posX, villager.posY + villager.getEyeHeight(), villager.posZ,
                     3, 0.2, 0.2, 0.2, 0
             );
+        }
+    }
+
+    // ========== 食物消耗事件 ==========
+
+    @SubscribeEvent
+    public static void onItemUseFinish(LivingEntityUseItemEvent.Finish event) {
+        if (!(event.getEntityLiving() instanceof EntityPlayer)) return;
+        if (event.getEntityLiving().world.isRemote) return;
+
+        EntityPlayer player = (EntityPlayer) event.getEntityLiving();
+        if (!HumanitySpectrumSystem.isSystemActive(player)) return;
+
+        ItemStack stack = event.getItem();
+        if (stack.isEmpty()) return;
+
+        // 检查是否是食物
+        if (stack.getItem().getItemUseAction(stack) == net.minecraft.item.EnumAction.EAT ||
+            stack.getItem().getItemUseAction(stack) == net.minecraft.item.EnumAction.DRINK) {
+            HumanitySpectrumSystem.onEatFood(player, stack);
+        }
+    }
+
+    // ========== 作物收获事件 ==========
+
+    @SubscribeEvent
+    public static void onBlockHarvest(BlockEvent.HarvestDropsEvent event) {
+        if (event.getHarvester() == null) return;
+        if (event.getWorld().isRemote) return;
+
+        EntityPlayer player = event.getHarvester();
+        if (!HumanitySpectrumSystem.isSystemActive(player)) return;
+
+        // 检查是否是作物方块
+        net.minecraft.block.Block block = event.getState().getBlock();
+        if (block instanceof net.minecraft.block.BlockCrops ||
+            block instanceof net.minecraft.block.BlockStem ||
+            block instanceof net.minecraft.block.BlockMelon ||
+            block instanceof net.minecraft.block.BlockPumpkin ||
+            block instanceof net.minecraft.block.BlockCocoa ||
+            block instanceof net.minecraft.block.BlockNetherWart) {
+            // 只有成熟的作物才算收获
+            if (block instanceof net.minecraft.block.BlockCrops) {
+                net.minecraft.block.BlockCrops crops = (net.minecraft.block.BlockCrops) block;
+                if (!crops.isMaxAge(event.getState())) return;
+            }
+            HumanitySpectrumSystem.onHarvestCrop(player);
         }
     }
 

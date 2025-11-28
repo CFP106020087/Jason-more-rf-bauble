@@ -2,6 +2,8 @@ package com.moremod.mixin.villager;
 
 import com.moremod.item.MerchantPersuader;
 import com.moremod.util.TradeDiscountHelper;
+import com.moremod.system.humanity.HumanitySpectrumSystem;
+import com.moremod.system.humanity.HumanityEffectsManager;
 import net.minecraft.entity.passive.EntityVillager;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
@@ -28,6 +30,16 @@ public abstract class MixinEntityVillager {
     @Unique
     private EntityPlayer lastPersuaderPlayer = null;
 
+    // ========== 人性值系统价格调整 ==========
+    @Unique
+    private boolean hasHumanityPriceModifier = false;
+
+    @Unique
+    private double humanityPriceMultiplier = 1.0;
+
+    @Unique
+    private EntityPlayer lastInteractingPlayer = null;
+
     /**
      * 在玩家与村民交互时检查是否持有说服器
      * processInteract -> func_184645_a
@@ -37,6 +49,24 @@ public abstract class MixinEntityVillager {
         EntityVillager villager = (EntityVillager)(Object)this;
 
         if (!villager.world.isRemote) {
+            // 记录交互玩家（用于人性值恢复）
+            this.lastInteractingPlayer = player;
+
+            // ========== 人性值系统价格调整 ==========
+            if (HumanitySpectrumSystem.isSystemActive(player)) {
+                float priceMultiplier = HumanityEffectsManager.getTradePriceMultiplier(player);
+                if (priceMultiplier != 1.0f && priceMultiplier < 999f) {
+                    this.hasHumanityPriceModifier = true;
+                    this.humanityPriceMultiplier = priceMultiplier;
+
+                    MerchantRecipeList recipes = villager.getRecipes(player);
+                    if (recipes != null) {
+                        applyHumanityPriceModifier(recipes);
+                    }
+                }
+            }
+
+            // ========== 说服器折扣 ==========
             ItemStack persuader = MerchantPersuader.getActivePersuader(player);
 
             if (!persuader.isEmpty() && persuader.getItem() instanceof MerchantPersuader) {
@@ -68,25 +98,34 @@ public abstract class MixinEntityVillager {
     }
 
     /**
-     * 在使用交易时处理说服器效果
+     * 在使用交易时处理说服器效果和人性值恢复
      * useRecipe -> func_70933_a
      */
     @Inject(method = "func_70933_a", at = @At("TAIL"))
     public void onUseRecipe(MerchantRecipe recipe, CallbackInfo ci) {
         EntityVillager villager = (EntityVillager)(Object)this;
 
-        if (!villager.world.isRemote && hasPersuaderDiscount && lastPersuaderPlayer != null) {
-            ItemStack persuader = MerchantPersuader.getActivePersuader(lastPersuaderPlayer);
+        if (!villager.world.isRemote) {
+            // ========== 人性值系统：交易恢复人性 ==========
+            EntityPlayer tradingPlayer = lastInteractingPlayer != null ? lastInteractingPlayer : lastPersuaderPlayer;
+            if (tradingPlayer != null && HumanitySpectrumSystem.isSystemActive(tradingPlayer)) {
+                HumanitySpectrumSystem.onVillagerTrade(tradingPlayer);
+            }
 
-            if (!persuader.isEmpty() && persuader.getItem() instanceof MerchantPersuader) {
-                MerchantPersuader persuaderItem = (MerchantPersuader) persuader.getItem();
-                int originalPrice = TradeDiscountHelper.getOriginalPrice(recipe);
+            // ========== 说服器效果 ==========
+            if (hasPersuaderDiscount && lastPersuaderPlayer != null) {
+                ItemStack persuader = MerchantPersuader.getActivePersuader(lastPersuaderPlayer);
 
-                ItemStack soldItem = recipe.getItemToBuy().copy();
-                soldItem.setCount(originalPrice);
+                if (!persuader.isEmpty() && persuader.getItem() instanceof MerchantPersuader) {
+                    MerchantPersuader persuaderItem = (MerchantPersuader) persuader.getItem();
+                    int originalPrice = TradeDiscountHelper.getOriginalPrice(recipe);
 
-                persuaderItem.onTradeCompleted(lastPersuaderPlayer, persuader, villager,
-                        soldItem, originalPrice);
+                    ItemStack soldItem = recipe.getItemToBuy().copy();
+                    soldItem.setCount(originalPrice);
+
+                    persuaderItem.onTradeCompleted(lastPersuaderPlayer, persuader, villager,
+                            soldItem, originalPrice);
+                }
             }
         }
     }
@@ -184,5 +223,25 @@ public abstract class MixinEntityVillager {
         villager.world.playSound(null, villager.posX, villager.posY, villager.posZ,
                 net.minecraft.init.SoundEvents.ENTITY_VILLAGER_YES,
                 villager.getSoundCategory(), 1.0F, 1.2F);
+    }
+
+    // ========== 人性值价格调整 ==========
+
+    @Unique
+    private void applyHumanityPriceModifier(MerchantRecipeList recipes) {
+        if (recipes == null || !hasHumanityPriceModifier) return;
+
+        for (MerchantRecipe recipe : recipes) {
+            // 保存原始价格（如果还没保存）
+            if (!TradeDiscountHelper.hasDiscount(recipe)) {
+                TradeDiscountHelper.saveOriginalPrices(recipe);
+            }
+
+            // 应用价格倍率
+            // 折扣: multiplier < 1 (例如 0.85 = -15%)
+            // 加价: multiplier > 1 (例如 1.5 = +50%)
+            double discount = 1.0 - humanityPriceMultiplier; // 转换为折扣率
+            TradeDiscountHelper.applyDiscount(recipe, discount);
+        }
     }
 }
