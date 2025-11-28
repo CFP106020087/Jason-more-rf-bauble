@@ -56,7 +56,38 @@ public class BlockSynergyStation extends Block implements ITileEntityProvider {
 
     @Override
     public void breakBlock(World worldIn, BlockPos pos, IBlockState state) {
-        // 方块被破坏时不需要掉落物品，因为链结站不存储实体物品
+        // 1. 获取 TileEntity
+        TileEntity tileentity = worldIn.getTileEntity(pos);
+
+        // 2. 检查是否是我们的链结站 TE
+        if (tileentity instanceof TileEntitySynergyStation) {
+            TileEntitySynergyStation station = (TileEntitySynergyStation) tileentity;
+
+            // 3. 如果当前处于激活状态，强制为对应的玩家停用 Synergy
+            if (station.isActivated()) {
+                // 注意：这里我们可能拿不到“破坏方块的玩家”实体，
+                // 但 TE 里存了 activatedByPlayerUUID，我们可以用那个！
+                java.util.UUID playerId = station.getActivatedByPlayerUUID();
+                String synergyId = station.getMatchedSynergyId();
+
+                if (playerId != null && synergyId != null) {
+                    EntityPlayer player = worldIn.getPlayerEntityByUUID(playerId);
+                    // 只有当玩家在线且就在附近时，才能通过常规手段移除
+                    // 如果玩家下线了，SynergyManager 应该有自己的清理机制（比如 PlayerLoggedOutEvent）
+                    if (player != null) {
+                        // 强制调用 Manager 移除效果
+                        com.moremod.synergy.core.SynergyManager.getInstance()
+                                .deactivateSynergyForPlayer(player, synergyId);
+
+                        // 可选：给玩家发个消息告诉他链结断了
+                        player.sendStatusMessage(new TextComponentString(
+                                "§c⚠ 链结基站信号丢失，Synergy 强制中断。"), true);
+                    }
+                }
+            }
+        }
+
+        // 4. 继续原本的破坏逻辑
         super.breakBlock(worldIn, pos, state);
     }
 

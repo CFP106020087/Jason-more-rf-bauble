@@ -32,7 +32,7 @@ public class TileEntitySynergyStation extends TileEntity {
     // ==================== 常量 ====================
 
     /** 链结槽位数量 */
-    public static final int LINK_SLOT_COUNT = 6;
+    public static final int LINK_SLOT_COUNT = 24;
 
     // ==================== 存储 ====================
 

@@ -23,62 +23,74 @@ import java.io.IOException;
 import java.util.*;
 
 /**
- * Synergy 链结站 GUI - 纯代码绘制版（无物品栏）
+ * Synergy 链结站 GUI - 多页槽位 + 滚动模块列表
  *
- * 使用 GuiScreen 而非 GuiContainer，不显示玩家物品栏。
- *
- * 功能：
- * - 左侧显示玩家已安装的模块列表（可滚动）
- * - 右侧显示 6 个链结槽位（六边形布局）
- * - 拖拽模块到槽位进行链结
- * - 右键点击槽位移除模块
- * - 显示匹配的 Synergy 效果
+ * ✅ 链结槽位：支持多页翻页（每页6个槽位）
+ * ✅ 模块列表：滚动显示
+ * ✅ 视觉：全息科技风格
+ * ✅ 逻辑：完整保留所有交互功能
  */
 @SideOnly(Side.CLIENT)
 public class GuiSynergyStation extends GuiScreen {
 
-    // ==================== 颜色常量 ====================
-    private static final int COLOR_BG_DARK = 0xFF1a1a2e;
-    private static final int COLOR_BG_LIGHT = 0xFF16213e;
-    private static final int COLOR_PANEL_BG = 0xFF0f3460;
-    private static final int COLOR_ACCENT = 0xFF00d9ff;
-    private static final int COLOR_ACCENT_DIM = 0xFF006080;
-    private static final int COLOR_TEXT_TITLE = 0xFF00ffff;
+    // ==================== 颜色常量（全息科技风格） ====================
+    private static final int COLOR_BG_DARK = 0xCC050505;
+    private static final int COLOR_BG_LIGHT = 0xCC101018;
+    private static final int COLOR_PANEL_BG = 0xCC0a1520;
+    private static final int COLOR_ACCENT = 0xFF00AAAA;
+    private static final int COLOR_ACCENT_BRIGHT = 0xFF00FFFF;
+    private static final int COLOR_ACCENT_DIM = 0xFF005555;
+    private static final int COLOR_TEXT_TITLE = 0xFF00FFFF;
     private static final int COLOR_TEXT_NORMAL = 0xFFe0e0e0;
     private static final int COLOR_TEXT_DIM = 0xFF808080;
-    private static final int COLOR_SLOT_EMPTY = 0xFF2a2a4a;
-    private static final int COLOR_SLOT_FILLED = 0xFF4040a0;
-    private static final int COLOR_SLOT_HOVER = 0xFF6060c0;
+    private static final int COLOR_SLOT_EMPTY = 0xFF1a1a2a;
+    private static final int COLOR_SLOT_FILLED = 0xFF2a4060;
+    private static final int COLOR_SLOT_HOVER = 0xFF3a5080;
     private static final int COLOR_SUCCESS = 0xFF00ff88;
     private static final int COLOR_WARNING = 0xFFffaa00;
+    private static final int COLOR_GLOW = 0x40006080;
 
     // ==================== 布局常量 ====================
-    private static final int GUI_WIDTH = 280;
-    private static final int GUI_HEIGHT = 180;
+    private static final int GUI_WIDTH = 300;
+    private static final int GUI_HEIGHT = 200;
 
-    // 模块列表区域
+    // 模块列表区域（左侧，滚动）
     private static final int MODULE_PANEL_X = 8;
     private static final int MODULE_PANEL_Y = 25;
     private static final int MODULE_PANEL_WIDTH = 100;
-    private static final int MODULE_PANEL_HEIGHT = 130;
+    private static final int MODULE_PANEL_HEIGHT = 145;
     private static final int MODULE_ENTRY_HEIGHT = 18;
     private static final int MAX_VISIBLE_MODULES = 7;
 
-    // 链结区域
-    private static final int LINK_CENTER_X = 190;
-    private static final int LINK_CENTER_Y = 80;
-    private static final int LINK_SLOT_RADIUS = 45;
+    // 链结区域（右侧，翻页）
+    private static final int LINK_PANEL_X = 115;
+    private static final int LINK_PANEL_Y = 25;
+    private static final int LINK_PANEL_WIDTH = 177;
+    private static final int LINK_PANEL_HEIGHT = 110;
+
+    private static final int LINK_CENTER_X = 200;  // 相对于 guiLeft
+    private static final int LINK_CENTER_Y = 75;   // 相对于 guiTop
+    private static final int LINK_SLOT_RADIUS = 40;
     private static final int SLOT_SIZE = 24;
+    private static final int SLOTS_PER_PAGE = 6;
 
     // Synergy 信息区域
     private static final int INFO_PANEL_X = 115;
-    private static final int INFO_PANEL_Y = 130;
-    private static final int INFO_PANEL_WIDTH = 157;
-    private static final int INFO_PANEL_HEIGHT = 42;
+    private static final int INFO_PANEL_Y = 140;
+    private static final int INFO_PANEL_WIDTH = 177;
+    private static final int INFO_PANEL_HEIGHT = 32;
 
     // 按钮 ID
     private static final int BTN_CLEAR_ALL = 0;
     private static final int BTN_ACTIVATE = 1;
+    private static final int BTN_PREV_PAGE = 2;
+    private static final int BTN_NEXT_PAGE = 3;
+
+    // ==================== 翻页配置 ====================
+    /** 总页数（可配置） */
+    private static final int MAX_PAGES = 4;
+    /** 总槽位数 */
+    private static final int TOTAL_SLOTS = MAX_PAGES * SLOTS_PER_PAGE;
 
     // ==================== 状态 ====================
     private final TileEntitySynergyStation tileEntity;
@@ -87,17 +99,25 @@ public class GuiSynergyStation extends GuiScreen {
     private int guiLeft;
     private int guiTop;
 
+    // 模块列表（滚动）
     private List<ModuleEntry> installedModules = new ArrayList<>();
     private int scrollOffset = 0;
 
+    // 链结槽位（翻页）
+    private int currentPage = 0;
+    private final int[][] slotPositions = new int[SLOTS_PER_PAGE][2];
+
+    // 交互状态
     private ModuleEntry draggingModule = null;
-    private int hoveredSlot = -1;
+    private int hoveredSlot = -1;  // 当前页的槽位索引 (0-5)
     private int hoveredModuleIndex = -1;
 
-    private final int[][] slotPositions = new int[6][2];
     private List<SynergyDefinition> matchingSynergies = new ArrayList<>();
-
     private float animationTick = 0;
+
+    // 翻页按钮
+    private GuiButton btnPrevPage;
+    private GuiButton btnNextPage;
 
     /**
      * 模块条目
@@ -124,12 +144,22 @@ public class GuiSynergyStation extends GuiScreen {
         refreshInstalledModules();
     }
 
+    /**
+     * 计算当前页六边形槽位位置
+     */
     private void calculateSlotPositions() {
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < SLOTS_PER_PAGE; i++) {
             double angle = Math.PI / 3 * i - Math.PI / 2;
             slotPositions[i][0] = (int) (LINK_CENTER_X + Math.cos(angle) * LINK_SLOT_RADIUS - SLOT_SIZE / 2);
             slotPositions[i][1] = (int) (LINK_CENTER_Y + Math.sin(angle) * LINK_SLOT_RADIUS - SLOT_SIZE / 2);
         }
+    }
+
+    /**
+     * 获取实际槽位索引（考虑翻页）
+     */
+    private int getRealSlotIndex(int pageSlotIndex) {
+        return currentPage * SLOTS_PER_PAGE + pageSlotIndex;
     }
 
     private void refreshInstalledModules() {
@@ -183,6 +213,8 @@ public class GuiSynergyStation extends GuiScreen {
         guiLeft = (width - GUI_WIDTH) / 2;
         guiTop = (height - GUI_HEIGHT) / 2;
 
+        this.buttonList.clear();
+
         // 清空按钮
         this.buttonList.add(new GuiButton(BTN_CLEAR_ALL,
                 guiLeft + 8, guiTop + GUI_HEIGHT - 24, 45, 16, "Clear"));
@@ -192,7 +224,25 @@ public class GuiSynergyStation extends GuiScreen {
                 guiLeft + 58, guiTop + GUI_HEIGHT - 24, 50, 16,
                 tileEntity.isActivated() ? "ON" : "OFF"));
 
+        // 翻页按钮
+        this.btnPrevPage = new GuiButton(BTN_PREV_PAGE,
+                guiLeft + LINK_PANEL_X + 5, guiTop + LINK_PANEL_Y + LINK_PANEL_HEIGHT - 18, 20, 16, "<");
+        this.btnNextPage = new GuiButton(BTN_NEXT_PAGE,
+                guiLeft + LINK_PANEL_X + LINK_PANEL_WIDTH - 25, guiTop + LINK_PANEL_Y + LINK_PANEL_HEIGHT - 18, 20, 16, ">");
+
+        this.buttonList.add(btnPrevPage);
+        this.buttonList.add(btnNextPage);
+
+        updatePageButtons();
         Keyboard.enableRepeatEvents(true);
+    }
+
+    /**
+     * 更新翻页按钮状态
+     */
+    private void updatePageButtons() {
+        btnPrevPage.enabled = currentPage > 0;
+        btnNextPage.enabled = currentPage < MAX_PAGES - 1;
     }
 
     @Override
@@ -205,34 +255,28 @@ public class GuiSynergyStation extends GuiScreen {
     protected void actionPerformed(GuiButton button) {
         switch (button.id) {
             case BTN_CLEAR_ALL:
-                // 发送网络包到服务器
                 PacketHandler.INSTANCE.sendToServer(
                         new PacketSynergyStationAction(
                                 tileEntity.getPos(),
                                 PacketSynergyStationAction.ActionType.CLEAR_ALL
                         )
                 );
-                // 本地更新（服务器会同步回来，但本地先更新以提供即时反馈）
                 tileEntity.clearAllSlots();
                 updateMatchingSynergies();
+                player.playSound(net.minecraft.init.SoundEvents.BLOCK_LAVA_EXTINGUISH, 0.3f, 1.2f);
                 break;
 
             case BTN_ACTIVATE:
-                // 发送网络包到服务器
                 PacketHandler.INSTANCE.sendToServer(
                         new PacketSynergyStationAction(
                                 tileEntity.getPos(),
                                 PacketSynergyStationAction.ActionType.TOGGLE_ACTIVE
                         )
                 );
-                // 本地更新（仅视觉状态，实际激活由服务端处理）
-                // 检查当前状态来决定切换后的状态
                 boolean wasActivated = tileEntity.isActivated();
-                button.displayString = wasActivated ? "OFF" : "ON"; // 预期切换后的状态
+                button.displayString = wasActivated ? "OFF" : "ON";
 
-                // 激活状态反馈（基于切换后的预期状态）
                 if (!wasActivated) {
-                    // 从关闭变为激活 - 使用经验球拾取音效
                     player.playSound(net.minecraft.init.SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, 0.5f, 1.2f);
                     if (!matchingSynergies.isEmpty()) {
                         StringBuilder sb = new StringBuilder("§a[链结站激活] §f生效中的协同效果:");
@@ -245,9 +289,24 @@ public class GuiSynergyStation extends GuiScreen {
                                 "§e[链结站激活] §7当前无匹配协同（需要2个以上模块）"));
                     }
                 } else {
-                    // 从激活变为关闭 - 使用拉杆音效
                     player.playSound(net.minecraft.init.SoundEvents.BLOCK_LEVER_CLICK, 0.5f, 0.5f);
                     player.sendMessage(new net.minecraft.util.text.TextComponentString("§c[链结站关闭]"));
+                }
+                break;
+
+            case BTN_PREV_PAGE:
+                if (currentPage > 0) {
+                    currentPage--;
+                    updatePageButtons();
+                    player.playSound(net.minecraft.init.SoundEvents.UI_BUTTON_CLICK, 0.5f, 1.0f);
+                }
+                break;
+
+            case BTN_NEXT_PAGE:
+                if (currentPage < MAX_PAGES - 1) {
+                    currentPage++;
+                    updatePageButtons();
+                    player.playSound(net.minecraft.init.SoundEvents.UI_BUTTON_CLICK, 0.5f, 1.0f);
                 }
                 break;
         }
@@ -255,7 +314,6 @@ public class GuiSynergyStation extends GuiScreen {
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
-        // 绘制暗色背景覆盖
         drawDefaultBackground();
 
         animationTick += partialTicks;
@@ -264,37 +322,20 @@ public class GuiSynergyStation extends GuiScreen {
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         GlStateManager.disableTexture2D();
 
-        // 绘制主背景
         drawMainBackground();
-
-        // 绘制标题栏
         drawTitleBar();
-
-        // 绘制模块列表面板
         drawModulePanel();
-
-        // 绘制链结区域
-        drawLinkArea();
-
-        // 绘制信息面板
+        drawLinkPanel();
         drawInfoPanel();
 
         GlStateManager.enableTexture2D();
 
-        // 绘制按钮
         super.drawScreen(mouseX, mouseY, partialTicks);
 
-        // 绘制拖拽中的模块
         if (draggingModule != null) {
-            int labelWidth = fontRenderer.getStringWidth(draggingModule.displayName) + 8;
-            GlStateManager.disableTexture2D();
-            drawRect(mouseX - 2, mouseY - 2, mouseX + labelWidth, mouseY + 12, 0xE0000000);
-            drawHollowRect(mouseX - 2, mouseY - 2, labelWidth + 2, 14, COLOR_ACCENT);
-            GlStateManager.enableTexture2D();
-            fontRenderer.drawString(draggingModule.displayName, mouseX + 2, mouseY + 2, COLOR_TEXT_TITLE);
+            drawDraggingModule(mouseX, mouseY);
         }
 
-        // 绘制悬停提示
         drawTooltips(mouseX, mouseY);
     }
 
@@ -302,8 +343,9 @@ public class GuiSynergyStation extends GuiScreen {
         int mx = mouseX - guiLeft;
         int my = mouseY - guiTop;
 
+        // 检查链结槽位悬停（当前页）
         hoveredSlot = -1;
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < SLOTS_PER_PAGE; i++) {
             int sx = slotPositions[i][0];
             int sy = slotPositions[i][1];
             if (mx >= sx && mx < sx + SLOT_SIZE && my >= sy && my < sy + SLOT_SIZE) {
@@ -312,6 +354,7 @@ public class GuiSynergyStation extends GuiScreen {
             }
         }
 
+        // 检查模块列表悬停
         hoveredModuleIndex = -1;
         if (mx >= MODULE_PANEL_X + 2 && mx < MODULE_PANEL_X + MODULE_PANEL_WIDTH - 2 &&
                 my >= MODULE_PANEL_Y + 18 && my < MODULE_PANEL_Y + MODULE_PANEL_HEIGHT - 2) {
@@ -323,30 +366,59 @@ public class GuiSynergyStation extends GuiScreen {
         }
     }
 
+    // ==================== 绘制方法 ====================
+
     private void drawMainBackground() {
         int x = guiLeft;
         int y = guiTop;
         int w = GUI_WIDTH;
         int h = GUI_HEIGHT;
 
-        drawGradientRect(x - 2, y - 2, x + w + 2, y + h + 2, COLOR_ACCENT_DIM, COLOR_ACCENT_DIM);
         drawGradientRect(x, y, x + w, y + h, COLOR_BG_DARK, COLOR_BG_LIGHT);
-        drawHollowRect(x + 1, y + 1, w - 2, h - 2, COLOR_ACCENT_DIM);
+        drawTechBorder(x, y, w, h, COLOR_ACCENT);
+
+        GlStateManager.enableBlend();
+        for (int i = y + 4; i < y + h - 4; i += 4) {
+            drawRect(x + 4, i, x + w - 4, i + 1, COLOR_GLOW);
+        }
+    }
+
+    private void drawTechBorder(int x, int y, int width, int height, int color) {
+        drawRect(x, y, x + width, y + 1, color);
+        drawRect(x, y + height - 1, x + width, y + height, color);
+        drawRect(x, y, x + 1, y + height, color);
+        drawRect(x + width - 1, y, x + width, y + height, color);
+
+        drawRect(x, y, x + 8, y + 2, color);
+        drawRect(x, y, x + 2, y + 8, color);
+        drawRect(x + width - 8, y, x + width, y + 2, color);
+        drawRect(x + width - 2, y, x + width, y + 8, color);
+        drawRect(x, y + height - 2, x + 8, y + height, color);
+        drawRect(x, y + height - 8, x + 2, y + height, color);
+        drawRect(x + width - 8, y + height - 2, x + width, y + height, color);
+        drawRect(x + width - 2, y + height - 8, x + width, y + height, color);
+    }
+
+    private void drawTechPanel(int x, int y, int w, int h, int accentColor) {
+        drawGradientRect(x, y, x + w, y + h, COLOR_PANEL_BG, COLOR_BG_DARK);
+        drawTechBorder(x, y, w, h, accentColor);
     }
 
     private void drawTitleBar() {
         int x = guiLeft;
         int y = guiTop;
 
-        drawGradientRect(x + 2, y + 2, x + GUI_WIDTH - 2, y + 20, COLOR_PANEL_BG, COLOR_BG_DARK);
+        drawGradientRect(x + 2, y + 2, x + GUI_WIDTH - 2, y + 20, 0x80005050, COLOR_PANEL_BG);
         drawHLine(x + 2, x + GUI_WIDTH - 3, y + 20, COLOR_ACCENT);
 
         GlStateManager.enableTexture2D();
-        String title = "Synergy Linking Station";
+        String title = "SYNERGY LINKING STATION";
         int titleWidth = fontRenderer.getStringWidth(title);
-        fontRenderer.drawString(title, x + (GUI_WIDTH - titleWidth) / 2, y + 7, COLOR_TEXT_TITLE);
+        fontRenderer.drawStringWithShadow(title, x + (GUI_WIDTH - titleWidth) / 2, y + 7, COLOR_TEXT_TITLE);
         GlStateManager.disableTexture2D();
     }
+
+    // ==================== 模块列表面板（滚动） ====================
 
     private void drawModulePanel() {
         int x = guiLeft + MODULE_PANEL_X;
@@ -354,13 +426,12 @@ public class GuiSynergyStation extends GuiScreen {
         int w = MODULE_PANEL_WIDTH;
         int h = MODULE_PANEL_HEIGHT;
 
-        drawGradientRect(x, y, x + w, y + h, COLOR_PANEL_BG, COLOR_BG_DARK);
-        drawHollowRect(x, y, w, h, COLOR_ACCENT_DIM);
+        drawTechPanel(x, y, w, h, COLOR_ACCENT_DIM);
         drawGradientRect(x + 1, y + 1, x + w - 1, y + 16, COLOR_ACCENT_DIM, COLOR_PANEL_BG);
 
         GlStateManager.enableTexture2D();
-        fontRenderer.drawString("Modules", x + 4, y + 4, COLOR_TEXT_TITLE);
-        String countStr = installedModules.size() + "";
+        fontRenderer.drawStringWithShadow("MODULES", x + 4, y + 4, COLOR_TEXT_TITLE);
+        String countStr = String.valueOf(installedModules.size());
         fontRenderer.drawString(countStr, x + w - 8 - fontRenderer.getStringWidth(countStr), y + 4, COLOR_TEXT_DIM);
         GlStateManager.disableTexture2D();
 
@@ -387,9 +458,9 @@ public class GuiSynergyStation extends GuiScreen {
 
             int bgColor;
             if (inLink) {
-                bgColor = 0x60008800;
+                bgColor = 0x60006030;
             } else if (isHovered) {
-                bgColor = 0x60404080;
+                bgColor = 0x60005050;
             } else {
                 bgColor = 0x40000000;
             }
@@ -397,6 +468,8 @@ public class GuiSynergyStation extends GuiScreen {
 
             int statusColor = entry.active ? COLOR_SUCCESS : COLOR_WARNING;
             drawRect(x, entryY, x + 2, entryY + MODULE_ENTRY_HEIGHT - 2, statusColor);
+            drawRect(x, entryY + MODULE_ENTRY_HEIGHT - 3, x + entryWidth, entryY + MODULE_ENTRY_HEIGHT - 2,
+                    inLink ? COLOR_SUCCESS : COLOR_ACCENT_DIM);
 
             GlStateManager.enableTexture2D();
 
@@ -412,7 +485,7 @@ public class GuiSynergyStation extends GuiScreen {
 
             String levelStr = "L" + entry.level;
             fontRenderer.drawString(levelStr, x + entryWidth - fontRenderer.getStringWidth(levelStr) - 2,
-                    entryY + 5, 0xFFFFAA00);
+                    entryY + 5, COLOR_WARNING);
         }
 
         GlStateManager.disableTexture2D();
@@ -427,7 +500,40 @@ public class GuiSynergyStation extends GuiScreen {
         int sliderHeight = Math.max(10, height * MAX_VISIBLE_MODULES / installedModules.size());
         int sliderY = y + (height - sliderHeight) * scrollOffset / maxScroll;
 
-        drawRect(x, sliderY, x + width, sliderY + sliderHeight, COLOR_ACCENT_DIM);
+        drawRect(x, sliderY, x + width, sliderY + sliderHeight, COLOR_ACCENT);
+    }
+
+    // ==================== 链结槽位面板（翻页） ====================
+
+    private void drawLinkPanel() {
+        int x = guiLeft + LINK_PANEL_X;
+        int y = guiTop + LINK_PANEL_Y;
+        int w = LINK_PANEL_WIDTH;
+        int h = LINK_PANEL_HEIGHT;
+
+        drawTechPanel(x, y, w, h, COLOR_ACCENT_DIM);
+
+        // 标题栏
+        drawGradientRect(x + 1, y + 1, x + w - 1, y + 16, COLOR_ACCENT_DIM, COLOR_PANEL_BG);
+
+        GlStateManager.enableTexture2D();
+        String linkTitle = "LINK SLOTS";
+        fontRenderer.drawStringWithShadow(linkTitle, x + 4, y + 4, COLOR_TEXT_TITLE);
+
+        // 页码显示
+        String pageStr = String.format("Page %d/%d", currentPage + 1, MAX_PAGES);
+        int pageStrWidth = fontRenderer.getStringWidth(pageStr);
+        fontRenderer.drawString(pageStr, x + (w - pageStrWidth) / 2, y + h - 14, COLOR_TEXT_DIM);
+
+        // 槽位范围提示
+        int startSlot = currentPage * SLOTS_PER_PAGE + 1;
+        int endSlot = startSlot + SLOTS_PER_PAGE - 1;
+        String slotRange = String.format("Slots %d-%d", startSlot, endSlot);
+        fontRenderer.drawString(slotRange, x + w - fontRenderer.getStringWidth(slotRange) - 4, y + 4, COLOR_TEXT_DIM);
+        GlStateManager.disableTexture2D();
+
+        // 绘制链结区域
+        drawLinkArea();
     }
 
     private void drawLinkArea() {
@@ -437,35 +543,36 @@ public class GuiSynergyStation extends GuiScreen {
         drawConnectionLines(centerX, centerY);
         drawCenterCore(centerX, centerY);
 
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < SLOTS_PER_PAGE; i++) {
             drawLinkSlot(i);
         }
     }
 
     private void drawConnectionLines(int centerX, int centerY) {
-        List<Integer> occupiedSlots = new ArrayList<>();
-        for (int i = 0; i < 6; i++) {
-            if (!tileEntity.isSlotEmpty(i)) {
-                occupiedSlots.add(i);
+        List<Integer> occupiedSlotsOnPage = new ArrayList<>();
+        for (int i = 0; i < SLOTS_PER_PAGE; i++) {
+            int realIndex = getRealSlotIndex(i);
+            if (!tileEntity.isSlotEmpty(realIndex)) {
+                occupiedSlotsOnPage.add(i);
             }
         }
 
-        if (occupiedSlots.isEmpty()) return;
+        if (occupiedSlotsOnPage.isEmpty()) return;
 
         GlStateManager.disableTexture2D();
         GlStateManager.enableBlend();
         GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
 
-        for (int slot : occupiedSlots) {
-            int sx = guiLeft + slotPositions[slot][0] + SLOT_SIZE / 2;
-            int sy = guiTop + slotPositions[slot][1] + SLOT_SIZE / 2;
-            drawGlowLine(sx, sy, centerX, centerY, COLOR_ACCENT, 3.0f);
+        for (int pageSlot : occupiedSlotsOnPage) {
+            int sx = guiLeft + slotPositions[pageSlot][0] + SLOT_SIZE / 2;
+            int sy = guiTop + slotPositions[pageSlot][1] + SLOT_SIZE / 2;
+            drawGlowLine(sx, sy, centerX, centerY, COLOR_ACCENT_BRIGHT, 3.0f);
         }
 
-        for (int i = 0; i < occupiedSlots.size(); i++) {
-            for (int j = i + 1; j < occupiedSlots.size(); j++) {
-                int slot1 = occupiedSlots.get(i);
-                int slot2 = occupiedSlots.get(j);
+        for (int i = 0; i < occupiedSlotsOnPage.size(); i++) {
+            for (int j = i + 1; j < occupiedSlotsOnPage.size(); j++) {
+                int slot1 = occupiedSlotsOnPage.get(i);
+                int slot2 = occupiedSlotsOnPage.get(j);
 
                 int x1 = guiLeft + slotPositions[slot1][0] + SLOT_SIZE / 2;
                 int y1 = guiTop + slotPositions[slot1][1] + SLOT_SIZE / 2;
@@ -501,7 +608,7 @@ public class GuiSynergyStation extends GuiScreen {
 
     private void drawCenterCore(int cx, int cy) {
         boolean activated = tileEntity.isActivated();
-        int coreColor = activated ? COLOR_SUCCESS : COLOR_ACCENT_DIM;
+        int coreColor = activated ? COLOR_SUCCESS : COLOR_ACCENT;
 
         float pulse = (float) (Math.sin(animationTick * 0.1) * 0.3 + 0.7);
         if (activated) {
@@ -515,25 +622,33 @@ public class GuiSynergyStation extends GuiScreen {
         if (activated) {
             drawCircle(cx, cy, 3, COLOR_SUCCESS);
         }
+
+        // 显示当前页码在核心中
+        GlStateManager.enableTexture2D();
+        String pageNum = String.valueOf(currentPage + 1);
+        int numWidth = fontRenderer.getStringWidth(pageNum);
+        fontRenderer.drawString(pageNum, cx - numWidth / 2, cy - 4, COLOR_TEXT_DIM);
+        GlStateManager.disableTexture2D();
     }
 
-    private void drawLinkSlot(int slotIndex) {
-        int x = guiLeft + slotPositions[slotIndex][0];
-        int y = guiTop + slotPositions[slotIndex][1];
+    private void drawLinkSlot(int pageSlotIndex) {
+        int x = guiLeft + slotPositions[pageSlotIndex][0];
+        int y = guiTop + slotPositions[pageSlotIndex][1];
 
-        String moduleId = tileEntity.getModuleInSlot(slotIndex);
+        int realIndex = getRealSlotIndex(pageSlotIndex);
+        String moduleId = tileEntity.getModuleInSlot(realIndex);
         boolean hasModule = moduleId != null && !moduleId.isEmpty();
-        boolean isHovered = (slotIndex == hoveredSlot);
+        boolean isHovered = (pageSlotIndex == hoveredSlot);
 
         int bgColor;
         if (hasModule) {
-            bgColor = isHovered ? 0xFF5050c0 : COLOR_SLOT_FILLED;
+            bgColor = isHovered ? 0xFF3a6080 : COLOR_SLOT_FILLED;
         } else {
             bgColor = isHovered ? COLOR_SLOT_HOVER : COLOR_SLOT_EMPTY;
         }
 
         drawRect(x - 1, y - 1, x + SLOT_SIZE + 1, y + SLOT_SIZE + 1,
-                hasModule ? COLOR_ACCENT : COLOR_ACCENT_DIM);
+                hasModule ? COLOR_ACCENT_BRIGHT : COLOR_ACCENT_DIM);
         drawRect(x, y, x + SLOT_SIZE, y + SLOT_SIZE, bgColor);
         drawHollowRect(x + 2, y + 2, SLOT_SIZE - 4, SLOT_SIZE - 4,
                 hasModule ? 0x60FFFFFF : 0x30FFFFFF);
@@ -543,9 +658,10 @@ public class GuiSynergyStation extends GuiScreen {
         if (hasModule) {
             String abbr = moduleId.length() > 2 ? moduleId.substring(0, 2).toUpperCase() : moduleId.toUpperCase();
             int textWidth = fontRenderer.getStringWidth(abbr);
-            fontRenderer.drawString(abbr, x + (SLOT_SIZE - textWidth) / 2, y + (SLOT_SIZE - 8) / 2, 0xFFFFFFFF);
+            fontRenderer.drawStringWithShadow(abbr, x + (SLOT_SIZE - textWidth) / 2, y + (SLOT_SIZE - 8) / 2, 0xFFFFFFFF);
         } else {
-            String num = String.valueOf(slotIndex + 1);
+            // 显示实际槽位编号
+            String num = String.valueOf(realIndex + 1);
             int textWidth = fontRenderer.getStringWidth(num);
             fontRenderer.drawString(num, x + (SLOT_SIZE - textWidth) / 2, y + (SLOT_SIZE - 8) / 2, COLOR_TEXT_DIM);
         }
@@ -553,57 +669,75 @@ public class GuiSynergyStation extends GuiScreen {
         GlStateManager.disableTexture2D();
     }
 
+    // ==================== 信息面板 ====================
+
     private void drawInfoPanel() {
         int x = guiLeft + INFO_PANEL_X;
         int y = guiTop + INFO_PANEL_Y;
         int w = INFO_PANEL_WIDTH;
         int h = INFO_PANEL_HEIGHT;
 
-        drawGradientRect(x, y, x + w, y + h, COLOR_PANEL_BG, COLOR_BG_DARK);
-        drawHollowRect(x, y, w, h, COLOR_ACCENT_DIM);
-        drawGradientRect(x + 1, y + 1, x + w - 1, y + 14, COLOR_ACCENT_DIM, COLOR_PANEL_BG);
+        drawTechPanel(x, y, w, h, COLOR_ACCENT_DIM);
+        drawGradientRect(x + 1, y + 1, x + w - 1, y + 12, COLOR_ACCENT_DIM, COLOR_PANEL_BG);
 
         GlStateManager.enableTexture2D();
 
-        fontRenderer.drawString("Active Synergies", x + 4, y + 3, COLOR_TEXT_TITLE);
+        fontRenderer.drawStringWithShadow("SYNERGIES", x + 4, y + 2, COLOR_TEXT_TITLE);
 
-        int listY = y + 16;
+        // 显示已链结模块总数
+        int totalLinked = tileEntity.getLinkedModuleCount();
+        String linkedStr = totalLinked + " linked";
+        fontRenderer.drawString(linkedStr, x + w - fontRenderer.getStringWidth(linkedStr) - 4, y + 2, COLOR_TEXT_DIM);
+
+        int listY = y + 14;
         if (matchingSynergies.isEmpty()) {
-            fontRenderer.drawString("Link 2+ modules", x + 4, listY + 4, COLOR_TEXT_DIM);
+            fontRenderer.drawString("Link 2+ modules for synergy", x + 4, listY + 2, COLOR_TEXT_DIM);
         } else {
-            for (int i = 0; i < Math.min(2, matchingSynergies.size()); i++) {
-                SynergyDefinition synergy = matchingSynergies.get(i);
-                String name = synergy.getDisplayName();
-                if (fontRenderer.getStringWidth(name) > w - 12) {
-                    while (fontRenderer.getStringWidth(name + "..") > w - 12 && name.length() > 1) {
-                        name = name.substring(0, name.length() - 1);
-                    }
-                    name += "..";
+            String synergyName = matchingSynergies.get(0).getDisplayName();
+            if (fontRenderer.getStringWidth(synergyName) > w - 30) {
+                while (fontRenderer.getStringWidth(synergyName + "..") > w - 30 && synergyName.length() > 1) {
+                    synergyName = synergyName.substring(0, synergyName.length() - 1);
                 }
-                fontRenderer.drawString("> " + name, x + 4, listY + 4 + i * 10, COLOR_SUCCESS);
+                synergyName += "..";
             }
-            if (matchingSynergies.size() > 2) {
-                fontRenderer.drawString("+" + (matchingSynergies.size() - 2) + " more...",
-                        x + 4, listY + 24, COLOR_TEXT_DIM);
+            fontRenderer.drawString("> " + synergyName, x + 4, listY + 2, COLOR_SUCCESS);
+
+            if (matchingSynergies.size() > 1) {
+                fontRenderer.drawString("+" + (matchingSynergies.size() - 1) + " more",
+                        x + w - fontRenderer.getStringWidth("+" + (matchingSynergies.size() - 1) + " more") - 4,
+                        listY + 2, COLOR_TEXT_DIM);
             }
         }
 
         GlStateManager.disableTexture2D();
     }
 
+    // ==================== 拖拽与提示 ====================
+
+    private void drawDraggingModule(int mouseX, int mouseY) {
+        int labelWidth = fontRenderer.getStringWidth(draggingModule.displayName) + 8;
+        GlStateManager.disableTexture2D();
+        drawRect(mouseX - 2, mouseY - 2, mouseX + labelWidth, mouseY + 12, 0xE0000000);
+        drawTechBorder(mouseX - 2, mouseY - 2, labelWidth + 2, 14, COLOR_ACCENT_BRIGHT);
+        GlStateManager.enableTexture2D();
+        fontRenderer.drawStringWithShadow(draggingModule.displayName, mouseX + 2, mouseY + 2, COLOR_TEXT_TITLE);
+    }
+
     private void drawTooltips(int mouseX, int mouseY) {
         GlStateManager.enableTexture2D();
 
         if (hoveredSlot >= 0) {
-            String moduleId = tileEntity.getModuleInSlot(hoveredSlot);
+            int realIndex = getRealSlotIndex(hoveredSlot);
+            String moduleId = tileEntity.getModuleInSlot(realIndex);
             if (moduleId != null && !moduleId.isEmpty()) {
                 List<String> tooltip = new ArrayList<>();
                 tooltip.add("\u00a7b" + moduleId);
-                tooltip.add("\u00a77Right-click to remove");
+                tooltip.add("\u00a77Slot " + (realIndex + 1));
+                tooltip.add("\u00a78Right-click to remove");
                 drawHoveringText(tooltip, mouseX, mouseY);
             } else {
                 List<String> tooltip = new ArrayList<>();
-                tooltip.add("\u00a77Slot " + (hoveredSlot + 1));
+                tooltip.add("\u00a77Slot " + (realIndex + 1));
                 tooltip.add("\u00a78Drag module here");
                 drawHoveringText(tooltip, mouseX, mouseY);
             }
@@ -640,25 +774,23 @@ public class GuiSynergyStation extends GuiScreen {
 
         // 右键移除槽位
         if (mouseButton == 1 && hoveredSlot >= 0) {
-            if (!tileEntity.isSlotEmpty(hoveredSlot)) {
-                String removedModule = tileEntity.getModuleInSlot(hoveredSlot);
+            int realIndex = getRealSlotIndex(hoveredSlot);
+            if (!tileEntity.isSlotEmpty(realIndex)) {
+                String removedModule = tileEntity.getModuleInSlot(realIndex);
 
-                // 发送网络包到服务器
                 PacketHandler.INSTANCE.sendToServer(
                         new PacketSynergyStationAction(
                                 tileEntity.getPos(),
                                 PacketSynergyStationAction.ActionType.CLEAR_SLOT,
-                                hoveredSlot
+                                realIndex
                         )
                 );
-                // 本地更新
-                tileEntity.clearSlot(hoveredSlot);
+                tileEntity.clearSlot(realIndex);
                 updateMatchingSynergies();
 
-                // 播放移除音效
                 player.playSound(net.minecraft.init.SoundEvents.BLOCK_LAVA_EXTINGUISH, 0.3f, 1.5f);
                 player.sendMessage(new net.minecraft.util.text.TextComponentString(
-                        "§7[链结] §c移除 §f" + removedModule + " §7从槽位 " + (hoveredSlot + 1)));
+                        "§7[链结] §c移除 §f" + removedModule + " §7从槽位 " + (realIndex + 1)));
             }
         }
     }
@@ -668,32 +800,31 @@ public class GuiSynergyStation extends GuiScreen {
         super.mouseReleased(mouseX, mouseY, state);
 
         if (draggingModule != null && state == 0) {
-            if (hoveredSlot >= 0 && tileEntity.isSlotEmpty(hoveredSlot)) {
-                // 发送网络包到服务器
-                PacketHandler.INSTANCE.sendToServer(
-                        new PacketSynergyStationAction(
-                                tileEntity.getPos(),
-                                PacketSynergyStationAction.ActionType.SET_SLOT,
-                                hoveredSlot,
-                                draggingModule.moduleId
-                        )
-                );
-                // 本地更新
-                tileEntity.setModuleInSlot(hoveredSlot, draggingModule.moduleId);
-                updateMatchingSynergies();
+            if (hoveredSlot >= 0) {
+                int realIndex = getRealSlotIndex(hoveredSlot);
+                if (tileEntity.isSlotEmpty(realIndex)) {
+                    PacketHandler.INSTANCE.sendToServer(
+                            new PacketSynergyStationAction(
+                                    tileEntity.getPos(),
+                                    PacketSynergyStationAction.ActionType.SET_SLOT,
+                                    realIndex,
+                                    draggingModule.moduleId
+                            )
+                    );
+                    tileEntity.setModuleInSlot(realIndex, draggingModule.moduleId);
+                    updateMatchingSynergies();
 
-                // 播放反馈音效
-                player.playSound(net.minecraft.init.SoundEvents.BLOCK_END_PORTAL_FRAME_FILL, 0.5f, 1.2f);
+                    player.playSound(net.minecraft.init.SoundEvents.BLOCK_END_PORTAL_FRAME_FILL, 0.5f, 1.2f);
 
-                // 显示反馈消息
-                String feedback = "§b[链结] §f" + draggingModule.displayName + " §7-> 槽位 " + (hoveredSlot + 1);
-                if (!matchingSynergies.isEmpty()) {
-                    feedback += " §a| 激活: " + matchingSynergies.get(0).getDisplayName();
-                    if (matchingSynergies.size() > 1) {
-                        feedback += " (+" + (matchingSynergies.size() - 1) + ")";
+                    String feedback = "§b[链结] §f" + draggingModule.displayName + " §7-> 槽位 " + (realIndex + 1);
+                    if (!matchingSynergies.isEmpty()) {
+                        feedback += " §a| 激活: " + matchingSynergies.get(0).getDisplayName();
+                        if (matchingSynergies.size() > 1) {
+                            feedback += " (+" + (matchingSynergies.size() - 1) + ")";
+                        }
                     }
+                    player.sendMessage(new net.minecraft.util.text.TextComponentString(feedback));
                 }
-                player.sendMessage(new net.minecraft.util.text.TextComponentString(feedback));
             }
             draggingModule = null;
         }
@@ -705,11 +836,18 @@ public class GuiSynergyStation extends GuiScreen {
 
         int wheel = Mouse.getEventDWheel();
         if (wheel != 0) {
-            int maxScroll = Math.max(0, installedModules.size() - MAX_VISIBLE_MODULES);
-            if (wheel > 0 && scrollOffset > 0) {
-                scrollOffset--;
-            } else if (wheel < 0 && scrollOffset < maxScroll) {
-                scrollOffset++;
+            // 只在模块列表区域滚动
+            int mx = Mouse.getEventX() * this.width / this.mc.displayWidth - guiLeft;
+            int my = this.height - Mouse.getEventY() * this.height / this.mc.displayHeight - 1 - guiTop;
+
+            if (mx >= MODULE_PANEL_X && mx < MODULE_PANEL_X + MODULE_PANEL_WIDTH &&
+                    my >= MODULE_PANEL_Y && my < MODULE_PANEL_Y + MODULE_PANEL_HEIGHT) {
+                int maxScroll = Math.max(0, installedModules.size() - MAX_VISIBLE_MODULES);
+                if (wheel > 0 && scrollOffset > 0) {
+                    scrollOffset--;
+                } else if (wheel < 0 && scrollOffset < maxScroll) {
+                    scrollOffset++;
+                }
             }
         }
     }
@@ -718,6 +856,19 @@ public class GuiSynergyStation extends GuiScreen {
     protected void keyTyped(char typedChar, int keyCode) throws IOException {
         if (keyCode == Keyboard.KEY_ESCAPE || keyCode == Keyboard.KEY_E) {
             mc.player.closeScreen();
+        }
+        // 快捷键翻页
+        if (keyCode == Keyboard.KEY_LEFT || keyCode == Keyboard.KEY_A) {
+            if (currentPage > 0) {
+                currentPage--;
+                updatePageButtons();
+            }
+        }
+        if (keyCode == Keyboard.KEY_RIGHT || keyCode == Keyboard.KEY_D) {
+            if (currentPage < MAX_PAGES - 1) {
+                currentPage++;
+                updatePageButtons();
+            }
         }
     }
 
@@ -751,20 +902,12 @@ public class GuiSynergyStation extends GuiScreen {
     }
 
     private void drawHLine(int x1, int x2, int y, int color) {
-        if (x2 < x1) {
-            int temp = x1;
-            x1 = x2;
-            x2 = temp;
-        }
+        if (x2 < x1) { int temp = x1; x1 = x2; x2 = temp; }
         drawRect(x1, y, x2 + 1, y + 1, color);
     }
 
     private void drawVLine(int x, int y1, int y2, int color) {
-        if (y2 < y1) {
-            int temp = y1;
-            y1 = y2;
-            y2 = temp;
-        }
+        if (y2 < y1) { int temp = y1; y1 = y2; y2 = temp; }
         drawRect(x, y1, x + 1, y2 + 1, color);
     }
 
