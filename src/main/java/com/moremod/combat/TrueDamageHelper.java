@@ -195,15 +195,17 @@ public class TrueDamageHelper {
             ((EntityPlayer) victim).wakeUpPlayer(true, true, false);
         }
 
-        // 标记为死亡
-        victim.dead = true;
-
         // 重新检查战斗追踪器状态
         victim.getCombatTracker().recheckStatus();
 
         // ========== 关键：触发 onDeath 确保掉落物 ==========
+        // 注意：必须在设置 dead = true 之前调用 onDeath()
+        // 因为 onDeath() 内部会检查 if (this.dead) return;
         // onDeath 内部会调用 dropLoot() 和 dropEquipment()
         victim.onDeath(source);
+
+        // 标记为死亡（在 onDeath 之后设置，确保掉落物正常）
+        victim.dead = true;
 
         // 如果击杀者是玩家，记录统计
         if (directKiller instanceof EntityPlayerMP) {
