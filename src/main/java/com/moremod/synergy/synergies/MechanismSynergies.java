@@ -1,5 +1,6 @@
 package com.moremod.synergy.synergies;
 
+import com.moremod.combat.TrueDamageHelper;
 import com.moremod.synergy.api.ISynergyEffect;
 import com.moremod.synergy.bridge.ExistingModuleBridge;
 import com.moremod.synergy.condition.*;
@@ -127,35 +128,35 @@ public class MechanismSynergies {
                             boolean isBurst = currentMomentum >= maxMomentum;
 
                             if (isBurst) {
-                                // 动能爆发！
-                                float burstDamage = currentMomentum * 0.5f;
+                                // 动能爆发！真伤AOE
+                                float burstDamage = currentMomentum * 0.8f; // 提高伤害系数
 
-                                // 范围伤害
-                                AxisAlignedBB area = player.getEntityBoundingBox().grow(4.0);
+                                // 范围真伤 (更大范围)
+                                double burstRange = 5.0 + totalLevel * 0.5;
+                                AxisAlignedBB area = player.getEntityBoundingBox().grow(burstRange);
                                 List<EntityLivingBase> nearby = world.getEntitiesWithinAABB(
                                         EntityLivingBase.class, area,
                                         e -> e != player && e instanceof IMob && e.isEntityAlive());
 
                                 for (EntityLivingBase entity : nearby) {
-                                    entity.attackEntityFrom(
-                                            SynergyEventHandler.causeSynergyDamage(player),
-                                            burstDamage * 0.7f);
+                                    // 范围真伤
+                                    TrueDamageHelper.applyWrappedTrueDamage(entity, player, burstDamage * 0.7f,
+                                            TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE);
 
-                                    // 击退
+                                    // 更强击退
                                     Vec3d knockback = entity.getPositionVector()
                                             .subtract(player.getPositionVector())
                                             .normalize()
-                                            .scale(2.0);
+                                            .scale(3.0);
                                     entity.motionX += knockback.x;
-                                    entity.motionY += 0.5;
+                                    entity.motionY += 0.8;
                                     entity.motionZ += knockback.z;
                                     entity.velocityChanged = true;
                                 }
 
-                                // 主目标全额伤害
-                                target.attackEntityFrom(
-                                        SynergyEventHandler.causeSynergyDamage(player),
-                                        burstDamage);
+                                // 主目标全额真伤
+                                TrueDamageHelper.applyWrappedTrueDamage(target, player, burstDamage,
+                                        TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE);
 
                                 // 爆发特效
                                 for (int i = 0; i < 40; i++) {
@@ -366,12 +367,11 @@ public class MechanismSynergies {
                                 enemy.velocityChanged = true;
                             }
 
-                            // 每秒造成真伤
+                            // 每秒造成真伤 - 增强伤害
                             if (player.ticksExisted % 20 == 0) {
-                                float damage = 1.0f + voidLevel * 0.5f;
-                                enemy.attackEntityFrom(
-                                        SynergyEventHandler.causeSynergyDamage(player).setDamageBypassesArmor(),
-                                        damage);
+                                float damage = 3.0f + voidLevel * 1.5f; // 提高基础伤害
+                                TrueDamageHelper.applyWrappedTrueDamage(enemy, player, damage,
+                                        TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE);
                             }
 
                             // 引力粒子
@@ -488,14 +488,11 @@ public class MechanismSynergies {
                             // 满层斩杀判定
                             if (currentSouls >= maxSouls) {
                                 float targetHealthRatio = target.getHealth() / target.getMaxHealth();
-                                float executeThreshold = 0.3f + damageLevel * 0.02f;
+                                float executeThreshold = 0.35f + damageLevel * 0.03f; // 提高斩杀阈值
 
                                 if (targetHealthRatio <= executeThreshold) {
-                                    // 斩杀！
-                                    target.attackEntityFrom(
-                                            SynergyEventHandler.causeSynergyDamage(player)
-                                                    .setDamageBypassesArmor(),
-                                            target.getHealth() + 100);
+                                    // 斩杀！使用真伤
+                                    TrueDamageHelper.applyExecuteDamage(target, player);
 
                                     // 斩杀特效
                                     world.playSound(null, target.posX, target.posY, target.posZ,
@@ -748,7 +745,8 @@ public class MechanismSynergies {
                         boolean isDaytime = world.isDaytime() && world.canSeeSky(player.getPosition());
                         float dayBonus = isDaytime ? 1.5f : 1.0f;
 
-                        float baseDamage = context.getOriginalDamage() * 0.5f * dayBonus;
+                        // 提高基础伤害 (70% + 等级加成)
+                        float baseDamage = context.getOriginalDamage() * (0.7f + totalLevel * 0.05f) * dayBonus;
 
                         // 链式传递
                         EntityLivingBase currentTarget = primaryTarget;
@@ -782,10 +780,9 @@ public class MechanismSynergies {
 
                             if (nextTarget == null) break;
 
-                            // 造成伤害
-                            nextTarget.attackEntityFrom(
-                                    SynergyEventHandler.causeSynergyDamage(player),
-                                    currentDamage);
+                            // 造成真伤
+                            TrueDamageHelper.applyWrappedTrueDamage(nextTarget, player, currentDamage,
+                                    TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE);
 
                             // 闪电粒子连线
                             drawLightningParticles(world, currentTarget, nextTarget);
@@ -859,18 +856,21 @@ public class MechanismSynergies {
                 DamageEcho echo = iterator.next();
 
                 if (currentTime >= echo.triggerTime) {
-                    // 触发回响伤害
+                    // 触发回响伤害 - 使用真伤
                     net.minecraft.entity.Entity entity = world.getEntityByID(echo.targetId);
                     if (entity instanceof EntityLivingBase && entity.isEntityAlive()) {
                         EntityLivingBase target = (EntityLivingBase) entity;
-                        target.attackEntityFrom(
-                                SynergyEventHandler.causeSynergyDamage(echo.source),
-                                echo.damage);
+                        TrueDamageHelper.applyWrappedTrueDamage(target, echo.source, echo.damage,
+                                TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE);
 
-                        // 回响特效
-                        world.spawnParticle(EnumParticleTypes.PORTAL,
-                                target.posX, target.posY + 1, target.posZ,
-                                0, 0.2, 0);
+                        // 回响特效 - 更强烈
+                        for (int i = 0; i < 8; i++) {
+                            world.spawnParticle(EnumParticleTypes.PORTAL,
+                                    target.posX + (world.rand.nextDouble() - 0.5),
+                                    target.posY + 1 + world.rand.nextDouble(),
+                                    target.posZ + (world.rand.nextDouble() - 0.5),
+                                    0, 0.2, 0);
+                        }
                     }
                     iterator.remove();
                 }
