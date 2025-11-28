@@ -83,8 +83,9 @@ public class HumanityHUD extends Gui {
             }
         }
 
-        // 低人性抖动
-        if (data.getHumanity() < 40f) {
+        // 低人性抖动（破碎之神不抖动）
+        boolean isBrokenGod = data.getAscensionRoute() == AscensionRoute.BROKEN_GOD;
+        if (data.getHumanity() < 40f && !isBrokenGod) {
             shakeTimer++;
         } else {
             shakeTimer = 0;
@@ -99,9 +100,10 @@ public class HumanityHUD extends Gui {
         int y = HumanityConfig.hudYOffset;
 
         float humanity = data.getHumanity();
+        boolean isBrokenGod = data.getAscensionRoute() == AscensionRoute.BROKEN_GOD;
 
-        // 低人性抖动效果
-        if (humanity < 40f && random.nextFloat() < 0.1f) {
+        // 低人性抖动效果（破碎之神不抖动）
+        if (humanity < 40f && !isBrokenGod && random.nextFloat() < 0.1f) {
             x += random.nextInt(3) - 1;
             y += random.nextInt(3) - 1;
         }
@@ -110,8 +112,8 @@ public class HumanityHUD extends Gui {
         GlStateManager.enableBlend();
         GlStateManager.disableLighting();
 
-        // 获取颜色
-        int color = getHumanityColor(humanity);
+        // 获取颜色（破碎之神使用特殊稳定颜色）
+        int color = isBrokenGod ? 0xFF5500AA : getHumanityColor(humanity);  // 破碎之神: 深紫色
         int bgColor = 0x80000000; // 半透明黑色背景
 
         // 绘制背景
@@ -124,8 +126,7 @@ public class HumanityHUD extends Gui {
         int barWidth = (int) (displayedHumanity);
         Gui.drawRect(x, y, x + barWidth, y + 8, color);
 
-        // 崩解状态特殊效果（升格后不显示）
-        boolean isBrokenGod = data.getAscensionRoute() == AscensionRoute.BROKEN_GOD;
+        // 崩解状态特殊效果（破碎之神不显示）
         if (data.isDissolutionActive() && !isBrokenGod) {
             int dissolutionColor = 0xFFFF0000;
             float pulse = 0.5f + 0.5f * (float) Math.sin(System.currentTimeMillis() / 100.0);
@@ -197,6 +198,11 @@ public class HumanityHUD extends Gui {
     private static String getStatusLabel(IHumanityData data) {
         float humanity = data.getHumanity();
 
+        // 破碎之神显示特殊标签
+        if (data.getAscensionRoute() == AscensionRoute.BROKEN_GOD) {
+            return "\u00a75\u00a7l破碎之神";
+        }
+
         if (data.isDissolutionActive()) {
             return "";  // 崩解状态单独显示
         }
@@ -220,6 +226,11 @@ public class HumanityHUD extends Gui {
      * 获取状态标签颜色
      */
     private static int getStatusLabelColor(IHumanityData data) {
+        // 破碎之神使用特殊颜色
+        if (data.getAscensionRoute() == AscensionRoute.BROKEN_GOD) {
+            return 0xFF8855DD;  // 稳定的紫色
+        }
+
         float humanity = data.getHumanity();
 
         if (humanity >= 80f) return 0xFF88DDFF;

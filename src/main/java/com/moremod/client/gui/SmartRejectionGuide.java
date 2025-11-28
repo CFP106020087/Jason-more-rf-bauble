@@ -5,6 +5,7 @@ import com.moremod.config.FleshRejectionConfig;
 import com.moremod.config.HumanityConfig;
 import com.moremod.item.ItemMechanicalCore;
 import com.moremod.system.FleshRejectionSystem;
+import com.moremod.system.humanity.AscensionRoute;
 import com.moremod.system.humanity.HumanityCapabilityHandler;
 import com.moremod.system.humanity.IHumanityData;
 import net.minecraft.client.Minecraft;
@@ -124,6 +125,13 @@ public class SmartRejectionGuide extends Gui {
             wasInHumanitySystem = humanitySystemActive;
         }
 
+        // 检测破碎之神升格
+        AscensionRoute route = humanityData != null ? humanityData.getAscensionRoute() : AscensionRoute.NONE;
+        if (route == AscensionRoute.BROKEN_GOD && !shownMilestones.contains("brokenGod")) {
+            shownMilestones.add("brokenGod");
+            showBrokenGodAscensionGuide();
+        }
+
         // 只有在不显示详细信息时才检查里程碑
         if (!showingDetailedStatus) {
             if (humanitySystemActive) {
@@ -168,6 +176,18 @@ public class SmartRejectionGuide extends Gui {
                 "§c排异反应重新激活！",
                 "§7人机融合状态中断...",
                 "§7需要重新达成突破条件"
+        ), true);
+    }
+
+    private static void showBrokenGodAscensionGuide() {
+        String keyName = getKeyDisplayName();
+        showGuide(new GuideInfo(
+                "§5◈ 你已成为破碎之神 ◈", 400, 10,
+                "§7你的人性已完全消散...",
+                "§a获得: §f永生、+100%生命、+50%伤害",
+                "§c失去: §7所有药水效果、链结站访问",
+                "§5人性值永久锁定为 0%",
+                "§b按 [" + keyName + "] 查看完整状态"
         ), true);
     }
 
@@ -443,6 +463,7 @@ public class SmartRejectionGuide extends Gui {
         IHumanityData humanityData = HumanityCapabilityHandler.getData(mc.player);
         boolean inHumanitySystem = humanityData != null && humanityData.isSystemActive()
                 && rejStatus.transcended && rejStatus.rejection <= 0;
+        boolean isBrokenGod = humanityData != null && humanityData.getAscensionRoute() == AscensionRoute.BROKEN_GOD;
 
         FontRenderer fr = mc.fontRenderer;
 
@@ -456,7 +477,10 @@ public class SmartRejectionGuide extends Gui {
         int alphaInt = (int)(alpha * 255);
         int bgAlpha = (int)(alpha * 200);
 
-        if (inHumanitySystem) {
+        if (isBrokenGod) {
+            // ========== 破碎之神详细状态 ==========
+            y = renderBrokenGodDetailedStatus(centerX, y, humanityData, fr, alphaInt, bgAlpha);
+        } else if (inHumanitySystem) {
             // ========== 人性值系统详细状态 ==========
             y = renderHumanityDetailedStatus(centerX, y, humanityData, fr, alphaInt, bgAlpha);
         } else {
@@ -718,6 +742,110 @@ public class SmartRejectionGuide extends Gui {
                     (bgAlpha - 100) << 24);
             fr.drawStringWithShadow(tip, centerX - tipWidth/2, y,
                     0xAAAAAA | (alphaInt << 24));
+            y += 10;
+        }
+
+        return y;
+    }
+
+    // ========== 破碎之神详细状态渲染 ==========
+    private static int renderBrokenGodDetailedStatus(int centerX, int y,
+            IHumanityData data, FontRenderer fr, int alphaInt, int bgAlpha) {
+
+        // 标题
+        String title = "§5◈ 破碎之神 ◈";
+        int titleWidth = fr.getStringWidth(title);
+        drawRect(centerX - titleWidth/2 - 8, y - 2,
+                centerX + titleWidth/2 + 8, y + 11,
+                bgAlpha << 24);
+        fr.drawStringWithShadow(title, centerX - titleWidth/2, y,
+                0xAA55FF | (alphaInt << 24));
+        y += 16;
+
+        // 分隔线
+        String separator = "§7═════════════════";
+        int sepWidth = fr.getStringWidth(separator);
+        fr.drawStringWithShadow(separator, centerX - sepWidth/2, y,
+                0x777777 | (alphaInt << 24));
+        y += 12;
+
+        // 人性值（固定为0）
+        String humText = "§5人性值: §40% §7(永久锁定)";
+        int humWidth = fr.getStringWidth(humText);
+        drawRect(centerX - humWidth/2 - 5, y - 1,
+                centerX + humWidth/2 + 5, y + 10,
+                (bgAlpha - 50) << 24);
+        fr.drawStringWithShadow(humText, centerX - humWidth/2, y,
+                0xFFFFFF | (alphaInt << 24));
+        y += 12;
+
+        // 状态说明
+        String stateText = "§7状态: §5存在超越 - 破碎之神化";
+        int stateWidth = fr.getStringWidth(stateText);
+        drawRect(centerX - stateWidth/2 - 5, y - 1,
+                centerX + stateWidth/2 + 5, y + 10,
+                (bgAlpha - 50) << 24);
+        fr.drawStringWithShadow(stateText, centerX - stateWidth/2, y,
+                0xFFFFFF | (alphaInt << 24));
+        y += 14;
+
+        // 获得的能力标题
+        y += 4;
+        String abilityTitle = "§a【获得的能力】";
+        int abilityTitleWidth = fr.getStringWidth(abilityTitle);
+        drawRect(centerX - abilityTitleWidth/2 - 5, y - 1,
+                centerX + abilityTitleWidth/2 + 5, y + 10,
+                bgAlpha << 24);
+        fr.drawStringWithShadow(abilityTitle, centerX - abilityTitleWidth/2, y,
+                0x88FF88 | (alphaInt << 24));
+        y += 12;
+
+        // 能力列表
+        String[] abilities = {
+            "§a• §f永生: §7不会自然死亡",
+            "§a• §f+100%最大生命值: §7双倍血量",
+            "§a• §f+50%异常伤害加成: §7对所有生物",
+            "§a• §f破碎遗物完全激活: §7全部能力解锁",
+            "§a• §f异常场永久激活: §7持续影响周围",
+            "§a• §f免疫存在崩解: §7人性值不再变化"
+        };
+
+        for (String ability : abilities) {
+            int aWidth = fr.getStringWidth(ability);
+            drawRect(centerX - aWidth/2 - 3, y - 1,
+                    centerX + aWidth/2 + 3, y + 9,
+                    (bgAlpha - 100) << 24);
+            fr.drawStringWithShadow(ability, centerX - aWidth/2, y,
+                    0xFFFFFF | (alphaInt << 24));
+            y += 10;
+        }
+
+        // 失去的能力标题
+        y += 6;
+        String lostTitle = "§c【失去的能力】";
+        int lostTitleWidth = fr.getStringWidth(lostTitle);
+        drawRect(centerX - lostTitleWidth/2 - 5, y - 1,
+                centerX + lostTitleWidth/2 + 5, y + 10,
+                bgAlpha << 24);
+        fr.drawStringWithShadow(lostTitle, centerX - lostTitleWidth/2, y,
+                0xFF8888 | (alphaInt << 24));
+        y += 12;
+
+        // 失去的能力列表
+        String[] losses = {
+            "§c• §7药水完全无效: §c无法获得任何药水效果",
+            "§c• §7无法使用链结站: §c机械共鸣系统断开",
+            "§c• §7猎人协议失效: §c生物档案系统关闭",
+            "§c• §7与人类社会疏离: §c村民交易受限"
+        };
+
+        for (String loss : losses) {
+            int lWidth = fr.getStringWidth(loss);
+            drawRect(centerX - lWidth/2 - 3, y - 1,
+                    centerX + lWidth/2 + 3, y + 9,
+                    (bgAlpha - 100) << 24);
+            fr.drawStringWithShadow(loss, centerX - lWidth/2, y,
+                    0xFFFFFF | (alphaInt << 24));
             y += 10;
         }
 
