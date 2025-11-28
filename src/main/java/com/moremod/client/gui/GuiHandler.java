@@ -44,6 +44,9 @@ import com.moremod.synergy.station.ContainerSynergyStation;
 import com.moremod.synergy.station.GuiSynergyStation;
 import com.moremod.synergy.station.TileEntitySynergyStation;
 
+// 📖 Synergy 协同手册GUI导入
+import com.moremod.synergy.gui.GuiSynergyGuide;
+
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumHand;
@@ -85,6 +88,9 @@ public class GuiHandler implements IGuiHandler {
 
     // ⚡ Synergy 链结站
     public static final int SYNERGY_STATION_GUI = 29;
+
+    // 📖 Synergy 协同手册 (客户端GUI，无Container)
+    public static final int SYNERGY_GUIDE_GUI = 30;
 
     // ---------------- Server ----------------
     @Override
@@ -160,6 +166,10 @@ public class GuiHandler implements IGuiHandler {
                 }
                 case SYNERGY_STATION_GUI: { // ⚡ ID=29
                     result = createSynergyStationContainer(player, world, x, y, z);
+                    break;
+                }
+                case SYNERGY_GUIDE_GUI: { // 📖 ID=30 客户端GUI无需Container
+                    result = null;
                     break;
                 }
                 default:
@@ -247,6 +257,10 @@ public class GuiHandler implements IGuiHandler {
                 }
                 case SYNERGY_STATION_GUI: { // ⚡ ID=29
                     result = createSynergyStationGui(player, world, x, y, z);
+                    break;
+                }
+                case SYNERGY_GUIDE_GUI: { // 📖 ID=30
+                    result = new GuiSynergyGuide(player);
                     break;
                 }
                 default:
@@ -559,6 +573,7 @@ public class GuiHandler implements IGuiHandler {
     public static boolean isItemBasedGui(int guiId) {
         return isAccessoryBoxGui(guiId) ||
                 guiId == GUI_SAGE_BOOK ||
-                guiId == VOID_BACKPACK_GUI;
+                guiId == VOID_BACKPACK_GUI ||
+                guiId == SYNERGY_GUIDE_GUI;
     }
 }
