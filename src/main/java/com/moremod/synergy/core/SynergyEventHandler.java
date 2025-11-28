@@ -1,9 +1,12 @@
 package com.moremod.synergy.core;
 
+import com.moremod.synergy.bridge.ExistingModuleBridge;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.DamageSource;
+import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.TextFormatting;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
@@ -11,6 +14,8 @@ import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
+
+import java.util.Set;
 
 /**
  * Synergy 事件处理器
@@ -31,6 +36,23 @@ public class SynergyEventHandler {
 
     // Tick 计数器，用于控制 tick synergy 的触发频率
     private static final int TICK_INTERVAL = 20; // 每秒触发一次
+
+    // ==================== 能量维护成本设置 ====================
+
+    /** 能量维护消耗间隔（tick），每5秒消耗一次 */
+    private static final int ENERGY_DRAIN_INTERVAL = 100; // 5秒
+
+    /** 每个激活的 Synergy 的基础能量成本（RF/5秒） */
+    private static final int BASE_ENERGY_COST_PER_SYNERGY = 10;
+
+    /** 每个额外 Synergy 的递增成本（RF/5秒） */
+    private static final int SCALING_COST_PER_SYNERGY = 2;
+
+    /** 能量不足时是否自动停用 Synergy */
+    private static final boolean AUTO_DEACTIVATE_ON_LOW_ENERGY = true;
+
+    /** 低能量警告阈值（百分比） */
+    private static final float LOW_ENERGY_WARNING_THRESHOLD = 10.0f;
 
     /**
      * Synergy 系统专用的伤害源 - 用于识别并跳过我们自己造成的伤害，防止递归循环
@@ -57,6 +79,7 @@ public class SynergyEventHandler {
      * 玩家 Tick 事件
      *
      * 每秒检测一次 TICK 类型的 Synergy
+     * 每5秒处理一次能量维护消耗
      */
     @SubscribeEvent
     public void onPlayerTick(TickEvent.PlayerTickEvent event) {
@@ -64,21 +87,122 @@ public class SynergyEventHandler {
         if (event.phase != TickEvent.Phase.END) return;
         if (event.player.world.isRemote) return;
 
-        // 每秒触发一次（每 20 tick）
-        if (event.player.world.getTotalWorldTime() % TICK_INTERVAL != 0) return;
-
         if (!manager.isInitialized() || !manager.isEnabled()) return;
 
-        try {
-            manager.processEvent(
-                    event.player,
-                    SynergyEventType.TICK
-            );
-        } catch (Exception e) {
-            if (manager.isDebugMode()) {
-                System.err.println("[Synergy] Error in tick event: " + e.getMessage());
+        long worldTime = event.player.world.getTotalWorldTime();
+
+        // 每秒触发一次（每 20 tick）处理 Synergy TICK 事件
+        if (worldTime % TICK_INTERVAL == 0) {
+            try {
+                manager.processEvent(
+                        event.player,
+                        SynergyEventType.TICK
+                );
+            } catch (Exception e) {
+                if (manager.isDebugMode()) {
+                    System.err.println("[Synergy] Error in tick event: " + e.getMessage());
+                }
             }
         }
+
+        // 每5秒处理一次 Synergy 能量维护消耗
+        if (worldTime % ENERGY_DRAIN_INTERVAL == 0) {
+            processSynergyEnergyMaintenance(event.player);
+        }
+    }
+
+    /**
+     * 处理 Synergy 系统的能量维护消耗
+     *
+     * 公式：totalCost = synergyCount * (BASE_COST + synergyCount * SCALING_COST)
+     * 示例：
+     * - 1 synergy: 1 * (10 + 1*2) = 12 RF/5s
+     * - 3 synergies: 3 * (10 + 3*2) = 48 RF/5s
+     * - 5 synergies: 5 * (10 + 5*2) = 100 RF/5s
+     * - 10 synergies: 10 * (10 + 10*2) = 300 RF/5s
+     *
+     * @param player 玩家
+     */
+    private void processSynergyEnergyMaintenance(EntityPlayer player) {
+        try {
+            // 获取玩家已激活的 Synergy
+            Set<String> activeSynergies = manager.getActivatedSynergiesForPlayer(player);
+            int synergyCount = activeSynergies.size();
+
+            // 无激活的 Synergy，无需消耗
+            if (synergyCount == 0) return;
+
+            // 计算能量消耗：递增式成本
+            int totalCost = synergyCount * (BASE_ENERGY_COST_PER_SYNERGY + synergyCount * SCALING_COST_PER_SYNERGY);
+
+            ExistingModuleBridge bridge = ExistingModuleBridge.getInstance();
+            int currentEnergy = bridge.getCurrentEnergy(player);
+            float energyPercent = bridge.getEnergyPercent(player);
+
+            // 检查能量是否足够
+            if (currentEnergy < totalCost) {
+                // 能量不足
+                if (AUTO_DEACTIVATE_ON_LOW_ENERGY) {
+                    // 自动停用所有 Synergy
+                    manager.deactivateAllSynergiesForPlayer(player);
+
+                    // 通知玩家
+                    player.sendStatusMessage(
+                            new TextComponentString(TextFormatting.RED + "[Synergy] " +
+                                    TextFormatting.YELLOW + "能量不足，所有协同效应已停用"),
+                            true);
+
+                    if (manager.isDebugMode()) {
+                        System.out.println("[Synergy] Deactivated all synergies for " + player.getName() +
+                                " due to insufficient energy (" + currentEnergy + "/" + totalCost + " RF)");
+                    }
+                }
+                return;
+            }
+
+            // 消耗能量
+            bridge.consumeEnergy(player, totalCost);
+
+            // 低能量警告
+            float newEnergyPercent = bridge.getEnergyPercent(player);
+            if (newEnergyPercent <= LOW_ENERGY_WARNING_THRESHOLD && energyPercent > LOW_ENERGY_WARNING_THRESHOLD) {
+                // 刚刚跌破警告阈值，提示玩家
+                player.sendStatusMessage(
+                        new TextComponentString(TextFormatting.GOLD + "[Synergy] " +
+                                TextFormatting.YELLOW + "能量低于 " + (int) LOW_ENERGY_WARNING_THRESHOLD + "%，协同效应消耗中..."),
+                        true);
+            }
+
+            if (manager.isDebugMode()) {
+                System.out.println("[Synergy] Energy maintenance: " + player.getName() +
+                        " | Synergies: " + synergyCount +
+                        " | Cost: " + totalCost + " RF" +
+                        " | Remaining: " + bridge.getCurrentEnergy(player) + " RF");
+            }
+
+        } catch (Exception e) {
+            if (manager.isDebugMode()) {
+                System.err.println("[Synergy] Error in energy maintenance: " + e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * 计算 Synergy 能量维护成本（供外部查询）
+     *
+     * @param synergyCount 激活的 Synergy 数量
+     * @return 每5秒的能量消耗
+     */
+    public static int calculateMaintenanceCost(int synergyCount) {
+        if (synergyCount <= 0) return 0;
+        return synergyCount * (BASE_ENERGY_COST_PER_SYNERGY + synergyCount * SCALING_COST_PER_SYNERGY);
+    }
+
+    /**
+     * 获取能量消耗间隔（tick）
+     */
+    public static int getEnergyDrainInterval() {
+        return ENERGY_DRAIN_INTERVAL;
     }
 
     /**

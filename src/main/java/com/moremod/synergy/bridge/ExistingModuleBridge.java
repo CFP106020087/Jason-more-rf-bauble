@@ -231,6 +231,27 @@ public class ExistingModuleBridge implements IModuleProvider {
     }
 
     /**
+     * 检查是否有足够的能量
+     *
+     * @param player 玩家
+     * @param amount 需要的能量
+     * @return true 如果能量足够
+     */
+    public boolean hasEnergy(@Nonnull EntityPlayer player, int amount) {
+        return getCurrentEnergy(player) >= amount;
+    }
+
+    /**
+     * 获取当前能量（getEnergy 别名）
+     *
+     * @param player 玩家
+     * @return 当前能量值
+     */
+    public int getEnergy(@Nonnull EntityPlayer player) {
+        return getCurrentEnergy(player);
+    }
+
+    /**
      * 获取当前能量
      *
      * @param player 玩家
