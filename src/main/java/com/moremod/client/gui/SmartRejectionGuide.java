@@ -184,7 +184,7 @@ public class SmartRejectionGuide extends Gui {
         showGuide(new GuideInfo(
                 "§5◈ 你已成为破碎之神 ◈", 400, 10,
                 "§7你的人性已完全消散...",
-                "§6基础: §f关机模式、暴击×2、真伤、畸变脉冲",
+                "§6基础: §f关机模式、畸变脉冲",
                 "§d遗物: §f攻速×3、生命偷取、处决、时停",
                 "§c代价: §7药水无效、NPC无视、链结站禁用",
                 "§b按 [" + keyName + "] 查看完整能力列表"
@@ -783,8 +783,6 @@ public class SmartRejectionGuide extends Gui {
         y = renderBrokenGodSection(centerX, y, fr, alphaInt, bgAlpha,
                 "§6【基础能力】", 0xFFAA00, new String[] {
             "§6• §f关机模式: §7濒死时进入20秒无敌",
-            "§6• §f暴击伤害×2: §7所有攻击",
-            "§6• §f真实伤害: §7部分伤害无视护甲",
             "§6• §f畸变脉冲: §7受重击自动反击"
         });
 
