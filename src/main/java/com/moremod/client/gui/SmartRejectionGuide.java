@@ -845,7 +845,7 @@ public class SmartRejectionGuide extends Gui {
         // ========== 破碎_终结 ==========
         y = renderBrokenGodSection(centerX, y, fr, alphaInt, bgAlpha,
                 "§4【破碎_终结】", 0xAA0000, new String[] {
-            "§4• §f所有伤害×2",
+            "§4• §f所有伤害×5",
             "§4• §f击杀回复5HP",
             "§4• §f击杀获得10吸收之心"
         });

@@ -180,8 +180,8 @@ public class BrokenRelicConfig {
             "Damage amplification multiplier"
     })
     @Config.Name("终结:伤害倍率 | Terminus: Damage Multiplier")
-    @Config.RangeDouble(min = 1.5, max = 3.0)
-    public static double terminusDamageMultiplier = 2.0;
+    @Config.RangeDouble(min = 1.5, max = 10.0)
+    public static double terminusDamageMultiplier = 5.0;
 
     @Config.Comment({
             "击杀回复HP",
