@@ -130,7 +130,7 @@ public class BrokenGodAscensionOverlay extends Gui {
             "承诺", "眼泪", "拥抱", "告别", "曾经", "爱"
     };
 
-    private static final String LAST_WORDS = "我不想消失...";
+    private static final String LAST_WORDS = "我不想忘记";
 
     static {
         SCRIPT.add(new MonologueLine(5, 40, LineType.HUMAN, "颜色... 在消失..."));
@@ -197,15 +197,12 @@ public class BrokenGodAscensionOverlay extends Gui {
         return isAnimating;
     }
 
-    /**
-     * 客户端 tick 事件 - 用于递增动画计时器
-     * 这确保动画按照游戏 tick (20/秒) 而非帧率运行
-     */
+    // ==================== TICK 逻辑 ====================
+
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (!isAnimating) return;
         if (event.phase != TickEvent.Phase.END) return;
-        // 暂停时不递增
         if (mc.isGamePaused()) return;
 
         animationTick++;
@@ -213,16 +210,6 @@ public class BrokenGodAscensionOverlay extends Gui {
         if (animationTick > TOTAL_DURATION) {
             isAnimating = false;
             animationTick = 0;
-        }
-    }
-
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public static void onRenderOverlay(RenderGameOverlayEvent.Pre event) {
-        if (!isAnimating) return;
-        if (event.getType() != RenderGameOverlayEvent.ElementType.ALL) return;
-
-        // 动画已结束时不渲染
-        if (animationTick > TOTAL_DURATION) {
             return;
         }
 
@@ -547,8 +534,8 @@ public class BrokenGodAscensionOverlay extends Gui {
 
     // ==================== 渲染逻辑 ====================
 
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public static void onRenderOverlay(RenderGameOverlayEvent.Pre event) {
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onRenderOverlay(RenderGameOverlayEvent.Post event) {
         if (!isAnimating) return;
         if (event.getType() != RenderGameOverlayEvent.ElementType.ALL) return;
         if (animationTick > TOTAL_DURATION) return;
@@ -558,6 +545,7 @@ public class BrokenGodAscensionOverlay extends Gui {
         int h = res.getScaledHeight();
 
         GlStateManager.pushMatrix();
+        GlStateManager.translate(0, 0, 800);
         GlStateManager.enableBlend();
         GlStateManager.tryBlendFuncSeparate(
                 GlStateManager.SourceFactor.SRC_ALPHA,
@@ -566,6 +554,7 @@ public class BrokenGodAscensionOverlay extends Gui {
                 GlStateManager.DestFactor.ZERO
         );
         GlStateManager.disableDepth();
+        GlStateManager.depthMask(false);
         GlStateManager.disableAlpha();
 
         // 全局震颤
@@ -602,7 +591,8 @@ public class BrokenGodAscensionOverlay extends Gui {
         }
 
         GlStateManager.enableAlpha();
-        GlStateManager.enableDepth();
+        GlStateManager.enableDepth(); // 恢复深度测试
+        GlStateManager.depthMask(true);
         GlStateManager.popMatrix();
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
     }

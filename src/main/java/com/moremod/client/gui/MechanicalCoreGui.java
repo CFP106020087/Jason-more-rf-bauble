@@ -807,16 +807,16 @@ public class MechanicalCoreGui extends GuiScreen {
 
         // 检测鼠标是否在触发区或侧边栏内
         boolean hoverTrigger = mouseX >= triggerX && mouseX <= triggerX + triggerW &&
-                               mouseY >= triggerY && mouseY <= triggerY + triggerH;
+                mouseY >= triggerY && mouseY <= triggerY + triggerH;
         boolean hoverPanel = mouseX >= panelX && mouseX <= panelX + SIDE_PANEL_WIDTH &&
-                             mouseY >= panelY && mouseY <= panelY + SIDE_PANEL_HEIGHT;
+                mouseY >= panelY && mouseY <= panelY + SIDE_PANEL_HEIGHT;
         boolean showPanel = hoverTrigger || hoverPanel;
 
         // 绘制触发标签（始终显示）
         int triggerColor = canAscend ? 0xC0442266 : 0xC0333333;
         int triggerHoverColor = canAscend ? 0xC0663388 : 0xC0444444;
         drawRect(triggerX, triggerY, triggerX + triggerW, triggerY + triggerH,
-                 (hoverTrigger || hoverPanel) ? triggerHoverColor : triggerColor);
+                (hoverTrigger || hoverPanel) ? triggerHoverColor : triggerColor);
 
         // 垂直文字 "升格" 或图标
         String label = canAscend ? "✦" : "▶";

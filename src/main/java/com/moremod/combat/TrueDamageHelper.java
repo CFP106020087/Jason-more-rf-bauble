@@ -6,20 +6,69 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.SoundEvents;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.EntityDamageSource;
+import net.minecraftforge.fml.relauncher.ReflectionHelper;
 
 import javax.annotation.Nullable;
+import java.lang.reflect.Field;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
 /**
  * 高级真伤系统
- * Advanced True Damage System
  */
 public class TrueDamageHelper {
 
     private static final Set<UUID> processingEntities = new HashSet<>();
     private static final ThreadLocal<Boolean> IN_TRUE_DAMAGE = ThreadLocal.withInitial(() -> false);
+
+    // ========== 反射字段 ==========
+    private static final Field recentlyHitField;
+    private static final Field attackingPlayerField;
+    private static final Field idleTimeField;
+    private static final Field lastDamageField;
+    private static final Field lastDamageSourceField;
+    private static final Field lastDamageStampField;
+
+    static {
+        try {
+            recentlyHitField = ReflectionHelper.findField(EntityLivingBase.class, "recentlyHit", "field_70718_bc");
+            attackingPlayerField = ReflectionHelper.findField(EntityLivingBase.class, "attackingPlayer", "field_70717_bb");
+            idleTimeField = ReflectionHelper.findField(EntityLivingBase.class, "idleTime", "field_70708_bq");
+            lastDamageField = ReflectionHelper.findField(EntityLivingBase.class, "lastDamage", "field_110153_bc");
+            lastDamageSourceField = ReflectionHelper.findField(EntityLivingBase.class, "lastDamageSource", "field_189750_bF");
+            lastDamageStampField = ReflectionHelper.findField(EntityLivingBase.class, "lastDamageStamp", "field_189751_bG");
+        } catch (Exception e) {
+            throw new RuntimeException("TrueDamageHelper: Failed to initialize reflection fields", e);
+        }
+    }
+
+    // ========== 反射工具方法 ==========
+    private static void setRecentlyHit(EntityLivingBase entity, int value) {
+        try { recentlyHitField.setInt(entity, value); } catch (Exception ignored) {}
+    }
+
+    private static void setAttackingPlayer(EntityLivingBase entity, EntityPlayer player) {
+        try { attackingPlayerField.set(entity, player); } catch (Exception ignored) {}
+    }
+
+    private static void setIdleTime(EntityLivingBase entity, int value) {
+        try { idleTimeField.setInt(entity, value); } catch (Exception ignored) {}
+    }
+
+    private static void setLastDamage(EntityLivingBase entity, float value) {
+        try { lastDamageField.setFloat(entity, value); } catch (Exception ignored) {}
+    }
+
+    private static void setLastDamageSource(EntityLivingBase entity, DamageSource source) {
+        try { lastDamageSourceField.set(entity, source); } catch (Exception ignored) {}
+    }
+
+    private static void setLastDamageStamp(EntityLivingBase entity, long stamp) {
+        try { lastDamageStampField.setLong(entity, stamp); } catch (Exception ignored) {}
+    }
+
+    // ========== 原有逻辑 ==========
 
     public enum TrueDamageFlag {
         PHANTOM_TWIN,
@@ -42,16 +91,13 @@ public class TrueDamageHelper {
     public static boolean applyWrappedTrueDamage(EntityLivingBase target,
                                                  @Nullable Entity source,
                                                  float trueDamage,
-                                                 TrueDamageFlag flag) {
+                                                 @SuppressWarnings("unused") TrueDamageFlag flag) {
         if (target == null || target.world.isRemote) return false;
         if (trueDamage <= 0) return false;
         if (target.isDead) return false;
 
         UUID targetId = target.getUniqueID();
-
-        if (processingEntities.contains(targetId)) {
-            return false;
-        }
+        if (processingEntities.contains(targetId)) return false;
 
         try {
             processingEntities.add(targetId);
@@ -66,53 +112,43 @@ public class TrueDamageHelper {
         }
     }
 
-    /**
-     * 包装的伤害处理 - 模拟完整战斗流程
-     *
-     * 严格遵守 Minecraft 1.12.2 死亡流程：
-     * - 不调用 attackEntityFrom()
-     * - 不调用两次 onDeath()
-     * - 不设置 victim.dead = true（由 vanilla 自己设）
-     * - 使用 setHealth(0F) + onKillCommand() 触发完整死亡链
-     */
     private static boolean doWrappedHurt(EntityLivingBase victim, @Nullable Entity attacker,
                                          DamageSource source, float amount) {
-        if (victim.world.isRemote) return false;
-        if (victim.isDead) return false;
+        if (victim.world.isRemote || victim.isDead) return false;
 
-        // ========== 1. 唤醒睡眠中的玩家 ==========
+        // 1. 唤醒睡眠玩家
         if (victim.isPlayerSleeping() && victim instanceof EntityPlayer) {
             ((EntityPlayer) victim).wakeUpPlayer(true, true, false);
         }
 
-        // ========== 2. 设置攻击者归属（关键：确保掉落物、经验、统计正常） ==========
+        // 2. 设置攻击者归属
         if (attacker != null) {
             if (attacker instanceof EntityLivingBase) {
                 victim.setRevengeTarget((EntityLivingBase) attacker);
             }
             if (attacker instanceof EntityPlayer) {
-                victim.recentlyHit = 100;  // 必须设置，否则没有玩家击杀掉落和经验
-                victim.attackingPlayer = (EntityPlayer) attacker;
+                setRecentlyHit(victim, 100);
+                setAttackingPlayer(victim, (EntityPlayer) attacker);
             }
         }
 
-        // ========== 3. 设置战斗相关字段 ==========
-        victim.idleTime = 0;
-        victim.lastDamage = amount;
+        // 3. 设置战斗相关字段
+        setIdleTime(victim, 0);
+        setLastDamage(victim, amount);
         victim.hurtResistantTime = victim.maxHurtResistantTime;
 
-        // 设置受击动画
+        // 受击动画
         victim.maxHurtTime = 10;
         victim.hurtTime = victim.maxHurtTime;
 
-        // ========== 4. 记录到战斗追踪器（用于死亡信息） ==========
+        // 4. 记录到战斗追踪器
         float healthBefore = victim.getHealth();
         victim.getCombatTracker().trackDamage(source, healthBefore, amount);
 
-        // ========== 5. 计算新血量 ==========
+        // 5. 计算新血量
         float newHealth = healthBefore - amount;
 
-        // ========== 6. 击退效果 ==========
+        // 6. 击退效果
         if (attacker != null) {
             double dx = attacker.posX - victim.posX;
             double dz = attacker.posZ - victim.posZ;
@@ -123,43 +159,33 @@ public class TrueDamageHelper {
             victim.knockBack(attacker, 0.4F, dx, dz);
         }
 
-        // ========== 7. 播放受击音效 ==========
+        // 7. 播放受击音效
         victim.playSound(SoundEvents.ENTITY_GENERIC_HURT, 1.0F,
                 (victim.world.rand.nextFloat() - victim.world.rand.nextFloat()) * 0.2F + 1.0F);
 
-        // ========== 8. 记录最后伤害源 ==========
-        victim.lastDamageSource = source;
-        victim.lastDamageStamp = victim.world.getTotalWorldTime();
+        // 8. 记录最后伤害源
+        setLastDamageSource(victim, source);
+        setLastDamageStamp(victim, victim.world.getTotalWorldTime());
 
-        // ========== 9. 应用伤害并处理死亡 ==========
+        // 9. 应用伤害并处理死亡
         if (newHealth <= 0) {
-            // 触发完整的 vanilla 死亡链
-            triggerVanillaDeathChain(victim, source);
+            triggerVanillaDeathChain(victim);
         } else {
-            // 普通伤害，只设置血量
             victim.setHealth(newHealth);
         }
 
         return true;
     }
 
-    /**
-     * 触发完整的 vanilla 死亡链
-     *
-     * 攻击者归属（recentlyHit, attackingPlayer）已在调用方设置
-     */
-    private static void triggerVanillaDeathChain(EntityLivingBase victim, DamageSource source) {
+    private static void triggerVanillaDeathChain(EntityLivingBase victim) {
         if (victim.isDead) return;
-
-        // 设置血量为 0，然后让 onKillCommand 触发完整的 vanilla 死亡链
         victim.setHealth(0F);
         victim.onKillCommand();
     }
 
     public static boolean applyExecuteDamage(EntityLivingBase target, @Nullable Entity source) {
         if (target == null || target.world.isRemote) return false;
-        float executeDamage = target.getHealth() + 100f;
-        return applyWrappedTrueDamage(target, source, executeDamage, TrueDamageFlag.EXECUTE);
+        return applyWrappedTrueDamage(target, source, target.getHealth() + 100f, TrueDamageFlag.EXECUTE);
     }
 
     public static boolean isProcessingTrueDamage(EntityLivingBase entity) {
@@ -175,7 +201,6 @@ public class TrueDamageHelper {
     }
 
     public static float calculateArmorBypassDamage(float baseDamage, float armorIgnorePercent) {
-        float bonusMultiplier = 1.0f + (armorIgnorePercent * 0.4f);
-        return baseDamage * bonusMultiplier;
+        return baseDamage * (1.0f + (armorIgnorePercent * 0.4f));
     }
 }

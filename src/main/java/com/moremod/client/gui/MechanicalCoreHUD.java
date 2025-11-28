@@ -3,14 +3,12 @@ package com.moremod.client.gui;
 import com.moremod.client.KeyBindHandler;
 import com.moremod.item.ItemMechanicalCore;
 import com.moremod.item.UpgradeType;
-import com.moremod.upgrades.WaterproofUpgrade;
-import com.moremod.upgrades.WetnessSystem;
 import com.moremod.system.humanity.HumanityCapabilityHandler;
 import com.moremod.system.humanity.IHumanityData;
 import com.moremod.system.humanity.AscensionRoute;
 import com.moremod.config.MechanicalCoreHUDConfig;
-import com.moremod.config.FleshRejectionConfig;
 import com.moremod.upgrades.energy.EnergyDepletionManager;
+import com.moremod.upgrades.WetnessSystem;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
@@ -28,22 +26,23 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 
 import java.util.*;
 
-import static com.moremod.config.EnergyBalanceConfig.ExtendedUpgrades.NIGHT_VISION;
-
 /**
- * 机械核心HUD - Cyber Dashboard Edition (Compilation Fixed)
- * * 修复：移除了不存在的 UpgradeType 枚举引用 (AUTO_FEEDER, OXYGEN_SUPPLY 等)
- * * 修复：清理了未使用的 import
+ * 机械核心HUD - Smart Holographic Edition (Final)
+ * * 融合特性：
+ * 1. 视觉：全息科技风格 (Holographic Tech)
+ * 2. 布局：智能高度计算 + 锚点自适应 (Smart Anchor)
+ * 3. 逻辑：万能 NBT 读取
  */
 @SideOnly(Side.CLIENT)
 public class MechanicalCoreHUD extends Gui {
 
     private static final Minecraft mc = Minecraft.getMinecraft();
 
-    // 布局常量
-    private static final int PANEL_PADDING = 4;
-    private static final int BAR_HEIGHT = 3;
-    private static final int MODULE_PANEL_OFFSET = 2;
+    // 视觉常量
+    private static final int MAIN_PANEL_WIDTH = 150; // 宽面板适配中文
+    private static final int PANEL_PADDING = 5;
+    private static final int BAR_HEIGHT = 4;
+    private static final int MODULE_PANEL_OFFSET = 3;
 
     // 能量流追踪
     private static class EnergyTracker {
@@ -64,9 +63,7 @@ public class MechanicalCoreHUD extends Gui {
                 if (currentTick > lastUpdateTick) {
                     int energyDiff = currentEnergy - lastEnergy;
                     energySamples.offer(energyDiff);
-                    while (energySamples.size() > SAMPLE_SIZE) {
-                        energySamples.poll();
-                    }
+                    while (energySamples.size() > SAMPLE_SIZE) energySamples.poll();
                     if (!energySamples.isEmpty()) {
                         int sum = 0;
                         for (int sample : energySamples) sum += sample;
@@ -75,11 +72,8 @@ public class MechanicalCoreHUD extends Gui {
                     lastEnergy = currentEnergy;
                     lastUpdateTick = currentTick;
                 }
-            } catch (Exception e) {
-                reset();
-            }
+            } catch (Exception e) { reset(); }
         }
-
         public static int getNetFlow() { return currentNetFlow; }
         public static void reset() { energySamples.clear(); lastEnergy = -1; currentNetFlow = 0; lastUpdateTick = 0; }
     }
@@ -106,104 +100,211 @@ public class MechanicalCoreHUD extends Gui {
         EnergyTracker.update(energy.getEnergyStored());
         animationTick++;
 
-        renderDashboard(coreStack, energy, player);
+        renderSmartDashboard(coreStack, energy, player);
     }
 
-    private void renderDashboard(ItemStack coreStack, IEnergyStorage energy, EntityPlayer player) {
+    /**
+     * 智能渲染入口：先计算尺寸，再决定位置
+     */
+    private void renderSmartDashboard(ItemStack coreStack, IEnergyStorage energy, EntityPlayer player) {
         ScaledResolution resolution = new ScaledResolution(mc);
         FontRenderer fr = mc.fontRenderer;
 
-        int startX = calculateHudX(resolution);
-        int startY = calculateHudY(resolution);
+        // 1. 预计算高度 (Pre-calculate Height)
+        // 只有先算出高度，才能在 BOTTOM 模式下正确向上推
+        int mainHeight = calculateMainPanelHeight(coreStack, player);
 
-        GlStateManager.pushMatrix();
-        GlStateManager.scale(MechanicalCoreHUDConfig.scale, MechanicalCoreHUDConfig.scale, 1.0);
-        startX = (int)(startX / MechanicalCoreHUDConfig.scale);
-        startY = (int)(startY / MechanicalCoreHUDConfig.scale);
-
-        int mainPanelWidth = 110;
-
-        List<String> rightPanelLines = new ArrayList<>();
+        // 2. 准备模组列表
+        List<String> moduleLines = new ArrayList<>();
         if (MechanicalCoreHUDConfig.showActiveUpgrades) {
-            collectActiveUpgrades(rightPanelLines, coreStack, player);
+            collectActiveUpgrades(moduleLines, coreStack, player);
         }
 
-        renderMainPanel(startX, startY, mainPanelWidth, coreStack, energy, player, fr);
+        int moduleWidth = 0;
+        int moduleHeight = 0;
+        if (!moduleLines.isEmpty()) {
+            int maxW = 80;
+            for (String line : moduleLines) {
+                int w = fr.getStringWidth(line);
+                if (w > maxW) maxW = w;
+            }
+            moduleWidth = maxW + (PANEL_PADDING * 2);
 
-        if (!rightPanelLines.isEmpty()) {
-            int rightPanelX = startX + mainPanelWidth + MODULE_PANEL_OFFSET;
-            renderModulePanel(rightPanelX, startY, rightPanelLines, fr);
+            int maxLines = MechanicalCoreHUDConfig.getCurrentMaxDisplayUpgrades();
+            int displayCount = Math.min(moduleLines.size(), maxLines + (moduleLines.size() > maxLines ? 1 : 0));
+            moduleHeight = (displayCount * 10) + (PANEL_PADDING * 2);
+        }
+
+        // 3. 坐标计算 (Smart Positioning)
+        double scale = MechanicalCoreHUDConfig.scale;
+        int screenW = (int)(resolution.getScaledWidth() / scale);
+        int screenH = (int)(resolution.getScaledHeight() / scale);
+
+        int xOffset = MechanicalCoreHUDConfig.xOffset;
+        int yOffset = MechanicalCoreHUDConfig.yOffset;
+
+        int mainX = 0, mainY = 0;
+        int moduleX = 0, moduleY = 0;
+        boolean anchorRight = false;
+
+        switch (MechanicalCoreHUDConfig.position) {
+            case TOP_LEFT:
+                mainX = xOffset + 5;
+                mainY = yOffset + 5;
+                break;
+            case TOP_RIGHT:
+                mainX = screenW - MAIN_PANEL_WIDTH - xOffset - 5;
+                mainY = yOffset + 5;
+                anchorRight = true;
+                break;
+            case BOTTOM_LEFT:
+                mainX = xOffset + 5;
+                // 智能高度：屏幕底 - 偏移 - 面板高 = 顶端Y
+                mainY = screenH - yOffset - mainHeight - 5;
+                break;
+            case BOTTOM_RIGHT:
+                mainX = screenW - MAIN_PANEL_WIDTH - xOffset - 5;
+                mainY = screenH - yOffset - mainHeight - 5;
+                anchorRight = true;
+                break;
+            case CUSTOM:
+                mainX = xOffset;
+                mainY = yOffset;
+                break;
+        }
+
+        // 计算模组面板位置
+        if (anchorRight) {
+            // 右对齐模式：模组面板在主面板左侧
+            moduleX = mainX - MODULE_PANEL_OFFSET - moduleWidth;
+        } else {
+            // 左对齐模式：模组面板在主面板右侧
+            moduleX = mainX + MAIN_PANEL_WIDTH + MODULE_PANEL_OFFSET;
+        }
+
+        // 模组面板垂直对齐：如果底部对齐，则底部对齐；否则顶部对齐
+        if (MechanicalCoreHUDConfig.position == MechanicalCoreHUDConfig.HUDPosition.BOTTOM_LEFT ||
+                MechanicalCoreHUDConfig.position == MechanicalCoreHUDConfig.HUDPosition.BOTTOM_RIGHT) {
+            moduleY = mainY + mainHeight - moduleHeight; // 底对齐
+        } else {
+            moduleY = mainY; // 顶对齐
+        }
+
+        // 4. 开始渲染
+        GlStateManager.pushMatrix();
+        GlStateManager.scale(scale, scale, 1.0);
+
+        renderMainPanelContent(mainX, mainY, MAIN_PANEL_WIDTH, mainHeight, coreStack, energy, player, fr);
+
+        if (!moduleLines.isEmpty()) {
+            renderModulePanelContent(moduleX, moduleY, moduleWidth, moduleHeight, moduleLines, fr);
         }
 
         GlStateManager.popMatrix();
     }
 
-    private int renderMainPanel(int x, int y, int width, ItemStack coreStack, IEnergyStorage energy, EntityPlayer player, FontRenderer fr) {
-        int height = 28;
-
-        EnergyDepletionManager.EnergyStatus energyStatus = getLocalEnergyStatus(energy);
+    /**
+     * 纯计算：主面板高度
+     */
+    private int calculateMainPanelHeight(ItemStack coreStack, EntityPlayer player) {
+        // 基础: Padding + Title(11) + EnergyBar(6) + EnergyVal(8) + Padding
+        int height = 35;
 
         float rejection = getClientRejectionLevel(coreStack);
         boolean transcended = getClientTranscendedStatus(coreStack);
-        boolean showRejection = !transcended && rejection > 0;
-
         int wetness = WetnessSystem.getWetness(player);
-        boolean showWetness = wetness > 0;
 
         boolean shouldShowHumanitySystem = transcended && rejection <= 0;
         IHumanityData humanityData = HumanityCapabilityHandler.getData(player);
         boolean showHumanity = shouldShowHumanitySystem && humanityData != null;
 
-        if (showRejection) height += 18;
-        if (showWetness) height += 18;
-        if (showHumanity) height += 18;
-        if (MechanicalCoreHUDConfig.showEnergyFlow) height += 10;
-        if (MechanicalCoreHUDConfig.showEfficiency) height += 10;
-        if (transcended && !shouldShowHumanitySystem) height += 10;
+        boolean showRejection = rejection > 0 || (!transcended && rejection > 0);
 
-        drawCyberPanel(x, y, width, height, energyStatus);
+        height += 16; // 身份状态栏
+
+        // 每个模块: Gap(2/4) + Title(10) + Bar(8) = ~20-22
+        if (showRejection) height += 22;
+        if (wetness > 0) height += 22;
+        if (showHumanity) height += 22;
+        if (MechanicalCoreHUDConfig.showEnergyFlow) height += 14;
+        if (MechanicalCoreHUDConfig.showEfficiency) height += 14;
+
+        height += 5; // 底部留白
+        return height;
+    }
+
+    private void renderMainPanelContent(int x, int y, int width, int height, ItemStack coreStack, IEnergyStorage energy, EntityPlayer player, FontRenderer fr) {
+        EnergyDepletionManager.EnergyStatus energyStatus = getLocalEnergyStatus(energy);
+
+        // 绘制全息背景
+        drawHoloPanel(x, y, width, height, energyStatus);
 
         int currentY = y + PANEL_PADDING;
         int contentWidth = width - (PANEL_PADDING * 2);
         int contentX = x + PANEL_PADDING;
 
-        // Title
-        String title = TextFormatting.AQUA + "◆ 核心状态";
+        // [1] Title
+        String title = TextFormatting.AQUA + "" + TextFormatting.BOLD + "CORE SYSTEM";
         if (energyStatus != EnergyDepletionManager.EnergyStatus.NORMAL) {
             title = energyStatus.color + "⚠ " + energyStatus.displayName;
         }
         fr.drawStringWithShadow(title, contentX, currentY, 0xFFFFFF);
 
-        // Energy %
         float energyPercent = (float)energy.getEnergyStored() / energy.getMaxEnergyStored();
         String percentText = (int)(energyPercent * 100) + "%";
         drawRightAlignedString(percentText, contentX + contentWidth, currentY, getEnergyColor(energyPercent), fr);
 
-        currentY += 10;
+        currentY += 11;
 
-        // Energy Bar
-        drawStyledBar(contentX, currentY, contentWidth, BAR_HEIGHT, energyPercent, getEnergyColor(energyPercent));
-        currentY += 5;
+        // [2] Energy Bar
+        drawGlossyBar(contentX, currentY, contentWidth, BAR_HEIGHT, energyPercent, getEnergyColor(energyPercent));
+        currentY += 6;
 
-        // Energy Val
         String energyVal = formatEnergy(energy.getEnergyStored()) + " RF";
-        fr.drawStringWithShadow(TextFormatting.GRAY + energyVal, contentX, currentY, 0xAAAAAA);
-        currentY += 10;
+        GlStateManager.pushMatrix();
+        GlStateManager.scale(0.8, 0.8, 1);
+        fr.drawString(TextFormatting.GRAY + energyVal, (int)(contentX / 0.8), (int)(currentY / 0.8), 0xAAAAAA);
+        GlStateManager.popMatrix();
 
-        // Wetness
-        if (showWetness) {
+        currentY += 8;
+
+        // [3] Status
+        currentY += 4;
+        boolean transcended = getClientTranscendedStatus(coreStack);
+        IHumanityData humanityData = HumanityCapabilityHandler.getData(player);
+
+        String statusText = "👤 凡人";
+        TextFormatting statusColor = TextFormatting.GRAY;
+        if (transcended) {
+            statusText = "⚙ 机械飞升";
+            statusColor = TextFormatting.LIGHT_PURPLE;
+            if (humanityData != null && humanityData.getAscensionRoute() == AscensionRoute.BROKEN_GOD) {
+                statusText = "۞ 破碎之神";
+                statusColor = TextFormatting.DARK_PURPLE;
+            }
+        }
+        drawSeparator(contentX, currentY - 2, contentWidth);
+        fr.drawStringWithShadow("状态: " + statusColor + statusText, contentX, currentY, 0xDDDDDD);
+        currentY += 12;
+
+        // [4] Wetness
+        int wetness = WetnessSystem.getWetness(player);
+        if (wetness > 0) {
             currentY += 2;
             String wetIcon = (wetness >= 80 ? TextFormatting.RED : (wetness >= 30 ? TextFormatting.YELLOW : TextFormatting.AQUA)) + "💧";
-            fr.drawStringWithShadow(wetIcon + " 潮湿", contentX, currentY, 0xFFFFFF);
+            fr.drawStringWithShadow(wetIcon + " 潮湿积聚", contentX, currentY, 0xFFFFFF);
             drawRightAlignedString(wetness + "%", contentX + contentWidth, currentY, 0xFFFFFF, fr);
 
             currentY += 10;
             int barColor = wetness >= 80 ? 0xFFFF5555 : 0xFF55FFFF;
-            drawStyledBar(contentX, currentY, contentWidth, BAR_HEIGHT, wetness / 100f, barColor);
-            currentY += 6;
+            drawGlossyBar(contentX, currentY, contentWidth, BAR_HEIGHT, wetness / 100f, barColor);
+            currentY += 10;
         }
 
-        // Rejection
+        // [5] Rejection
+        float rejection = getClientRejectionLevel(coreStack);
+        boolean showRejection = rejection > 0 || (!transcended && rejection > 0);
+
         if (showRejection) {
             currentY += 2;
             String rejIcon = (rejection >= 60 ? TextFormatting.RED : TextFormatting.GOLD) + "⚠";
@@ -212,65 +313,55 @@ public class MechanicalCoreHUD extends Gui {
 
             currentY += 10;
             int rejColor = rejection >= 60 ? 0xFFFF0000 : 0xFFFFAA00;
-            drawStyledBar(contentX, currentY, contentWidth, BAR_HEIGHT, rejection / 100f, rejColor);
-            currentY += 6;
-        } else if (transcended && !shouldShowHumanitySystem) {
-            currentY += 2;
-            fr.drawStringWithShadow(TextFormatting.GREEN + "✓ 机体适应完成", contentX, currentY, 0xFFFFFF);
+            drawGlossyBar(contentX, currentY, contentWidth, BAR_HEIGHT, rejection / 100f, rejColor);
             currentY += 10;
         }
 
-        // Humanity
+        // [6] Humanity
+        boolean shouldShowHumanitySystem = transcended && rejection <= 0;
+        boolean showHumanity = shouldShowHumanitySystem && humanityData != null;
+
         if (showHumanity) {
             currentY += 2;
             float hVal = humanityData.getHumanity();
-            int hColor = getHumanityBarColor(hVal, humanityData.getAscensionRoute());
+            AscensionRoute route = humanityData.getAscensionRoute();
+            int hColor = getHumanityBarColor(hVal, route);
+            String hTitle = (route == AscensionRoute.BROKEN_GOD) ? "⚛ 神性" : "⚛ 人性";
 
-            fr.drawStringWithShadow(TextFormatting.LIGHT_PURPLE + "⚛ 人性锚点", contentX, currentY, 0xFFFFFF);
+            fr.drawStringWithShadow(TextFormatting.LIGHT_PURPLE + hTitle, contentX, currentY, 0xFFFFFF);
             drawRightAlignedString((int)hVal + "%", contentX + contentWidth, currentY, 0xFFFFFF, fr);
 
             currentY += 10;
-            drawStyledBar(contentX, currentY, contentWidth, BAR_HEIGHT, hVal / 100f, hColor);
-            currentY += 6;
+            drawGlossyBar(contentX, currentY, contentWidth, BAR_HEIGHT, hVal / 100f, hColor);
+            currentY += 10;
         }
 
-        // Energy Flow
+        // [7] Energy Flow
         if (MechanicalCoreHUDConfig.showEnergyFlow) {
-            currentY += 2;
+            currentY += 4;
             int netFlow = EnergyTracker.getNetFlow();
             String arrow = netFlow >= 0 ? TextFormatting.GREEN + "▲" : TextFormatting.RED + "▼";
             String flowText = arrow + " " + Math.abs(netFlow) + " RF/t";
             fr.drawStringWithShadow(flowText, contentX, currentY, 0xFFFFFF);
-            currentY += 10;
+            currentY += 12;
         }
 
-        // Efficiency
+        // [8] Efficiency
         if (MechanicalCoreHUDConfig.showEfficiency) {
-            int efficiencyLevel = getLocalUpgradeLevel(coreStack, UpgradeType.ENERGY_EFFICIENCY);
-            if (efficiencyLevel > 0) {
-                int efficiencyPercent = efficiencyLevel * 15;
-                TextFormatting color = TextFormatting.GREEN;
-                if (efficiencyPercent >= 60) color = TextFormatting.GOLD;
-                fr.drawStringWithShadow(color + "⚡ 效率: -" + efficiencyPercent + "%", contentX, currentY, 0xFFFFFF);
-                currentY += 10;
+            int effLvl = getTargetedUpgradeLevel(coreStack, UpgradeType.ENERGY_EFFICIENCY);
+            if (effLvl > 0) {
+                int effPct = effLvl * 15;
+                TextFormatting color = effPct >= 60 ? TextFormatting.GOLD : TextFormatting.GREEN;
+                fr.drawStringWithShadow(color + "⚡ 效率: -" + effPct + "%", contentX, currentY, 0xFFFFFF);
             }
         }
-
-        return height;
     }
 
-    private void renderModulePanel(int x, int y, List<String> lines, FontRenderer fr) {
-        if (lines.isEmpty()) return;
-
-        int maxWidth = 80;
-        for (String line : lines) {
-            int w = fr.getStringWidth(line);
-            if (w > maxWidth) maxWidth = w;
-        }
-        int width = maxWidth + (PANEL_PADDING * 2);
-
+    private void renderModulePanelContent(int x, int y, int width, int height, List<String> lines, FontRenderer fr) {
+        // 滚动逻辑
         int maxLines = MechanicalCoreHUDConfig.getCurrentMaxDisplayUpgrades();
         int scrollOffset = KeyBindHandler.getScrollOffset();
+        List<String> displayList = lines;
 
         if (lines.size() > maxLines) {
             if (scrollOffset >= lines.size()) {
@@ -278,64 +369,81 @@ public class MechanicalCoreHUD extends Gui {
                 KeyBindHandler.resetScrollOffset();
             }
             int endIndex = Math.min(scrollOffset + maxLines, lines.size());
-            List<String> subList = new ArrayList<>(lines.subList(scrollOffset, endIndex));
-            subList.add(TextFormatting.DARK_GRAY + "... (" + (scrollOffset+1) + "-" + endIndex + ")");
-            lines = subList;
+            displayList = new ArrayList<>(lines.subList(scrollOffset, endIndex));
+            displayList.add(TextFormatting.DARK_GRAY + "...");
         }
 
-        int height = (lines.size() * 10) + (PANEL_PADDING * 2);
-
-        drawCyberPanel(x, y, width, height, EnergyDepletionManager.EnergyStatus.NORMAL);
+        drawHoloPanel(x, y, width, height, EnergyDepletionManager.EnergyStatus.NORMAL);
 
         int currentY = y + PANEL_PADDING;
         int contentX = x + PANEL_PADDING;
 
-        for (String line : lines) {
+        for (String line : displayList) {
             fr.drawStringWithShadow(line, contentX, currentY, 0xFFFFFF);
             currentY += 10;
         }
     }
 
-    private void drawCyberPanel(int x, int y, int width, int height, EnergyDepletionManager.EnergyStatus status) {
-        drawRect(x, y, x + width, y + height, 0xCC000000);
+    // ==================== 视觉核心 ====================
 
-        int borderColor = 0xFF00AAAA;
+    private void drawHoloPanel(int x, int y, int width, int height, EnergyDepletionManager.EnergyStatus status) {
+        // 背景渐变
+        int colorTop = 0xCC051020;
+        int colorBottom = 0xE6000000;
+        drawGradientRect(x, y, x + width, y + height, colorTop, colorBottom);
+
+        int borderColor = 0xFF00FFFF;
         if (status == EnergyDepletionManager.EnergyStatus.CRITICAL) borderColor = 0xFFFF0000;
         else if (status == EnergyDepletionManager.EnergyStatus.EMERGENCY) borderColor = 0xFFFF5500;
         else if (status == EnergyDepletionManager.EnergyStatus.POWER_SAVING) borderColor = 0xFFFFAA00;
 
+        // 边框
         drawRect(x, y, x + 2, y + height, borderColor);
+        drawRect(x, y, x + 1, y + height, 0x80FFFFFF);
+
         drawRect(x + 2, y, x + width, y + 1, borderColor);
         drawRect(x + 2, y + height - 1, x + width, y + height, borderColor);
-        drawRect(x + width - 1, y, x + width, y + height, borderColor);
-        drawRect(x + width - 5, y, x + width, y + 5, borderColor);
+        drawRect(x + width - 1, y, x + width, y + height - 5, borderColor);
+
+        drawRect(x + width - 4, y, x + width, y + 4, borderColor);
+        drawRect(x, y + height - 4, x + 4, y + height, borderColor);
     }
 
-    private void drawStyledBar(int x, int y, int width, int height, float percent, int color) {
-        drawRect(x, y, x + width, y + height, 0xFF222222);
+    private void drawGlossyBar(int x, int y, int width, int height, float percent, int color) {
+        drawRect(x, y, x + width, y + height, 0xFF111111);
         if (percent > 0) {
             int fillW = (int)(width * percent);
             drawRect(x, y, x + fillW, y + height, color);
-            drawRect(x, y, x + fillW, y + 1, 0x40FFFFFF);
+            drawRect(x, y, x + fillW, y + height / 2, 0x50FFFFFF);
+            drawRect(x, y + height - 1, x + fillW, y + height, 0x40000000);
         }
     }
 
-    private void collectActiveUpgrades(List<String> list, ItemStack coreStack, EntityPlayer player) {
-        NBTTagCompound nbt = coreStack.getTagCompound();
-        if (nbt == null) nbt = new NBTTagCompound();
+    private void drawSeparator(int x, int y, int width) {
+        drawRect(x, y, x + width, y + 1, 0x4000AAAA);
+    }
 
-        if (nbt.getBoolean("FlightModuleEnabled") && !nbt.getBoolean("Disabled_FLIGHT_MODULE")) {
+    private void drawRightAlignedString(String text, int x, int y, int color, FontRenderer fr) {
+        fr.drawStringWithShadow(text, x - fr.getStringWidth(text), y, color);
+    }
+
+    // ==================== 逻辑方法 ====================
+
+    private void collectActiveUpgrades(List<String> list, ItemStack coreStack, EntityPlayer player) {
+        if (!coreStack.hasTagCompound()) return;
+        NBTTagCompound nbt = coreStack.getTagCompound();
+
+        if (nbt.getBoolean("HasUpgrade_FLIGHT_MODULE")) {
             String txt = TextFormatting.LIGHT_PURPLE + "✈ 飞行";
             if (nbt.getBoolean("FlightHoverMode")) txt += " [悬停]";
-            list.add(txt);
+            if (nbt.getBoolean("FlightModuleEnabled")) list.add(txt);
+            else list.add(TextFormatting.GRAY + "✈ 飞行 (关)");
         }
 
         for (UpgradeType type : UpgradeType.values()) {
             if (type == UpgradeType.FLIGHT_MODULE) continue;
-
-            int lvl = getLocalUpgradeLevel(coreStack, type);
+            int lvl = getTargetedUpgradeLevel(coreStack, type);
             String id = type.name();
-
             if (lvl > 0 && !nbt.getBoolean("Disabled_" + id)) {
                 String info = getSimpleUpgradeText(type, lvl, player, nbt);
                 if (info != null) list.add(info);
@@ -343,26 +451,40 @@ public class MechanicalCoreHUD extends Gui {
         }
     }
 
+    private int getTargetedUpgradeLevel(ItemStack stack, UpgradeType type) {
+        if (stack.isEmpty() || !stack.hasTagCompound()) return 0;
+        NBTTagCompound nbt = stack.getTagCompound();
+        String rawName = type.name();
+        String lowerKey = "upgrade_" + rawName.toLowerCase();
+        if (nbt.hasKey(lowerKey)) return nbt.getInteger(lowerKey);
+        String hasKey = "HasUpgrade_" + rawName;
+        if (nbt.hasKey(hasKey)) return nbt.getBoolean(hasKey) ? 1 : 0;
+        String upperKey = "upgrade_" + rawName;
+        if (nbt.hasKey(upperKey)) return nbt.getInteger(upperKey);
+        if (nbt.hasKey(rawName.toLowerCase())) return nbt.getInteger(rawName.toLowerCase());
+        return 0;
+    }
+
     private String getSimpleUpgradeText(UpgradeType type, int level, EntityPlayer player, NBTTagCompound nbt) {
         TextFormatting c = type.getColor();
         switch (type) {
             case SPEED_BOOST: if(player.isSprinting()) return c + "⚡ 加速"; break;
-            case MOVEMENT_SPEED: if(player.isSprinting()) return c + "⚡ 移速"; break;
+            case MOVEMENT_SPEED: return c + "⚡ 移速 " + level;
             case SHIELD_GENERATOR:
             case YELLOW_SHIELD:
                 if(player.getAbsorptionAmount()>0) return c + "🛡 护盾 " + (int)player.getAbsorptionAmount();
                 break;
             case FIRE_EXTINGUISH: if(player.isBurning()) return c + "🔥 灭火中"; break;
             case WATERPROOF_MODULE: if(player.isInWater()) return c + "💧 防水"; break;
-            case ORE_VISION: if(nbt.getBoolean("OreVisionActive")) return c + "⛏ 矿视"; break;
+            case ORE_VISION: return c + "⛏ 矿视";
             case STEALTH:
-                if(player.isInvisible() || nbt.getBoolean("StealthActive")) return c + "👻 隐形";
+                if(player.isInvisible()) return c + "👻 隐形";
                 break;
             case HUNGER_THIRST:
                 if(player.getFoodStats().getFoodLevel()<20) return c + "🍖 补给";
                 break;
             case KINETIC_GENERATOR:
-                if(Math.abs(player.motionX) > 0.01 || Math.abs(player.motionZ) > 0.01) return c + "⚙ 动能发电";
+                if(Math.abs(player.motionX) > 0.01 || Math.abs(player.motionZ) > 0.01) return c + "⚙ 动能";
                 break;
             case SOLAR_GENERATOR:
                 if(mc.world.isDaytime() && mc.world.canSeeSky(player.getPosition())) return c + "☀ 太阳能";
@@ -384,44 +506,18 @@ public class MechanicalCoreHUD extends Gui {
         return null;
     }
 
-    // ========== 修复后的本地数据获取方法 ==========
-
-    private int getLocalUpgradeLevel(ItemStack stack, UpgradeType type) {
-        if (stack.isEmpty() || !stack.hasTagCompound()) return 0;
-        NBTTagCompound nbt = stack.getTagCompound();
-
-        String key = "Upgrade_" + type.name();
-        if (nbt.hasKey(key)) return nbt.getInteger(key);
-
-        if (nbt.hasKey("Upgrades")) {
-            NBTTagCompound upgrades = nbt.getCompoundTag("Upgrades");
-            if (upgrades.hasKey(type.name())) return upgrades.getInteger(type.name());
-        }
-
-        return 0;
-    }
-
     private EnergyDepletionManager.EnergyStatus getLocalEnergyStatus(IEnergyStorage energy) {
         if (energy.getMaxEnergyStored() <= 0) return EnergyDepletionManager.EnergyStatus.NORMAL;
         float percent = (float) energy.getEnergyStored() / energy.getMaxEnergyStored();
-
         if (percent <= 0.05f) return EnergyDepletionManager.EnergyStatus.CRITICAL;
         if (percent <= 0.15f) return EnergyDepletionManager.EnergyStatus.EMERGENCY;
         if (percent <= 0.30f) return EnergyDepletionManager.EnergyStatus.POWER_SAVING;
         return EnergyDepletionManager.EnergyStatus.NORMAL;
     }
 
-    private int calculateHudX(ScaledResolution resolution) {
-        return MechanicalCoreHUDConfig.xOffset + 5;
-    }
-
-    private int calculateHudY(ScaledResolution resolution) {
-        return MechanicalCoreHUDConfig.yOffset + 5;
-    }
-
-    private int getEnergyColor(float percent) {
-        return MechanicalCoreHUDConfig.getEnergyColor(percent);
-    }
+    private int calculateHudX(ScaledResolution resolution) { return MechanicalCoreHUDConfig.xOffset + 5; }
+    private int calculateHudY(ScaledResolution resolution) { return MechanicalCoreHUDConfig.yOffset + 5; }
+    private int getEnergyColor(float percent) { return MechanicalCoreHUDConfig.getEnergyColor(percent); }
 
     private String formatEnergy(int energy) {
         if (energy >= 1000000) return String.format("%.1fM", energy / 1000000.0);
@@ -429,27 +525,21 @@ public class MechanicalCoreHUD extends Gui {
         return String.valueOf(energy);
     }
 
-    private void drawRightAlignedString(String text, int x, int y, int color, FontRenderer fr) {
-        fr.drawStringWithShadow(text, x - fr.getStringWidth(text), y, color);
-    }
-
-    // NBT 安全读取
     private float getClientRejectionLevel(ItemStack stack) {
         if(stack.isEmpty()) return 0;
-        return stack.getOrCreateSubCompound("rejection").getFloat("RejectionLevel");
+        NBTTagCompound nbt = stack.getTagCompound();
+        if (nbt.hasKey("rejection")) return nbt.getCompoundTag("rejection").getFloat("RejectionLevel");
+        if (nbt.hasKey("RejectionLevel")) return nbt.getFloat("RejectionLevel");
+        if (nbt.hasKey("Rejection")) return nbt.getFloat("Rejection");
+        return 0;
     }
 
     private boolean getClientTranscendedStatus(ItemStack stack) {
         if(stack.isEmpty()) return false;
-        return stack.getOrCreateSubCompound("rejection").getBoolean("RejectionTranscended");
-    }
-
-    private RejectionDisplayInfo getClientRejectionInfo(ItemStack stack) {
-        return new RejectionDisplayInfo();
-    }
-
-    private static class RejectionDisplayInfo {
-        float growthRate = 0;
+        NBTTagCompound nbt = stack.getTagCompound();
+        if (nbt.hasKey("rejection")) return nbt.getCompoundTag("rejection").getBoolean("RejectionTranscended");
+        if (nbt.hasKey("RejectionTranscended")) return nbt.getBoolean("RejectionTranscended");
+        return false;
     }
 
     private int getHumanityBarColor(float h, AscensionRoute r) {
