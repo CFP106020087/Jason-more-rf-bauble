@@ -63,9 +63,9 @@ public class HumanityEffectsManager {
      * 计算生命值减少百分比
      */
     private static float calculateHPReduction(float humanity, IHumanityData data) {
-        // 破碎之神：+100 HP (不减少)
+        // 破碎之神：HP由破碎_心核遗物管理，此处不做修改
         if (data.getAscensionRoute() == AscensionRoute.BROKEN_GOD) {
-            return -1.0f; // 负数表示增加
+            return 0f;
         }
 
         // Mekhane 合成人：无减少
@@ -104,13 +104,7 @@ public class HumanityEffectsManager {
         // 创建新修改器
         // Operation 2 = 乘法 (最终值 * (1 + amount))
         // 减少 50% 意味着 amount = -0.5
-        double amount;
-        if (reduction < 0) {
-            // 增加 HP (破碎之神)
-            amount = Math.abs(reduction); // +100% = 双倍
-        } else {
-            amount = -reduction; // 减少
-        }
+        double amount = -reduction;
 
         AttributeModifier newMod = new AttributeModifier(
                 HUMANITY_HP_MODIFIER_UUID,

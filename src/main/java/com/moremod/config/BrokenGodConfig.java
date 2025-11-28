@@ -105,13 +105,7 @@ public class BrokenGodConfig {
     @Config.RangeDouble(min = 0, max = 1)
     public static double attackSpeedBonus = 0.15;
 
-    @Config.Comment({
-            "暴击伤害倍率",
-            "Critical damage multiplier"
-    })
-    @Config.Name("暴击伤害 | Crit Damage")
-    @Config.RangeDouble(min = 1, max = 5)
-    public static double critDamage = 2.0;
+    // 注：critDamage 已迁移至破碎_臂遗物
 
     @Config.Comment({
             "敌人困惑概率",
@@ -175,21 +169,8 @@ public class BrokenGodConfig {
 
     // ============================================================
     // 破碎三件套属性
+    // 注：bypassInvulnerability, trueDamage 已迁移至破碎遗物系统
     // ============================================================
-
-    @Config.Comment({
-            "破碎之手：是否无视无敌帧",
-            "Broken Hand: Bypass i-frames"
-    })
-    @Config.Name("无视无敌帧 | Bypass Invulnerability")
-    public static boolean bypassInvulnerability = true;
-
-    @Config.Comment({
-            "破碎之手：是否造成真实伤害",
-            "Broken Hand: Deal true damage (bypass armor)"
-    })
-    @Config.Name("真实伤害 | True Damage")
-    public static boolean trueDamage = true;
 
     @Config.Comment({
             "破碎之心：最小血量（不会低于此值）",

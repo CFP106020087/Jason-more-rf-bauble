@@ -39,11 +39,12 @@ import java.util.List;
  * Broken God Event Handler
  *
  * 处理所有破碎之神相关的游戏事件：
- * - 战斗能力（暴击、真伤、无视无敌帧）
- * - 扭曲脉冲
- * - 停机模式
+ * - 停机模式（濒死无敌）
+ * - 扭曲脉冲（受重击反击）
  * - 死亡拦截
  * - 怪物侦测距离减少
+ *
+ * 注：暴击、真伤、无视无敌帧等战斗能力已迁移至破碎遗物系统
  */
 @Mod.EventBusSubscriber(modid = moremod.MODID)
 public class BrokenGodEventHandler {
@@ -105,12 +106,8 @@ public class BrokenGodEventHandler {
             EntityPlayer attacker = (EntityPlayer) event.getSource().getTrueSource();
 
             if (BrokenGodHandler.isBrokenGod(attacker)) {
-                EntityLivingBase target = event.getEntityLiving();
-
-                // 无视无敌帧
-                if (BrokenGodConfig.bypassInvulnerability) {
-                    target.hurtResistantTime = 0;
-                }
+                // 无视无敌帧、暴击、真伤等能力已迁移至破碎遗物系统
+                // 此处仅保留基础攻击判定
             }
         }
     }
@@ -127,28 +124,12 @@ public class BrokenGodEventHandler {
         }
 
         // 破碎之神造成伤害
+        // 注：暴击、真伤、无视护甲等能力已迁移至破碎遗物系统
+        // 此处仅保留敌人困惑效果
         if (event.getSource().getTrueSource() instanceof EntityPlayer) {
             EntityPlayer attacker = (EntityPlayer) event.getSource().getTrueSource();
 
             if (BrokenGodHandler.isBrokenGod(attacker)) {
-                // 100% 暴击
-                float damage = event.getAmount();
-                damage *= BrokenGodConfig.critDamage;
-                event.setAmount(damage);
-
-                // 真实伤害（绕过护甲）
-                if (BrokenGodConfig.trueDamage) {
-                    // 我们通过设置伤害源为 OUT_OF_WORLD 类型来绕过护甲
-                    // 但这会改变伤害类型，所以我们直接增加伤害来补偿护甲减免
-                    EntityLivingBase target = event.getEntityLiving();
-                    float armor = target.getTotalArmorValue();
-                    float armorToughness = (float) target.getEntityAttribute(
-                            net.minecraft.entity.SharedMonsterAttributes.ARMOR_TOUGHNESS).getAttributeValue();
-                    // 简化处理：增加护甲减免的伤害
-                    float armorReduction = armor / 25f; // 大约护甲减免比例
-                    event.setAmount(damage * (1 + armorReduction * 0.5f));
-                }
-
                 // 敌人困惑
                 if (Math.random() < BrokenGodConfig.confusionChance) {
                     EntityLivingBase target = event.getEntityLiving();
