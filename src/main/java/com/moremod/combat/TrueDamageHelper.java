@@ -3,14 +3,9 @@ package com.moremod.combat;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.init.SoundEvents;
-import net.minecraft.util.CombatTracker;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.EntityDamageSource;
-import net.minecraft.util.SoundCategory;
-import net.minecraft.world.WorldServer;
-import net.minecraftforge.common.ForgeHooks;
 
 import javax.annotation.Nullable;
 import java.util.HashSet;
@@ -20,31 +15,19 @@ import java.util.UUID;
 /**
  * 高级真伤系统
  * Advanced True Damage System
- *
- * 参考 Avaritia 的实现，使用 setHealth 但完整包装战斗流程
- * 确保：受击动画、音效、战斗记录、死亡、掉落物 都正常触发
  */
 public class TrueDamageHelper {
 
-    /** 正在处理真伤的实体（防止递归） */
     private static final Set<UUID> processingEntities = new HashSet<>();
-
-    /** 标记当前是否在真伤处理中（供外部事件检查） */
     private static final ThreadLocal<Boolean> IN_TRUE_DAMAGE = ThreadLocal.withInitial(() -> false);
 
-    /**
-     * 真伤类型标记
-     */
     public enum TrueDamageFlag {
-        PHANTOM_TWIN,       // 幻象分身（破碎_投影）
-        TERMINUS_BONUS,     // 终末追加（破碎_终结）
-        PHANTOM_STRIKE,     // 幻象打击（破碎_手）
-        EXECUTE             // 斩杀执行
+        PHANTOM_TWIN,
+        TERMINUS_BONUS,
+        PHANTOM_STRIKE,
+        EXECUTE
     }
 
-    /**
-     * 创建真伤伤害源
-     */
     public static DamageSource createTrueDamageSource(@Nullable Entity source) {
         if (source instanceof EntityPlayer) {
             return new EntityDamageSource("moremod.true_damage", source)
@@ -56,29 +39,16 @@ public class TrueDamageHelper {
                 .setDamageIsAbsolute();
     }
 
-    /**
-     * 应用包装真伤 - 完整战斗流程
-     *
-     * 参考 Avaritia 的实现，手动设置所有战斗相关字段
-     * 确保受击动画、音效、战斗记录、死亡、掉落物都正常
-     *
-     * @param target 目标实体
-     * @param source 伤害来源（可为null）
-     * @param trueDamage 真伤数值
-     * @param flag 真伤类型标记
-     * @return 是否成功应用
-     */
     public static boolean applyWrappedTrueDamage(EntityLivingBase target,
-                                                  @Nullable Entity source,
-                                                  float trueDamage,
-                                                  TrueDamageFlag flag) {
+                                                 @Nullable Entity source,
+                                                 float trueDamage,
+                                                 TrueDamageFlag flag) {
         if (target == null || target.world.isRemote) return false;
         if (trueDamage <= 0) return false;
         if (target.isDead) return false;
 
         UUID targetId = target.getUniqueID();
 
-        // 防止递归
         if (processingEntities.contains(targetId)) {
             return false;
         }
@@ -88,8 +58,6 @@ public class TrueDamageHelper {
             IN_TRUE_DAMAGE.set(true);
 
             DamageSource dmgSource = createTrueDamageSource(source);
-
-            // 执行包装的伤害
             return doWrappedHurt(target, source, dmgSource, trueDamage);
 
         } finally {
@@ -105,10 +73,10 @@ public class TrueDamageHelper {
      * - 不调用 attackEntityFrom()
      * - 不调用两次 onDeath()
      * - 不设置 victim.dead = true（由 vanilla 自己设）
-     * - 使用 setHealth(0F) + deathTime = 19 + onDeath() 触发完整死亡链
+     * - 使用 setHealth(0F) + onKillCommand() 触发完整死亡链
      */
     private static boolean doWrappedHurt(EntityLivingBase victim, @Nullable Entity attacker,
-                                          DamageSource source, float amount) {
+                                         DamageSource source, float amount) {
         if (victim.world.isRemote) return false;
         if (victim.isDead) return false;
 
@@ -188,42 +156,24 @@ public class TrueDamageHelper {
         victim.onKillCommand();
     }
 
-    /**
-     * 应用斩杀真伤（直接将目标生命归零）
-     */
-    public static boolean applyExecuteDamage(EntityLivingBase target,
-                                              @Nullable Entity source) {
+    public static boolean applyExecuteDamage(EntityLivingBase target, @Nullable Entity source) {
         if (target == null || target.world.isRemote) return false;
-
-        // 造成目标当前血量 + 100 的伤害，确保击杀
         float executeDamage = target.getHealth() + 100f;
         return applyWrappedTrueDamage(target, source, executeDamage, TrueDamageFlag.EXECUTE);
     }
 
-    /**
-     * 检查是否正在处理真伤
-     */
     public static boolean isProcessingTrueDamage(EntityLivingBase entity) {
         return processingEntities.contains(entity.getUniqueID());
     }
 
-    /**
-     * 检查当前线程是否在真伤处理中
-     */
     public static boolean isInTrueDamageContext() {
         return IN_TRUE_DAMAGE.get();
     }
 
-    /**
-     * 检查伤害源是否是我们的真伤
-     */
     public static boolean isTrueDamageSource(DamageSource source) {
         return source != null && "moremod.true_damage".equals(source.getDamageType());
     }
 
-    /**
-     * 计算无视护甲后的等效伤害
-     */
     public static float calculateArmorBypassDamage(float baseDamage, float armorIgnorePercent) {
         float bonusMultiplier = 1.0f + (armorIgnorePercent * 0.4f);
         return baseDamage * bonusMultiplier;
