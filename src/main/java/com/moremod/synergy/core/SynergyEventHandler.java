@@ -42,11 +42,18 @@ public class SynergyEventHandler {
     /** 能量维护消耗间隔（tick），每5秒消耗一次 */
     private static final int ENERGY_DRAIN_INTERVAL = 100; // 5秒
 
-    /** 每个激活的 Synergy 的基础能量成本（RF/5秒） */
-    private static final int BASE_ENERGY_COST_PER_SYNERGY = 10;
+    /**
+     * 每个激活的 Synergy 的基础能量成本（RF/5秒）
+     * 对比模块消耗：护甲强化 10 RF/s, 护盾 20 RF/s, 飞行 25 RF/s
+     * 单个 Synergy 约等于一个中等模块的消耗
+     */
+    private static final int BASE_ENERGY_COST_PER_SYNERGY = 25;
 
-    /** 每个额外 Synergy 的递增成本（RF/5秒） */
-    private static final int SCALING_COST_PER_SYNERGY = 2;
+    /**
+     * 每个额外 Synergy 的递增成本（RF/5秒）
+     * 激活越多 Synergy，边际成本越高，鼓励玩家精选组合
+     */
+    private static final int SCALING_COST_PER_SYNERGY = 5;
 
     /** 能量不足时是否自动停用 Synergy */
     private static final boolean AUTO_DEACTIVATE_ON_LOW_ENERGY = true;
@@ -116,10 +123,12 @@ public class SynergyEventHandler {
      *
      * 公式：totalCost = synergyCount * (BASE_COST + synergyCount * SCALING_COST)
      * 示例：
-     * - 1 synergy: 1 * (10 + 1*2) = 12 RF/5s
-     * - 3 synergies: 3 * (10 + 3*2) = 48 RF/5s
-     * - 5 synergies: 5 * (10 + 5*2) = 100 RF/5s
-     * - 10 synergies: 10 * (10 + 10*2) = 300 RF/5s
+     * - 1 synergy:  1 * (25 + 1*5)  =  30 RF/5s =   6 RF/s
+     * - 3 synergies: 3 * (25 + 3*5)  = 120 RF/5s =  24 RF/s
+     * - 5 synergies: 5 * (25 + 5*5)  = 250 RF/5s =  50 RF/s
+     * - 10 synergies: 10 * (25 + 10*5) = 750 RF/5s = 150 RF/s
+     *
+     * 对比模块消耗：护甲强化 10 RF/s, 护盾 20 RF/s, 飞行 25 RF/s
      *
      * @param player 玩家
      */
