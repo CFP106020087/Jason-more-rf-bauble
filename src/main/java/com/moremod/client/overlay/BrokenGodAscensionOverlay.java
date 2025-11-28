@@ -9,6 +9,7 @@ import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
@@ -60,15 +61,31 @@ public class BrokenGodAscensionOverlay extends Gui {
         return isAnimating;
     }
 
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public static void onRenderOverlay(RenderGameOverlayEvent.Pre event) {
+    /**
+     * 客户端 tick 事件 - 用于递增动画计时器
+     * 这确保动画按照游戏 tick (20/秒) 而非帧率运行
+     */
+    @SubscribeEvent
+    public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (!isAnimating) return;
-        if (event.getType() != RenderGameOverlayEvent.ElementType.ALL) return;
+        if (event.phase != TickEvent.Phase.END) return;
+        // 暂停时不递增
+        if (mc.isGamePaused()) return;
 
         animationTick++;
         if (animationTick > TOTAL_DURATION) {
             isAnimating = false;
             animationTick = 0;
+        }
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onRenderOverlay(RenderGameOverlayEvent.Pre event) {
+        if (!isAnimating) return;
+        if (event.getType() != RenderGameOverlayEvent.ElementType.ALL) return;
+
+        // 动画已结束时不渲染
+        if (animationTick > TOTAL_DURATION) {
             return;
         }
 
