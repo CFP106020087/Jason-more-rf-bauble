@@ -100,124 +100,115 @@ public class TrueDamageHelper {
 
     /**
      * 包装的伤害处理 - 模拟完整战斗流程
+     *
+     * 严格遵守 Minecraft 1.12.2 死亡流程：
+     * - 不调用 attackEntityFrom()
+     * - 不调用两次 onDeath()
+     * - 不设置 victim.dead = true（由 vanilla 自己设）
+     * - 使用 setHealth(0F) + deathTime = 19 + onDeath() 触发完整死亡链
      */
     private static boolean doWrappedHurt(EntityLivingBase victim, @Nullable Entity attacker,
                                           DamageSource source, float amount) {
         if (victim.world.isRemote) return false;
         if (victim.isDead) return false;
 
-        // 如果在睡觉，唤醒
+        // ========== 1. 唤醒睡眠中的玩家 ==========
         if (victim.isPlayerSleeping() && victim instanceof EntityPlayer) {
             ((EntityPlayer) victim).wakeUpPlayer(true, true, false);
         }
 
-        // ========== 设置战斗相关字段 ==========
-
-        // 重置无动作时间
-        victim.idleTime = 0;
-
-        // 记录最后受到的伤害
-        victim.lastDamage = amount;
-
-        // 设置无敌帧（但我们可以绕过）
-        victim.hurtResistantTime = victim.maxHurtResistantTime;
-
-        // 记录到战斗追踪器（用于死亡信息）
-        CombatTracker tracker = victim.getCombatTracker();
-        tracker.trackDamage(source, victim.getHealth(), amount);
-
-        // 设置受击时间（用于受击动画）
-        victim.maxHurtTime = 10;
-        victim.hurtTime = victim.maxHurtTime;
-
-        // ========== 应用伤害 ==========
-        float newHealth = victim.getHealth() - amount;
-        victim.setHealth(newHealth);
-
-        // ========== 设置攻击者相关 ==========
+        // ========== 2. 设置攻击者归属（关键：确保掉落物、经验、统计正常） ==========
         if (attacker != null) {
             if (attacker instanceof EntityLivingBase) {
                 victim.setRevengeTarget((EntityLivingBase) attacker);
             }
-
             if (attacker instanceof EntityPlayer) {
-                victim.recentlyHit = 100;
+                victim.recentlyHit = 100;  // 必须设置，否则没有玩家击杀掉落和经验
                 victim.attackingPlayer = (EntityPlayer) attacker;
             }
         }
 
-        // ========== 击退效果 ==========
+        // ========== 3. 设置战斗相关字段 ==========
+        victim.idleTime = 0;
+        victim.lastDamage = amount;
+        victim.hurtResistantTime = victim.maxHurtResistantTime;
+
+        // 设置受击动画
+        victim.maxHurtTime = 10;
+        victim.hurtTime = victim.maxHurtTime;
+
+        // ========== 4. 记录到战斗追踪器（用于死亡信息） ==========
+        float healthBefore = victim.getHealth();
+        victim.getCombatTracker().trackDamage(source, healthBefore, amount);
+
+        // ========== 5. 计算新血量 ==========
+        float newHealth = healthBefore - amount;
+
+        // ========== 6. 击退效果 ==========
         if (attacker != null) {
             double dx = attacker.posX - victim.posX;
             double dz = attacker.posZ - victim.posZ;
-
             while (dx * dx + dz * dz < 1.0E-4D) {
                 dx = (Math.random() - Math.random()) * 0.01D;
                 dz = (Math.random() - Math.random()) * 0.01D;
             }
-
             victim.knockBack(attacker, 0.4F, dx, dz);
         }
 
-        // ========== 播放受击音效 ==========
+        // ========== 7. 播放受击音效 ==========
         victim.playSound(SoundEvents.ENTITY_GENERIC_HURT, 1.0F,
                 (victim.world.rand.nextFloat() - victim.world.rand.nextFloat()) * 0.2F + 1.0F);
 
-        // ========== 检查死亡 ==========
-        if (victim.getHealth() <= 0) {
-            doWrappedDeath(victim, source);
-        }
-
-        // ========== 记录最后伤害源 ==========
+        // ========== 8. 记录最后伤害源 ==========
         victim.lastDamageSource = source;
         victim.lastDamageStamp = victim.world.getTotalWorldTime();
+
+        // ========== 9. 应用伤害并处理死亡 ==========
+        if (newHealth <= 0) {
+            // 触发完整的 vanilla 死亡链
+            triggerVanillaDeathChain(victim, source);
+        } else {
+            // 普通伤害，只设置血量
+            victim.setHealth(newHealth);
+        }
 
         return true;
     }
 
     /**
-     * 包装的死亡处理 - 确保掉落物和统计正常
+     * 触发完整的 vanilla 死亡链
+     *
+     * 严格遵守要求：
+     * ✔ setHealth(0F)
+     * ✔ 设置 deathTime = 19（下一 tick 自动进入死亡完成阶段）
+     * ✔ 调用 onDeath() 触发 LivingDeathEvent / LivingDropsEvent
+     * ✔ 不调用 attackEntityFrom()
+     * ✔ 不调用两次 onDeath()
+     * ✔ 不设置 victim.dead = true（vanilla 在 onDeath 末尾自己设）
+     * ✔ CombatTracker 已在调用方设置
+     * ✔ 攻击者归属已在调用方设置
      */
-    private static void doWrappedDeath(EntityLivingBase victim, DamageSource source) {
+    private static void triggerVanillaDeathChain(EntityLivingBase victim, DamageSource source) {
         if (victim.isDead) return;
 
-        // 获取击杀者
-        EntityLivingBase killer = victim.getCombatTracker().getBestAttacker();
-        Entity directKiller = source.getTrueSource();
+        // ========== 1. 设置生命值为 0 ==========
+        victim.setHealth(0F);
 
-        // 授予击杀分数
-        if (victim.scoreValue >= 0 && killer != null) {
-            killer.awardKillScore(victim, victim.scoreValue, source);
-        }
+        // ========== 2. 设置 deathTime = 19 ==========
+        // 下一 tick deathTime 会变成 20，触发 onDeathUpdate 中的实体移除逻辑
+        victim.deathTime = 19;
 
-        // 如果在睡觉，唤醒
-        if (victim.isPlayerSleeping() && victim instanceof EntityPlayer) {
-            ((EntityPlayer) victim).wakeUpPlayer(true, true, false);
-        }
-
-        // 重新检查战斗追踪器状态
+        // ========== 3. 重新检查战斗追踪器状态 ==========
         victim.getCombatTracker().recheckStatus();
 
-        // ========== 关键：触发 onDeath 确保掉落物 ==========
-        // 注意：必须在设置 dead = true 之前调用 onDeath()
-        // 因为 onDeath() 内部会检查 if (this.dead) return;
-        // onDeath 内部会调用 dropLoot() 和 dropEquipment()
+        // ========== 4. 调用 onDeath() 触发完整死亡事件链 ==========
+        // onDeath() 内部会：
+        //   - 触发 ForgeHooks.onLivingDeath() -> LivingDeathEvent
+        //   - 调用 dropLoot() -> LivingDropsEvent
+        //   - 调用 dropEquipment()
+        //   - 在末尾设置 dead = true
+        // 不要手动设置 dead = true，让 vanilla 自己处理
         victim.onDeath(source);
-
-        // 标记为死亡（在 onDeath 之后设置，确保掉落物正常）
-        victim.dead = true;
-
-        // 如果击杀者是玩家，记录统计
-        if (directKiller instanceof EntityPlayerMP) {
-            EntityPlayerMP playerMP = (EntityPlayerMP) directKiller;
-            // 统计数据会在 onDeath 中处理
-        }
-
-        // 播放死亡音效（onDeath 可能已播放，但确保一下）
-        if (victim.world instanceof WorldServer) {
-            ((WorldServer) victim.world).playSound(null, victim.posX, victim.posY, victim.posZ,
-                    victim.getDeathSound(), SoundCategory.HOSTILE, 1.0F, 1.0F);
-        }
     }
 
     /**
