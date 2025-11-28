@@ -370,7 +370,7 @@ public class HumanitySpectrumSystem {
     }
 
     /**
-     * 处理崩解状态tick
+     * 处理崩解状态tick（每秒调用一次）
      */
     public static void tickDissolution(EntityPlayer player) {
         IHumanityData data = HumanityCapabilityHandler.getData(player);
@@ -384,11 +384,13 @@ public class HumanitySpectrumSystem {
             return;
         }
 
-        data.setDissolutionTicks(remaining - 1);
+        // 每秒减少20 ticks（因为此方法每秒调用一次）
+        data.setDissolutionTicks(remaining - 20);
 
-        // 周期性崩解伤害
-        int damageIntervalTicks = HumanityConfig.dissolutionDamageInterval * 20;
-        if (damageIntervalTicks > 0 && remaining % damageIntervalTicks == 0) {
+        // 周期性崩解伤害（以秒为单位检查）
+        int remainingSeconds = remaining / 20;
+        int damageIntervalSeconds = HumanityConfig.dissolutionDamageInterval;
+        if (damageIntervalSeconds > 0 && remainingSeconds % damageIntervalSeconds == 0) {
             float maxHealth = player.getMaxHealth();
             float damage = maxHealth * (float) HumanityConfig.dissolutionDamagePercent;
             if (damage > 0) {
@@ -396,17 +398,14 @@ public class HumanitySpectrumSystem {
             }
         }
 
-        // 每秒发送提醒
-        if (remaining % 20 == 0) {
-            int seconds = remaining / 20;
-            player.sendStatusMessage(new TextComponentString(
-                    TextFormatting.DARK_RED + "【崩解中】" + TextFormatting.RED + seconds + "秒"
-            ), true);
+        // 发送倒计时提醒
+        player.sendStatusMessage(new TextComponentString(
+                TextFormatting.DARK_RED + "【崩解中】" + TextFormatting.RED + remainingSeconds + "秒"
+        ), true);
 
-            // 粒子效果
-            if (player.world instanceof WorldServer) {
-                spawnDissolutionParticles(player);
-            }
+        // 粒子效果
+        if (player.world instanceof WorldServer) {
+            spawnDissolutionParticles(player);
         }
 
         markDirty(player);
