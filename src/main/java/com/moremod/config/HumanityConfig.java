@@ -82,52 +82,8 @@ public class HumanityConfig {
     public static int hudYOffset = 10;
 
     // ============================================================
-    // 人性值流失配置 - 扭曲模块使用
-    // ============================================================
-
-    @Config.Comment({
-            "使用虚空发电机消耗的人性值",
-            "Humanity drain from Void Generator use"
-    })
-    @Config.Name("虚空发电机消耗 | Void Generator Drain")
-    @Config.RangeDouble(min = 0, max = 20)
-    public static double voidGeneratorDrain = 0.5;
-
-    @Config.Comment({
-            "使用裂隙脉冲消耗的人性值",
-            "Humanity drain from Rift Pulse use"
-    })
-    @Config.Name("裂隙脉冲消耗 | Rift Pulse Drain")
-    @Config.RangeDouble(min = 0, max = 20)
-    public static double riftPulseDrain = 1.0;
-
-    @Config.Comment({
-            "使用相位转移消耗的人性值",
-            "Humanity drain from Phase Shift use"
-    })
-    @Config.Name("相位转移消耗 | Phase Shift Drain")
-    @Config.RangeDouble(min = 0, max = 20)
-    public static double phaseShiftDrain = 0.4;
-
-    @Config.Comment({
-            "维度跳跃消耗的人性值",
-            "Humanity drain from Dimension Hop"
-    })
-    @Config.Name("维度跳跃消耗 | Dimension Hop Drain")
-    @Config.RangeDouble(min = 0, max = 30)
-    public static double dimensionHopDrain = 1.5;
-
-    // ============================================================
     // 人性值流失配置 - 持续消耗
     // ============================================================
-
-    @Config.Comment({
-            "超限模式每秒消耗的人性值",
-            "Humanity drain per second during Overclock"
-    })
-    @Config.Name("超限模式消耗/秒 | Overclock Drain/sec")
-    @Config.RangeDouble(min = 0, max = 1)
-    public static double overclockDrainPerSec = 0.01;
 
     @Config.Comment({
             "熬夜开始消耗人性值的时间(分钟游戏时间)",
