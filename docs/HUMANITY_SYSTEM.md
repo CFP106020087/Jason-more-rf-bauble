@@ -167,7 +167,7 @@ system/humanity/
 
 ### 存在锚定
 
-- **持续时间**: 24小时 (可配置 `existenceAnchorDuration`)
+- **持续时间**: 1个MC日 (可配置 `existenceAnchorDuration`，1日=24000tick≈20分钟)
 - **效果**: 人性值不会跌破 10%
 - **HUD标识**: [锚定中] 洋红色文字
 
@@ -423,7 +423,7 @@ initialHumanity = 75.0
 dissolutionDuration = 60        # 崩解持续时间(秒)
 dissolutionDamageInterval = 5   # 伤害间隔(秒)
 dissolutionDamagePercent = 0.1  # 伤害百分比(10%最大生命值)
-existenceAnchorDuration = 24    # 存在锚定时长(小时)
+existenceAnchorDuration = 1     # 存在锚定时长(MC日，1日≈20分钟)
 
 # HUD显示
 showHumanityHUD = true

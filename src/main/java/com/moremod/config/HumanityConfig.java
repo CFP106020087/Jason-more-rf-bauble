@@ -58,12 +58,12 @@ public class HumanityConfig {
     public static double dissolutionDamagePercent = 0.1;
 
     @Config.Comment({
-            "存在锚定持续时间(小时)",
-            "Existence anchor duration in hours"
+            "存在锚定持续时间(MC游戏日，1日=24000tick≈20分钟)",
+            "Existence anchor duration in MC days (1 day = 24000 ticks ≈ 20 minutes)"
     })
-    @Config.Name("存在锚定时长 | Existence Anchor Duration")
-    @Config.RangeInt(min = 1, max = 72)
-    public static int existenceAnchorDuration = 24;
+    @Config.Name("存在锚定时长(MC日) | Existence Anchor Duration (MC Days)")
+    @Config.RangeInt(min = 1, max = 10)
+    public static int existenceAnchorDuration = 1;
 
     // ============================================================
     // 显示设置

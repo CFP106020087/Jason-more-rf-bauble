@@ -421,14 +421,14 @@ public class HumanitySpectrumSystem {
         data.endDissolution(true);
         data.setHumanity(15f);
 
-        // 应用存在锚定（24小时）
-        long anchorDuration = (long) HumanityConfig.existenceAnchorDuration * 60 * 60 * 20;
+        // 应用存在锚定（MC游戏日，1日=24000tick）
+        long anchorDuration = (long) HumanityConfig.existenceAnchorDuration * 24000L;
         data.setExistenceAnchorUntil(player.world.getTotalWorldTime() + anchorDuration);
 
         player.sendMessage(new TextComponentString(
                 TextFormatting.LIGHT_PURPLE + "【崩解终止】" + TextFormatting.GRAY +
                 " 你的存在被强制锚定。" + HumanityConfig.existenceAnchorDuration +
-                "小时内无法再次进入崩解状态。"
+                "个MC日内无法再次进入崩解状态。"
         ));
 
         markForceSync(player);
