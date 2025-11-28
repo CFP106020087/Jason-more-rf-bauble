@@ -4,22 +4,11 @@ package com.moremod.system.humanity;
  * 升格路线枚举
  * Ascension Route Enum
  *
- * 定义玩家可以选择的两条进化路线
+ * 当前只有破碎之神路线，高人性路线待实现
  */
 public enum AscensionRoute {
     /** 未升格 */
     NONE("none", "未升格", "Not Ascended"),
-
-    /**
-     * Mekhane 合成人
-     * 保留人性的机械升格
-     * - 完美协同能力
-     * - 逻辑之盾（免疫混乱效果）
-     * - 精准计算（高暴击）
-     * - 世界法则感知
-     * - 需要维护"人性行为"
-     */
-    MEKHANE_SYNTHETIC("mekhane", "Mekhane合成人", "Mekhane Synthetic"),
 
     /**
      * 破碎之神
@@ -76,10 +65,12 @@ public enum AscensionRoute {
     }
 
     /**
-     * 检查是否是 Mekhane 路线
+     * 检查是否是高人性路线（待实现）
+     * @deprecated 高人性升格路线尚未实现
      */
+    @Deprecated
     public boolean isMekhane() {
-        return this == MEKHANE_SYNTHETIC;
+        return false;
     }
 
     /**

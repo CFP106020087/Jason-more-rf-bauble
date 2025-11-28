@@ -453,7 +453,7 @@ public class MechanicalCoreHUD extends Gui {
     }
 
     private int getHumanityBarColor(float h, AscensionRoute r) {
-        if (r == AscensionRoute.MEKHANE_SYNTHETIC) return 0xFFDD88FF;
+        if (r == AscensionRoute.BROKEN_GOD) return 0xFF5500AA; // 破碎之神暗紫
         if (h < 25) return 0xFFAA0000;
         if (h < 50) return 0xFFAA00AA;
         return 0xFF00AAFF;

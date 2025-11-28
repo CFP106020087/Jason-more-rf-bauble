@@ -269,24 +269,6 @@ public interface IHumanityData {
      */
     void addLowHumanityTicks(long ticks);
 
-    // ========== Mekhane 合成人专用 ==========
-
-    /**
-     * 获取人性行为分数（Mekhane路线需要维护）
-     * 0-100，低于30会导致能力减弱
-     */
-    int getHumanityBehaviorScore();
-
-    /**
-     * 设置人性行为分数
-     */
-    void setHumanityBehaviorScore(int score);
-
-    /**
-     * 修改人性行为分数
-     */
-    void modifyHumanityBehaviorScore(int delta);
-
     // ========== 破碎之神专用 ==========
 
     /**

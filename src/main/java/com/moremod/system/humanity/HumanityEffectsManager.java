@@ -7,6 +7,7 @@ import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.attributes.AttributeModifier;
 import net.minecraft.entity.ai.attributes.IAttributeInstance;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.ItemStack;
 import net.minecraft.potion.PotionEffect;
 import net.minecraftforge.event.entity.living.PotionEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -68,10 +69,6 @@ public class HumanityEffectsManager {
             return 0f;
         }
 
-        // Mekhane 合成人：无减少
-        if (data.getAscensionRoute() == AscensionRoute.MEKHANE_SYNTHETIC) {
-            return 0f;
-        }
 
         // 基于人性值的减少
         if (humanity <= 10f) {
@@ -190,10 +187,6 @@ public class HumanityEffectsManager {
             return false;
         }
 
-        // Mekhane 合成人：总是可以使用
-        if (data.getAscensionRoute() == AscensionRoute.MEKHANE_SYNTHETIC) {
-            return true;
-        }
 
         // 普通状态：需要 60%+ 人性值
         float humanity = data.getHumanity();
@@ -214,10 +207,6 @@ public class HumanityEffectsManager {
             return NPCInteractionLevel.INVISIBLE;
         }
 
-        // Mekhane 合成人：特殊对话选项
-        if (data.getAscensionRoute() == AscensionRoute.MEKHANE_SYNTHETIC) {
-            return NPCInteractionLevel.TRUSTED;
-        }
 
         // 基于人性值
         float humanity = data.getHumanity();
@@ -267,30 +256,6 @@ public class HumanityEffectsManager {
     // ========== 升格路线检查 ==========
 
     /**
-     * 检查是否可以升格为 Mekhane 合成人
-     */
-    public static boolean canAscendToMekhane(EntityPlayer player) {
-        IHumanityData data = HumanityCapabilityHandler.getData(player);
-        if (data == null || !data.isSystemActive()) return false;
-
-        // 已经升格
-        if (data.getAscensionRoute() != AscensionRoute.NONE) return false;
-
-        // 条件：
-        // 1. 人性值 >= 80%
-        // 2. 安装模块数 >= 90%
-        // 3. 机械稳定度 >= 90%
-
-        float humanity = data.getHumanity();
-        if (humanity < 80f) return false;
-
-        // TODO: 检查模块安装数量
-        // TODO: 检查机械稳定度
-
-        return true;
-    }
-
-    /**
      * 检查是否可以升格为破碎之神
      */
     public static boolean canAscendToBrokenGod(EntityPlayer player) {
@@ -301,9 +266,9 @@ public class HumanityEffectsManager {
         if (data.getAscensionRoute() != AscensionRoute.NONE) return false;
 
         // 条件：
-        // 1. 人性值 <= 阈值
-        // 2. 低人性累计时间 >= 配置值
-        // 3. 安装模块数 >= 配置值（待完善）
+        // 1. 人性值 <= 阈值 (5%)
+        // 2. 低人性累计时间 >= 配置值 (30分钟)
+        // 3. 激活模块数 >= 配置值
 
         float humanity = data.getHumanity();
         if (humanity > BrokenGodConfig.ascensionHumanityThreshold) return false;
@@ -311,9 +276,47 @@ public class HumanityEffectsManager {
         long lowHumanitySeconds = data.getLowHumanityTicks() / 20;
         if (lowHumanitySeconds < BrokenGodConfig.requiredLowHumanitySeconds) return false;
 
-        // TODO: 检查模块安装数量
+        // 检查模块安装数量
+        ItemStack core = com.moremod.item.ItemMechanicalCore.findEquippedMechanicalCore(player);
+        if (!com.moremod.item.ItemMechanicalCore.isMechanicalCore(core)) return false;
+
+        int activeModules = countActiveModulesForAscension(player, core);
+        if (activeModules < BrokenGodConfig.requiredModuleCount) return false;
 
         return true;
+    }
+
+    /**
+     * 计算激活模块数（用于升格检查）
+     * 参考 ItemMechanicalExoskeleton.countActiveModules()
+     */
+    private static int countActiveModulesForAscension(EntityPlayer player, ItemStack core) {
+        int total = 0;
+
+        // 基础模块
+        for (com.moremod.item.ItemMechanicalCore.UpgradeType t : com.moremod.item.ItemMechanicalCore.UpgradeType.values()) {
+            int lv = com.moremod.item.ItemMechanicalCore.getUpgradeLevel(core, t);
+            if (lv > 0) {
+                total += lv;
+            }
+        }
+
+        // 扩展模块
+        try {
+            for (java.util.Map.Entry<String, com.moremod.item.ItemMechanicalCoreExtended.UpgradeInfo> e :
+                    com.moremod.item.ItemMechanicalCoreExtended.getAllUpgrades().entrySet()) {
+                com.moremod.item.ItemMechanicalCoreExtended.UpgradeInfo info = e.getValue();
+                if (info == null) continue;
+                if (info.category == com.moremod.item.ItemMechanicalCoreExtended.UpgradeCategory.BASIC) continue;
+
+                int lv = com.moremod.item.ItemMechanicalCoreExtended.getUpgradeLevel(core, e.getKey());
+                if (lv > 0) {
+                    total += lv;
+                }
+            }
+        } catch (Throwable ignored) {}
+
+        return total;
     }
 
     /**
@@ -323,33 +326,19 @@ public class HumanityEffectsManager {
         IHumanityData data = HumanityCapabilityHandler.getData(player);
         if (data == null) return;
 
+        // 目前只支持破碎之神
+        if (route != AscensionRoute.BROKEN_GOD) return;
+
         data.setAscensionRoute(route);
 
         // 发送消息
-        String message;
-        switch (route) {
-            case MEKHANE_SYNTHETIC:
-                message = "§d═══════════════════════════════\n" +
-                        "§d§l【Mekhane 合成人】\n" +
-                        "§7机械服务于人类精神，而非取代它。\n" +
-                        "§7即使身体99%是金属，1%的人性足以定义整个存在。\n" +
-                        "§a你已获得完美协同、逻辑之盾等能力。\n" +
-                        "§d═══════════════════════════════";
-                break;
-
-            case BROKEN_GOD:
-                message = "§5═══════════════════════════════\n" +
-                        "§5§l【破碎之神 · Mekhane 的容器】\n" +
-                        "§8齿轮转动，但不知为何而转。\n" +
-                        "§8神在运行，但不理解目的。\n" +
-                        "§c你已获得药水免疫、存在干扰等能力。\n" +
-                        "§c但你失去了与人类世界的连接。\n" +
-                        "§5═══════════════════════════════";
-                break;
-
-            default:
-                return;
-        }
+        String message = "§5═══════════════════════════════\n" +
+                "§5§l【破碎之神】\n" +
+                "§8齿轮转动，但不知为何而转。\n" +
+                "§8神在运行，但不理解目的。\n" +
+                "§c你已获得药水免疫、存在干扰等能力。\n" +
+                "§c但你失去了与人类世界的连接。\n" +
+                "§5═══════════════════════════════";
 
         player.sendMessage(new net.minecraft.util.text.TextComponentString(message));
 
@@ -363,12 +352,7 @@ public class HumanityEffectsManager {
                 double z = player.posZ + Math.sin(angle) * radius;
                 double y = player.posY + (i / 100.0) * 5;
 
-                net.minecraft.util.EnumParticleTypes particle =
-                        route == AscensionRoute.MEKHANE_SYNTHETIC ?
-                                net.minecraft.util.EnumParticleTypes.END_ROD :
-                                net.minecraft.util.EnumParticleTypes.PORTAL;
-
-                world.spawnParticle(particle, x, y, z, 1, 0, 0, 0, 0.05);
+                world.spawnParticle(net.minecraft.util.EnumParticleTypes.PORTAL, x, y, z, 1, 0, 0, 0, 0.05);
             }
         }
 
@@ -376,5 +360,14 @@ public class HumanityEffectsManager {
         player.world.playSound(null, player.posX, player.posY, player.posZ,
                 net.minecraft.init.SoundEvents.UI_TOAST_CHALLENGE_COMPLETE,
                 net.minecraft.util.SoundCategory.PLAYERS, 1.0f, 1.0f);
+    }
+
+    /**
+     * 获取玩家的激活模块数（公开方法，供外部使用）
+     */
+    public static int getActiveModuleCount(EntityPlayer player) {
+        ItemStack core = com.moremod.item.ItemMechanicalCore.findEquippedMechanicalCore(player);
+        if (!com.moremod.item.ItemMechanicalCore.isMechanicalCore(core)) return 0;
+        return countActiveModulesForAscension(player, core);
     }
 }

@@ -132,9 +132,7 @@ public class CommandHumanity extends CommandBase {
 
         // 简要效果提示
         if (route == AscensionRoute.BROKEN_GOD) {
-            player.sendMessage(new TextComponentString("§5  ▸ 药水免疫 | +100% MaxHP | 无法使用链结站"));
-        } else if (route == AscensionRoute.MEKHANE_SYNTHETIC) {
-            player.sendMessage(new TextComponentString("§d  ▸ 完美协同 | 逻辑之盾 | 链结站可用"));
+            player.sendMessage(new TextComponentString("§5  ▸ 药水免疫 | 破碎遗物 | 无法使用链结站"));
         } else {
             if (humanity <= 10f) {
                 player.sendMessage(new TextComponentString("§4  ▸ -50% MaxHP | +60%伤害 | 异常场Lv3"));
@@ -239,13 +237,8 @@ public class CommandHumanity extends CommandBase {
         float humanity = data.getHumanity();
         long lowHumanitySeconds = data.getLowHumanityTicks() / 20;
         int requiredSeconds = BrokenGodConfig.requiredLowHumanitySeconds;
-
-        // Mekhane 合成人条件
-        player.sendMessage(new TextComponentString("§d【Mekhane 合成人】升格条件:"));
-        player.sendMessage(new TextComponentString(
-                "  " + (humanity >= 80f ? "§a✓" : "§c✗") + " §7人性值 ≥ 80% (当前: " + String.format("%.1f%%", humanity) + ")"
-        ));
-        player.sendMessage(new TextComponentString("  §e? §7模块安装数 ≥ 90%（待实现）"));
+        int activeModules = HumanityEffectsManager.getActiveModuleCount(player);
+        int requiredModules = BrokenGodConfig.requiredModuleCount;
 
         // 破碎之神条件
         player.sendMessage(new TextComponentString("§5【破碎之神】升格条件:"));
@@ -257,7 +250,10 @@ public class CommandHumanity extends CommandBase {
                 "  " + (lowHumanitySeconds >= requiredSeconds ? "§a✓" : "§c✗") +
                 " §7低人性累计 ≥ " + formatSeconds(requiredSeconds) + " (当前: " + formatSeconds((int)lowHumanitySeconds) + ")"
         ));
-        player.sendMessage(new TextComponentString("  §e? §7模块安装数 ≥ " + BrokenGodConfig.requiredModuleCount + "（待实现）"));
+        player.sendMessage(new TextComponentString(
+                "  " + (activeModules >= requiredModules ? "§a✓" : "§c✗") +
+                " §7模块安装数 ≥ " + requiredModules + " (当前: " + activeModules + ")"
+        ));
     }
 
     private String formatSeconds(int totalSeconds) {
@@ -283,13 +279,6 @@ public class CommandHumanity extends CommandBase {
             return;
         }
 
-        // 检查 Mekhane 条件
-        if (HumanityEffectsManager.canAscendToMekhane(player)) {
-            player.sendMessage(new TextComponentString("§d你满足 Mekhane 合成人的升格条件!"));
-            player.sendMessage(new TextComponentString("§7输入 §d/humanity ascend mekhane§7 确认升格"));
-            return;
-        }
-
         // 检查破碎之神条件
         if (HumanityEffectsManager.canAscendToBrokenGod(player)) {
             player.sendMessage(new TextComponentString("§5你满足破碎之神的升格条件!"));
@@ -297,7 +286,7 @@ public class CommandHumanity extends CommandBase {
             return;
         }
 
-        player.sendMessage(new TextComponentString("§c你尚未满足任何升格条件"));
+        player.sendMessage(new TextComponentString("§c你尚未满足升格条件"));
         player.sendMessage(new TextComponentString("§7使用 /humanity status 查看详细条件"));
     }
 
@@ -337,8 +326,7 @@ public class CommandHumanity extends CommandBase {
     }
 
     private float getHPModifier(float humanity, AscensionRoute route) {
-        if (route == AscensionRoute.BROKEN_GOD) return 1.0f;
-        if (route == AscensionRoute.MEKHANE_SYNTHETIC) return 0f;
+        if (route == AscensionRoute.BROKEN_GOD) return 0f; // HP由破碎心核管理
         if (humanity <= 10f) return -0.5f;
         if (humanity <= 25f) return -0.3f;
         if (humanity <= 40f) return -0.15f;
@@ -371,7 +359,7 @@ public class CommandHumanity extends CommandBase {
             return getListOfStringsMatchingLastWord(args, "status", "ascend", "set", "debug");
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("ascend")) {
-            return getListOfStringsMatchingLastWord(args, "mekhane", "brokengod");
+            return getListOfStringsMatchingLastWord(args, "brokengod");
         }
         return super.getTabCompletions(server, sender, args, targetPos);
     }

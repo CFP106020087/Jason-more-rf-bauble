@@ -490,7 +490,7 @@ public class HumanityEventHandler {
         // 检查是否是食物
         if (stack.getItem().getItemUseAction(stack) == net.minecraft.item.EnumAction.EAT ||
             stack.getItem().getItemUseAction(stack) == net.minecraft.item.EnumAction.DRINK) {
-            HumanitySpectrumSystem.onEatFood(player, stack);
+            HumanitySpectrumSystem.onPlayerEat(player, stack);
         }
     }
 
