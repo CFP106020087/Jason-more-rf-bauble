@@ -250,7 +250,9 @@ public class SmartRejectionGuide extends Gui {
                     "§4⚠⚠ 存在崩解警告", 240, 10,
                     String.format("§c人性值: §4%.1f%%", humanity),
                     "§4危险: §c即将触发存在崩解！",
-                    "§4崩解中必须存活60秒",
+                    "§4崩解中每" + HumanityConfig.dissolutionDamageInterval + "秒受到" +
+                            (int)(HumanityConfig.dissolutionDamagePercent * 100) + "%最大生命伤害",
+                    "§4必须存活" + HumanityConfig.dissolutionDuration + "秒",
                     "§6立即进行人类活动！"
             ), true);
         }
@@ -695,6 +697,17 @@ public class SmartRejectionGuide extends Gui {
                     (bgAlpha - 50) << 24);
             fr.drawStringWithShadow(dissolveText, centerX - dissolveWidth/2, y,
                     0xFF4444 | (alphaInt << 24));
+            y += 12;
+
+            // 崩解伤害提示
+            String dmgText = "§c每" + HumanityConfig.dissolutionDamageInterval + "秒受到" +
+                    (int)(HumanityConfig.dissolutionDamagePercent * 100) + "%最大生命伤害";
+            int dmgWidth = fr.getStringWidth(dmgText);
+            drawRect(centerX - dmgWidth/2 - 5, y - 1,
+                    centerX + dmgWidth/2 + 5, y + 10,
+                    (bgAlpha - 50) << 24);
+            fr.drawStringWithShadow(dmgText, centerX - dmgWidth/2, y,
+                    0xFF6666 | (alphaInt << 24));
             y += 12;
         }
 
