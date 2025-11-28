@@ -131,6 +131,20 @@ public class HumanitySpectrumSystem {
         markForceSync(player);
     }
 
+    /**
+     * 立即同步玩家的人性值数据到客户端（不等待 tick）
+     * 用于命令等需要即时反馈的场景
+     */
+    public static void syncNow(EntityPlayer player) {
+        if (player instanceof EntityPlayerMP) {
+            performSync((EntityPlayerMP) player);
+            // 清除脏标记
+            UUID playerId = player.getUniqueID();
+            dirtyPlayers.remove(playerId);
+            forceSyncPlayers.remove(playerId);
+        }
+    }
+
     private static void performSync(EntityPlayerMP player) {
         BaublesSyncUtil.safeSyncAll(player);
 

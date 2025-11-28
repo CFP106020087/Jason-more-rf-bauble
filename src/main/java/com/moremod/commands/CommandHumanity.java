@@ -88,7 +88,10 @@ public class CommandHumanity extends CommandBase {
                 try {
                     float value = Float.parseFloat(args[1]);
                     value = Math.max(0, Math.min(100, value));
-                    data.setHumanity(value);
+                    // 使用 HumanitySpectrumSystem 设置，会自动触发同步
+                    HumanitySpectrumSystem.setHumanity(player, value);
+                    // 立即同步到客户端（不等待 tick）
+                    HumanitySpectrumSystem.syncNow(player);
                     player.sendMessage(new TextComponentString("§a已将人性值设置为: " + String.format("%.1f%%", value)));
                 } catch (NumberFormatException e) {
                     player.sendMessage(new TextComponentString("§c无效的数值"));
