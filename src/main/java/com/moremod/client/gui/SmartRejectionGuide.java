@@ -807,8 +807,8 @@ public class SmartRejectionGuide extends Gui {
         // ========== 破碎_臂 ==========
         y = renderBrokenGodSection(centerX, y, fr, alphaInt, bgAlpha,
                 "§b【破碎_臂】", 0x55FFFF, new String[] {
-            "§b• §f100%暴击率",
-            "§b• §f暴击伤害×3",
+            "§b• §f伤害×2",
+            "§b• §f100%暴击率 + 暴击伤害×3",
             "§b• §f攻击距离+3格",
             "§b• §f护甲粉碎场: 10格内敌人护甲归零"
         });

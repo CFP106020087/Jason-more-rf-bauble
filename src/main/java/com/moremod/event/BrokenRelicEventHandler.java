@@ -58,9 +58,11 @@ public class BrokenRelicEventHandler {
 
         float modifiedDamage = event.getAmount();
 
-        // ========== 破碎_臂: 必定暴击×3 ==========
+        // ========== 破碎_臂: 伤害×2 + 必定暴击×3 ==========
         // 护甲粉碎效果由ItemBrokenArm的光环处理（周围敌人护甲归零）
         if (hasBrokenArm(player)) {
+            // 基础伤害倍率 ×2
+            modifiedDamage *= ItemBrokenArm.getDamageMultiplier();
             // 暴击伤害 ×3
             modifiedDamage *= ItemBrokenArm.getCritMultiplier();
         }

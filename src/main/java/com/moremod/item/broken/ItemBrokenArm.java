@@ -155,6 +155,13 @@ public class ItemBrokenArm extends ItemBrokenBaubleBase {
     }
 
     /**
+     * 获取基础伤害倍率
+     */
+    public static float getDamageMultiplier() {
+        return (float) BrokenRelicConfig.armDamageMultiplier;
+    }
+
+    /**
      * 获取暴击伤害倍率
      */
     public static float getCritMultiplier() {
@@ -184,6 +191,7 @@ public class ItemBrokenArm extends ItemBrokenBaubleBase {
         tooltip.add("");
         tooltip.add(TextFormatting.GOLD + "◆ 绝对暴击");
         tooltip.add(TextFormatting.GRAY + "  所有攻击必定暴击");
+        tooltip.add(TextFormatting.YELLOW + "  伤害 ×" + BrokenRelicConfig.armDamageMultiplier);
         tooltip.add(TextFormatting.YELLOW + "  暴击伤害 ×" + BrokenRelicConfig.armCritMultiplier);
         tooltip.add("");
         tooltip.add(TextFormatting.LIGHT_PURPLE + "◆ 极限延伸");

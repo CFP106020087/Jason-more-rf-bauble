@@ -57,6 +57,14 @@ public class BrokenRelicConfig {
     // ============================================================
 
     @Config.Comment({
+            "基础伤害倍率（所有攻击）",
+            "Base damage multiplier (all attacks)"
+    })
+    @Config.Name("破碎臂:伤害倍率 | Arm: Damage Multiplier")
+    @Config.RangeDouble(min = 1.0, max = 5.0)
+    public static double armDamageMultiplier = 2.0;
+
+    @Config.Comment({
             "暴击伤害倍率",
             "Critical damage multiplier"
     })
