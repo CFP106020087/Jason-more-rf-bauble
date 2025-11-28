@@ -386,6 +386,16 @@ public class HumanitySpectrumSystem {
 
         data.setDissolutionTicks(remaining - 1);
 
+        // 周期性崩解伤害
+        int damageIntervalTicks = HumanityConfig.dissolutionDamageInterval * 20;
+        if (damageIntervalTicks > 0 && remaining % damageIntervalTicks == 0) {
+            float maxHealth = player.getMaxHealth();
+            float damage = maxHealth * (float) HumanityConfig.dissolutionDamagePercent;
+            if (damage > 0) {
+                player.attackEntityFrom(DamageSourceDissolution.DISSOLUTION, damage);
+            }
+        }
+
         // 每秒发送提醒
         if (remaining % 20 == 0) {
             int seconds = remaining / 20;

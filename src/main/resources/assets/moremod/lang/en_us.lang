@@ -4,5 +4,8 @@ key.categories.moremod=moremod
 key.moremod.jetpack_toggle=Jetpack toggle
 key.moremod.hover_toggle=Hover toggle
 
+# Death Messages
+death.attack.dissolution=%s died from completely detaching from the laws of existence
+
 # Synergy System
 tile.synergy_station.name=Synergy Linking Station

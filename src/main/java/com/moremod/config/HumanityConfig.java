@@ -42,6 +42,22 @@ public class HumanityConfig {
     public static int dissolutionDuration = 60;
 
     @Config.Comment({
+            "崩解状态伤害间隔(秒)",
+            "Interval between dissolution damage ticks in seconds"
+    })
+    @Config.Name("崩解伤害间隔 | Dissolution Damage Interval")
+    @Config.RangeInt(min = 1, max = 60)
+    public static int dissolutionDamageInterval = 5;
+
+    @Config.Comment({
+            "崩解状态每次伤害占最大生命值的百分比",
+            "Percentage of max health dealt as damage per dissolution tick"
+    })
+    @Config.Name("崩解伤害百分比 | Dissolution Damage Percent")
+    @Config.RangeDouble(min = 0.01, max = 0.5)
+    public static double dissolutionDamagePercent = 0.1;
+
+    @Config.Comment({
             "存在锚定持续时间(小时)",
             "Existence anchor duration in hours"
     })
