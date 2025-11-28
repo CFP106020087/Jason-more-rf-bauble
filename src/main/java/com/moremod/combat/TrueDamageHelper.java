@@ -178,37 +178,14 @@ public class TrueDamageHelper {
     /**
      * 触发完整的 vanilla 死亡链
      *
-     * 严格遵守要求：
-     * ✔ setHealth(0F)
-     * ✔ 设置 deathTime = 19（下一 tick 自动进入死亡完成阶段）
-     * ✔ 调用 onDeath() 触发 LivingDeathEvent / LivingDropsEvent
-     * ✔ 不调用 attackEntityFrom()
-     * ✔ 不调用两次 onDeath()
-     * ✔ 不设置 victim.dead = true（vanilla 在 onDeath 末尾自己设）
-     * ✔ CombatTracker 已在调用方设置
-     * ✔ 攻击者归属已在调用方设置
+     * 攻击者归属（recentlyHit, attackingPlayer）已在调用方设置
      */
     private static void triggerVanillaDeathChain(EntityLivingBase victim, DamageSource source) {
         if (victim.isDead) return;
 
-        // ========== 1. 设置生命值为 0 ==========
+        // 设置血量为 0，然后让 onKillCommand 触发完整的 vanilla 死亡链
         victim.setHealth(0F);
-
-        // ========== 2. 设置 deathTime = 19 ==========
-        // 下一 tick deathTime 会变成 20，触发 onDeathUpdate 中的实体移除逻辑
-        victim.deathTime = 19;
-
-        // ========== 3. 重新检查战斗追踪器状态 ==========
-        victim.getCombatTracker().recheckStatus();
-
-        // ========== 4. 调用 onDeath() 触发完整死亡事件链 ==========
-        // onDeath() 内部会：
-        //   - 触发 ForgeHooks.onLivingDeath() -> LivingDeathEvent
-        //   - 调用 dropLoot() -> LivingDropsEvent
-        //   - 调用 dropEquipment()
-        //   - 在末尾设置 dead = true
-        // 不要手动设置 dead = true，让 vanilla 自己处理
-        victim.onDeath(source);
+        victim.onKillCommand();
     }
 
     /**
