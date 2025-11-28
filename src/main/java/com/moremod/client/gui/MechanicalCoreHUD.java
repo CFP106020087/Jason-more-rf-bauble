@@ -167,6 +167,22 @@ public class MechanicalCoreHUD extends Gui {
                 mainY = screenH - yOffset - mainHeight - 5;
                 anchorRight = true;
                 break;
+            case TOP_MIDDLE:
+                // 上中：水平居中，贴顶
+                mainX = (screenW - MAIN_PANEL_WIDTH) / 2 + xOffset;
+                mainY = yOffset + 5;
+                break;
+            case LEFT_MIDDLE:
+                // 左中：贴左，垂直居中
+                mainX = xOffset + 5;
+                mainY = (screenH - mainHeight) / 2 + yOffset;
+                break;
+            case RIGHT_MIDDLE:
+                // 右中：贴右，垂直居中
+                mainX = screenW - MAIN_PANEL_WIDTH - xOffset - 5;
+                mainY = (screenH - mainHeight) / 2 + yOffset;
+                anchorRight = true;
+                break;
             case CUSTOM:
                 mainX = xOffset;
                 mainY = yOffset;

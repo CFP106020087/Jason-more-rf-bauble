@@ -155,6 +155,9 @@ public class MechanicalCoreHUDConfig {
         TOP_RIGHT("右上"),
         BOTTOM_LEFT("左下"),
         BOTTOM_RIGHT("右下"),
+        TOP_MIDDLE("上中"),
+        LEFT_MIDDLE("左中"),
+        RIGHT_MIDDLE("右中"),
         CUSTOM("自定义");
 
         private final String displayName;
