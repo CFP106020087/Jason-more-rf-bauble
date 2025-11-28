@@ -353,7 +353,9 @@ public class HumanitySpectrumSystem {
         IHumanityData data = HumanityCapabilityHandler.getData(player);
         if (data == null || !data.isSystemActive()) return;
 
-        data.startDissolution();
+        // 使用配置的崩解持续时间（秒转换为tick）
+        int durationTicks = HumanityConfig.dissolutionDuration * 20;
+        data.startDissolution(durationTicks);
 
         player.sendMessage(new TextComponentString(
                 TextFormatting.DARK_PURPLE + "═══════════════════════════════\n" +

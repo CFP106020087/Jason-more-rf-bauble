@@ -142,9 +142,9 @@ public class HumanityDataImpl implements IHumanityData {
     }
 
     @Override
-    public void startDissolution() {
+    public void startDissolution(int durationTicks) {
         this.dissolutionActive = true;
-        this.dissolutionTicks = DEFAULT_DISSOLUTION_DURATION;
+        this.dissolutionTicks = durationTicks > 0 ? durationTicks : DEFAULT_DISSOLUTION_DURATION;
     }
 
     @Override

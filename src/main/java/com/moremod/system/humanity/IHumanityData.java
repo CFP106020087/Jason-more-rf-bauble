@@ -74,8 +74,9 @@ public interface IHumanityData {
 
     /**
      * 开始崩解状态
+     * @param durationTicks 崩解持续时间（tick）
      */
-    void startDissolution();
+    void startDissolution(int durationTicks);
 
     /**
      * 结束崩解状态
