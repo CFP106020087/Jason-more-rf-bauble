@@ -55,7 +55,7 @@ public class HumanityConfig {
     })
     @Config.Name("崩解伤害百分比 | Dissolution Damage Percent")
     @Config.RangeDouble(min = 0.01, max = 0.5)
-    public static double dissolutionDamagePercent = 0.1;
+    public static double dissolutionDamagePercent = 0.3;
 
     @Config.Comment({
             "存在锚定持续时间(MC游戏日，1日=24000tick≈20分钟)",
