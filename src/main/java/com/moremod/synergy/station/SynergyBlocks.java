@@ -1,6 +1,7 @@
 package com.moremod.synergy.station;
 
 import com.moremod.moremod;
+import com.moremod.synergy.item.ItemSynergyGuide;
 import net.minecraft.block.Block;
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.item.Item;
@@ -16,9 +17,9 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 /**
- * Synergy 系统方块注册
+ * Synergy 系统方块和物品注册
  *
- * 独立的方块注册类，通过 EventBusSubscriber 自动加载。
+ * 独立的注册类，通过 EventBusSubscriber 自动加载。
  * 如果要完全移除 Synergy 系统，删除整个 synergy 包即可。
  */
 @Mod.EventBusSubscriber(modid = moremod.MODID)
@@ -26,6 +27,9 @@ public class SynergyBlocks {
 
     /** Synergy 链结站方块 */
     public static Block SYNERGY_STATION;
+
+    /** Synergy 协同手册 */
+    public static Item SYNERGY_GUIDE;
 
     /**
      * 注册方块
@@ -49,7 +53,7 @@ public class SynergyBlocks {
     }
 
     /**
-     * 注册物品（ItemBlock）
+     * 注册物品（ItemBlock 和独立物品）
      */
     @SubscribeEvent
     public static void registerItems(RegistryEvent.Register<Item> event) {
@@ -59,6 +63,12 @@ public class SynergyBlocks {
                         .setRegistryName(SYNERGY_STATION.getRegistryName()));
                 System.out.println("[Synergy] Synergy Station ItemBlock registered");
             }
+
+            // 注册协同手册
+            SYNERGY_GUIDE = new ItemSynergyGuide();
+            event.getRegistry().register(SYNERGY_GUIDE);
+            System.out.println("[Synergy] Synergy Guide item registered");
+
         } catch (Exception e) {
             System.err.println("[Synergy] Failed to register Synergy items: " + e.getMessage());
             e.printStackTrace();
@@ -79,6 +89,16 @@ public class SynergyBlocks {
                 );
                 System.out.println("[Synergy] Synergy Station model registered");
             }
+
+            // 注册协同手册模型
+            if (SYNERGY_GUIDE != null) {
+                ModelLoader.setCustomModelResourceLocation(
+                        SYNERGY_GUIDE, 0,
+                        new ModelResourceLocation(SYNERGY_GUIDE.getRegistryName(), "inventory")
+                );
+                System.out.println("[Synergy] Synergy Guide model registered");
+            }
+
         } catch (Exception e) {
             System.err.println("[Synergy] Failed to register Synergy models: " + e.getMessage());
             e.printStackTrace();

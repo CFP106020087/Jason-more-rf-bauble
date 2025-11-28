@@ -3,7 +3,7 @@
   "textures": {
     "particle": "moremod:blocks/machine_side",
     "down": "moremod:blocks/machine_bottom",
-    "up": "moremod:blocks/machine_side",
+    "up": "moremod:blocks/synergy_station_top",
     "north": "moremod:blocks/machine_side",
     "south": "moremod:blocks/machine_side",
     "east": "moremod:blocks/machine_side",

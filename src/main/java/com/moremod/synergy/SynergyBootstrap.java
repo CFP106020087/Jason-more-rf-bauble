@@ -138,13 +138,14 @@ public class SynergyBootstrap {
     /**
      * 注册所有高级 Synergy
      *
-     * 包含 6 大类共 18 个 Synergy:
+     * 包含 7 大类共 24 个 Synergy:
      * - 空间/维度类 (3): Rift Walker, Gravity Anchor, Dimensional Pocket
      * - 时间类 (3): Temporal Debt, Causality Loop, Echo Chamber
      * - 能量/资源类 (3): Meltdown Protocol, Parasitic Link, Energy Weaving
      * - 战斗规则类 (3): Counter Weave, Glass Cannon, Void Strike
      * - AI/实体类 (3): Hive Mind, Corruption Seed, Pack Hunter
      * - 环境/领域类 (3): Domain Expansion, Reality Fracture, Sanctuary
+     * - 机制类 (6): Momentum Engine, Time Fracture, Gravity Well, Soul Harvest, Phase Shift, Chain Lightning
      */
     private static void registerAdvancedSynergies(SynergyManager manager) {
         System.out.println("[Synergy] Registering advanced synergies...");
@@ -167,6 +168,9 @@ public class SynergyBootstrap {
         // 环境/领域类
         DomainSynergies.registerAll(manager);
 
-        System.out.println("[Synergy] Total advanced synergies: 18");
+        // 机制类（新增）
+        MechanismSynergies.registerAll(manager);
+
+        System.out.println("[Synergy] Total advanced synergies: 24");
     }
 }

@@ -77,6 +77,7 @@ gui.moremod.sage_book.selected=已选择
 gui.moremod.sage_book.confirm=确认选择
 gui.moremod.sage_book.prev_page=上一页
 gui.moremod.sage_book.next_page=下一页
+item.moremod.synergy_guide.name=协同效应手册
 item.adv_energy_barrier.name=高级能量屏障
 item.law_sword.name=妖刀-鬼哭
 tile.trading_station.name=自動交易站
