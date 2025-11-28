@@ -38,6 +38,7 @@ public class SynergyDefinition {
     private final boolean requireAllModulesActive;
     private final int priority;
     private final boolean enabled;
+    private final String category;
 
     // ==================== 构造器 ====================
 
@@ -54,6 +55,7 @@ public class SynergyDefinition {
         this.requireAllModulesActive = builder.requireAllModulesActive;
         this.priority = builder.priority;
         this.enabled = builder.enabled;
+        this.category = builder.category;
     }
 
     // ==================== 访问器 ====================
@@ -115,6 +117,15 @@ public class SynergyDefinition {
 
     public boolean isEnabled() {
         return enabled;
+    }
+
+    /**
+     * 获取 Synergy 类别（用于 GUI 分类显示）
+     * @return 类别字符串，如 "combat", "energy", "mechanism" 等
+     */
+    @Nonnull
+    public String getCategory() {
+        return category != null ? category : "misc";
     }
 
     // ==================== 逻辑方法 ====================
@@ -265,6 +276,7 @@ public class SynergyDefinition {
         private boolean requireAllModulesActive = true;
         private int priority = 100;
         private boolean enabled = true;
+        private String category = "misc";
 
         public Builder(String id) {
             this.id = Objects.requireNonNull(id, "Synergy ID cannot be null");
@@ -341,6 +353,15 @@ public class SynergyDefinition {
 
         public Builder enabled(boolean enabled) {
             this.enabled = enabled;
+            return this;
+        }
+
+        /**
+         * 设置 Synergy 类别（用于 GUI 分类显示）
+         * @param category 类别字符串，如 "combat", "energy", "mechanism" 等
+         */
+        public Builder category(String category) {
+            this.category = category != null ? category : "misc";
             return this;
         }
 

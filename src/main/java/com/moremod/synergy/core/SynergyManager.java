@@ -168,6 +168,14 @@ public class SynergyManager {
     }
 
     /**
+     * 获取所有注册的 Synergy 定义（别名）
+     */
+    @Nonnull
+    public Collection<SynergyDefinition> getAllSynergies() {
+        return getAll();
+    }
+
+    /**
      * 获取指定事件类型的所有 Synergy 定义
      */
     @Nonnull
