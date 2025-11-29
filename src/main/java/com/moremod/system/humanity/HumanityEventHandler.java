@@ -315,13 +315,59 @@ public class HumanityEventHandler {
 
         float humanity = HumanitySpectrumSystem.getHumanity(player);
 
-        // 极低人性：无痛麻木 - 伤害优先命中要害
-        if (humanity < 10f && HumanityConfig.extremeLowHumanityCritChance > 0) {
+        // 高人性(>=60)：本能防护 - 保护要害，伤害转移到四肢
+        if (humanity >= 60f) {
+            applyInstinctiveProtection(event, player, humanity);
+        }
+        // 极低人性(<10)：无痛麻木 - 伤害优先命中要害
+        else if (humanity < 10f && HumanityConfig.extremeLowHumanityCritChance > 0) {
             // 概率触发无痛麻木效果
             if (player.world.rand.nextFloat() < HumanityConfig.extremeLowHumanityCritChance) {
                 applyPainlessNumbnessEffect(event, player);
             }
         }
+    }
+
+    /**
+     * 本能防护效果 - 高人性时保护要害，将头部和躯干伤害转移到四肢
+     *
+     * 当人性值 >= 60% 时，玩家保留了人类的战斗本能，
+     * 会下意识地用四肢保护要害部位
+     */
+    @Optional.Method(modid = "firstaid")
+    private static void applyInstinctiveProtection(FirstAidLivingDamageEvent event, EntityPlayer player, float humanity) {
+        AbstractPlayerDamageModel beforeDamage = event.getBeforeDamage();
+        AbstractPlayerDamageModel afterDamage = event.getAfterDamage();
+
+        // 计算头部和躯干受到的伤害
+        float headDamage = Math.max(0, beforeDamage.HEAD.currentHealth - afterDamage.HEAD.currentHealth);
+        float bodyDamage = Math.max(0, beforeDamage.BODY.currentHealth - afterDamage.BODY.currentHealth);
+
+        float totalVitalDamage = headDamage + bodyDamage;
+
+        // 如果要害没有受到伤害，不需要转移
+        if (totalVitalDamage <= 0.1f) return;
+
+        // 人性越高，保护效果越强 (60%人性=30%转移, 100%人性=60%转移)
+        float protectionRatio = 0.3f + (humanity - 60f) / 100f;
+        protectionRatio = Math.min(0.6f, Math.max(0.3f, protectionRatio));
+
+        float transferAmount = totalVitalDamage * protectionRatio;
+
+        // 恢复头部和躯干血量
+        float headRecovery = headDamage * protectionRatio;
+        float bodyRecovery = bodyDamage * protectionRatio;
+        afterDamage.HEAD.currentHealth = Math.min(beforeDamage.HEAD.currentHealth,
+            afterDamage.HEAD.currentHealth + headRecovery);
+        afterDamage.BODY.currentHealth = Math.min(beforeDamage.BODY.currentHealth,
+            afterDamage.BODY.currentHealth + bodyRecovery);
+
+        // 将伤害分散到四肢
+        float damagePerLimb = transferAmount * 0.25f;
+        afterDamage.LEFT_ARM.currentHealth = Math.max(0, afterDamage.LEFT_ARM.currentHealth - damagePerLimb);
+        afterDamage.RIGHT_ARM.currentHealth = Math.max(0, afterDamage.RIGHT_ARM.currentHealth - damagePerLimb);
+        afterDamage.LEFT_LEG.currentHealth = Math.max(0, afterDamage.LEFT_LEG.currentHealth - damagePerLimb);
+        afterDamage.RIGHT_LEG.currentHealth = Math.max(0, afterDamage.RIGHT_LEG.currentHealth - damagePerLimb);
     }
 
     /**
