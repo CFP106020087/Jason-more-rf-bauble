@@ -311,14 +311,18 @@ public class HumanityEventHandler {
 
         EntityPlayer player = (EntityPlayer) event.getEntityLiving();
 
-        if (!HumanitySpectrumSystem.isSystemActive(player)) return;
-
+        // 调试：检查 Capability 状态
+        IHumanityData debugData = HumanityCapabilityHandler.getData(player);
+        boolean systemActive = HumanitySpectrumSystem.isSystemActive(player);
         float humanity = HumanitySpectrumSystem.getHumanity(player);
 
-        // 调试：显示当前人性值和条件检查结果
         player.sendStatusMessage(new net.minecraft.util.text.TextComponentString(
-                "§7[Debug] Humanity: " + String.format("%.1f", humanity) +
-                " | 无痛麻木条件: " + (humanity < 10f ? "§c是" : "§a否")), true);
+                "§7[Debug] Cap=" + (debugData != null ? "OK" : "NULL") +
+                " | Active=" + (systemActive ? "§a是" : "§c否") +
+                " | Humanity=" + String.format("%.1f", humanity) +
+                " | 麻木=" + (humanity < 10f ? "§c触发" : "§a不触发")), true);
+
+        if (!systemActive) return;
 
         // 极低人性(<10)：无痛麻木 - 伤害优先命中要害
         if (humanity < 10f && HumanityConfig.extremeLowHumanityCritChance > 0) {
