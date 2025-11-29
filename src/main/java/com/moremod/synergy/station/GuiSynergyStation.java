@@ -52,7 +52,8 @@ public class GuiSynergyStation extends GuiScreen {
 
     // ==================== 布局常量 ====================
     private static final int GUI_WIDTH = 300;
-    private static final int GUI_HEIGHT = 200;
+    // 🔥 修改: 增加总高度，给底部腾出空间 (原 200)
+    private static final int GUI_HEIGHT = 215;
 
     // 模块列表区域（左侧，滚动）
     private static final int MODULE_PANEL_X = 8;
@@ -66,17 +67,21 @@ public class GuiSynergyStation extends GuiScreen {
     private static final int LINK_PANEL_X = 115;
     private static final int LINK_PANEL_Y = 25;
     private static final int LINK_PANEL_WIDTH = 177;
-    private static final int LINK_PANEL_HEIGHT = 110;
+    // 🔥 修改: 拉高面板高度，容纳六边形 (原 110)
+    private static final int LINK_PANEL_HEIGHT = 138;
 
-    private static final int LINK_CENTER_X = 200;  // 相对于 guiLeft
-    private static final int LINK_CENTER_Y = 75;   // 相对于 guiTop
-    private static final int LINK_SLOT_RADIUS = 40;
+    private static final int LINK_CENTER_X = 203;  // 微调水平中心
+    // 🔥 修改: 中心点大幅下移，防止顶到标题栏 (原 75)
+    private static final int LINK_CENTER_Y = 94;
+    // 🔥 修改: 半径微调收缩，防止挡住底部页码 (原 40)
+    private static final int LINK_SLOT_RADIUS = 36;
     private static final int SLOT_SIZE = 24;
     private static final int SLOTS_PER_PAGE = 6;
 
     // Synergy 信息区域
     private static final int INFO_PANEL_X = 115;
-    private static final int INFO_PANEL_Y = 140;
+    // 🔥 修改: 顺延下移 (原 140)
+    private static final int INFO_PANEL_Y = 168;
     private static final int INFO_PANEL_WIDTH = 177;
     private static final int INFO_PANEL_HEIGHT = 32;
 
@@ -517,18 +522,18 @@ public class GuiSynergyStation extends GuiScreen {
         drawGradientRect(x + 1, y + 1, x + w - 1, y + 16, COLOR_ACCENT_DIM, COLOR_PANEL_BG);
 
         GlStateManager.enableTexture2D();
-        String linkTitle = "LINK SLOTS";
+        String linkTitle = "链结槽位";
         fontRenderer.drawStringWithShadow(linkTitle, x + 4, y + 4, COLOR_TEXT_TITLE);
 
         // 页码显示
-        String pageStr = String.format("Page %d/%d", currentPage + 1, MAX_PAGES);
+        String pageStr = String.format("页 %d/%d", currentPage + 1, MAX_PAGES);
         int pageStrWidth = fontRenderer.getStringWidth(pageStr);
         fontRenderer.drawString(pageStr, x + (w - pageStrWidth) / 2, y + h - 14, COLOR_TEXT_DIM);
 
         // 槽位范围提示
         int startSlot = currentPage * SLOTS_PER_PAGE + 1;
         int endSlot = startSlot + SLOTS_PER_PAGE - 1;
-        String slotRange = String.format("Slots %d-%d", startSlot, endSlot);
+        String slotRange = String.format("槽位 %d-%d", startSlot, endSlot);
         fontRenderer.drawString(slotRange, x + w - fontRenderer.getStringWidth(slotRange) - 4, y + 4, COLOR_TEXT_DIM);
         GlStateManager.disableTexture2D();
 
@@ -682,16 +687,16 @@ public class GuiSynergyStation extends GuiScreen {
 
         GlStateManager.enableTexture2D();
 
-        fontRenderer.drawStringWithShadow("SYNERGIES", x + 4, y + 2, COLOR_TEXT_TITLE);
+        fontRenderer.drawStringWithShadow("模块联动", x + 4, y + 2, COLOR_TEXT_TITLE);
 
         // 显示已链结模块总数
         int totalLinked = tileEntity.getLinkedModuleCount();
-        String linkedStr = totalLinked + " linked";
+        String linkedStr = totalLinked + " 链结";
         fontRenderer.drawString(linkedStr, x + w - fontRenderer.getStringWidth(linkedStr) - 4, y + 2, COLOR_TEXT_DIM);
 
         int listY = y + 14;
         if (matchingSynergies.isEmpty()) {
-            fontRenderer.drawString("Link 2+ modules for synergy", x + 4, listY + 2, COLOR_TEXT_DIM);
+            fontRenderer.drawString("链结两个以上模块触发联动", x + 4, listY + 2, COLOR_TEXT_DIM);
         } else {
             String synergyName = matchingSynergies.get(0).getDisplayName();
             if (fontRenderer.getStringWidth(synergyName) > w - 30) {
@@ -703,8 +708,8 @@ public class GuiSynergyStation extends GuiScreen {
             fontRenderer.drawString("> " + synergyName, x + 4, listY + 2, COLOR_SUCCESS);
 
             if (matchingSynergies.size() > 1) {
-                fontRenderer.drawString("+" + (matchingSynergies.size() - 1) + " more",
-                        x + w - fontRenderer.getStringWidth("+" + (matchingSynergies.size() - 1) + " more") - 4,
+                fontRenderer.drawString("+" + (matchingSynergies.size() - 1) + " 更多 ",
+                        x + w - fontRenderer.getStringWidth("+" + (matchingSynergies.size() - 1) + " 更多") - 4,
                         listY + 2, COLOR_TEXT_DIM);
             }
         }

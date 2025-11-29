@@ -1,6 +1,6 @@
 package com.moremod.client.model;
 
-import com.moremod.entity.boss.riftwarden.EntityRiftwarden;
+import com.moremod.entity.boss.EntityRiftwarden;
 import net.minecraft.util.ResourceLocation;
 import software.bernie.geckolib3.model.AnimatedGeoModel;
 
