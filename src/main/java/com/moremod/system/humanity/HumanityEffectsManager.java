@@ -317,7 +317,7 @@ public class HumanityEffectsManager {
 
         switch (level) {
             case TRUSTED:
-                return 0.85f; // -15% 折扣
+                return 0.70f; // -30% 折扣
             case NORMAL:
                 return 1.0f;
             case SUSPICIOUS:

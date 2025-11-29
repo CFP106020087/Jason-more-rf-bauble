@@ -164,7 +164,7 @@ public class SmartRejectionGuide extends Gui {
                 "§d✦ 人性值系统已激活", 300, 10,
                 "§7你已完成人机融合，进入人性值阶段",
                 String.format("§7当前人性值: §f%.0f%%", humanity),
-                "§b高人性(>60%): §7猎人协议，精准打击",
+                "§b高人性(>60%): §7研究协议，精准打击",
                 "§5低人性(<40%): §7异常协议，存在扭曲",
                 "§e灰域(40-60%): §7不稳定，量子叠加"
         ), true);
@@ -196,20 +196,22 @@ public class SmartRejectionGuide extends Gui {
         if (humanity >= 80 && !shownMilestones.contains("hum80")) {
             shownMilestones.add("hum80");
             showGuide(new GuideInfo(
-                    "§a◈ 高度人性", 180, 5,
+                    "§a◈ 高度人性", 200, 5,
                     String.format("§7人性值: §a%.0f%%", humanity),
-                    "§a效果: §7猎人协议全面激活",
-                    "§a效果: §7生物档案槽位最大化",
-                    "§7保持人类行为维持人性"
+                    "§a研究协议: §7伤害+15%/30%/50%",
+                    "§a样本加成: §7已分析生物掉落率+",
+                    "§a信任折扣: §7NPC价格-30%",
+                    "§7可使用链结站"
             ), false);
         }
         else if (humanity >= 60 && humanity < 80 && !shownMilestones.contains("hum60")) {
             shownMilestones.add("hum60");
             showGuide(new GuideInfo(
-                    "§b◈ 稳定人性", 160, 4,
+                    "§b◈ 稳定人性", 180, 4,
                     String.format("§7人性值: §b%.0f%%", humanity),
-                    "§b效果: §7猎人协议可用",
-                    "§7可使用生物档案系统"
+                    "§b研究协议: §7伤害+15%/30%/50%",
+                    "§b样本加成: §7已分析生物掉落率+",
+                    "§7可使用链结站"
             ), false);
         }
         // 灰域警告
@@ -642,7 +644,7 @@ public class SmartRejectionGuide extends Gui {
         String title;
         int titleColor;
         if (humanity >= 60) {
-            title = "§b✦ 人性值系统 - 猎人协议";
+            title = "§b✦ 人性值系统 - 研究协议";
             titleColor = 0x55FFFF;
         } else if (humanity >= 40) {
             title = "§e⚡ 人性值系统 - 灰域状态";
@@ -869,7 +871,7 @@ public class SmartRejectionGuide extends Gui {
                 "§8【代价】", 0x888888, new String[] {
             "§8• §7药水完全无效",
             "§8• §7无法使用链结站",
-            "§8• §7猎人协议失效",
+            "§8• §7研究协议失效",
             "§8• §7NPC完全无视你"
         });
 
@@ -904,8 +906,8 @@ public class SmartRejectionGuide extends Gui {
 
     // 获取人性值区间文本
     private static String getHumanityZoneText(float humanity) {
-        if (humanity >= 80) return "§a区间: 高度人性 (猎人协议完全激活)";
-        if (humanity >= 60) return "§b区间: 稳定人性 (猎人协议可用)";
+        if (humanity >= 80) return "§a区间: 高度人性 (研究协议完全激活)";
+        if (humanity >= 60) return "§b区间: 稳定人性 (研究协议可用)";
         if (humanity >= 40) return "§e区间: 灰域 (量子叠加不稳定)";
         if (humanity >= 25) return "§5区间: 低人性 (异常协议激活)";
         if (humanity >= 10) return "§4区间: 极低人性 (异常协议强化)";
@@ -917,12 +919,14 @@ public class SmartRejectionGuide extends Gui {
         List<String> effects = new ArrayList<>();
 
         if (humanity >= 60) {
-            // 高人性效果
-            effects.add("§a• 猎人协议: 已分析生物伤害+");
+            // 高人性效果 - 研究协议
+            effects.add("§a• 研究协议伤害: +15%/30%/50%");
+            effects.add("§a• 样本掉落加成: +20%/40%/60%");
             int slots = (int)(humanity / 10f);
             effects.add("§a• 生物档案槽位: " + slots);
             if (humanity >= 80) {
-                effects.add("§a• 未知敌人惩罚: 最小化");
+                effects.add("§a• NPC信任: -30%价格");
+                effects.add("§a• 精通暴击: +20%");
             }
         } else if (humanity >= 40) {
             // 灰域效果

@@ -2,6 +2,7 @@ package com.moremod.system.humanity.intel;
 
 import com.moremod.config.HumanityConfig;
 import com.moremod.moremod;
+import com.moremod.system.humanity.BiologicalProfile;
 import com.moremod.system.humanity.HumanityCapabilityHandler;
 import com.moremod.system.humanity.HumanitySpectrumSystem;
 import com.moremod.system.humanity.IHumanityData;
@@ -58,8 +59,8 @@ public class IntelEventHandler {
             // 只有高人性玩家才能掉落样本
             if (humanity < HIGH_HUMANITY_THRESHOLD) return;
 
-            // 计算掉落概率
-            float dropChance = calculateDropChance(humanity, target);
+            // 计算掉落概率（研究协议加成：已分析生物掉落率提升）
+            float dropChance = calculateDropChance(player, humanity, target);
 
             // 随机判定
             if (player.world.rand.nextFloat() < dropChance) {
@@ -71,7 +72,7 @@ public class IntelEventHandler {
     /**
      * 计算掉落概率
      */
-    private static float calculateDropChance(float humanity, EntityLivingBase target) {
+    private static float calculateDropChance(EntityPlayer player, float humanity, EntityLivingBase target) {
         float chance = BASE_DROP_CHANCE;
 
         // 人性值加成 (50-100之间每1点增加0.5%)
@@ -86,6 +87,28 @@ public class IntelEventHandler {
                 chance += 0.50f; // Boss额外 +50%
             } else if (com.moremod.system.humanity.BiologicalProfile.isEliteEntity(path)) {
                 chance += 0.20f; // 精英怪额外 +20%
+            }
+
+            // 研究协议加成：已分析的生物掉落率提升
+            IHumanityData data = HumanityCapabilityHandler.getData(player);
+            if (data != null && entityId != null) {
+                BiologicalProfile profile = data.getProfile(entityId);
+                if (profile != null) {
+                    // 根据档案等级增加掉落率
+                    switch (profile.getCurrentTier()) {
+                        case BASIC:
+                            chance += 0.20f; // 初级档案 +20%
+                            break;
+                        case COMPLETE:
+                            chance += 0.40f; // 完整档案 +40%
+                            break;
+                        case MASTERED:
+                            chance += 0.60f; // 精通档案 +60%
+                            break;
+                        default:
+                            break;
+                    }
+                }
             }
         }
 
