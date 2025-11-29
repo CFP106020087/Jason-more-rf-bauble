@@ -43,7 +43,7 @@ public class GemLootRuleManager {
 
     private static final List<LootRule> RULES = new ArrayList<>();
     private static boolean debugMode = false;
-    
+
     // 缓存反射方法（仅用于龙）
     private static final Map<Class<?>, Method> DRAGON_STAGE_METHOD_CACHE = new HashMap<>();
 
@@ -123,13 +123,13 @@ public class GemLootRuleManager {
         // 使用instanceof判断（性能最优）
         if (entity instanceof BaseCreatureEntity) return "lycanitesmobs";
         if (entity instanceof EntityParasiteBase) return "srparasites";
-        
+
         // 使用类名前缀判断（次优）
         String className = entity.getClass().getName();
         if (className.startsWith("com.github.alexthe666.iceandfire")) return "iceandfire";
         if (className.startsWith("c4.champions")) return "champions";
         if (className.startsWith("atomicstryker.infernalmobs")) return "infernalmobs";
-        
+
         // 兜底：从包名提取
         String[] parts = className.split("\\.");
         if (parts.length >= 3) {
@@ -163,16 +163,16 @@ public class GemLootRuleManager {
         private boolean growthFactorBonus = false;
         private int minModCount = -1;
         private int maxModCount = -1;
-        
+
         // Lycanites接口要求
         private Set<String> requiredInterfaces = new HashSet<>();
         private Set<String> excludedInterfaces = new HashSet<>();
         private boolean excludeBoss = false;
         private boolean requireHostile = false;
-        
+
         // SRP进化等级
         private String requiredSRPEvolution = null;
-        
+
         // Ice and Fire龙阶段（仍需反射）
         private int minDragonStage = -1;
         private int maxDragonStage = -1;
@@ -388,7 +388,7 @@ public class GemLootRuleManager {
                         // 1. 简单类名精确匹配：EntityWither == EntityWither
                         // 2. 完整路径匹配：endsWith(".EntityWither")
                         // 3. 完整类名匹配：完整类名equals
-                        
+
                         if (cls.contains(".")) {
                             // 如果包含点，认为是完整类名，使用精确匹配
                             if (className.equals(cls)) {
@@ -397,8 +397,8 @@ public class GemLootRuleManager {
                             }
                         } else {
                             // 简单类名，必须精确匹配
-                            if (simpleClassName.equals(cls) || 
-                                className.endsWith("." + cls)) {
+                            if (simpleClassName.equals(cls) ||
+                                    className.endsWith("." + cls)) {
                                 basicMatched = true;
                                 break;
                             }
@@ -434,8 +434,8 @@ public class GemLootRuleManager {
             if (maxHealth > 0 && health > maxHealth) return false;
 
             // Champions检查（已优化，无反射）
-            if (championTier > 0 || minChampionTier > 0 || maxChampionTier > 0 || 
-                minAffixCount > 0 || maxAffixCount > 0) {
+            if (championTier > 0 || minChampionTier > 0 || maxChampionTier > 0 ||
+                    minAffixCount > 0 || maxAffixCount > 0) {
                 if (!checkChampions(entity)) return false;
             }
 
@@ -613,11 +613,11 @@ public class GemLootRuleManager {
             }
 
             EntityParasiteBase parasite = (EntityParasiteBase) entity;
-            
+
             // 直接获取包名判断进化等级
             String packageName = entity.getClass().getPackage().getName();
             String evolution = packageName.substring(packageName.lastIndexOf('.') + 1);
-            
+
             if (requiredSRPEvolution != null && !requiredSRPEvolution.equals(evolution)) {
                 return false;
             }
@@ -635,17 +635,17 @@ public class GemLootRuleManager {
                 BaseCreatureEntity creature = (BaseCreatureEntity) entity;
                 return creature.isAggressive();
             }
-            
+
             // 原版敌对接口
             if (entity instanceof IMob) {
                 return true;
             }
-            
+
             // 原版动物（非敌对）
             if (entity instanceof EntityAnimal) {
                 return false;
             }
-            
+
             // 默认视为敌对
             return true;
         }
@@ -664,18 +664,18 @@ public class GemLootRuleManager {
             try {
                 // 使用缓存的方法
                 Method method = DRAGON_STAGE_METHOD_CACHE.computeIfAbsent(
-                    entity.getClass(), 
-                    clazz -> {
-                        // 尝试不同的方法名
-                        for (String methodName : Arrays.asList("getDragonStage", "getLifeStage", "getAgeInDays")) {
-                            try {
-                                return clazz.getMethod(methodName);
-                            } catch (NoSuchMethodException e) {
-                                // 继续尝试下一个
+                        entity.getClass(),
+                        clazz -> {
+                            // 尝试不同的方法名
+                            for (String methodName : Arrays.asList("getDragonStage", "getLifeStage", "getAgeInDays")) {
+                                try {
+                                    return clazz.getMethod(methodName);
+                                } catch (NoSuchMethodException e) {
+                                    // 继续尝试下一个
+                                }
                             }
+                            return null;
                         }
-                        return null;
-                    }
                 );
 
                 if (method == null) {
@@ -685,7 +685,7 @@ public class GemLootRuleManager {
                 int stage;
                 String methodName = method.getName();
                 Object result = method.invoke(entity);
-                
+
                 if (methodName.equals("getAgeInDays")) {
                     // 年龄转阶段
                     int ageInDays = ((Number) result).intValue();
