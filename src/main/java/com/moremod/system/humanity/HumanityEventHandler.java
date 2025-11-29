@@ -70,11 +70,8 @@ public class HumanityEventHandler {
         // 更新人性值
         HumanitySpectrumSystem.updateHumanity(player);
 
-        // 破碎之神：每tick强制锁定最大血量为10（防止被敌人减少）
-        // 其他玩家：每秒更新一次MaxHP修改器
-        if (BrokenGodHandler.isBrokenGod(player)) {
-            HumanityEffectsManager.updateMaxHP(player);
-        } else if (player.ticksExisted % 20 == 0) {
+        // 每秒更新一次MaxHP修改器（包括破碎之神的血量锁定）
+        if (player.ticksExisted % 20 == 0) {
             HumanityEffectsManager.updateMaxHP(player);
         }
 
