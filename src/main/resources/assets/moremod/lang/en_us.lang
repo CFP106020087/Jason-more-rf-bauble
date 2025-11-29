@@ -10,3 +10,7 @@ death.attack.dissolution=%s died from completely detaching from the laws of exis
 # Synergy System
 tile.synergy_station.name=Synergy Linking Station
 item.moremod.synergy_guide.name=Synergy Guide
+
+# Intel System (High Humanity)
+item.biological_sample.name=Biological Sample
+item.intel_book.name=Intel Book

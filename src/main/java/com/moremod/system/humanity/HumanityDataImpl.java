@@ -33,6 +33,7 @@ public class HumanityDataImpl implements IHumanityData {
     public static final String NBT_LOW_HUMANITY_TICKS = "low_humanity_ticks";
     public static final String NBT_OPERATION_VALUE = "operation_value";
     public static final String NBT_SHUTDOWN_TIMER = "shutdown_timer";
+    public static final String NBT_LEARNED_INTEL = "learned_intel";
 
     // 默认值
     public static final float DEFAULT_HUMANITY = 75.0f;
@@ -64,6 +65,9 @@ public class HumanityDataImpl implements IHumanityData {
     private long lowHumanityTicks = 0; // 低人性值累计时间
     private int operationValue = 100; // 破碎之神专用
     private int shutdownTimer = 0; // 停机模式剩余时间
+
+    // 高人性情报系统
+    private Map<ResourceLocation, Integer> learnedIntel = new HashMap<>();
 
     // ========== 核心数值 ==========
 
@@ -467,6 +471,29 @@ public class HumanityDataImpl implements IHumanityData {
         this.shutdownTimer = Math.max(0, ticks);
     }
 
+    // ========== 高人性情报系统 ==========
+
+    @Override
+    public Map<ResourceLocation, Integer> getLearnedIntel() {
+        return Collections.unmodifiableMap(learnedIntel);
+    }
+
+    @Override
+    public int getIntelLevel(ResourceLocation entityId) {
+        if (entityId == null) return 0;
+        return learnedIntel.getOrDefault(entityId, 0);
+    }
+
+    @Override
+    public void setIntelLevel(ResourceLocation entityId, int level) {
+        if (entityId == null) return;
+        if (level <= 0) {
+            learnedIntel.remove(entityId);
+        } else {
+            learnedIntel.put(entityId, level);
+        }
+    }
+
     // ========== NBT序列化 ==========
 
     @Override
@@ -515,6 +542,16 @@ public class HumanityDataImpl implements IHumanityData {
         nbt.setLong(NBT_LOW_HUMANITY_TICKS, lowHumanityTicks);
         nbt.setInteger(NBT_OPERATION_VALUE, operationValue);
         nbt.setInteger(NBT_SHUTDOWN_TIMER, shutdownTimer);
+
+        // 高人性情报系统
+        NBTTagList intelList = new NBTTagList();
+        for (Map.Entry<ResourceLocation, Integer> entry : learnedIntel.entrySet()) {
+            NBTTagCompound intelNbt = new NBTTagCompound();
+            intelNbt.setString("entity_id", entry.getKey().toString());
+            intelNbt.setInteger("level", entry.getValue());
+            intelList.appendTag(intelNbt);
+        }
+        nbt.setTag(NBT_LEARNED_INTEL, intelList);
 
         return nbt;
     }
@@ -573,6 +610,22 @@ public class HumanityDataImpl implements IHumanityData {
         this.lowHumanityTicks = nbt.getLong(NBT_LOW_HUMANITY_TICKS);
         this.operationValue = nbt.hasKey(NBT_OPERATION_VALUE) ? nbt.getInteger(NBT_OPERATION_VALUE) : 100;
         this.shutdownTimer = nbt.getInteger(NBT_SHUTDOWN_TIMER);
+
+        // 高人性情报系统
+        this.learnedIntel.clear();
+        if (nbt.hasKey(NBT_LEARNED_INTEL)) {
+            NBTTagList intelList = nbt.getTagList(NBT_LEARNED_INTEL, Constants.NBT.TAG_COMPOUND);
+            for (int i = 0; i < intelList.tagCount(); i++) {
+                NBTTagCompound intelNbt = intelList.getCompoundTagAt(i);
+                if (intelNbt.hasKey("entity_id") && intelNbt.hasKey("level")) {
+                    ResourceLocation entityId = new ResourceLocation(intelNbt.getString("entity_id"));
+                    int level = intelNbt.getInteger("level");
+                    if (level > 0) {
+                        learnedIntel.put(entityId, level);
+                    }
+                }
+            }
+        }
     }
 
     @Override
@@ -603,5 +656,9 @@ public class HumanityDataImpl implements IHumanityData {
         this.lowHumanityTicks = other.getLowHumanityTicks();
         this.operationValue = other.getOperationValue();
         this.shutdownTimer = other.getShutdownTimer();
+
+        // 高人性情报系统
+        this.learnedIntel.clear();
+        this.learnedIntel.putAll(other.getLearnedIntel());
     }
 }
