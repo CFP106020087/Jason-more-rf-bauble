@@ -75,8 +75,11 @@ public class HumanityEventHandler {
             HumanityEffectsManager.updateMaxHP(player);
         }
 
-        // 应用异常场效果
+        // 应用异常场效果 (低人性)
         HumanitySpectrumSystem.applyAnomalyFieldEffect(player);
+
+        // 应用治愈光环效果 (高人性 80%+)
+        HumanitySpectrumSystem.applyHealingAuraEffect(player);
 
         // 同步系统
         if (player instanceof EntityPlayerMP) {

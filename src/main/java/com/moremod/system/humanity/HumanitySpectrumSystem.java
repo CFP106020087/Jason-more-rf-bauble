@@ -770,6 +770,81 @@ public class HumanitySpectrumSystem {
         }
     }
 
+    // ========== 治愈光环效果 (高人性) ==========
+
+    /**
+     * 应用治愈光环效果（在PlayerTickEvent中调用）
+     * 高人性(80%+)玩家间歇性治疗周围友方实体
+     */
+    public static void applyHealingAuraEffect(EntityPlayer player) {
+        if (player.world.isRemote) return;
+
+        IHumanityData data = HumanityCapabilityHandler.getData(player);
+        if (data == null || !data.isSystemActive()) return;
+
+        float humanity = data.getHumanity();
+        if (humanity < 80f) return;
+
+        // 每3秒触发一次（60 ticks）
+        if (player.ticksExisted % 60 != 0) return;
+
+        // 治愈半径：3格
+        float radius = 3.0f;
+
+        List<EntityLivingBase> entities = player.world.getEntitiesWithinAABB(
+                EntityLivingBase.class,
+                player.getEntityBoundingBox().grow(radius),
+                e -> e != player && isHealableEntity(player, e)
+        );
+
+        for (EntityLivingBase entity : entities) {
+            // 治疗量：1心（2HP）
+            float healAmount = 2.0f;
+
+            // 只在实体未满血时治疗
+            if (entity.getHealth() < entity.getMaxHealth()) {
+                entity.heal(healAmount);
+
+                // 粒子效果
+                if (player.world instanceof net.minecraft.world.WorldServer) {
+                    ((net.minecraft.world.WorldServer) player.world).spawnParticle(
+                            net.minecraft.util.EnumParticleTypes.HEART,
+                            entity.posX, entity.posY + entity.height + 0.5, entity.posZ,
+                            2, 0.3, 0.3, 0.3, 0.0
+                    );
+                }
+            }
+        }
+    }
+
+    /**
+     * 检查实体是否可以被治愈光环治疗
+     */
+    private static boolean isHealableEntity(EntityPlayer player, EntityLivingBase entity) {
+        // 同队玩家
+        if (entity instanceof EntityPlayer) {
+            return ((EntityPlayer) entity).isOnSameTeam(player);
+        }
+
+        // 村民
+        if (entity instanceof net.minecraft.entity.passive.EntityVillager) {
+            return true;
+        }
+
+        // 被动动物（非敌对生物）
+        if (entity instanceof net.minecraft.entity.passive.EntityAnimal) {
+            return true;
+        }
+
+        // 铁傀儡、雪傀儡
+        if (entity instanceof net.minecraft.entity.monster.EntityIronGolem ||
+            entity instanceof net.minecraft.entity.monster.EntitySnowman) {
+            return true;
+        }
+
+        return false;
+    }
+
     // ========== 样本系统 ==========
 
     /**

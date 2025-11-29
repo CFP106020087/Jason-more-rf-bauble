@@ -198,10 +198,9 @@ public class SmartRejectionGuide extends Gui {
             showGuide(new GuideInfo(
                     "§a◈ 高度人性", 200, 5,
                     String.format("§7人性值: §a%.0f%%", humanity),
-                    "§a研究协议: §7伤害+15%/30%/50%",
-                    "§a掉落加成: §7已分析生物+20%/50%/100%",
-                    "§a信任折扣: §7NPC价格-30%",
-                    "§7可使用链结站"
+                    "§a治愈光环: §73格内友方每3秒+1心",
+                    "§a研究协议: §7伤害/掉落大幅加成",
+                    "§a信任折扣: §7NPC价格-30%"
             ), false);
         }
         else if (humanity >= 60 && humanity < 80 && !shownMilestones.contains("hum60")) {
@@ -926,6 +925,7 @@ public class SmartRejectionGuide extends Gui {
             int slots = (int)(humanity / 10f);
             effects.add("§a• 生物档案槽位: " + slots);
             if (humanity >= 80) {
+                effects.add("§a• 治愈光环: 3格内友方+1心/3秒");
                 effects.add("§a• NPC信任: -30%价格");
                 effects.add("§a• 精通暴击: +20%");
             }
