@@ -218,30 +218,43 @@ public class SmartRejectionGuide extends Gui {
             showGuide(new GuideInfo(
                     "§e⚡ 进入灰域", 200, 6,
                     String.format("§7人性值: §e%.0f%%", humanity),
-                    "§e警告: §7存在状态不稳定",
-                    "§e效果: §7量子叠加可能触发",
-                    "§e效果: §7致命伤害时可能坍缩"
+                    "§e警告: §7量子叠加状态不稳定",
+                    "§e限制: §7链结站需要60%+人性值",
+                    "§e交易: §7NPC开始怀疑你 (+50%价格)"
             ), false);
         }
         // 低人性里程碑
         else if (humanity >= 25 && humanity < 40 && !shownMilestones.contains("hum25")) {
             shownMilestones.add("hum25");
             showGuide(new GuideInfo(
-                    "§5◈ 低人性状态", 200, 6,
+                    "§5◈ 低人性状态", 220, 6,
                     String.format("§7人性值: §5%.0f%%", humanity),
-                    "§5效果: §7异常协议激活",
-                    "§5效果: §7异常场开始影响周围",
-                    "§c警告: §7治疗效果降低"
+                    "§5增益: §7异常协议 +20%伤害",
+                    "§5增益: §7异常场减速周围敌人",
+                    "§c惩罚: §7最大生命-15% | 治疗-50%",
+                    "§c交易: §7NPC拒绝与你交易"
             ), false);
         }
         else if (humanity >= 10 && humanity < 25 && !shownMilestones.contains("hum10")) {
             shownMilestones.add("hum10");
             showGuide(new GuideInfo(
-                    "§4⚠ 极低人性", 200, 7,
+                    "§4⚠ 极低人性", 220, 7,
                     String.format("§7人性值: §4%.0f%%", humanity),
-                    "§4效果: §7异常协议强化",
-                    "§4效果: §7畸变脉冲可能触发",
+                    "§4增益: §7异常协议 +40%伤害",
+                    "§4增益: §7异常场附加凋零效果",
+                    "§c惩罚: §7最大生命-30% | NPC无视你",
                     "§c危险: §7接近存在崩解边缘"
+            ), true);
+        }
+        else if (humanity > 5 && humanity < 10 && !shownMilestones.contains("hum5")) {
+            shownMilestones.add("hum5");
+            showGuide(new GuideInfo(
+                    "§4⚠ 临界人性", 240, 8,
+                    String.format("§7人性值: §4%.1f%%", humanity),
+                    "§4增益: §7异常协议 +60%伤害",
+                    "§4增益: §7畸变脉冲(受击AOE反伤)",
+                    "§c惩罚: §7最大生命-50%",
+                    "§c无痛麻木: §7伤害优先命中头/躯干"
             ), true);
         }
         else if (humanity <= 5 && !shownMilestones.contains("humCritical")) {
@@ -913,22 +926,35 @@ public class SmartRejectionGuide extends Gui {
             }
         } else if (humanity >= 40) {
             // 灰域效果
-            effects.add("§e• 量子叠加: 致命伤害时可能坍缩");
-            effects.add("§e• 协议混合: 部分猎人+部分异常");
-            effects.add("§7• 异常场: 间歇激活");
+            effects.add("§e• 量子叠加: 致命伤害可能坍缩");
+            effects.add("§e• 异常场: 间歇激活");
+            effects.add("§c─────限制─────");
+            effects.add("§c• 链结站: 需要60%+人性值");
+            effects.add("§c• NPC交易: +50%价格");
+            effects.add("§c• 样本掉落: 减半");
         } else {
-            // 低人性效果
+            // 低人性效果 - 增益
             float anomalyBonus = humanity <= 10 ? 60 : (humanity <= 25 ? 40 : 20);
-            effects.add("§5• 异常伤害加成: +" + (int)anomalyBonus + "%");
+            effects.add("§5• 异常伤害: +" + (int)anomalyBonus + "%");
             float radius = (50f - humanity) / 10f;
-            effects.add("§5• 异常场半径: " + String.format("%.1f", radius) + "格");
+            effects.add("§5• 异常场: " + String.format("%.1f", radius) + "格减速");
             if (humanity <= 25) {
                 effects.add("§5• 凋零光环: 激活");
             }
             if (humanity <= 10) {
-                effects.add("§4• 畸变脉冲: 可能触发");
+                effects.add("§4• 畸变脉冲: 受击时AOE反伤");
+                effects.add("§4• 无痛麻木: 伤害命中要害");
             }
-            effects.add("§c• 治疗效果: 降低");
+            // 低人性效果 - 惩罚
+            effects.add("§c─────惩罚─────");
+            int hpReduction = humanity < 10 ? 50 : (humanity < 25 ? 30 : 15);
+            effects.add("§c• 最大生命: -" + hpReduction + "%");
+            effects.add("§c• 治疗效果: -50%");
+            if (humanity < 25) {
+                effects.add("§c• NPC: 完全无视你");
+            } else {
+                effects.add("§c• NPC: 拒绝交易");
+            }
         }
 
         if (effects.isEmpty()) {
