@@ -326,9 +326,16 @@ public class HumanityEventHandler {
 
     /**
      * 应用无痛麻木效果 - 将四肢伤害转移到头部和躯干
+     * 仅在极低人性(<10%)时生效
      */
     @Optional.Method(modid = "firstaid")
     private static void applyPainlessNumbnessEffect(FirstAidLivingDamageEvent event, EntityPlayer player) {
+        // 双重检查：确保只在低人性时执行
+        float humanity = HumanitySpectrumSystem.getHumanity(player);
+        if (humanity >= 10f) {
+            return; // 安全检查：高人性不应执行此效果
+        }
+
         AbstractPlayerDamageModel beforeDamage = event.getBeforeDamage();
         AbstractPlayerDamageModel afterDamage = event.getAfterDamage();
 
