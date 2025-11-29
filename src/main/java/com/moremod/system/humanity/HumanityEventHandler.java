@@ -315,6 +315,10 @@ public class HumanityEventHandler {
 
         float humanity = HumanitySpectrumSystem.getHumanity(player);
 
+        // 调试：显示当前人性值（可删除）
+        // player.sendStatusMessage(new net.minecraft.util.text.TextComponentString(
+        //         "§7[Debug] Humanity: " + String.format("%.1f", humanity)), true);
+
         // 极低人性(<10)：无痛麻木 - 伤害优先命中要害
         if (humanity < 10f && HumanityConfig.extremeLowHumanityCritChance > 0) {
             // 概率触发无痛麻木效果
