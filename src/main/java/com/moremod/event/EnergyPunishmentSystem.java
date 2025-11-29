@@ -1,5 +1,6 @@
 package com.moremod.event;
 
+import com.moremod.combat.TrueDamageHelper;
 import baubles.api.BaublesApi;
 import baubles.api.cap.IBaublesItemHandler;
 import com.moremod.item.ItemMechanicalCore;
@@ -650,23 +651,8 @@ public class EnergyPunishmentSystem {
 
         try {
             player.getEntityData().setBoolean(K_SPECIAL_DEATH_FLAG, true);
-
-            if (player instanceof EntityPlayerMP) {
-                EntityPlayerMP mp = (EntityPlayerMP) player;
-                mp.setHealth(0.0F);
-                if (!mp.isDead) {
-                    mp.onDeath(GEAR_STOP);
-                }
-                if (!mp.isDead) {
-                    mp.isDead = true;
-                    mp.world.setEntityState(mp, (byte) 3);
-                }
-            } else {
-                player.setHealth(0.0F);
-                if (!player.isDead) {
-                    player.onDeath(GEAR_STOP);
-                }
-            }
+            // 使用包装的死亡链，保留 GEAR_STOP 死亡消息，同时正确触发掉落物
+            TrueDamageHelper.triggerVanillaDeathChain(player, GEAR_STOP);
         } catch (Exception e) {
             try {
                 float damage = player.getMaxHealth() * 100;

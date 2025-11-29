@@ -182,9 +182,23 @@ public class TrueDamageHelper {
      * 用于斩杀/处决类技能，绕过所有伤害计算
      */
     public static void triggerVanillaDeathChain(EntityLivingBase victim) {
+        triggerVanillaDeathChain(victim, DamageSource.OUT_OF_WORLD);
+    }
+
+    /**
+     * 触发原版死亡链：使用指定的伤害源
+     * 可保留自定义死亡消息，同时正确触发掉落物
+     */
+    public static void triggerVanillaDeathChain(EntityLivingBase victim, DamageSource source) {
         if (victim == null || victim.isDead || victim.world.isRemote) return;
         victim.setHealth(0F);
-        victim.onKillCommand();
+        victim.onDeath(source);
+        if (!victim.isDead) {
+            victim.isDead = true;
+            if (victim.world instanceof net.minecraft.world.WorldServer) {
+                victim.world.setEntityState(victim, (byte) 3);
+            }
+        }
     }
 
     public static boolean applyExecuteDamage(EntityLivingBase target, @Nullable Entity source) {
