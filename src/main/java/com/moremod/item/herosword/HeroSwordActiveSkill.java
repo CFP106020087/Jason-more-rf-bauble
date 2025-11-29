@@ -1,12 +1,12 @@
 package com.moremod.item.herosword;
 
+import com.moremod.combat.TrueDamageHelper;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.monster.IMob;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.SoundEvents;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.DamageSource;
 import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.SoundCategory;
 import net.minecraft.util.text.ITextComponent;
@@ -178,18 +178,12 @@ public class HeroSwordActiveSkill {
     /**
      * 执行单体处决
      */
-    private static boolean executeTarget(World world, EntityPlayer player, 
+    private static boolean executeTarget(World world, EntityPlayer player,
                                         EntityLivingBase target, ItemStack stack) {
-        // 设为1血
-        target.setHealth(1.0F);
-        
-        // 创建终局伤害源
-        DamageSource damage = new JudgmentDamage(player);
-        
-        // 处决
-        boolean killed = target.attackEntityFrom(damage, Float.MAX_VALUE);
-        
-        if (killed || target.isDead) {
+        // 使用包装的死亡链处决
+        TrueDamageHelper.triggerVanillaDeathChain(target);
+
+        if (target.isDead) {
             // 单体特效
             if (world instanceof WorldServer) {
                 WorldServer ws = (WorldServer) world;

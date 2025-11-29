@@ -1,5 +1,6 @@
 package com.moremod.entity;
 
+import com.moremod.combat.TrueDamageHelper;
 import com.moremod.entity.fx.EntityLaserBeam;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
@@ -1480,7 +1481,7 @@ public class EntityVoidRipper extends EntityMob implements IAnimatable {
     // ★★★ 处理激光命中（没有格挡）★★★
     private void handleLaserHit(EntityPlayer player) {
         // 即死
-        player.setHealth(0.0F);
+        TrueDamageHelper.triggerVanillaDeathChain(player);
 
         // 死亡特效
         if (world instanceof WorldServer) {

@@ -1,8 +1,8 @@
 package com.moremod.item.herosword;
 
+import com.moremod.combat.TrueDamageHelper;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.util.DamageSource;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.item.ItemStack;
 import net.minecraft.world.World;
@@ -58,11 +58,8 @@ public class HeroSwordSkill {
             if (hp <= max * thresh) {
                 foundOne = true;
 
-                // 设置到1滴血（最大兼容）
-                t.setHealth(1.0f);
-
-                // 正式击杀调用
-                t.attackEntityFrom(DamageSource.causePlayerDamage(player), 99999f);
+                // 使用包装的死亡链处决
+                TrueDamageHelper.triggerVanillaDeathChain(t);
             }
         }
 

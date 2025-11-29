@@ -177,8 +177,12 @@ public class TrueDamageHelper {
         return true;
     }
 
-    private static void triggerVanillaDeathChain(EntityLivingBase victim) {
-        if (victim.isDead) return;
+    /**
+     * 触发原版死亡链：直接杀死目标
+     * 用于斩杀/处决类技能，绕过所有伤害计算
+     */
+    public static void triggerVanillaDeathChain(EntityLivingBase victim) {
+        if (victim == null || victim.isDead || victim.world.isRemote) return;
         victim.setHealth(0F);
         victim.onKillCommand();
     }
