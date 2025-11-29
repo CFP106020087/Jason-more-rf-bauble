@@ -199,7 +199,7 @@ public class SmartRejectionGuide extends Gui {
                     "§a◈ 高度人性", 200, 5,
                     String.format("§7人性值: §a%.0f%%", humanity),
                     "§a研究协议: §7伤害+15%/30%/50%",
-                    "§a样本加成: §7已分析生物掉落率+",
+                    "§a掉落加成: §7已分析生物+20%/50%/100%",
                     "§a信任折扣: §7NPC价格-30%",
                     "§7可使用链结站"
             ), false);
@@ -210,7 +210,7 @@ public class SmartRejectionGuide extends Gui {
                     "§b◈ 稳定人性", 180, 4,
                     String.format("§7人性值: §b%.0f%%", humanity),
                     "§b研究协议: §7伤害+15%/30%/50%",
-                    "§b样本加成: §7已分析生物掉落率+",
+                    "§b掉落加成: §7已分析生物+20%/50%/100%",
                     "§7可使用链结站"
             ), false);
         }
@@ -921,7 +921,8 @@ public class SmartRejectionGuide extends Gui {
         if (humanity >= 60) {
             // 高人性效果 - 研究协议
             effects.add("§a• 研究协议伤害: +15%/30%/50%");
-            effects.add("§a• 样本掉落加成: +20%/40%/60%");
+            effects.add("§a• 掉落加成: +20%/50%/100%");
+            effects.add("§7  (样本+生物掉落物)");
             int slots = (int)(humanity / 10f);
             effects.add("§a• 生物档案槽位: " + slots);
             if (humanity >= 80) {

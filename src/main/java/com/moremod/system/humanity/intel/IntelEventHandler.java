@@ -170,4 +170,88 @@ public class IntelEventHandler {
             event.setAmount(event.getAmount() * damageMultiplier);
         }
     }
+
+    /**
+     * 掉落事件 - 研究协议掉落加成
+     * 已分析的生物掉落物数量提升
+     */
+    @SubscribeEvent
+    public static void onLivingDrops(net.minecraftforge.event.entity.living.LivingDropsEvent event) {
+        if (!(event.getSource().getTrueSource() instanceof EntityPlayer)) return;
+
+        EntityPlayer player = (EntityPlayer) event.getSource().getTrueSource();
+        EntityLivingBase target = event.getEntityLiving();
+
+        if (player.world.isRemote) return;
+
+        // 检查人性值系统
+        IHumanityData data = HumanityCapabilityHandler.getData(player);
+        if (data == null || !data.isSystemActive()) return;
+
+        float humanity = data.getHumanity();
+        if (humanity < HIGH_HUMANITY_THRESHOLD) return;
+
+        // 获取目标的档案
+        ResourceLocation entityId = EntityList.getKey(target);
+        if (entityId == null) return;
+
+        BiologicalProfile profile = data.getProfile(entityId);
+        if (profile == null) return;
+
+        // 根据档案等级计算掉落倍率
+        float dropMultiplier = 1.0f;
+        switch (profile.getCurrentTier()) {
+            case BASIC:
+                dropMultiplier = 1.2f;  // +20%
+                break;
+            case COMPLETE:
+                dropMultiplier = 1.5f;  // +50%
+                break;
+            case MASTERED:
+                dropMultiplier = 2.0f;  // +100% (双倍掉落)
+                break;
+            default:
+                return; // 未分析，不加成
+        }
+
+        // 遍历所有掉落物，按概率复制
+        java.util.List<EntityItem> bonusDrops = new java.util.ArrayList<>();
+        for (EntityItem drop : event.getDrops()) {
+            ItemStack stack = drop.getItem();
+            if (stack.isEmpty()) continue;
+
+            // 计算额外掉落数量
+            float bonusChance = dropMultiplier - 1.0f;
+            int bonusCount = 0;
+
+            // 整数部分直接获得
+            while (bonusChance >= 1.0f) {
+                bonusCount += stack.getCount();
+                bonusChance -= 1.0f;
+            }
+
+            // 小数部分概率获得
+            if (bonusChance > 0 && player.world.rand.nextFloat() < bonusChance) {
+                bonusCount += stack.getCount();
+            }
+
+            // 创建额外掉落物
+            if (bonusCount > 0) {
+                ItemStack bonusStack = stack.copy();
+                bonusStack.setCount(bonusCount);
+                EntityItem bonusItem = new EntityItem(
+                        target.world,
+                        target.posX,
+                        target.posY + 0.5,
+                        target.posZ,
+                        bonusStack
+                );
+                bonusItem.setDefaultPickupDelay();
+                bonusDrops.add(bonusItem);
+            }
+        }
+
+        // 添加额外掉落物到事件
+        event.getDrops().addAll(bonusDrops);
+    }
 }
