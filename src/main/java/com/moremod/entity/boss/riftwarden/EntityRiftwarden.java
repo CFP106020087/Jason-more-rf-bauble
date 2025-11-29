@@ -93,6 +93,7 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
         this.setSize(0.9F, 2.8F);
         this.experienceValue = 500;
         this.isImmuneToFire = true;
+        this.stepHeight = 1.0F;  // 允许爬楼梯（1格高度）
         
         // 初始化组件
         this.stateManager = new RiftwardenStateManager(this);
