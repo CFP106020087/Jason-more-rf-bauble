@@ -72,6 +72,14 @@ public class ItemBrokenArm extends ItemBrokenBaubleBase {
         return entity.world.provider.getDimension() + ":" + entity.getEntityId();
     }
 
+    /**
+     * 清理所有静态状态（防止跨存档污染）
+     * 在世界卸载时调用
+     */
+    public static void clearAllState() {
+        shreddedEntities.clear();
+    }
+
     public ItemBrokenArm() {
         setRegistryName("broken_arm");
         setTranslationKey("broken_arm");

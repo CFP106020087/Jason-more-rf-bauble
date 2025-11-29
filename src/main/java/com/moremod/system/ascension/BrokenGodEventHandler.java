@@ -1,6 +1,8 @@
 package com.moremod.system.ascension;
 
 import com.moremod.config.BrokenGodConfig;
+import com.moremod.item.broken.ItemBrokenArm;
+import com.moremod.item.broken.ItemBrokenShackles;
 import com.moremod.moremod;
 import com.moremod.system.humanity.AscensionRoute;
 import org.apache.logging.log4j.LogManager;
@@ -314,6 +316,8 @@ public class BrokenGodEventHandler {
         // 只在服务端主世界卸载时清空（避免维度切换时误清）
         if (!event.getWorld().isRemote && event.getWorld().provider.getDimension() == 0) {
             BrokenGodHandler.clearAllState();
+            ItemBrokenShackles.clearAllState();
+            ItemBrokenArm.clearAllState();
             LOGGER.info("[BrokenGod] Cleared all static state on world unload");
         }
     }
