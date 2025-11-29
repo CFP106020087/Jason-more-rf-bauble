@@ -148,15 +148,8 @@ public class SpatialFabricFirstAidHandler {
         player.hurtResistantTime = 200;  // 10秒受伤无敌
         player.setEntityInvulnerable(true);  // 临时完全无敌
 
-        // 延迟取消无敌
-        new Thread(() -> {
-            try {
-                Thread.sleep(3000);  // 3秒后取消完全无敌
-                player.setEntityInvulnerable(false);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }).start();
+        // 使用基于Tick的延迟任务替代 Thread.sleep（3秒后取消无敌）
+        data.protectiveInvulEndTime = System.currentTimeMillis() + 3000;
 
         // 传送后效果
         spawnArrivalEffect(player);
