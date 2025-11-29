@@ -131,20 +131,15 @@ public class IntelEventHandler {
 
         if (player.world.isRemote) return;
 
-        // 检查人性值系统是否激活
-        if (!HumanitySpectrumSystem.isSystemActive(player)) return;
+        // 获取情报数据 (只查询一次 Capability)
+        IHumanityData data = HumanityCapabilityHandler.getData(player);
+        if (data == null || !data.isSystemActive()) return;
 
-        // 获取人性值
-        float humanity = HumanitySpectrumSystem.getHumanity(player);
-
-        // 只有高人性玩家才能使用情报加成
+        // 检查人性值门槛
+        float humanity = data.getHumanity();
         if (humanity < HIGH_HUMANITY_THRESHOLD) return;
 
-        // 获取情报数据
-        IHumanityData data = HumanityCapabilityHandler.getData(player);
-        if (data == null) return;
-
-        // 计算情报伤害加成
+        // 计算情报伤害加成 (直接使用已有的 data)
         float damageMultiplier = IntelDataHelper.calculateDamageMultiplier(data, target);
 
         // 应用加成

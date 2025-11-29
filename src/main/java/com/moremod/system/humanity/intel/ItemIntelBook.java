@@ -117,13 +117,24 @@ public class ItemIntelBook extends Item {
             return new ActionResult<>(EnumActionResult.FAIL, stack);
         }
 
+        // 检查是否已达上限
+        if (IntelDataHelper.isMaxLevel(data, entityId)) {
+            playerIn.sendStatusMessage(new TextComponentString(
+                    TextFormatting.YELLOW + entityName + " 情报已达上限 (" +
+                    IntelDataHelper.MAX_INTEL_LEVEL + "级)"), true);
+            return new ActionResult<>(EnumActionResult.FAIL, stack);
+        }
+
         // 学习情报
-        int currentLevel = IntelDataHelper.getIntelLevel(data, entityId);
-        IntelDataHelper.incrementIntelLevel(data, entityId);
-        int newLevel = currentLevel + 1;
+        boolean success = IntelDataHelper.incrementIntelLevel(data, entityId);
+        if (!success) {
+            return new ActionResult<>(EnumActionResult.FAIL, stack);
+        }
+
+        int newLevel = IntelDataHelper.getIntelLevel(data, entityId);
 
         // 计算伤害加成
-        float damageBonus = newLevel * DAMAGE_BONUS_PER_BOOK * 100f;
+        float damageBonus = IntelDataHelper.calculateDamageMultiplier(data, entityId) * 100f - 100f;
 
         // 消耗物品
         stack.shrink(1);
