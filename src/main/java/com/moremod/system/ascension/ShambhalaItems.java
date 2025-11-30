@@ -189,6 +189,22 @@ public class ShambhalaItems {
     }
 
     /**
+     * 检查玩家是否装备了圣域（Sanctuary）
+     */
+    public static boolean hasSanctuary(EntityPlayer player) {
+        IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(player);
+        if (baubles == null) return false;
+
+        for (int i = 0; i < baubles.getSlots(); i++) {
+            ItemStack stack = baubles.getStackInSlot(i);
+            if (!stack.isEmpty() && SHAMBHALA_SANCTUARY != null && stack.getItem() == SHAMBHALA_SANCTUARY) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * 检查玩家是否装备了完整香巴拉套装
      */
     public static boolean hasFullShambhalaSet(EntityPlayer player) {

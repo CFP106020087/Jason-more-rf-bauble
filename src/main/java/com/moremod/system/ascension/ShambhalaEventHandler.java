@@ -73,7 +73,7 @@ public class ShambhalaEventHandler {
         // 原版 MC 的死亡由 onLivingDeath 处理
     }
 
-    // ========== 伤害处理（防御核心） ==========
+    // ========== 伤害处理（HIGHEST - 能量吸收 + 输出削弱） ==========
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onLivingHurt(LivingHurtEvent event) {
@@ -82,7 +82,7 @@ public class ShambhalaEventHandler {
             return;
         }
 
-        // 香巴拉受伤：能量护盾吸收
+        // 香巴拉受伤：能量护盾吸收（在护甲计算前）
         if (event.getEntityLiving() instanceof EntityPlayer) {
             EntityPlayer player = (EntityPlayer) event.getEntityLiving();
 
@@ -98,12 +98,6 @@ public class ShambhalaEventHandler {
                 }
 
                 event.setAmount(remainingDamage);
-
-                // 触发反伤（传递DamageSource进行循环检测）
-                if (event.getSource().getTrueSource() != null) {
-                    ShambhalaHandler.reflectDamage(player, event.getSource().getTrueSource(),
-                            originalDamage, event.getSource());
-                }
             }
         }
 
@@ -116,6 +110,58 @@ public class ShambhalaEventHandler {
                 if (!ShambhalaHandler.isReflecting(attacker)) {
                     float reduction = (float) ShambhalaConfig.damageOutputReduction;
                     event.setAmount(event.getAmount() * (1 - reduction));
+                }
+            }
+        }
+    }
+
+    // ========== 伤害处理（LOWEST - 反伤 + 减伤 + 友军保护） ==========
+
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onLivingDamage(LivingDamageEvent event) {
+        // 跳过香巴拉反伤造成的伤害（防止循环）
+        if (ShambhalaHandler.isShambhalaReflectDamage(event.getSource())) {
+            return;
+        }
+
+        EntityLivingBase target = event.getEntityLiving();
+        float damage = event.getAmount();
+
+        // ========== 香巴拉受伤：反伤 + 壁垒减伤 ==========
+        if (target instanceof EntityPlayer) {
+            EntityPlayer player = (EntityPlayer) target;
+
+            if (ShambhalaHandler.isShambhala(player)) {
+                // 壁垒减伤（Bastion）
+                float bastionReduction = (float) ShambhalaConfig.bastionDamageReduction;
+                if (bastionReduction > 0) {
+                    damage = damage * (1 - bastionReduction);
+                    event.setAmount(damage);
+                }
+
+                // 反伤（Thorns）- 在LOWEST触发，确保护甲计算后
+                if (event.getSource().getTrueSource() != null && damage > 0) {
+                    ShambhalaHandler.reflectDamage(player, event.getSource().getTrueSource(),
+                            damage, event.getSource());
+                }
+            }
+        }
+
+        // ========== 圣域友军保护（Sanctuary） ==========
+        if (target instanceof EntityLivingBase && !(target instanceof EntityPlayer)) {
+            // 检查附近是否有装备圣域的香巴拉玩家
+            for (EntityPlayer nearbyPlayer : target.world.getEntitiesWithinAABB(EntityPlayer.class,
+                    target.getEntityBoundingBox().grow(ShambhalaConfig.sanctuaryAuraRange))) {
+
+                if (ShambhalaHandler.isShambhala(nearbyPlayer) && ShambhalaItems.hasSanctuary(nearbyPlayer)) {
+                    // 检查是否是友方
+                    if (com.moremod.item.shambhala.ItemShambhalaSanctuary.isAlly(nearbyPlayer, target)) {
+                        // 应用友军减伤
+                        float allyProtection = (float) ShambhalaConfig.sanctuaryAllyProtection;
+                        damage = damage * (1 - allyProtection);
+                        event.setAmount(damage);
+                        break; // 只应用一次
+                    }
                 }
             }
         }
