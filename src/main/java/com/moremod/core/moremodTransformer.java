@@ -949,24 +949,24 @@ public class moremodTransformer implements IClassTransformer {
         new ClassReader(bytes).accept(cn, ClassReader.EXPAND_FRAMES);
         boolean modified = false;
 
-        // 调试：打印所有可能相关的方法
+        // 调试：打印所有方法（便于找到正确的方法名）
         System.out.println("[moremodTransformer]   Scanning EntityLivingBase methods...");
         for (MethodNode mn : cn.methods) {
-            if (mn.name.contains("attack") || mn.name.contains("damage") || mn.name.contains("Death")
+            // 打印所有可能相关的方法（包括混淆名）
+            if (mn.desc.endsWith("F)Z") || mn.desc.endsWith("F)V") || mn.desc.endsWith(";)V")
+                    || mn.name.contains("attack") || mn.name.contains("damage") || mn.name.contains("Death")
                     || mn.name.equals("func_70097_a") || mn.name.equals("func_70665_d") || mn.name.equals("func_70645_a")) {
-                System.out.println("[moremodTransformer]     Found: " + mn.name + " " + mn.desc);
+                System.out.println("[moremodTransformer]     Method: " + mn.name + " " + mn.desc);
             }
         }
 
         for (MethodNode mn : cn.methods) {
 
             // ========== 1. attackEntityFrom 注入 ==========
-            // 方法签名: public boolean attackEntityFrom(DamageSource source, float amount)
-            // SRG名: func_70097_a
-            // 描述符: (Lnet/minecraft/util/DamageSource;F)Z 或混淆版本
+            // MCP名: attackEntityFrom, SRG名: func_70097_a
+            // 描述符模式: (L???;F)Z - 一个对象参数 + float，返回 boolean
             if ("attackEntityFrom".equals(mn.name) || "func_70097_a".equals(mn.name)) {
-                // 验证描述符包含一个对象参数和float，返回boolean
-                if (mn.desc.contains(";F)Z")) {
+                if (mn.desc.endsWith("F)Z") && mn.desc.startsWith("(L")) {
                     System.out.println("[moremodTransformer]   Patching attackEntityFrom... (desc: " + mn.desc + ")");
 
                 InsnList inject = new InsnList();
@@ -998,11 +998,10 @@ public class moremodTransformer implements IClassTransformer {
             }
 
             // ========== 2. damageEntity 注入 ==========
-            // 方法签名: protected void damageEntity(DamageSource source, float damage)
-            // SRG名: func_70665_d
-            // 描述符: (Lnet/minecraft/util/DamageSource;F)V 或混淆版本
+            // MCP名: damageEntity, SRG名: func_70665_d
+            // 描述符模式: (L???;F)V - 一个对象参数 + float，返回 void
             if ("damageEntity".equals(mn.name) || "func_70665_d".equals(mn.name)) {
-                if (mn.desc.contains(";F)V")) {
+                if (mn.desc.endsWith("F)V") && mn.desc.startsWith("(L")) {
                     System.out.println("[moremodTransformer]   Patching damageEntity... (desc: " + mn.desc + ")");
 
                 InsnList inject = new InsnList();
@@ -1050,11 +1049,10 @@ public class moremodTransformer implements IClassTransformer {
             }
 
             // ========== 3. onDeath 注入（最终防线） ==========
-            // 方法签名: public void onDeath(DamageSource cause)
-            // SRG名: func_70645_a
-            // 描述符: (Lnet/minecraft/util/DamageSource;)V 或混淆版本
+            // MCP名: onDeath, SRG名: func_70645_a
+            // 描述符模式: (L???;)V - 一个对象参数，返回 void
             if ("onDeath".equals(mn.name) || "func_70645_a".equals(mn.name)) {
-                if (mn.desc.contains(";)V")) {
+                if (mn.desc.endsWith(";)V") && mn.desc.startsWith("(L")) {
                     System.out.println("[moremodTransformer]   Patching onDeath... (desc: " + mn.desc + ")");
 
                 InsnList inject = new InsnList();
