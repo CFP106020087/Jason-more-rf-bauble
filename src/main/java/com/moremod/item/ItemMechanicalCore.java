@@ -30,6 +30,7 @@ import com.moremod.upgrades.auxiliary.AuxiliaryUpgradeManager;
 import com.moremod.upgrades.combat.CombatUpgradeManager;
 import com.moremod.upgrades.energy.EnergyDepletionManager;
 import com.moremod.upgrades.energy.EnergyUpgradeManager;
+import com.moremod.system.ascension.AscensionTooltips;
 
 // ✨ 新增：导入新电池系统
 import com.moremod.item.battery.ItemBatteryBase;
@@ -1449,6 +1450,9 @@ public class ItemMechanicalCore extends Item implements IBauble {
             tooltip.add("");
             tooltip.add(TextFormatting.GRAY + "按住 Shift 查看详情");
         }
+
+        // ═══ 升格专属tooltip ═══
+        AscensionTooltips.addCoreAscensionTooltip(tooltip);
     }
 
     // ===== 辅助 & 统计方法 =====
