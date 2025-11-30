@@ -132,6 +132,12 @@ public class SmartRejectionGuide extends Gui {
             showBrokenGodAscensionGuide();
         }
 
+        // 检测机巧香巴拉升格
+        if (route == AscensionRoute.SHAMBHALA && !shownMilestones.contains("shambhala")) {
+            shownMilestones.add("shambhala");
+            showShambhalaAscensionGuide();
+        }
+
         // 只有在不显示详细信息时才检查里程碑
         if (!showingDetailedStatus) {
             if (humanitySystemActive) {
@@ -187,6 +193,19 @@ public class SmartRejectionGuide extends Gui {
                 "§6基础: §f关机模式、畸变脉冲",
                 "§d遗物: §f攻速×3、生命偷取、处决、时停",
                 "§c代价: §7药水无效、NPC无视、链结站禁用",
+                "§b按 [" + keyName + "] 查看完整能力列表"
+        ), true);
+    }
+
+    private static void showShambhalaAscensionGuide() {
+        String keyName = getKeyDisplayName();
+        showGuide(new GuideInfo(
+                "§b◈ 你已成为机巧香巴拉 ◈", 400, 10,
+                "§7你是最美丽的人造之物...",
+                "§6核心: §f能量护盾、不灭之心",
+                "§b套装: §f绝对防御、因果反噬、被动免疫",
+                "§a永恒: §f人性锁定100%、完美圆满",
+                "§c代价: §7伤害削弱50%、防御消耗能量",
                 "§b按 [" + keyName + "] 查看完整能力列表"
         ), true);
     }
@@ -480,6 +499,7 @@ public class SmartRejectionGuide extends Gui {
         boolean inHumanitySystem = humanityData != null && humanityData.isSystemActive()
                 && rejStatus.transcended && rejStatus.rejection <= 0;
         boolean isBrokenGod = humanityData != null && humanityData.getAscensionRoute() == AscensionRoute.BROKEN_GOD;
+        boolean isShambhala = humanityData != null && humanityData.getAscensionRoute() == AscensionRoute.SHAMBHALA;
 
         FontRenderer fr = mc.fontRenderer;
 
@@ -496,6 +516,9 @@ public class SmartRejectionGuide extends Gui {
         if (isBrokenGod) {
             // ========== 破碎之神详细状态 ==========
             y = renderBrokenGodDetailedStatus(centerX, y, humanityData, fr, alphaInt, bgAlpha);
+        } else if (isShambhala) {
+            // ========== 机巧香巴拉详细状态 ==========
+            y = renderShambhalaDetailedStatus(centerX, y, humanityData, fr, alphaInt, bgAlpha);
         } else if (inHumanitySystem) {
             // ========== 人性值系统详细状态 ==========
             y = renderHumanityDetailedStatus(centerX, y, humanityData, fr, alphaInt, bgAlpha);
@@ -874,6 +897,125 @@ public class SmartRejectionGuide extends Gui {
             "§8• §7NPC完全无视你"
         });
 
+        return y;
+    }
+
+    // ========== 机巧香巴拉详细状态渲染 ==========
+    private static int renderShambhalaDetailedStatus(int centerX, int y,
+            IHumanityData data, FontRenderer fr, int alphaInt, int bgAlpha) {
+
+        // 标题
+        String title = "§b◈ 机巧香巴拉 ◈";
+        int titleWidth = fr.getStringWidth(title);
+        drawRect(centerX - titleWidth/2 - 8, y - 2,
+                centerX + titleWidth/2 + 8, y + 11,
+                bgAlpha << 24);
+        fr.drawStringWithShadow(title, centerX - titleWidth/2, y,
+                0x55DDFF | (alphaInt << 24));
+        y += 16;
+
+        // 分隔线
+        String separator = "§7═════════════════════════";
+        int sepWidth = fr.getStringWidth(separator);
+        fr.drawStringWithShadow(separator, centerX - sepWidth/2, y,
+                0x777777 | (alphaInt << 24));
+        y += 12;
+
+        // 人性值（固定为100）
+        String humText = "§b人性值: §a100% §7(永恒圆满)";
+        int humWidth = fr.getStringWidth(humText);
+        drawRect(centerX - humWidth/2 - 5, y - 1,
+                centerX + humWidth/2 + 5, y + 10,
+                (bgAlpha - 50) << 24);
+        fr.drawStringWithShadow(humText, centerX - humWidth/2, y,
+                0xFFFFFF | (alphaInt << 24));
+        y += 14;
+
+        // ========== 核心机制 ==========
+        y = renderShambhalaSection(centerX, y, fr, alphaInt, bgAlpha,
+                "§6【核心机制】", 0xFFAA00, new String[] {
+            "§6• §f能量护盾: §7所有伤害消耗能量抵消",
+            "§6• §f不灭之心: §7有能量时无法死亡"
+        });
+
+        // ========== 香巴拉_核心 ==========
+        y = renderShambhalaSection(centerX, y, fr, alphaInt, bgAlpha,
+                "§b【香巴拉_核心】", 0x55FFFF, new String[] {
+            "§b• §f永恒之心: 能量=生命",
+            "§b• §f有能量时完全无法死亡"
+        });
+
+        // ========== 香巴拉_壁垒 ==========
+        y = renderShambhalaSection(centerX, y, fr, alphaInt, bgAlpha,
+                "§e【香巴拉_壁垒】", 0xFFFF55, new String[] {
+            "§e• §f绝对防御: 伤害100%转换为能量消耗",
+            "§e• §f1点伤害=1000RF"
+        });
+
+        // ========== 香巴拉_棘刺 ==========
+        y = renderShambhalaSection(centerX, y, fr, alphaInt, bgAlpha,
+                "§c【香巴拉_棘刺】", 0xFF5555, new String[] {
+            "§c• §f因果反噬: 反射150%伤害",
+            "§c• §f每点反伤消耗500RF"
+        });
+
+        // ========== 香巴拉_净化 ==========
+        y = renderShambhalaSection(centerX, y, fr, alphaInt, bgAlpha,
+                "§a【香巴拉_净化】", 0x55FF55, new String[] {
+            "§a• §f绝对净化: 被动免疫所有负面效果",
+            "§a• §f包括模组负面效果",
+            "§a• §f每秒消耗500RF"
+        });
+
+        // ========== 香巴拉_宁静 ==========
+        y = renderShambhalaSection(centerX, y, fr, alphaInt, bgAlpha,
+                "§d【香巴拉_宁静】", 0xDD88FF, new String[] {
+            "§d• §f宁静光环: 按R消除周围仇恨",
+            "§d• §f范围16格、冷却60秒"
+        });
+
+        // ========== 香巴拉_圣域 ==========
+        y = renderShambhalaSection(centerX, y, fr, alphaInt, bgAlpha,
+                "§9【香巴拉_圣域】", 0x5555FF, new String[] {
+            "§9• §f终极防线: First Aid兼容",
+            "§9• §f部位伤害也用能量抵消"
+        });
+
+        // ========== 代价 ==========
+        y += 4;
+        y = renderShambhalaSection(centerX, y, fr, alphaInt, bgAlpha,
+                "§8【代价】", 0x888888, new String[] {
+            "§8• §7伤害输出削弱50%",
+            "§8• §7防御机制消耗大量能量",
+            "§8• §7能量耗尽=真正死亡"
+        });
+
+        return y;
+    }
+
+    // 渲染机巧香巴拉详细状态的一个区块
+    private static int renderShambhalaSection(int centerX, int y, FontRenderer fr,
+            int alphaInt, int bgAlpha, String title, int titleColor, String[] lines) {
+        // 标题
+        int titleWidth = fr.getStringWidth(title);
+        drawRect(centerX - titleWidth/2 - 5, y - 1,
+                centerX + titleWidth/2 + 5, y + 10,
+                bgAlpha << 24);
+        fr.drawStringWithShadow(title, centerX - titleWidth/2, y,
+                titleColor | (alphaInt << 24));
+        y += 11;
+
+        // 内容
+        for (String line : lines) {
+            int lineWidth = fr.getStringWidth(line);
+            drawRect(centerX - lineWidth/2 - 3, y - 1,
+                    centerX + lineWidth/2 + 3, y + 9,
+                    (bgAlpha - 100) << 24);
+            fr.drawStringWithShadow(line, centerX - lineWidth/2, y,
+                    0xFFFFFF | (alphaInt << 24));
+            y += 10;
+        }
+        y += 4;
         return y;
     }
 

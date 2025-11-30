@@ -804,9 +804,9 @@ public class MechanicalCoreGui extends GuiScreen {
         boolean brokenModulesMet = installedCount >= BrokenGodConfig.requiredModuleCount;
         boolean canAscendBroken = brokenHumanityMet && brokenTimeMet && brokenModulesMet;
 
-        // ========== 香巴拉条件 ==========
+        // ========== 机巧香巴拉条件 ==========
         long highHumanityTicks = data.getHighHumanityTicks();
-        long requiredHighTicks = ShambhalaConfig.requiredHighHumanityDays * 24000L;
+        long requiredHighTicks = ShambhalaConfig.requiredHighHumanitySeconds * 20L;
         boolean shambhalaHumanityMet = humanity >= ShambhalaConfig.ascensionHumanityThreshold;
         boolean shambhalaTimeMet = highHumanityTicks >= requiredHighTicks;
         boolean shambhalaModulesMet = installedCount >= ShambhalaConfig.requiredModuleCount;
@@ -939,7 +939,7 @@ public class MechanicalCoreGui extends GuiScreen {
 
         // 标题栏
         drawRect(panelX + 1, panelY + 1, panelX + SIDE_PANEL_WIDTH - 1, panelY + 14, 0xC0226644);
-        String title = "香巴拉";
+        String title = "机巧香巴拉";
         int titleX = panelX + (SIDE_PANEL_WIDTH - this.fontRenderer.getStringWidth(title)) / 2;
         this.fontRenderer.drawStringWithShadow(title, titleX, panelY + 4, 0xFFDD88);
 
@@ -967,13 +967,13 @@ public class MechanicalCoreGui extends GuiScreen {
             this.fontRenderer.drawString(TextFormatting.RED + "✗" + TextFormatting.GRAY + String.format("%.0f", humanity) + "/" + (int)ShambhalaConfig.ascensionHumanityThreshold + "%", lineX, lineY, 0xFFFFFF);
         }
 
-        // 高人性时间条件（游戏日）
+        // 高人性时间条件（秒）
         lineY += 12;
-        float daysProgress = (float) highHumanityTicks / 24000f;
+        long secondsProgress = highHumanityTicks / 20;
         if (timeMet) {
-            this.fontRenderer.drawString(TextFormatting.GREEN + "✓" + TextFormatting.GRAY + "天数OK", lineX, lineY, 0xFFFFFF);
+            this.fontRenderer.drawString(TextFormatting.GREEN + "✓" + TextFormatting.GRAY + "时间OK", lineX, lineY, 0xFFFFFF);
         } else {
-            String timeStr = String.format("%.1f/%d天", daysProgress, ShambhalaConfig.requiredHighHumanityDays);
+            String timeStr = formatTimeCompact((int) secondsProgress) + "/" + formatTimeCompact(ShambhalaConfig.requiredHighHumanitySeconds);
             this.fontRenderer.drawString(TextFormatting.RED + "✗" + TextFormatting.GRAY + timeStr, lineX, lineY, 0xFFFFFF);
         }
 

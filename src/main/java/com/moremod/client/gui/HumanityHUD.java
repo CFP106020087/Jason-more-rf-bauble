@@ -83,9 +83,10 @@ public class HumanityHUD extends Gui {
             }
         }
 
-        // 低人性抖动（破碎之神不抖动）
+        // 低人性抖动（破碎之神和机巧香巴拉不抖动）
         boolean isBrokenGod = data.getAscensionRoute() == AscensionRoute.BROKEN_GOD;
-        if (data.getHumanity() < 40f && !isBrokenGod) {
+        boolean isShambhala = data.getAscensionRoute() == AscensionRoute.SHAMBHALA;
+        if (data.getHumanity() < 40f && !isBrokenGod && !isShambhala) {
             shakeTimer++;
         } else {
             shakeTimer = 0;
@@ -101,9 +102,10 @@ public class HumanityHUD extends Gui {
 
         float humanity = data.getHumanity();
         boolean isBrokenGod = data.getAscensionRoute() == AscensionRoute.BROKEN_GOD;
+        boolean isShambhala = data.getAscensionRoute() == AscensionRoute.SHAMBHALA;
 
-        // 低人性抖动效果（破碎之神不抖动）
-        if (humanity < 40f && !isBrokenGod && random.nextFloat() < 0.1f) {
+        // 低人性抖动效果（破碎之神和机巧香巴拉不抖动）
+        if (humanity < 40f && !isBrokenGod && !isShambhala && random.nextFloat() < 0.1f) {
             x += random.nextInt(3) - 1;
             y += random.nextInt(3) - 1;
         }
@@ -112,8 +114,15 @@ public class HumanityHUD extends Gui {
         GlStateManager.enableBlend();
         GlStateManager.disableLighting();
 
-        // 获取颜色（破碎之神使用特殊稳定颜色）
-        int color = isBrokenGod ? 0xFF5500AA : getHumanityColor(humanity);  // 破碎之神: 深紫色
+        // 获取颜色（升格者使用特殊稳定颜色）
+        int color;
+        if (isBrokenGod) {
+            color = 0xFF5500AA;  // 破碎之神: 深紫色
+        } else if (isShambhala) {
+            color = 0xFF00AAFF;  // 机巧香巴拉: 青金色
+        } else {
+            color = getHumanityColor(humanity);
+        }
         int bgColor = 0x80000000; // 半透明黑色背景
 
         // 绘制背景
@@ -126,8 +135,8 @@ public class HumanityHUD extends Gui {
         int barWidth = (int) (displayedHumanity);
         Gui.drawRect(x, y, x + barWidth, y + 8, color);
 
-        // 崩解状态特殊效果（破碎之神不显示）
-        if (data.isDissolutionActive() && !isBrokenGod) {
+        // 崩解状态特殊效果（破碎之神和机巧香巴拉不显示）
+        if (data.isDissolutionActive() && !isBrokenGod && !isShambhala) {
             int dissolutionColor = 0xFFFF0000;
             float pulse = 0.5f + 0.5f * (float) Math.sin(System.currentTimeMillis() / 100.0);
             int alpha = (int) (pulse * 255);
@@ -147,7 +156,7 @@ public class HumanityHUD extends Gui {
         }
 
         // 崩解倒计时（升格后不显示）
-        if (data.isDissolutionActive() && !isBrokenGod) {
+        if (data.isDissolutionActive() && !isBrokenGod && !isShambhala) {
             int seconds = data.getDissolutionTicks() / 20;
             String warning = "\u00a74【崩解中】\u00a7c " + seconds + "s";
             mc.fontRenderer.drawStringWithShadow(warning, x, y + 22, 0xFFFF0000);
@@ -203,6 +212,11 @@ public class HumanityHUD extends Gui {
             return "\u00a75\u00a7l破碎之神";
         }
 
+        // 机巧香巴拉显示特殊标签
+        if (data.getAscensionRoute() == AscensionRoute.SHAMBHALA) {
+            return "\u00a7b\u00a7l机巧香巴拉";
+        }
+
         if (data.isDissolutionActive()) {
             return "";  // 崩解状态单独显示
         }
@@ -229,6 +243,11 @@ public class HumanityHUD extends Gui {
         // 破碎之神使用特殊颜色
         if (data.getAscensionRoute() == AscensionRoute.BROKEN_GOD) {
             return 0xFF8855DD;  // 稳定的紫色
+        }
+
+        // 机巧香巴拉使用特殊颜色
+        if (data.getAscensionRoute() == AscensionRoute.SHAMBHALA) {
+            return 0xFF55DDFF;  // 稳定的青金色
         }
 
         float humanity = data.getHumanity();

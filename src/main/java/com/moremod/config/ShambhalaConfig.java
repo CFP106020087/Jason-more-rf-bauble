@@ -38,13 +38,13 @@ public class ShambhalaConfig {
     public static int requiredModuleCount = 20;
 
     @Config.Comment({
-            "升格所需的高人性值累计时间（游戏日数）",
-            "Days at high humanity required for ascension",
-            "1游戏日 = 24000 ticks"
+            "升格所需的高人性值累计时间（秒）",
+            "Seconds at high humanity required for ascension",
+            "与破碎之神的时间单位保持一致"
     })
-    @Config.Name("高人性天数要求 | High Humanity Days")
-    @Config.RangeInt(min = 1, max = 30)
-    public static int requiredHighHumanityDays = 7;
+    @Config.Name("高人性秒数要求 | High Humanity Seconds")
+    @Config.RangeInt(min = 60, max = 86400)
+    public static int requiredHighHumanitySeconds = 8400;
 
     @Config.Comment({
             "高人性值阈值（高于此值时开始累计时间）",
@@ -170,30 +170,25 @@ public class ShambhalaConfig {
     public static double thornsAoeRadius = 3.0;
 
     // ============================================================
-    // 香巴拉_净化 (Shambhala Purify) - 免疫与净化
+    // 香巴拉_净化 (Shambhala Purify) - 被动免疫负面效果
     // ============================================================
 
     @Config.Comment({
-            "自动清除负面效果的间隔（tick）",
-            "Interval for auto cleansing debuffs"
+            "被动免疫负面效果的每秒能量消耗（RF/秒）",
+            "Energy cost per second for passive negative effect immunity",
+            "只要有足够能量，就会完全免疫所有负面效果（包括模组效果）"
     })
-    @Config.Name("净化:清除间隔 | Purify: Cleanse Interval")
-    @Config.RangeInt(min = 10, max = 100)
-    public static int purifyCleanseInterval = 20;
+    @Config.Name("净化:每秒能耗 | Purify: Energy Per Second")
+    @Config.RangeInt(min = 100, max = 10000)
+    public static int purifyEnergyPerSecond = 500;
 
     @Config.Comment({
-            "是否免疫凋零",
-            "Immune to wither effect"
+            "是否免疫所有负面效果（包括模组添加的）",
+            "Immune to ALL negative effects (including mod effects)",
+            "如果关闭，只免疫原版负面效果"
     })
-    @Config.Name("净化:凋零免疫 | Purify: Wither Immune")
-    public static boolean purifyWitherImmune = true;
-
-    @Config.Comment({
-            "是否免疫中毒",
-            "Immune to poison effect"
-    })
-    @Config.Name("净化:中毒免疫 | Purify: Poison Immune")
-    public static boolean purifyPoisonImmune = true;
+    @Config.Name("净化:免疫全部 | Purify: Immune All")
+    public static boolean purifyImmuneAll = true;
 
     // ============================================================
     // 香巴拉_宁静 (Shambhala Veil) - 宁静光环 / 仇恨消除
