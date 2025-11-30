@@ -125,14 +125,23 @@ public class ShambhalaHandler {
 
     // ========== 能量护盾（核心机制） ==========
 
+    /** 能量护盾最低伤害阈值：低于此值的伤害不会被能量吸收 */
+    private static final float SHIELD_MIN_DAMAGE_THRESHOLD = 20.0f;
+
     /**
      * 尝试用能量吸收伤害
+     * 注意：只吸收 >= 20 的伤害，低伤害会直接穿透
      * @param player 玩家
      * @param damage 原始伤害
      * @return 实际应受伤害（可能为0）
      */
     public static float tryAbsorbDamage(EntityPlayer player, float damage) {
         if (!isShambhala(player)) return damage;
+
+        // 低于阈值的伤害不被能量护盾吸收，直接穿透
+        if (damage < SHIELD_MIN_DAMAGE_THRESHOLD) {
+            return damage;
+        }
 
         // 计算吸收伤害需要的能量
         int energyRequired = (int) (damage * ShambhalaConfig.energyPerDamage);

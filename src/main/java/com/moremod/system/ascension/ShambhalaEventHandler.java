@@ -8,15 +8,20 @@ import com.moremod.system.humanity.AscensionRoute;
 import com.moremod.system.humanity.HumanityCapabilityHandler;
 import com.moremod.system.humanity.IHumanityData;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.monster.EntityMob;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
+import net.minecraftforge.event.entity.item.ItemTossEvent;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.living.LivingDamageEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.event.entity.living.LivingDropsEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.living.LivingSetAttackTargetEvent;
+import net.minecraftforge.event.entity.player.PlayerDropsEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
@@ -232,5 +237,55 @@ public class ShambhalaEventHandler {
     @SubscribeEvent
     public static void onPlayerClone(PlayerEvent.Clone event) {
         // 香巴拉状态通过 IHumanityData 的 copyFrom 保留
+    }
+
+    // ========== 香巴拉饰品死亡不掉落 ==========
+
+    /**
+     * 玩家死亡时移除香巴拉饰品掉落
+     */
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onPlayerDrops(PlayerDropsEvent event) {
+        event.getDrops().removeIf(item -> ShambhalaItems.isShambhalaItem(item.getItem()));
+    }
+
+    /**
+     * 实体死亡时移除香巴拉饰品掉落（防止通过其他方式掉落）
+     */
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onLivingDrops(LivingDropsEvent event) {
+        if (event.getEntityLiving() instanceof EntityPlayer) {
+            event.getDrops().removeIf(item -> ShambhalaItems.isShambhalaItem(item.getItem()));
+        }
+    }
+
+    /**
+     * 阻止玩家丢弃香巴拉饰品
+     */
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onItemToss(ItemTossEvent event) {
+        ItemStack tossed = event.getEntityItem().getItem();
+        if (ShambhalaItems.isShambhalaItem(tossed)) {
+            event.setCanceled(true);
+            if (event.getPlayer() != null && !event.getPlayer().world.isRemote) {
+                event.getPlayer().sendMessage(new TextComponentString(
+                        TextFormatting.AQUA + "⚠ 香巴拉饰品与你的灵魂绑定，无法丢弃。"
+                ));
+            }
+        }
+    }
+
+    /**
+     * 阻止香巴拉饰品物品实体生成（防止其他方式产生掉落）
+     */
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onItemSpawn(net.minecraftforge.event.entity.EntityJoinWorldEvent event) {
+        if (event.getEntity() instanceof EntityItem) {
+            EntityItem item = (EntityItem) event.getEntity();
+            ItemStack stack = item.getItem();
+            if (ShambhalaItems.isShambhalaItem(stack)) {
+                event.setCanceled(true);
+            }
+        }
     }
 }

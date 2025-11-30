@@ -187,17 +187,27 @@ public class TrueDamageHelper {
 
     /**
      * 触发原版死亡链：使用指定的伤害源
-     * 可保留自定义死亡消息，同时正确触发掉落物
+     * 可保留自定义死亡消息，同时正确触发掉落物和死亡动画
+     *
+     * 注意：不要手动设置 isDead = true！
+     * 这会阻止实体继续更新，导致 deathTime 无法递增，死亡动画无法播放。
+     * 让实体自然完成死亡过程（约20 tick后自动设置isDead）
      */
     public static void triggerVanillaDeathChain(EntityLivingBase victim, DamageSource source) {
         if (victim == null || victim.isDead || victim.world.isRemote) return;
+
+        // 设置血量为0
         victim.setHealth(0F);
+
+        // 调用原版死亡流程（会触发掉落、经验、死亡消息、setEntityState(3)等）
         victim.onDeath(source);
-        if (!victim.isDead) {
-            victim.isDead = true;
-            if (victim.world instanceof net.minecraft.world.WorldServer) {
-                victim.world.setEntityState(victim, (byte) 3);
-            }
+
+        // 不要设置 isDead = true！让实体自然完成死亡动画
+        // 实体的 onLivingUpdate 会递增 deathTime，约20 tick后自动标记为 isDead
+        // 如果 onDeath 没有正确设置死亡状态，额外触发死亡动画
+        if (!victim.isDead && victim.deathTime == 0) {
+            // 设置 deathTime 启动死亡动画计时
+            victim.deathTime = 1;
         }
     }
 
