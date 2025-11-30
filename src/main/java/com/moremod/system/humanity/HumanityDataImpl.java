@@ -31,6 +31,7 @@ public class HumanityDataImpl implements IHumanityData {
     public static final String NBT_ASCENSION_ROUTE = "ascension_route";
     public static final String NBT_DISSOLUTION_SURVIVALS = "dissolution_survivals";
     public static final String NBT_LOW_HUMANITY_TICKS = "low_humanity_ticks";
+    public static final String NBT_HIGH_HUMANITY_TICKS = "high_humanity_ticks";
     public static final String NBT_OPERATION_VALUE = "operation_value";
     public static final String NBT_SHUTDOWN_TIMER = "shutdown_timer";
     public static final String NBT_LEARNED_INTEL = "learned_intel";
@@ -62,7 +63,8 @@ public class HumanityDataImpl implements IHumanityData {
     // 升格系统
     private AscensionRoute ascensionRoute = AscensionRoute.NONE;
     private int dissolutionSurvivals = 0;
-    private long lowHumanityTicks = 0; // 低人性值累计时间
+    private long lowHumanityTicks = 0; // 低人性值累计时间（破碎之神升格条件）
+    private long highHumanityTicks = 0; // 高人性值累计时间（香巴拉升格条件）
     private int operationValue = 100; // 破碎之神专用
     private int shutdownTimer = 0; // 停机模式剩余时间
 
@@ -437,6 +439,23 @@ public class HumanityDataImpl implements IHumanityData {
         this.lowHumanityTicks = Math.max(0, this.lowHumanityTicks + ticks);
     }
 
+    // ========== 高人性累计时间（香巴拉升格条件） ==========
+
+    @Override
+    public long getHighHumanityTicks() {
+        return highHumanityTicks;
+    }
+
+    @Override
+    public void setHighHumanityTicks(long ticks) {
+        this.highHumanityTicks = Math.max(0, ticks);
+    }
+
+    @Override
+    public void addHighHumanityTicks(long ticks) {
+        this.highHumanityTicks = Math.max(0, this.highHumanityTicks + ticks);
+    }
+
     // ========== 破碎之神专用 ==========
 
     @Override
@@ -540,6 +559,7 @@ public class HumanityDataImpl implements IHumanityData {
         nbt.setString(NBT_ASCENSION_ROUTE, ascensionRoute.getId());
         nbt.setInteger(NBT_DISSOLUTION_SURVIVALS, dissolutionSurvivals);
         nbt.setLong(NBT_LOW_HUMANITY_TICKS, lowHumanityTicks);
+        nbt.setLong(NBT_HIGH_HUMANITY_TICKS, highHumanityTicks);
         nbt.setInteger(NBT_OPERATION_VALUE, operationValue);
         nbt.setInteger(NBT_SHUTDOWN_TIMER, shutdownTimer);
 
@@ -608,6 +628,7 @@ public class HumanityDataImpl implements IHumanityData {
         this.ascensionRoute = AscensionRoute.fromId(nbt.getString(NBT_ASCENSION_ROUTE));
         this.dissolutionSurvivals = nbt.getInteger(NBT_DISSOLUTION_SURVIVALS);
         this.lowHumanityTicks = nbt.getLong(NBT_LOW_HUMANITY_TICKS);
+        this.highHumanityTicks = nbt.getLong(NBT_HIGH_HUMANITY_TICKS);
         this.operationValue = nbt.hasKey(NBT_OPERATION_VALUE) ? nbt.getInteger(NBT_OPERATION_VALUE) : 100;
         this.shutdownTimer = nbt.getInteger(NBT_SHUTDOWN_TIMER);
 
@@ -654,6 +675,7 @@ public class HumanityDataImpl implements IHumanityData {
         this.ascensionRoute = other.getAscensionRoute();
         this.dissolutionSurvivals = other.getDissolutionSurvivals();
         this.lowHumanityTicks = other.getLowHumanityTicks();
+        this.highHumanityTicks = other.getHighHumanityTicks();
         this.operationValue = other.getOperationValue();
         this.shutdownTimer = other.getShutdownTimer();
 

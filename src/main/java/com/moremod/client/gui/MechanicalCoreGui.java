@@ -3,6 +3,7 @@ package com.moremod.client.gui;
 import baubles.api.BaublesApi;
 import baubles.api.cap.IBaublesItemHandler;
 import com.moremod.config.BrokenGodConfig;
+import com.moremod.config.ShambhalaConfig;
 import com.moremod.event.EnergyPunishmentSystem;
 import com.moremod.item.ItemBatteryBauble;
 import com.moremod.item.ItemCreativeBatteryBauble;
@@ -11,6 +12,7 @@ import com.moremod.item.ItemMechanicalCoreExtended;
 import com.moremod.network.NetworkHandler;
 import com.moremod.network.PacketMechanicalCoreUpdate;
 import com.moremod.system.ascension.BrokenGodHandler;
+import com.moremod.system.ascension.ShambhalaHandler;
 import com.moremod.system.humanity.AscensionRoute;
 import com.moremod.system.humanity.HumanityCapabilityHandler;
 import com.moremod.system.humanity.IHumanityData;
@@ -57,6 +59,7 @@ public class MechanicalCoreGui extends GuiScreen {
     private static final int BUTTON_PAUSE_ALL = 1;
     private static final int BUTTON_RESUME_ALL = 2;
     private static final int BUTTON_ASCEND = 3;
+    private static final int BUTTON_ASCEND_SHAMBHALA = 4;
 
     private static final int UPGRADES_PER_PAGE = 6;
 
@@ -572,6 +575,11 @@ public class MechanicalCoreGui extends GuiScreen {
         GuiButton ascendButton = new GuiButton(BUTTON_ASCEND, sidePanelX + 5, sidePanelY + SIDE_PANEL_HEIGHT - 25, SIDE_PANEL_WIDTH - 10, 18, "");
         ascendButton.visible = false; // 默认隐藏，在drawScreen中控制
         this.buttonList.add(ascendButton);
+
+        // 添加香巴拉升格按钮（在侧边栏下方）
+        GuiButton shambhalaButton = new GuiButton(BUTTON_ASCEND_SHAMBHALA, sidePanelX + 5, sidePanelY + SIDE_PANEL_HEIGHT * 2 - 15, SIDE_PANEL_WIDTH - 10, 18, "");
+        shambhalaButton.visible = false;
+        this.buttonList.add(shambhalaButton);
     }
 
     @Override
@@ -767,75 +775,117 @@ public class MechanicalCoreGui extends GuiScreen {
         drawRect(x + 1, sy, x + 9, sy + sliderH, 0xFFAAAAAA);
     }
 
-    // ===== 破碎之神升格区域（悬停显示侧边栏） =====
+    // ===== 升格区域（悬停显示侧边栏） =====
+    // 支持两条升格路线：破碎之神（低人性）和香巴拉（高人性）
 
     private void drawAscensionSection(int mouseX, int mouseY) {
         IHumanityData data = HumanityCapabilityHandler.getData(player);
         if (data == null || !data.isSystemActive()) {
-            hideAscensionButton();
+            hideAllAscensionButtons();
             return;
         }
 
         // 已经升格的情况
         if (data.getAscensionRoute() != AscensionRoute.NONE) {
-            hideAscensionButton();
+            hideAllAscensionButtons();
             return;
         }
 
-        // 获取升格条件状态
+        // 获取通用数据
         float humanity = data.getHumanity();
-        long lowHumanityTicks = data.getLowHumanityTicks();
-        long lowHumanitySeconds = lowHumanityTicks / 20;
         ItemStack core = getCurrentCoreStack();
         int installedCount = ItemMechanicalCore.getTotalInstalledUpgrades(core);
 
-        boolean humanityMet = humanity <= BrokenGodConfig.ascensionHumanityThreshold;
-        boolean lowHumanityTimeMet = lowHumanitySeconds >= BrokenGodConfig.requiredLowHumanitySeconds;
-        boolean modulesMet = installedCount >= BrokenGodConfig.requiredModuleCount;
+        // ========== 破碎之神条件 ==========
+        long lowHumanityTicks = data.getLowHumanityTicks();
+        long lowHumanitySeconds = lowHumanityTicks / 20;
+        boolean brokenHumanityMet = humanity <= BrokenGodConfig.ascensionHumanityThreshold;
+        boolean brokenTimeMet = lowHumanitySeconds >= BrokenGodConfig.requiredLowHumanitySeconds;
+        boolean brokenModulesMet = installedCount >= BrokenGodConfig.requiredModuleCount;
+        boolean canAscendBroken = brokenHumanityMet && brokenTimeMet && brokenModulesMet;
 
-        boolean canAscend = humanityMet && lowHumanityTimeMet && modulesMet;
+        // ========== 香巴拉条件 ==========
+        long highHumanityTicks = data.getHighHumanityTicks();
+        long requiredHighTicks = ShambhalaConfig.requiredHighHumanityDays * 24000L;
+        boolean shambhalaHumanityMet = humanity >= ShambhalaConfig.ascensionHumanityThreshold;
+        boolean shambhalaTimeMet = highHumanityTicks >= requiredHighTicks;
+        boolean shambhalaModulesMet = installedCount >= ShambhalaConfig.requiredModuleCount;
+        boolean canAscendShambhala = shambhalaHumanityMet && shambhalaTimeMet && shambhalaModulesMet;
 
         // 触发区位置（主GUI右侧的小标签）
         int triggerX = guiLeft + GUI_WIDTH;
-        int triggerY = guiTop + 20;
+        int triggerY1 = guiTop + 20;  // 破碎之神
+        int triggerY2 = guiTop + 75;  // 香巴拉
         int triggerW = 18;
         int triggerH = 50;
 
         // 侧边栏位置
         int panelX = triggerX + triggerW;
-        int panelY = triggerY;
 
-        // 检测鼠标是否在触发区或侧边栏内
-        boolean hoverTrigger = mouseX >= triggerX && mouseX <= triggerX + triggerW &&
-                mouseY >= triggerY && mouseY <= triggerY + triggerH;
-        boolean hoverPanel = mouseX >= panelX && mouseX <= panelX + SIDE_PANEL_WIDTH &&
-                mouseY >= panelY && mouseY <= panelY + SIDE_PANEL_HEIGHT;
-        boolean showPanel = hoverTrigger || hoverPanel;
+        // 检测鼠标位置
+        boolean hoverBrokenTrigger = mouseX >= triggerX && mouseX <= triggerX + triggerW &&
+                mouseY >= triggerY1 && mouseY <= triggerY1 + triggerH;
+        boolean hoverShambhalaTrigger = mouseX >= triggerX && mouseX <= triggerX + triggerW &&
+                mouseY >= triggerY2 && mouseY <= triggerY2 + triggerH;
+        boolean hoverBrokenPanel = mouseX >= panelX && mouseX <= panelX + SIDE_PANEL_WIDTH &&
+                mouseY >= triggerY1 && mouseY <= triggerY1 + SIDE_PANEL_HEIGHT;
+        boolean hoverShambhalaPanel = mouseX >= panelX && mouseX <= panelX + SIDE_PANEL_WIDTH &&
+                mouseY >= triggerY2 && mouseY <= triggerY2 + SIDE_PANEL_HEIGHT;
 
-        // 绘制触发标签（始终显示）
-        int triggerColor = canAscend ? 0xC0442266 : 0xC0333333;
-        int triggerHoverColor = canAscend ? 0xC0663388 : 0xC0444444;
-        drawRect(triggerX, triggerY, triggerX + triggerW, triggerY + triggerH,
-                (hoverTrigger || hoverPanel) ? triggerHoverColor : triggerColor);
+        boolean showBrokenPanel = hoverBrokenTrigger || hoverBrokenPanel;
+        boolean showShambhalaPanel = hoverShambhalaTrigger || hoverShambhalaPanel;
 
-        // 垂直文字 "升格" 或图标
-        String label = canAscend ? "✦" : "▶";
-        int labelColor = canAscend ? 0xFFAA88FF : 0xFFAAAAAA;
-        this.fontRenderer.drawStringWithShadow(label, triggerX + 5, triggerY + 20, labelColor);
+        // ========== 绘制破碎之神触发标签 ==========
+        int brokenColor = canAscendBroken ? 0xC0442266 : 0xC0333333;
+        int brokenHoverColor = canAscendBroken ? 0xC0663388 : 0xC0444444;
+        drawRect(triggerX, triggerY1, triggerX + triggerW, triggerY1 + triggerH,
+                showBrokenPanel ? brokenHoverColor : brokenColor);
+        String brokenLabel = canAscendBroken ? "✦" : "◇";
+        int brokenLabelColor = canAscendBroken ? 0xFFAA88FF : 0xFFAAAAAA;
+        this.fontRenderer.drawStringWithShadow(brokenLabel, triggerX + 5, triggerY1 + 20, brokenLabelColor);
 
-        if (!showPanel) {
-            // 不显示侧边栏时隐藏按钮
-            hideAscensionButton();
-            return;
+        // ========== 绘制香巴拉触发标签 ==========
+        int shambhalaColor = canAscendShambhala ? 0xC0226644 : 0xC0333333;
+        int shambhalaHoverColor = canAscendShambhala ? 0xC0338866 : 0xC0444444;
+        drawRect(triggerX, triggerY2, triggerX + triggerW, triggerY2 + triggerH,
+                showShambhalaPanel ? shambhalaHoverColor : shambhalaColor);
+        String shambhalaLabel = canAscendShambhala ? "☀" : "○";
+        int shambhalaLabelColor = canAscendShambhala ? 0xFFFFDD88 : 0xFFAAAAAA;
+        this.fontRenderer.drawStringWithShadow(shambhalaLabel, triggerX + 5, triggerY2 + 20, shambhalaLabelColor);
+
+        // ========== 破碎之神侧边栏 ==========
+        if (showBrokenPanel) {
+            drawBrokenGodPanel(panelX, triggerY1, humanity, lowHumanitySeconds, installedCount,
+                    brokenHumanityMet, brokenTimeMet, brokenModulesMet, canAscendBroken);
+            hideShambhalaButton();
+        } else {
+            hideBrokenGodButton();
         }
 
+        // ========== 香巴拉侧边栏 ==========
+        if (showShambhalaPanel) {
+            drawShambhalaPanel(panelX, triggerY2, humanity, highHumanityTicks, requiredHighTicks, installedCount,
+                    shambhalaHumanityMet, shambhalaTimeMet, shambhalaModulesMet, canAscendShambhala);
+            hideBrokenGodButton();
+        } else {
+            hideShambhalaButton();
+        }
+
+        // 两个都没悬停时隐藏所有按钮
+        if (!showBrokenPanel && !showShambhalaPanel) {
+            hideAllAscensionButtons();
+        }
+    }
+
+    private void drawBrokenGodPanel(int panelX, int panelY, float humanity, long lowHumanitySeconds,
+                                     int installedCount, boolean humanityMet, boolean timeMet, boolean modulesMet, boolean canAscend) {
         // 绘制侧边栏背景
         drawRect(panelX, panelY, panelX + SIDE_PANEL_WIDTH, panelY + SIDE_PANEL_HEIGHT, 0xC0101010);
         drawRect(panelX + 1, panelY + 1, panelX + SIDE_PANEL_WIDTH - 1, panelY + SIDE_PANEL_HEIGHT - 1, 0xC0383838);
 
         // 标题栏
-        drawRect(panelX + 1, panelY + 1, panelX + SIDE_PANEL_WIDTH - 1, panelY + 14, 0xC0505050);
-        String title = "升格条件";
+        drawRect(panelX + 1, panelY + 1, panelX + SIDE_PANEL_WIDTH - 1, panelY + 14, 0xC0442266);
+        String title = "破碎之神";
         int titleX = panelX + (SIDE_PANEL_WIDTH - this.fontRenderer.getStringWidth(title)) / 2;
         this.fontRenderer.drawStringWithShadow(title, titleX, panelY + 4, 0xAA88FF);
 
@@ -847,16 +897,12 @@ public class MechanicalCoreGui extends GuiScreen {
                 button.width = SIDE_PANEL_WIDTH - 10;
                 button.visible = true;
                 button.enabled = canAscend;
-                if (canAscend) {
-                    button.displayString = TextFormatting.DARK_PURPLE + "✦ 升格 ✦";
-                } else {
-                    button.displayString = TextFormatting.GRAY + "未满足";
-                }
+                button.displayString = canAscend ? TextFormatting.DARK_PURPLE + "✦ 升格 ✦" : TextFormatting.GRAY + "未满足";
                 break;
             }
         }
 
-        // 绘制条件列表（紧凑版）
+        // 绘制条件列表
         int lineY = panelY + 18;
         int lineX = panelX + 4;
 
@@ -869,7 +915,7 @@ public class MechanicalCoreGui extends GuiScreen {
 
         // 低人性时间条件
         lineY += 12;
-        if (lowHumanityTimeMet) {
+        if (timeMet) {
             this.fontRenderer.drawString(TextFormatting.GREEN + "✓" + TextFormatting.GRAY + "时间OK", lineX, lineY, 0xFFFFFF);
         } else {
             String timeStr = formatTimeCompact((int)lowHumanitySeconds) + "/" + formatTimeCompact(BrokenGodConfig.requiredLowHumanitySeconds);
@@ -882,6 +928,61 @@ public class MechanicalCoreGui extends GuiScreen {
             this.fontRenderer.drawString(TextFormatting.GREEN + "✓" + TextFormatting.GRAY + "模块≥" + BrokenGodConfig.requiredModuleCount, lineX, lineY, 0xFFFFFF);
         } else {
             this.fontRenderer.drawString(TextFormatting.RED + "✗" + TextFormatting.GRAY + installedCount + "/" + BrokenGodConfig.requiredModuleCount + "模块", lineX, lineY, 0xFFFFFF);
+        }
+    }
+
+    private void drawShambhalaPanel(int panelX, int panelY, float humanity, long highHumanityTicks,
+                                     long requiredTicks, int installedCount, boolean humanityMet, boolean timeMet, boolean modulesMet, boolean canAscend) {
+        // 绘制侧边栏背景
+        drawRect(panelX, panelY, panelX + SIDE_PANEL_WIDTH, panelY + SIDE_PANEL_HEIGHT, 0xC0101010);
+        drawRect(panelX + 1, panelY + 1, panelX + SIDE_PANEL_WIDTH - 1, panelY + SIDE_PANEL_HEIGHT - 1, 0xC0383838);
+
+        // 标题栏
+        drawRect(panelX + 1, panelY + 1, panelX + SIDE_PANEL_WIDTH - 1, panelY + 14, 0xC0226644);
+        String title = "香巴拉";
+        int titleX = panelX + (SIDE_PANEL_WIDTH - this.fontRenderer.getStringWidth(title)) / 2;
+        this.fontRenderer.drawStringWithShadow(title, titleX, panelY + 4, 0xFFDD88);
+
+        // 更新升格按钮状态和位置
+        for (GuiButton button : buttonList) {
+            if (button.id == BUTTON_ASCEND_SHAMBHALA) {
+                button.x = panelX + 5;
+                button.y = panelY + SIDE_PANEL_HEIGHT - 22;
+                button.width = SIDE_PANEL_WIDTH - 10;
+                button.visible = true;
+                button.enabled = canAscend;
+                button.displayString = canAscend ? TextFormatting.GOLD + "☀ 升格 ☀" : TextFormatting.GRAY + "未满足";
+                break;
+            }
+        }
+
+        // 绘制条件列表
+        int lineY = panelY + 18;
+        int lineX = panelX + 4;
+
+        // 人性值条件（高人性）
+        if (humanityMet) {
+            this.fontRenderer.drawString(TextFormatting.GREEN + "✓" + TextFormatting.GRAY + "人性≥" + (int)ShambhalaConfig.ascensionHumanityThreshold + "%", lineX, lineY, 0xFFFFFF);
+        } else {
+            this.fontRenderer.drawString(TextFormatting.RED + "✗" + TextFormatting.GRAY + String.format("%.0f", humanity) + "/" + (int)ShambhalaConfig.ascensionHumanityThreshold + "%", lineX, lineY, 0xFFFFFF);
+        }
+
+        // 高人性时间条件（游戏日）
+        lineY += 12;
+        float daysProgress = (float) highHumanityTicks / 24000f;
+        if (timeMet) {
+            this.fontRenderer.drawString(TextFormatting.GREEN + "✓" + TextFormatting.GRAY + "天数OK", lineX, lineY, 0xFFFFFF);
+        } else {
+            String timeStr = String.format("%.1f/%d天", daysProgress, ShambhalaConfig.requiredHighHumanityDays);
+            this.fontRenderer.drawString(TextFormatting.RED + "✗" + TextFormatting.GRAY + timeStr, lineX, lineY, 0xFFFFFF);
+        }
+
+        // 模块数量条件
+        lineY += 12;
+        if (modulesMet) {
+            this.fontRenderer.drawString(TextFormatting.GREEN + "✓" + TextFormatting.GRAY + "模块≥" + ShambhalaConfig.requiredModuleCount, lineX, lineY, 0xFFFFFF);
+        } else {
+            this.fontRenderer.drawString(TextFormatting.RED + "✗" + TextFormatting.GRAY + installedCount + "/" + ShambhalaConfig.requiredModuleCount + "模块", lineX, lineY, 0xFFFFFF);
         }
     }
 
@@ -898,9 +999,26 @@ public class MechanicalCoreGui extends GuiScreen {
         }
     }
 
-    private void hideAscensionButton() {
+    private void hideAllAscensionButtons() {
+        for (GuiButton button : buttonList) {
+            if (button.id == BUTTON_ASCEND || button.id == BUTTON_ASCEND_SHAMBHALA) {
+                button.visible = false;
+            }
+        }
+    }
+
+    private void hideBrokenGodButton() {
         for (GuiButton button : buttonList) {
             if (button.id == BUTTON_ASCEND) {
+                button.visible = false;
+                break;
+            }
+        }
+    }
+
+    private void hideShambhalaButton() {
+        for (GuiButton button : buttonList) {
+            if (button.id == BUTTON_ASCEND_SHAMBHALA) {
                 button.visible = false;
                 break;
             }
@@ -1117,6 +1235,8 @@ public class MechanicalCoreGui extends GuiScreen {
             resumeAllModules();
         } else if (button.id == BUTTON_ASCEND) {
             tryAscendToBrokenGod();
+        } else if (button.id == BUTTON_ASCEND_SHAMBHALA) {
+            tryAscendToShambhala();
         }
     }
 
@@ -1148,6 +1268,43 @@ public class MechanicalCoreGui extends GuiScreen {
 
             player.sendStatusMessage(new TextComponentString(
                     TextFormatting.DARK_PURPLE + "✦ 升格仪式开始... ✦"
+            ), true);
+
+        } catch (Throwable e) {
+            player.sendStatusMessage(new TextComponentString(
+                    TextFormatting.RED + "升格请求发送失败"
+            ), true);
+        }
+    }
+
+    /**
+     * 尝试升格为香巴拉
+     */
+    private void tryAscendToShambhala() {
+        if (!ShambhalaHandler.canAscend(player)) {
+            player.sendStatusMessage(new TextComponentString(
+                    TextFormatting.RED + "升格条件未满足"
+            ), true);
+            return;
+        }
+
+        // 发送升格请求到服务器
+        try {
+            NetworkHandler.INSTANCE.sendToServer(new PacketMechanicalCoreUpdate(
+                    PacketMechanicalCoreUpdate.Action.SHAMBHALA_ASCEND,
+                    "ASCEND",
+                    0,
+                    true
+            ));
+
+            // 播放音效 (服务器会播放升格音效)
+            this.mc.player.playSound(SoundEvents.BLOCK_BEACON_ACTIVATE, 1.0f, 1.2f);
+
+            // 关闭GUI
+            this.mc.displayGuiScreen(null);
+
+            player.sendStatusMessage(new TextComponentString(
+                    TextFormatting.GOLD + "☀ 升格仪式开始... ☀"
             ), true);
 
         } catch (Throwable e) {

@@ -17,6 +17,7 @@ import com.moremod.item.ItemMechanicalCore;
 import com.moremod.item.ItemMechanicalCoreExtended;
 import com.moremod.event.EnergyPunishmentSystem;
 import com.moremod.system.ascension.BrokenGodHandler;
+import com.moremod.system.ascension.ShambhalaHandler;
 import com.moremod.util.BaublesSyncUtil;
 
 import java.nio.charset.StandardCharsets;
@@ -31,7 +32,8 @@ public class PacketMechanicalCoreUpdate implements IMessage {
     public enum Action {
         SET_LEVEL,
         REPAIR_UPGRADE,
-        BROKEN_GOD_ASCEND
+        BROKEN_GOD_ASCEND,
+        SHAMBHALA_ASCEND
     }
 
     public Action action;
@@ -97,6 +99,11 @@ public class PacketMechanicalCoreUpdate implements IMessage {
 
                 if (msg.action == Action.BROKEN_GOD_ASCEND) {
                     handleBrokenGodAscension(serverPlayer);
+                    return;
+                }
+
+                if (msg.action == Action.SHAMBHALA_ASCEND) {
+                    handleShambhalaAscension(serverPlayer);
                     return;
                 }
 
@@ -410,6 +417,22 @@ public class PacketMechanicalCoreUpdate implements IMessage {
 
             // 执行升格
             BrokenGodHandler.performAscension(player);
+
+            // 同步饰品变更
+            syncDirty(player);
+        }
+
+        // ================= 香巴拉升格 =================
+
+        private static void handleShambhalaAscension(EntityPlayerMP player) {
+            if (!ShambhalaHandler.canAscend(player)) {
+                player.sendMessage(new TextComponentString(
+                        TextFormatting.RED + "升格条件未满足"));
+                return;
+            }
+
+            // 执行升格
+            ShambhalaHandler.performAscension(player);
 
             // 同步饰品变更
             syncDirty(player);

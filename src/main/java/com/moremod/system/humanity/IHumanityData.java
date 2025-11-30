@@ -270,6 +270,24 @@ public interface IHumanityData {
      */
     void addLowHumanityTicks(long ticks);
 
+    // ========== 香巴拉升格条件 ==========
+
+    /**
+     * 获取高人性值累计时间（tick）
+     * 用于香巴拉升格条件
+     */
+    long getHighHumanityTicks();
+
+    /**
+     * 设置高人性值累计时间
+     */
+    void setHighHumanityTicks(long ticks);
+
+    /**
+     * 增加高人性值累计时间
+     */
+    void addHighHumanityTicks(long ticks);
+
     // ========== 破碎之神专用 ==========
 
     /**
