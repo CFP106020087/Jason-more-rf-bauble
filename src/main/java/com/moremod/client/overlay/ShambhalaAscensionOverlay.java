@@ -23,13 +23,13 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * 香巴拉：涅磐觉醒 (Shambhala Ascension Overlay)
+ * 香巴拉：永恒圆满 (Shambhala Ascension Overlay)
  *
  * 与破碎之神形成对偶：
  * - 破碎之神：感官消逝、记忆抹除、冰冷机械、神性降临
- * - 香巴拉：感官升华、记忆守护、温暖机械、涅磐圆满
+ * - 香巴拉：感官升华、和谐共振、温暖机械、永恒圆满
  *
- * 主题：机械涅磐、人性圆满、永恒守护
+ * 核心概念：与世独立、不受侵扰、完美造物、永恒、圆满
  * 色调：金色、青色、暖白
  */
 @Mod.EventBusSubscriber(modid = "moremod", value = Side.CLIENT)
@@ -68,12 +68,12 @@ public class ShambhalaAscensionOverlay extends Gui {
     private static final List<WarmthParticle> warmthParticles = new ArrayList<>();
 
     // ==================== Phase 2 状态 ====================
-    private static final List<MemoryFragment> protectedMemories = new ArrayList<>();
+    private static final List<MemoryFragment> harmonyFragmentsList = new ArrayList<>();
     private static final List<GoldenGear> goldenGears = new ArrayList<>();
     private static float gearHarmony = 0;
-    private static float protectionAura = 0;
+    private static float harmonyAura = 0;
 
-    // "我选择守护" 状态
+    // "此刻，永恒" 状态
     private static float vowProgress = 0;
     private static float[] vowCharGlow = new float[5];
     private static boolean vowComplete = false;
@@ -111,16 +111,16 @@ public class ShambhalaAscensionOverlay extends Gui {
             "⚙", "⟡", "✦", "✧", "❋", "✾", "❁", "✤", "✥", "❃"
     };
 
-    private static final String[] PROTECTED_MEMORIES = {
-            "温暖", "承诺", "守护", "希望", "爱", "光明", "永恒", "圆满"
+    private static final String[] HARMONY_FRAGMENTS = {
+            "和谐", "永恒", "圆满", "光辉", "美丽", "理想", "完美", "人性"
     };
 
-    private static final String VOW_TEXT = "我选择守护";
+    private static final String VOW_TEXT = "此刻，永恒";
 
     static {
-        SCRIPT.add(new MonologueLine(5, 50, LineType.HUMAN, "温暖... 它在扩散..."));
-        SCRIPT.add(new MonologueLine(60, 30, LineType.SYSTEM, "[ 感官通道: 强化中 ]"));
-        SCRIPT.add(new MonologueLine(100, 40, LineType.SYSTEM, ">>> 记忆保护协议启动"));
+        SCRIPT.add(new MonologueLine(5, 50, LineType.HUMAN, "光芒... 如此温暖..."));
+        SCRIPT.add(new MonologueLine(60, 30, LineType.SYSTEM, "[ 齿轮共振: 和谐 ]"));
+        SCRIPT.add(new MonologueLine(100, 40, LineType.SYSTEM, ">>> 完美造物协议启动"));
         SCRIPT.add(new MonologueLine(200, 35, LineType.SYSTEM, ">>> 人性核心: 圆满"));
         SCRIPT.add(new MonologueLine(370, 40, LineType.ENLIGHTENED, ""));
         SCRIPT.add(new MonologueLine(550, 50, LineType.PEACE, "香巴拉"));
@@ -137,7 +137,7 @@ public class ShambhalaAscensionOverlay extends Gui {
         warmthSpread = 0;
         goldenGlow = 0;
         gearHarmony = 0;
-        protectionAura = 0;
+        harmonyAura = 0;
         vowProgress = 0;
         vowComplete = false;
         mandalaRotation = 0;
@@ -152,7 +152,7 @@ public class ShambhalaAscensionOverlay extends Gui {
         peaceProgress = 0;
 
         warmthParticles.clear();
-        protectedMemories.clear();
+        harmonyFragmentsList.clear();
         goldenGears.clear();
         enlightenmentLogs.clear();
         goldenMotes.clear();
@@ -249,7 +249,7 @@ public class ShambhalaAscensionOverlay extends Gui {
     private static void tickPhase2() {
         float progress = (float) (animationTick - PHASE1_END) / (PHASE2_END - PHASE1_END);
         gearHarmony = easeInOutQuad(progress);
-        protectionAura = progress;
+        harmonyAura = progress;
 
         // 生成金色齿轮
         if (random.nextFloat() < 0.08f && goldenGears.size() < 12) {
@@ -273,20 +273,20 @@ public class ShambhalaAscensionOverlay extends Gui {
             gear.alpha += (gear.targetAlpha - gear.alpha) * 0.05f;
         }
 
-        // 生成受保护的记忆
-        if (random.nextFloat() < 0.05f && protectedMemories.size() < 8) {
+        // 生成和谐碎片
+        if (random.nextFloat() < 0.05f && harmonyFragmentsList.size() < 8) {
             ScaledResolution res = new ScaledResolution(mc);
             MemoryFragment mem = new MemoryFragment();
             mem.x = random.nextFloat() * res.getScaledWidth();
             mem.y = random.nextFloat() * res.getScaledHeight();
-            mem.text = PROTECTED_MEMORIES[random.nextInt(PROTECTED_MEMORIES.length)];
+            mem.text = HARMONY_FRAGMENTS[random.nextInt(HARMONY_FRAGMENTS.length)];
             mem.life = 1.0f;
             mem.protected_ = true;
             mem.glowPhase = random.nextFloat();
-            protectedMemories.add(mem);
+            harmonyFragmentsList.add(mem);
         }
 
-        Iterator<MemoryFragment> memIter = protectedMemories.iterator();
+        Iterator<MemoryFragment> memIter = harmonyFragmentsList.iterator();
         while (memIter.hasNext()) {
             MemoryFragment mem = memIter.next();
             mem.glowPhase += 0.05f;
@@ -294,7 +294,7 @@ public class ShambhalaAscensionOverlay extends Gui {
             if (mem.life <= 0) memIter.remove();
         }
 
-        // "我选择守护" 誓言
+        // "此刻，永恒" 核心文字
         if (progress > 0.3f && progress < 0.9f) {
             vowProgress = (progress - 0.3f) / 0.6f;
             for (int i = 0; i < 5; i++) {
@@ -533,10 +533,10 @@ public class ShambhalaAscensionOverlay extends Gui {
         float centerX = w / 2.0f;
         float centerY = h / 2.0f;
 
-        // 保护光环
-        if (protectionAura > 0.1f) {
-            float auraRadius = 80 + protectionAura * 60;
-            int auraColor = applyAlpha(0x80CFFF, protectionAura * 0.2f);
+        // 和谐光环
+        if (harmonyAura > 0.1f) {
+            float auraRadius = 80 + harmonyAura * 60;
+            int auraColor = applyAlpha(0x80CFFF, harmonyAura * 0.2f);
             drawSoftCircle(centerX, centerY, auraRadius, auraColor);
         }
 
@@ -545,15 +545,15 @@ public class ShambhalaAscensionOverlay extends Gui {
             renderGoldenGear(gear);
         }
 
-        // 受保护的记忆
-        for (MemoryFragment mem : protectedMemories) {
+        // 和谐碎片
+        for (MemoryFragment mem : harmonyFragmentsList) {
             GlStateManager.pushMatrix();
             GlStateManager.translate(mem.x, mem.y, 0);
 
             float glow = 0.5f + 0.5f * (float) Math.sin(mem.glowPhase);
             int textColor = applyAlpha(0xFFD700, mem.life * (0.6f + glow * 0.4f));
 
-            // 保护光圈
+            // 光晕
             int circleColor = applyAlpha(0x80CFFF, mem.life * glow * 0.3f);
             float textWidth = mc.fontRenderer.getStringWidth(mem.text);
             drawSoftCircle(textWidth / 2, 4, textWidth * 0.8f, circleColor);
@@ -562,7 +562,7 @@ public class ShambhalaAscensionOverlay extends Gui {
             GlStateManager.popMatrix();
         }
 
-        // "我选择守护" 誓言
+        // "此刻，永恒" 核心文字
         if (vowProgress > 0) {
             renderVow(w, h);
         }
@@ -661,7 +661,7 @@ public class ShambhalaAscensionOverlay extends Gui {
             GlStateManager.pushMatrix();
             GlStateManager.translate(centerX, centerY + 80, 0);
 
-            String title = "AWAKENING ETERNAL PROTECTION...";
+            String title = "ACHIEVING ETERNAL PERFECTION...";
             int titleW = mc.fontRenderer.getStringWidth(title);
             mc.fontRenderer.drawString(title, -titleW / 2, -20, 0xFFFFD700, false);
 
@@ -749,9 +749,10 @@ public class ShambhalaAscensionOverlay extends Gui {
             float alpha = (float) i / enlightenmentLogs.size();
             int color;
 
-            if (log.contains("[PROTECT")) color = applyAlpha(0x80CFFF, alpha);
-            else if (log.contains("[HARMONY")) color = applyAlpha(0xFFD700, alpha);
-            else if (log.contains("[COMPLETE")) color = applyAlpha(0x90EE90, alpha);
+            if (log.contains("[HARMONY")) color = applyAlpha(0xFFD700, alpha);       // 金色 - 和谐
+            else if (log.contains("[PERFECT")) color = applyAlpha(0x80CFFF, alpha);  // 青色 - 完美
+            else if (log.contains("[ETERNAL")) color = applyAlpha(0xFFE080, alpha);  // 暖金 - 永恒
+            else if (log.contains("[COMPLETE")) color = applyAlpha(0x90EE90, alpha); // 绿色 - 完成
             else color = applyAlpha(0xCCCCCC, alpha);
 
             mc.fontRenderer.drawString(log, startX, startY + i * 10, color, false);
@@ -986,15 +987,15 @@ public class ShambhalaAscensionOverlay extends Gui {
 
     private static String generateEnlightenmentLog(float progress) {
         if (progress < 0.25f) {
-            return String.format("[PROTECT] MEMORY_SECTOR_%04X ... SECURED", random.nextInt(0xFFFF));
+            return String.format("[HARMONY] GEAR_RESONANCE_%04X ... ALIGNED", random.nextInt(0xFFFF));
         } else if (progress < 0.5f) {
-            return String.format("[HARMONY] GEAR_SYNC_%02X ... ALIGNED", random.nextInt(256));
+            return String.format("[PERFECT] LENS_ARRAY_%02X ... FOCUSED", random.nextInt(256));
         } else if (progress < 0.8f) {
-            return String.format("[HARMONY] HUMANITY_CORE ... %.1f%% INTEGRITY", 90 + progress * 10);
+            return String.format("[ETERNAL] HUMANITY_CORE ... %.1f%% PERFECTION", 90 + progress * 10);
         } else {
             String[] finalLogs = {
-                    "[COMPLETE] PROTECTION_MATRIX ... ACTIVE",
-                    "[COMPLETE] ETERNAL_GUARDIAN ... ONLINE",
+                    "[COMPLETE] PERFECT_CREATION ... REALIZED",
+                    "[COMPLETE] ETERNAL_HARMONY ... ACHIEVED",
                     "[COMPLETE] NIRVANA_PROTOCOL ... READY",
                     "[COMPLETE] SHAMBHALA ... AWAKENED"
             };

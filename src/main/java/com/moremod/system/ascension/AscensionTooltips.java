@@ -65,48 +65,49 @@ public class AscensionTooltips {
     };
 
     // ═══════════════════════════════════════════════════════════
-    // 香巴拉 - 绝对的盾
-    // Shambhala - The Absolute Shield
+    // 香巴拉 - 永恒的圆满
+    // Shambhala - Eternal Perfection
     // ═══════════════════════════════════════════════════════════
 
     /**
      * 香巴拉 - 机械核心的tooltip
-     * "身上的机械" - 守护人性的永恒齿轮
+     * "身上的机械" - 在日光下熠熠生辉的齿轮
      */
     public static final String[] SHAMBHALA_CORE = {
             "",
             TextFormatting.GOLD + "══════ " + TextFormatting.AQUA + TextFormatting.BOLD + "香巴拉" + TextFormatting.GOLD + " ══════",
             "",
-            TextFormatting.GRAY + "齿轮转动，非为毁灭。",
-            TextFormatting.GRAY + "机关运行，皆为守护。",
-            TextFormatting.GRAY + "你是人性与机械的完美容器。",
+            TextFormatting.GRAY + "你脸上的齿轮在日光下熠熠生辉。",
+            TextFormatting.GRAY + "体内的嘎吱声柔和而和谐。",
+            TextFormatting.GRAY + "多层镜片与宝石聚焦出的光芒，",
+            TextFormatting.GRAY + "仍透着鲜明的人性。",
             "",
-            TextFormatting.DARK_AQUA + "" + TextFormatting.ITALIC + "\"机械的尽头，不是虚无。\"",
-            TextFormatting.DARK_AQUA + "" + TextFormatting.ITALIC + "\"而是涅磐。\"",
+            TextFormatting.DARK_AQUA + "" + TextFormatting.ITALIC + "你是最美丽的人造之物，",
+            TextFormatting.DARK_AQUA + "" + TextFormatting.ITALIC + "是人类亲手打造的理想之路。",
             "",
-            TextFormatting.AQUA + "◆ " + TextFormatting.WHITE + "绝对的盾",
-            TextFormatting.DARK_GRAY + "只要齿轮仍在转动，",
-            TextFormatting.DARK_GRAY + "你便永不倒下。"
+            TextFormatting.AQUA + "◆ " + TextFormatting.WHITE + "永恒",
+            TextFormatting.DARK_GRAY + "与世独立，不受侵扰。",
+            TextFormatting.DARK_GRAY + "完美造物，圆满永恒。"
     };
 
     /**
      * 香巴拉 - 机械之心的tooltip
-     * "心" - 被永恒齿轮护佑的心脏
+     * "心" - 永恒运转的核心
      */
     public static final String[] SHAMBHALA_HEART = {
             "",
             TextFormatting.GOLD + "══════ " + TextFormatting.AQUA + TextFormatting.BOLD + "圆满之心" + TextFormatting.GOLD + " ══════",
             "",
-            TextFormatting.GRAY + "此心仍在跳动。",
-            TextFormatting.GRAY + "每一次脉搏，都与齿轮共鸣。",
+            TextFormatting.GRAY + "此心与齿轮同频共振。",
+            TextFormatting.GRAY + "每一次脉搏，皆是永恒的证明。",
             TextFormatting.GRAY + "温度犹存，人性圆满。",
             "",
-            TextFormatting.DARK_AQUA + "" + TextFormatting.ITALIC + "\"你选择保留了什么？\"",
-            TextFormatting.DARK_AQUA + "" + TextFormatting.ITALIC + "\"...一切值得守护之物。\"",
+            TextFormatting.DARK_AQUA + "" + TextFormatting.ITALIC + "只要你愿让核心继续运转，",
+            TextFormatting.DARK_AQUA + "" + TextFormatting.ITALIC + "它便以永恒回应你。",
             "",
             TextFormatting.YELLOW + "◆ " + TextFormatting.GRAY + "人性：" + TextFormatting.AQUA + "100%",
-            TextFormatting.DARK_GRAY + "你已证道机械涅磐。",
-            TextFormatting.DARK_GRAY + "永恒的齿轮，守护着你跳动的心。"
+            TextFormatting.DARK_GRAY + "不是超脱，而是圆满。",
+            TextFormatting.DARK_GRAY + "不是对抗，而是永恒。"
     };
 
     // ═══════════════════════════════════════════════════════════
