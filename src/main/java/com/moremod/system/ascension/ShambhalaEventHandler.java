@@ -1,6 +1,7 @@
 package com.moremod.system.ascension;
 
 import com.moremod.config.ShambhalaConfig;
+import com.moremod.core.ShambhalaDeathHook;
 import com.moremod.item.shambhala.ItemShambhalaVeil;
 import com.moremod.moremod;
 import com.moremod.system.humanity.AscensionRoute;
@@ -115,7 +116,8 @@ public class ShambhalaEventHandler {
         }
     }
 
-    // ========== 伤害处理（LOWEST - 反伤 + 减伤 + 友军保护） ==========
+    // ========== 伤害处理（LOWEST - 壁垒减伤 + 友军保护） ==========
+    // 注意：反伤已移至 ShambhalaDeathHook（ASM层级），使用真伤绕过护甲和能量吸收
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onLivingDamage(LivingDamageEvent event) {
@@ -127,7 +129,8 @@ public class ShambhalaEventHandler {
         EntityLivingBase target = event.getEntityLiving();
         float damage = event.getAmount();
 
-        // ========== 香巴拉受伤：反伤 + 壁垒减伤 ==========
+        // ========== 香巴拉受伤：壁垒减伤 ==========
+        // 注意：反伤已移至 ShambhalaDeathHook.checkAndAbsorbDamage (ASM层级)
         if (target instanceof EntityPlayer) {
             EntityPlayer player = (EntityPlayer) target;
 
@@ -138,12 +141,7 @@ public class ShambhalaEventHandler {
                     damage = damage * (1 - bastionReduction);
                     event.setAmount(damage);
                 }
-
-                // 反伤（Thorns）- 在LOWEST触发，确保护甲计算后
-                if (event.getSource().getTrueSource() != null && damage > 0) {
-                    ShambhalaHandler.reflectDamage(player, event.getSource().getTrueSource(),
-                            damage, event.getSource());
-                }
+                // 反伤现在由 ASM 钩子处理，使用 TrueDamageHelper 造成真伤
             }
         }
 
@@ -213,6 +211,7 @@ public class ShambhalaEventHandler {
     @SubscribeEvent
     public static void onPlayerLogout(PlayerLoggedOutEvent event) {
         ShambhalaHandler.cleanupPlayer(event.player.getUniqueID());
+        ShambhalaDeathHook.cleanupPlayer(event.player.getUniqueID());
         ItemShambhalaVeil.cleanupPlayer(event.player.getUniqueID());
     }
 
@@ -222,6 +221,7 @@ public class ShambhalaEventHandler {
     public static void onWorldUnload(net.minecraftforge.event.world.WorldEvent.Unload event) {
         if (!event.getWorld().isRemote && event.getWorld().provider.getDimension() == 0) {
             ShambhalaHandler.clearAllState();
+            ShambhalaDeathHook.clearAllState();
             ItemShambhalaVeil.clearAllState();
             LOGGER.info("[Shambhala] Cleared all static state on world unload");
         }

@@ -1,25 +1,38 @@
 package com.moremod.core;
 
+import com.moremod.combat.TrueDamageHelper;
 import com.moremod.config.ShambhalaConfig;
 import com.moremod.system.ascension.ShambhalaHandler;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.DamageSource;
+import net.minecraft.util.EnumParticleTypes;
+import net.minecraft.util.math.AxisAlignedBB;
+import net.minecraft.world.WorldServer;
+
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * 香巴拉死亡钩子
  * Shambhala Death Hook
  *
- * 此类由 ASM Transformer 调用，提供能量护盾保护：
+ * 此类由 ASM Transformer 调用，提供能量护盾保护和真伤反伤：
  * 1. attackEntityFrom - 无条件放行（香巴拉不免疫攻击）
- * 2. damageEntity - 检测致命伤害，消耗能量阻止
+ * 2. damageEntity - 检测伤害，消耗能量吸收 + 触发真伤反伤
  * 3. onDeath - 最终防线，消耗能量阻止死亡
  *
  * 与破碎之神的区别：
  * - 破碎之神：停机模式，完全免疫
- * - 香巴拉：消耗能量抵挡，没能量则死亡
+ * - 香巴拉：消耗能量抵挡，没能量则死亡，同时反伤攻击者
  */
 public class ShambhalaDeathHook {
+
+    /** 正在进行反伤的玩家（防止循环） */
+    private static final Set<UUID> reflectingPlayers = new HashSet<>();
 
     // ========== Hook 1: attackEntityFrom ==========
     // 香巴拉不在这里拦截，让伤害正常计算
@@ -36,7 +49,7 @@ public class ShambhalaDeathHook {
     // ========== Hook 2: damageEntity ==========
 
     /**
-     * 检查并尝试用能量阻止致命伤害
+     * 检查并尝试用能量阻止致命伤害，同时触发真伤反伤
      * Called by ASM at HEAD of EntityLivingBase.damageEntity
      *
      * @param entity 受伤的实体
@@ -56,11 +69,39 @@ public class ShambhalaDeathHook {
                 return false;
             }
 
-            // 检测致命伤害：当前血量 - 伤害 <= 0
+            // 跳过真伤（反伤使用真伤，不应被再次处理）
+            if (TrueDamageHelper.isInTrueDamageContext()) {
+                return false;
+            }
+            if (TrueDamageHelper.isTrueDamageSource(source)) {
+                return false;
+            }
+
+            // 跳过香巴拉反伤伤害（虽然现在用真伤，但保留检查）
+            if (ShambhalaHandler.isShambhalaReflectDamage(source)) {
+                return false;
+            }
+
+            // ========== 触发反伤（在吸收伤害之前，用原始伤害计算） ==========
+            Entity attacker = source.getTrueSource();
+            if (attacker != null && attacker instanceof EntityLivingBase && damage > 0) {
+                triggerTrueDamageReflect(player, (EntityLivingBase) attacker, damage);
+            }
+
+            // ========== 能量护盾吸收 ==========
+            // 尝试用能量吸收伤害
+            float remainingDamage = ShambhalaHandler.tryAbsorbDamage(player, damage);
+
+            if (remainingDamage <= 0) {
+                // 完全吸收
+                return true;
+            }
+
+            // 检测致命伤害：当前血量 - 剩余伤害 <= 0
             float currentHealth = player.getHealth();
-            if (currentHealth - damage <= 0) {
+            if (currentHealth - remainingDamage <= 0) {
                 // 致命伤害！尝试用能量阻止
-                int energyCost = (int) (damage * ShambhalaConfig.energyPerDamage);
+                int energyCost = (int) (remainingDamage * ShambhalaConfig.energyPerDamage);
 
                 if (ShambhalaHandler.consumeEnergy(player, energyCost)) {
                     // 成功用能量抵消
@@ -87,6 +128,98 @@ public class ShambhalaDeathHook {
         } catch (Throwable t) {
             System.err.println("[ShambhalaDeathHook] Error in checkAndAbsorbDamage: " + t.getMessage());
             return false;
+        }
+    }
+
+    // ========== 真伤反伤系统 ==========
+
+    /**
+     * 触发真伤反伤
+     * 使用 TrueDamageHelper 造成真实伤害，绕过护甲和ASM吸收
+     *
+     * @param player   香巴拉玩家
+     * @param attacker 攻击者
+     * @param damage   受到的原始伤害
+     */
+    private static void triggerTrueDamageReflect(EntityPlayer player, EntityLivingBase attacker, float damage) {
+        UUID playerId = player.getUniqueID();
+
+        // 循环防护
+        if (reflectingPlayers.contains(playerId)) {
+            return;
+        }
+
+        // 不反伤自己
+        if (attacker == player) {
+            return;
+        }
+
+        reflectingPlayers.add(playerId);
+
+        try {
+            // 计算反伤伤害
+            float reflectDamage = damage * (float) ShambhalaConfig.thornsReflectMultiplier;
+            double aoeRadius = ShambhalaConfig.thornsAoeRadius;
+
+            // 计算能量消耗
+            int baseCost = (int) (reflectDamage * ShambhalaConfig.energyPerReflect);
+
+            // ========== 主目标反伤 ==========
+            if (ShambhalaHandler.consumeEnergy(player, baseCost)) {
+                applyTrueDamageReflect(player, attacker, reflectDamage);
+            } else {
+                // 没能量就不反伤
+                return;
+            }
+
+            // ========== AoE 反伤 ==========
+            if (aoeRadius > 0) {
+                AxisAlignedBB aabb = new AxisAlignedBB(
+                        attacker.posX - aoeRadius, attacker.posY - aoeRadius, attacker.posZ - aoeRadius,
+                        attacker.posX + aoeRadius, attacker.posY + aoeRadius, attacker.posZ + aoeRadius
+                );
+
+                List<EntityLivingBase> nearbyMobs = player.world.getEntitiesWithinAABB(
+                        EntityLivingBase.class, aabb,
+                        e -> e != null && e != player && e != attacker && !(e instanceof EntityPlayer) && e.isEntityAlive()
+                );
+
+                float aoeDamage = reflectDamage * 0.5f; // AoE伤害减半
+                int aoeCost = (int) (aoeDamage * ShambhalaConfig.energyPerReflect);
+
+                for (EntityLivingBase mob : nearbyMobs) {
+                    if (ShambhalaHandler.consumeEnergy(player, aoeCost)) {
+                        applyTrueDamageReflect(player, mob, aoeDamage);
+                    } else {
+                        break; // 能量不足停止AoE
+                    }
+                }
+            }
+
+        } finally {
+            reflectingPlayers.remove(playerId);
+        }
+    }
+
+    /**
+     * 对单个目标施加真伤反伤
+     */
+    private static void applyTrueDamageReflect(EntityPlayer player, EntityLivingBase target, float damage) {
+        if (target == null || target.isDead) return;
+
+        // 使用 TrueDamageHelper 造成真实伤害
+        // 这会绕过护甲、绕过ASM钩子的吸收
+        TrueDamageHelper.applyWrappedTrueDamage(
+                target, player, damage,
+                TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE
+        );
+
+        // 反伤粒子效果
+        if (player.world instanceof WorldServer) {
+            WorldServer ws = (WorldServer) player.world;
+            ws.spawnParticle(EnumParticleTypes.CRIT_MAGIC,
+                    target.posX, target.posY + target.height / 2, target.posZ,
+                    15, 0.5, 0.5, 0.5, 0.1);
         }
     }
 
@@ -141,5 +274,19 @@ public class ShambhalaDeathHook {
      */
     public static boolean onPreLivingDeath(EntityLivingBase entity, DamageSource source) {
         return shouldPreventDeath(entity, source);
+    }
+
+    /**
+     * 清理玩家状态（玩家退出时调用）
+     */
+    public static void cleanupPlayer(UUID playerId) {
+        reflectingPlayers.remove(playerId);
+    }
+
+    /**
+     * 清空所有状态（世界卸载时调用）
+     */
+    public static void clearAllState() {
+        reflectingPlayers.clear();
     }
 }
