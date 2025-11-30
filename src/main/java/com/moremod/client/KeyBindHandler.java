@@ -9,6 +9,7 @@ import com.moremod.item.ItemMechanicalCore;
 import com.moremod.item.ItemMechanicalCoreExtended;
 import com.moremod.item.ItemVoidBackpackLink;
 import com.moremod.network.*;
+import com.moremod.network.PacketShambhalaPeaceAura;
 import com.moremod.upgrades.auxiliary.AuxiliaryUpgradeManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.settings.KeyBinding;
@@ -44,6 +45,7 @@ public class KeyBindHandler {
     public static KeyBinding openVoidBackpackKey;  // 🌌 虚空背包按键
     // 在 KeyBindHandler.java 的按键声明部分添加
     public static KeyBinding rejectionStatusKey;
+    public static KeyBinding shambhalaPeaceAuraKey;  // ☀ 香巴拉宁静光环
 
 
     // ===== 按键状态管理 =====
@@ -61,6 +63,7 @@ public class KeyBindHandler {
     private static boolean personalDimKeyPressed = false;
     private static boolean scrollKeyPressed = false;
     private static boolean voidBackpackKeyPressed = false;  // 🌌 虚空背包按键状态
+    private static boolean peaceAuraKeyPressed = false;  // ☀ 香巴拉宁静光环按键状态
     private static int scrollOffset = 0;
 
     public static void init() {
@@ -125,6 +128,11 @@ public class KeyBindHandler {
                 KeyConflictContext.IN_GAME, Keyboard.KEY_K, "饰品系统");
         ClientRegistry.registerKeyBinding(openVoidBackpackKey);
 
+        // ☀ 香巴拉宁静光环
+        shambhalaPeaceAuraKey = new KeyBinding("香巴拉宁静光环",
+                KeyConflictContext.IN_GAME, Keyboard.KEY_R, "香巴拉");
+        ClientRegistry.registerKeyBinding(shambhalaPeaceAuraKey);
+
         System.out.println("[moremod] 按键绑定完成");
     }
 
@@ -179,6 +187,16 @@ public class KeyBindHandler {
             voidBackpackKeyPressed = false;
         }
 
+        // ☀ 香巴拉宁静光环
+        if (shambhalaPeaceAuraKey.isKeyDown()) {
+            if (!peaceAuraKeyPressed) {
+                peaceAuraKeyPressed = true;
+                handleShambhalaPeaceAura(player);
+            }
+        } else {
+            peaceAuraKeyPressed = false;
+        }
+
         // 其他按键处理
         handleDimensionalKeys(player);
         handleMechanicalCoreKeys(player);
@@ -187,6 +205,12 @@ public class KeyBindHandler {
     /** 附魔增强激活处理 */
     private static void handleEnchantBoostActivation(EntityPlayer player) {
         PacketHandler.INSTANCE.sendToServer(new PacketActivateBoost());
+    }
+
+    /** ☀ 香巴拉宁静光环处理 */
+    private static void handleShambhalaPeaceAura(EntityPlayer player) {
+        // 发送到服务器执行技能
+        PacketHandler.INSTANCE.sendToServer(new PacketShambhalaPeaceAura());
     }
 
     /** 🌌 虚空背包处理 */

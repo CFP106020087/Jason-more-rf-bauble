@@ -9,7 +9,9 @@ import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.SoundEvents;
+import net.minecraft.inventory.EntityEquipmentSlot;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.EnumHandSide;
 import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.SoundCategory;
 import net.minecraft.util.math.AxisAlignedBB;
@@ -103,17 +105,25 @@ public class ItemShambhalaVeil extends ItemShambhalaBaubleBase {
         List<EntityLiving> mobs = player.world.getEntitiesWithinAABB(EntityLiving.class, aabb);
         int affected = 0;
 
+        // 创建假目标用于迷惑怪物（参考 ProtectionFieldHandler 和 ImmortalAmulet）
+        DummyTarget dummyTarget = new DummyTarget(player.world);
+
         for (EntityLiving mob : mobs) {
             // 清除所有仇恨相关
             if (mob.getAttackTarget() != null) {
                 mob.setAttackTarget(null);
                 affected++;
             }
-            mob.setRevengeTarget(null);
+
+            // 使用假目标替换复仇目标，防止生物继续追踪
+            mob.setRevengeTarget(dummyTarget);
             mob.setLastAttackedEntity(null);
+
+            // 清除导航路径
             if (mob.getNavigator() != null) {
                 mob.getNavigator().clearPath();
             }
+
             // 让生物看向随机方向
             mob.getLookHelper().setLookPosition(
                     mob.posX + mob.world.rand.nextGaussian() * 10,
@@ -201,5 +211,60 @@ public class ItemShambhalaVeil extends ItemShambhalaBaubleBase {
     @Override
     public boolean hasEffect(ItemStack stack) {
         return true;
+    }
+
+    /**
+     * 假目标实体类 - 用于迷惑敌对生物
+     * 参考 ImmortalAmulet 和 ProtectionFieldHandler 的实现
+     */
+    public static class DummyTarget extends EntityLivingBase {
+        public DummyTarget(World world) {
+            super(world);
+            this.setInvisible(true);
+            this.setSize(0.0F, 0.0F);
+            this.setEntityInvulnerable(true);
+            this.isDead = true; // 标记为死亡，防止被持续追踪
+        }
+
+        @Override
+        public void onUpdate() {
+            // 立即标记为死亡
+            this.isDead = true;
+        }
+
+        @Override
+        public boolean isEntityAlive() {
+            return false;
+        }
+
+        @Override
+        public boolean canBeCollidedWith() {
+            return false;
+        }
+
+        @Override
+        public boolean canBePushed() {
+            return false;
+        }
+
+        @Override
+        public ItemStack getItemStackFromSlot(EntityEquipmentSlot slotIn) {
+            return ItemStack.EMPTY;
+        }
+
+        @Override
+        public void setItemStackToSlot(EntityEquipmentSlot slotIn, ItemStack stack) {
+            // 不做任何事
+        }
+
+        @Override
+        public Iterable<ItemStack> getArmorInventoryList() {
+            return java.util.Collections.emptyList();
+        }
+
+        @Override
+        public EnumHandSide getPrimaryHand() {
+            return EnumHandSide.RIGHT;
+        }
     }
 }
