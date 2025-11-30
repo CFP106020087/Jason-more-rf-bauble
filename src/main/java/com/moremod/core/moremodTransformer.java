@@ -295,6 +295,7 @@ public class moremodTransformer implements IClassTransformer {
 
     // ============================================================
     // BaublesContainer 动态扩展
+    // ============================================================
     private byte[] transformBaublesContainerDynamic(byte[] bytes) {
         ClassNode cn = new ClassNode();
         new ClassReader(bytes).accept(cn, ClassReader.EXPAND_FRAMES);
@@ -303,7 +304,7 @@ public class moremodTransformer implements IClassTransformer {
         int totalSlots = 49;
         int capacity = totalSlots * 2;
 
-        System.out.println("[moremodTransformer]   ⚠️ 使用硬编码槽位数: " + totalSlots);
+        System.out.println("[moremodTransformer]   Using hardcoded slot count: " + totalSlots);
 
         for (MethodNode mn : cn.methods) {
             // 修改构造函数
@@ -325,8 +326,7 @@ public class moremodTransformer implements IClassTransformer {
                     }
                 }
             }
-
-            // ⭐ 关键：修改所有方法中的硬编码 7
+            // 修改所有方法中的硬编码 7
             else {
                 for (AbstractInsnNode n : mn.instructions.toArray()) {
                     if (n.getOpcode() == Opcodes.BIPUSH) {
@@ -355,18 +355,19 @@ public class moremodTransformer implements IClassTransformer {
         if (!modified) return bytes;
         ClassWriter cw = new SafeClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
         cn.accept(cw);
-        System.out.println("[moremodTransformer]   ✓ BaublesContainer patched dynamically");
+        System.out.println("[moremodTransformer]   BaublesContainer patched dynamically");
         return cw.toByteArray();
     }
+
     /**
-     * ⭐ 新方法：修改方法中硬编码的槽位循环上限
+     * 修改方法中硬编码的槽位循环上限
      */
     private boolean patchHardcodedSlotLoops(MethodNode mn, int newSlotCount) {
         boolean modified = false;
 
         // 常见的需要 patch 的方法
         String[] targetMethods = {
-                "isChanged",      // 最常见的问题
+                "isChanged",
                 "getSlots",
                 "setChanged",
                 "setStackInSlot",
@@ -404,7 +405,6 @@ public class moremodTransformer implements IClassTransformer {
                 if (intInsn.operand == 7) {
                     // 检查上下文：确保这是槽位数量而不是其他用途的 7
                     AbstractInsnNode next = intInsn.getNext();
-                    AbstractInsnNode prev = intInsn.getPrevious();
 
                     // 如果后面是比较指令，很可能是循环上限
                     if (next != null && (
@@ -423,9 +423,6 @@ public class moremodTransformer implements IClassTransformer {
                     }
                 }
             }
-
-            // 也处理 ICONST_0 到 ICONST_5 的情况（虽然 7 不会用这个）
-            // 以及 ILOAD 后跟 getArrayLength 的模式
         }
 
         return modified;
@@ -456,23 +453,11 @@ public class moremodTransformer implements IClassTransformer {
         if (!modified) return bytes;
         ClassWriter cw = new SafeClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
         cn.accept(cw);
-        System.out.println("[moremodTransformer]   ✓ BaubleType patched with SetBonus compatibility");
+        System.out.println("[moremodTransformer]   BaubleType patched with SetBonus compatibility");
         return cw.toByteArray();
     }
 
-    // in com.moremod.core.moremodTransformer
-    // in com.moremod.core.moremodTransformer
     private void patchHasSlotDynamic(MethodNode mn) {
-        // 生成纯内联的 hasSlot(int) 逻辑（无外部依赖）：
-        // if (slotId < 0) return false;
-        // if (this == TRINKET) return true;
-        // int[] arr = this.validSlots;
-        // if (arr != null) {
-        //   for (int i = 0; i < arr.length; i++) if (arr[i] == slotId) return true;
-        // }
-        // if (slotId >= 7) return true;  // 额外位全部放行（容器 Slot 再按类型校验）
-        // return false;
-
         mn.instructions.clear();
 
         InsnList il = new InsnList();
@@ -481,11 +466,10 @@ public class moremodTransformer implements IClassTransformer {
         LabelNode L_notTrinket = new LabelNode();
         LabelNode L_arrNullOrDone = new LabelNode();
         LabelNode L_loopCheck = new LabelNode();
-        LabelNode L_afterLoop = new LabelNode();
         LabelNode L_returnFalse = new LabelNode();
 
         // if (slotId < 0) return false;
-        il.add(new VarInsnNode(Opcodes.ILOAD, 1));         // slotId
+        il.add(new VarInsnNode(Opcodes.ILOAD, 1));
         il.add(new InsnNode(Opcodes.ICONST_0));
         il.add(new JumpInsnNode(Opcodes.IF_ICMPGE, L_nonNeg));
         il.add(new InsnNode(Opcodes.ICONST_0));
@@ -493,7 +477,7 @@ public class moremodTransformer implements IClassTransformer {
         il.add(L_nonNeg);
 
         // if (this == TRINKET) return true;
-        il.add(new VarInsnNode(Opcodes.ALOAD, 0));         // this
+        il.add(new VarInsnNode(Opcodes.ALOAD, 0));
         il.add(new FieldInsnNode(
                 Opcodes.GETSTATIC,
                 "baubles/api/BaubleType",
@@ -513,7 +497,7 @@ public class moremodTransformer implements IClassTransformer {
                 "validSlots",
                 "[I"
         ));
-        il.add(new VarInsnNode(Opcodes.ASTORE, 2));        // local 2: int[] arr
+        il.add(new VarInsnNode(Opcodes.ASTORE, 2));
 
         // if (arr != null) { for(...) { if (arr[i] == slotId) return true; } }
         il.add(new VarInsnNode(Opcodes.ALOAD, 2));
@@ -521,7 +505,7 @@ public class moremodTransformer implements IClassTransformer {
 
         // i = 0
         il.add(new InsnNode(Opcodes.ICONST_0));
-        il.add(new VarInsnNode(Opcodes.ISTORE, 3));        // local 3: int i
+        il.add(new VarInsnNode(Opcodes.ISTORE, 3));
 
         il.add(L_loopCheck);
         // i < arr.length ?
@@ -534,7 +518,7 @@ public class moremodTransformer implements IClassTransformer {
         il.add(new VarInsnNode(Opcodes.ALOAD, 2));
         il.add(new VarInsnNode(Opcodes.ILOAD, 3));
         il.add(new InsnNode(Opcodes.IALOAD));
-        il.add(new VarInsnNode(Opcodes.ILOAD, 1));         // slotId
+        il.add(new VarInsnNode(Opcodes.ILOAD, 1));
         LabelNode L_next = new LabelNode();
         il.add(new JumpInsnNode(Opcodes.IF_ICMPNE, L_next));
         il.add(new InsnNode(Opcodes.ICONST_1));
@@ -549,7 +533,7 @@ public class moremodTransformer implements IClassTransformer {
         il.add(L_arrNullOrDone);
 
         // if (slotId >= 7) return true;  // 额外位统一放行
-        il.add(new VarInsnNode(Opcodes.ILOAD, 1));         // slotId
+        il.add(new VarInsnNode(Opcodes.ILOAD, 1));
         il.add(new IntInsnNode(Opcodes.BIPUSH, 7));
         il.add(new JumpInsnNode(Opcodes.IF_ICMPLT, L_returnFalse));
         il.add(new InsnNode(Opcodes.ICONST_1));
@@ -564,45 +548,36 @@ public class moremodTransformer implements IClassTransformer {
         mn.maxStack = 4;
         mn.maxLocals = 4;
 
-        System.out.println("[moremodTransformer]   + replaced BaubleType.hasSlot(int) with inlined logic (TRINKET any, extras>=7 allowed)");
+        System.out.println("[moremodTransformer]   + replaced BaubleType.hasSlot(int) with inlined logic");
     }
 
-
-
-
     /**
-     * ⭐ SetBonus 兼容版：把所有额外槽位都加到 TRINKET.validSlots
-     * 参考旧系统的成功经验
+     * SetBonus 兼容版：把所有额外槽位都加到 TRINKET.validSlots
      */
     private void patchBaubleTypeClinitDynamic(MethodNode mn) {
         AbstractInsnNode[] instructions = mn.instructions.toArray();
 
-        System.out.println("[moremodTransformer]     === 修改 BaubleType (SetBonus Compatible) ===");
+        System.out.println("[moremodTransformer]     === Modifying BaubleType (SetBonus Compatible) ===");
 
-        // 获取总额外槽位数
         int totalExtraSlots = EarlyConfigLoader.getTotalExtraSlots();
 
         if (totalExtraSlots == 0) {
-            System.out.println("[moremodTransformer]     没有额外槽位，跳过修改");
+            System.out.println("[moremodTransformer]     No extra slots, skipping modification");
             return;
         }
 
-        // ⭐ 关键：创建 TRINKET 的 validSlots 数组
-        // TRINKET.validSlots = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, ..., totalSlots-1]
         int totalSlots = 7 + totalExtraSlots;
         int[] trinketSlots = new int[totalSlots];
         for (int i = 0; i < totalSlots; i++) {
             trinketSlots[i] = i;
         }
 
-        System.out.println("[moremodTransformer]     总槽位数: " + totalSlots);
+        System.out.println("[moremodTransformer]     Total slots: " + totalSlots);
         System.out.println("[moremodTransformer]     TRINKET.validSlots: [0-" + (totalSlots - 1) + "]");
-        System.out.println("[moremodTransformer]     (SetBonus 将检测所有这些槽位)");
 
-        // ⭐ 只修改 TRINKET 类型（其他类型保持原版）
         patchBaubleTypeArray(mn, instructions, "TRINKET", trinketSlots);
 
-        System.out.println("[moremodTransformer]     ✓ TRINKET 已修改，SetBonus 兼容完成");
+        System.out.println("[moremodTransformer]     TRINKET modified, SetBonus compatibility complete");
     }
 
     /**
@@ -617,32 +592,28 @@ public class moremodTransformer implements IClassTransformer {
                 LdcInsnNode ldcInsn = (LdcInsnNode) insn;
 
                 if (typeName.equals(ldcInsn.cst)) {
-                    System.out.println("[moremodTransformer]       - 找到 " + typeName);
+                    System.out.println("[moremodTransformer]       - Found " + typeName);
 
-                    // 查找数组大小定义
                     AbstractInsnNode arraySizeNode = findNextArraySize(instructions, i);
 
                     if (arraySizeNode != null) {
                         int oldSize = getArraySize(arraySizeNode);
-                        System.out.println("[moremodTransformer]         原始大小: " + oldSize);
-                        System.out.println("[moremodTransformer]         新大小: " + newSlots.length);
-                        System.out.println("[moremodTransformer]         槽位范围: " + formatSlots(newSlots));
+                        System.out.println("[moremodTransformer]         Original size: " + oldSize);
+                        System.out.println("[moremodTransformer]         New size: " + newSlots.length);
+                        System.out.println("[moremodTransformer]         Slot range: " + formatSlots(newSlots));
 
-                        // 修改数组大小
                         replaceArraySize(mn, arraySizeNode, newSlots.length);
 
-                        // 查找初始化点
                         AbstractInsnNode initPoint = findArrayInitPoint(instructions, i, typeName);
                         if (initPoint != null) {
-                            // 生成额外槽位的初始化代码
                             InsnList newInit = buildArrayInit(newSlots, oldSize);
                             mn.instructions.insertBefore(initPoint, newInit);
-                            System.out.println("[moremodTransformer]         ✓ 已添加 " + (newSlots.length - oldSize) + " 个额外槽位的初始化");
+                            System.out.println("[moremodTransformer]         Added " + (newSlots.length - oldSize) + " extra slot initializations");
                         } else {
-                            System.err.println("[moremodTransformer]         ✗ 找不到初始化点！");
+                            System.err.println("[moremodTransformer]         Cannot find initialization point!");
                         }
                     } else {
-                        System.err.println("[moremodTransformer]         ✗ 找不到数组大小节点！");
+                        System.err.println("[moremodTransformer]         Cannot find array size node!");
                     }
 
                     break;
@@ -671,16 +642,10 @@ public class moremodTransformer implements IClassTransformer {
                 if (lastPop != null) {
                     InsnList inject = new InsnList();
 
-                    // this (Container)
                     inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
-
-                    // playerInv (InventoryPlayer)
                     inject.add(new VarInsnNode(Opcodes.ALOAD, 1));
-
-                    // 获取 player - 从参数 3 (EntityPlayer)
                     inject.add(new VarInsnNode(Opcodes.ALOAD, 3));
 
-                    // 调用 BaublesApi.getBaublesHandler(player) 获取 IBaublesItemHandler
                     inject.add(new MethodInsnNode(
                             Opcodes.INVOKESTATIC,
                             "baubles/api/BaublesApi",
@@ -689,7 +654,6 @@ public class moremodTransformer implements IClassTransformer {
                             false
                     ));
 
-                    // 调用注入器
                     inject.add(new MethodInsnNode(
                             Opcodes.INVOKESTATIC,
                             "com/moremod/accessorybox/unlock/UnlockableSlotInjector",
@@ -756,11 +720,9 @@ public class moremodTransformer implements IClassTransformer {
         System.out.println("[moremodTransformer] Patching PotionFingers ItemRing...");
 
         for (MethodNode mn : cn.methods) {
-            // 找到 updatePotionStatus 方法
             if (mn.name.equals("updatePotionStatus")) {
                 System.out.println("[moremodTransformer]   Found updatePotionStatus method");
 
-                // 查找 BaubleType.RING.getValidSlots() 调用
                 for (AbstractInsnNode n : mn.instructions.toArray()) {
                     if (n.getOpcode() == Opcodes.INVOKEVIRTUAL) {
                         MethodInsnNode min = (MethodInsnNode) n;
@@ -768,17 +730,8 @@ public class moremodTransformer implements IClassTransformer {
                         if (min.name.equals("getValidSlots") && min.owner.equals("baubles/api/BaubleType")) {
                             System.out.println("[moremodTransformer]     Found getValidSlots() call");
 
-                            // 在 getValidSlots() 后面插入过滤代码
-                            // 原始: int[] slots = BaubleType.RING.getValidSlots();
-                            // 修改: int[] slots = filterValidSlots(BaubleType.RING.getValidSlots(), handler);
-
                             InsnList filter = new InsnList();
-
-                            // 加载 handler (局部变量)
-                            // 需要找到 handler 的局部变量索引
-                            filter.add(new VarInsnNode(Opcodes.ALOAD, 5)); // IBaublesItemHandler inv 通常在 slot 5
-
-                            // 调用我们的过滤方法
+                            filter.add(new VarInsnNode(Opcodes.ALOAD, 5));
                             filter.add(new MethodInsnNode(
                                     Opcodes.INVOKESTATIC,
                                     "com/moremod/compat/PotionFingersCompat",
@@ -804,12 +757,11 @@ public class moremodTransformer implements IClassTransformer {
 
         ClassWriter cw = new SafeClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
         cn.accept(cw);
-        System.out.println("[moremodTransformer]   ✓ PotionFingers patched successfully");
+        System.out.println("[moremodTransformer]   PotionFingers patched successfully");
         return cw.toByteArray();
     }
 
     private byte[] transformELBaublesStackHandler(byte[] bytes) {
-        // 实现 EL Baubles handler 修复...
         return bytes;
     }
 
@@ -874,19 +826,16 @@ public class moremodTransformer implements IClassTransformer {
 
     /**
      * 生成额外槽位的数组初始化代码
-     * 参考旧系统的成功实现
      */
     private InsnList buildArrayInit(int[] allSlots, int oldSize) {
         InsnList list = new InsnList();
 
-        // 只初始化额外槽位（oldSize 之后的）
         for (int i = oldSize; i < allSlots.length; i++) {
-            int arrayIndex = i;           // 在数组中的索引
-            int slotValue = allSlots[i];  // 槽位ID值
+            int arrayIndex = i;
+            int slotValue = allSlots[i];
 
-            list.add(new InsnNode(Opcodes.DUP));  // 复制数组引用
+            list.add(new InsnNode(Opcodes.DUP));
 
-            // 压入数组索引
             if (arrayIndex <= 5) {
                 list.add(new InsnNode(Opcodes.ICONST_0 + arrayIndex));
             } else if (arrayIndex <= 127) {
@@ -895,7 +844,6 @@ public class moremodTransformer implements IClassTransformer {
                 list.add(new IntInsnNode(Opcodes.SIPUSH, arrayIndex));
             }
 
-            // 压入槽位值
             if (slotValue <= 5) {
                 list.add(new InsnNode(Opcodes.ICONST_0 + slotValue));
             } else if (slotValue <= 127) {
@@ -904,13 +852,12 @@ public class moremodTransformer implements IClassTransformer {
                 list.add(new IntInsnNode(Opcodes.SIPUSH, slotValue));
             }
 
-            list.add(new InsnNode(Opcodes.IASTORE));  // 存储到数组
+            list.add(new InsnNode(Opcodes.IASTORE));
 
-            // 调试输出
-            if (i < oldSize + 5) {  // 只打印前5个
+            if (i < oldSize + 5) {
                 System.out.println("[moremodTransformer]           validSlots[" + arrayIndex + "] = " + slotValue);
             } else if (i == oldSize + 5) {
-                System.out.println("[moremodTransformer]           ... (" + (allSlots.length - oldSize) + " 个额外槽位)");
+                System.out.println("[moremodTransformer]           ... (" + (allSlots.length - oldSize) + " extra slots)");
             }
         }
 
@@ -938,21 +885,14 @@ public class moremodTransformer implements IClassTransformer {
 
     /**
      * 转换 EntityLivingBase 以支持破碎之神停机系统
-     *
-     * 注入点：
-     * 1. attackEntityFrom HEAD - 停机时完全免疫攻击
-     * 2. damageEntity HEAD - 检测致命伤害并触发停机
-     * 3. onDeath HEAD - 最终防线
      */
     private byte[] transformEntityLivingBaseOnDeath(byte[] bytes) {
         ClassNode cn = new ClassNode();
         new ClassReader(bytes).accept(cn, ClassReader.EXPAND_FRAMES);
         boolean modified = false;
 
-        // 调试：打印所有方法（便于找到正确的方法名）
         System.out.println("[moremodTransformer]   Scanning EntityLivingBase methods...");
         for (MethodNode mn : cn.methods) {
-            // 打印所有可能相关的方法（包括混淆名）
             if (mn.desc.endsWith("F)Z") || mn.desc.endsWith("F)V") || mn.desc.endsWith(";)V")
                     || mn.name.contains("attack") || mn.name.contains("damage") || mn.name.contains("Death")
                     || mn.name.equals("func_70097_a") || mn.name.equals("func_70665_d") || mn.name.equals("func_70645_a")) {
@@ -963,11 +903,9 @@ public class moremodTransformer implements IClassTransformer {
         for (MethodNode mn : cn.methods) {
 
             // ========== 1. attackEntityFrom 注入 ==========
-            // MCP名: attackEntityFrom, SRG名: func_70097_a, 混淆名: a
-            // 描述符模式: (L???;F)Z - 一个对象参数 + float，返回 boolean
             boolean isAttackEntityFrom = "attackEntityFrom".equals(mn.name)
                     || "func_70097_a".equals(mn.name)
-                    || "a".equals(mn.name);  // 混淆名
+                    || "a".equals(mn.name);
 
             if (isAttackEntityFrom && mn.desc.endsWith("F)Z") && mn.desc.startsWith("(L")) {
                 System.out.println("[moremodTransformer]   Patching attackEntityFrom... (desc: " + mn.desc + ")");
@@ -975,10 +913,9 @@ public class moremodTransformer implements IClassTransformer {
                 InsnList inject = new InsnList();
                 LabelNode continueLabel = new LabelNode();
 
-                // if (BrokenGodDeathHook.shouldCancelAttack(this, source, amount)) return false;
-                inject.add(new VarInsnNode(Opcodes.ALOAD, 0));  // this
-                inject.add(new VarInsnNode(Opcodes.ALOAD, 1));  // source
-                inject.add(new VarInsnNode(Opcodes.FLOAD, 2));  // amount
+                inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                inject.add(new VarInsnNode(Opcodes.ALOAD, 1));
+                inject.add(new VarInsnNode(Opcodes.FLOAD, 2));
                 inject.add(new MethodInsnNode(
                         Opcodes.INVOKESTATIC,
                         "com/moremod/core/BrokenGodDeathHook",
@@ -987,12 +924,9 @@ public class moremodTransformer implements IClassTransformer {
                         false
                 ));
                 inject.add(new JumpInsnNode(Opcodes.IFEQ, continueLabel));
-                inject.add(new InsnNode(Opcodes.ICONST_0));  // return false
+                inject.add(new InsnNode(Opcodes.ICONST_0));
                 inject.add(new InsnNode(Opcodes.IRETURN));
                 inject.add(continueLabel);
-
-                // 香巴拉检查（香巴拉不在攻击阶段拦截，但保留钩子以备将来使用）
-                // ShambhalaDeathHook.shouldCancelAttack always returns false
 
                 mn.instructions.insert(inject);
                 modified = true;
@@ -1000,11 +934,9 @@ public class moremodTransformer implements IClassTransformer {
             }
 
             // ========== 2. damageEntity 注入 ==========
-            // MCP名: damageEntity, SRG名: func_70665_d, 混淆名: d
-            // 描述符模式: (L???;F)V - 一个对象参数 + float，返回 void
             boolean isDamageEntity = "damageEntity".equals(mn.name)
                     || "func_70665_d".equals(mn.name)
-                    || "d".equals(mn.name);  // 混淆名
+                    || "d".equals(mn.name);
 
             if (isDamageEntity && mn.desc.endsWith("F)V") && mn.desc.startsWith("(L")) {
                 System.out.println("[moremodTransformer]   Patching damageEntity... (desc: " + mn.desc + ")");
@@ -1012,10 +944,9 @@ public class moremodTransformer implements IClassTransformer {
                 InsnList inject = new InsnList();
                 LabelNode continueLabel = new LabelNode();
 
-                // if (BrokenGodDeathHook.checkAndTriggerShutdown(this, source, damage)) return;
-                inject.add(new VarInsnNode(Opcodes.ALOAD, 0));  // this
-                inject.add(new VarInsnNode(Opcodes.ALOAD, 1));  // source
-                inject.add(new VarInsnNode(Opcodes.FLOAD, 2));  // damage
+                inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                inject.add(new VarInsnNode(Opcodes.ALOAD, 1));
+                inject.add(new VarInsnNode(Opcodes.FLOAD, 2));
                 inject.add(new MethodInsnNode(
                         Opcodes.INVOKESTATIC,
                         "com/moremod/core/BrokenGodDeathHook",
@@ -1024,16 +955,14 @@ public class moremodTransformer implements IClassTransformer {
                         false
                 ));
                 inject.add(new JumpInsnNode(Opcodes.IFEQ, continueLabel));
-                inject.add(new InsnNode(Opcodes.RETURN));  // void return
+                inject.add(new InsnNode(Opcodes.RETURN));
                 inject.add(continueLabel);
 
-                // ========== 香巴拉致命伤害检测 ==========
                 if (ENABLE_SHAMBHALA_DEATH) {
                     LabelNode shambhalaContinue = new LabelNode();
-                    // if (ShambhalaDeathHook.checkAndAbsorbDamage(this, source, damage)) return;
-                    inject.add(new VarInsnNode(Opcodes.ALOAD, 0));  // this
-                    inject.add(new VarInsnNode(Opcodes.ALOAD, 1));  // source
-                    inject.add(new VarInsnNode(Opcodes.FLOAD, 2));  // damage
+                    inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                    inject.add(new VarInsnNode(Opcodes.ALOAD, 1));
+                    inject.add(new VarInsnNode(Opcodes.FLOAD, 2));
                     inject.add(new MethodInsnNode(
                             Opcodes.INVOKESTATIC,
                             "com/moremod/core/ShambhalaDeathHook",
@@ -1042,7 +971,7 @@ public class moremodTransformer implements IClassTransformer {
                             false
                     ));
                     inject.add(new JumpInsnNode(Opcodes.IFEQ, shambhalaContinue));
-                    inject.add(new InsnNode(Opcodes.RETURN));  // void return
+                    inject.add(new InsnNode(Opcodes.RETURN));
                     inject.add(shambhalaContinue);
                     System.out.println("[moremodTransformer]     + Injected Shambhala damage absorption at damageEntity HEAD");
                 }
@@ -1053,12 +982,9 @@ public class moremodTransformer implements IClassTransformer {
             }
 
             // ========== 3. onDeath 注入（最终防线） ==========
-            // MCP名: onDeath, SRG名: func_70645_a, 混淆名: a (描述符 (Lur;)V)
-            // 描述符模式: (L???;)V - 一个对象参数，返回 void
-            // 注意：混淆环境下 DamageSource = ur
             boolean isOnDeath = "onDeath".equals(mn.name)
                     || "func_70645_a".equals(mn.name)
-                    || ("a".equals(mn.name) && mn.desc.equals("(Lur;)V"));  // 混淆名 + 精确描述符
+                    || ("a".equals(mn.name) && mn.desc.equals("(Lur;)V"));
 
             if (isOnDeath && mn.desc.endsWith(";)V") && mn.desc.startsWith("(L")) {
                 System.out.println("[moremodTransformer]   Patching onDeath... (desc: " + mn.desc + ")");
@@ -1066,7 +992,6 @@ public class moremodTransformer implements IClassTransformer {
                 InsnList inject = new InsnList();
                 LabelNode continueLabel = new LabelNode();
 
-                // if (BrokenGodDeathHook.shouldPreventDeath(this, cause)) return;
                 inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
                 inject.add(new VarInsnNode(Opcodes.ALOAD, 1));
                 inject.add(new MethodInsnNode(
@@ -1080,10 +1005,8 @@ public class moremodTransformer implements IClassTransformer {
                 inject.add(new InsnNode(Opcodes.RETURN));
                 inject.add(continueLabel);
 
-                // ========== 香巴拉死亡拦截（最终防线） ==========
                 if (ENABLE_SHAMBHALA_DEATH) {
                     LabelNode shambhalaContinue = new LabelNode();
-                    // if (ShambhalaDeathHook.shouldPreventDeath(this, cause)) return;
                     inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
                     inject.add(new VarInsnNode(Opcodes.ALOAD, 1));
                     inject.add(new MethodInsnNode(
@@ -1107,7 +1030,6 @@ public class moremodTransformer implements IClassTransformer {
 
         if (!modified) {
             System.out.println("[moremodTransformer]   WARNING: No methods were modified!");
-            // 打印所有方法名帮助调试
             System.out.println("[moremodTransformer]   Available methods in EntityLivingBase:");
             for (MethodNode mn : cn.methods) {
                 if (mn.name.contains("Death") || mn.name.contains("attack") || mn.name.contains("damage")
@@ -1120,7 +1042,7 @@ public class moremodTransformer implements IClassTransformer {
 
         ClassWriter cw = new SafeClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
         cn.accept(cw);
-        System.out.println("[moremodTransformer]   ✓ EntityLivingBase patched for Broken God shutdown system");
+        System.out.println("[moremodTransformer]   EntityLivingBase patched for Broken God shutdown system");
         return cw.toByteArray();
     }
 
@@ -1135,7 +1057,6 @@ public class moremodTransformer implements IClassTransformer {
         @Override
         protected String getCommonSuperClass(String type1, String type2) {
             // 完全避免类加载，防止 Mixin Re-entrance 错误
-            // 在 coremod 转换期间不能安全地加载其他类
             return "java/lang/Object";
         }
     }
