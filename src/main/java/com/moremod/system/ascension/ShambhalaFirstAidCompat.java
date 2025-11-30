@@ -33,8 +33,12 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 public class ShambhalaFirstAidCompat {
 
     /**
-     * 拦截 First Aid 的伤害事件
+     * 拦截 First Aid 的伤害事件（第二道防线）
      * 关键：必须在伤害分配后、死亡判定前修复致命部位
+     *
+     * 香巴拉与破碎之神的区别：
+     * - 破碎之神：停机期间无条件免疫
+     * - 香巴拉：需要消耗能量，能量耗尽则死亡
      */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     @Optional.Method(modid = "firstaid")
@@ -44,6 +48,8 @@ public class ShambhalaFirstAidCompat {
             if (player == null || player.world.isRemote) return;
 
             if (!ShambhalaHandler.isShambhala(player)) return;
+
+            boolean preventedFatal = false;
 
             // 检查伤害后是否有致命部位（HEAD 或 BODY 会归零）
             for (AbstractDamageablePart part : event.getAfterDamage()) {
@@ -56,6 +62,7 @@ public class ShambhalaFirstAidCompat {
                     if (ShambhalaHandler.consumeEnergy(player, energyCost)) {
                         // 成功消耗能量，恢复部位血量
                         part.heal(healAmount, null, false);
+                        preventedFatal = true;
 
                         // 提示玩家
                         player.sendStatusMessage(new TextComponentString(
@@ -71,6 +78,11 @@ public class ShambhalaFirstAidCompat {
                                 ShambhalaHandler.consumeEnergy(player, remaining);
                                 part.heal(partialHeal, null, false);
 
+                                // 检查是否成功阻止死亡
+                                if (part.currentHealth > 0) {
+                                    preventedFatal = true;
+                                }
+
                                 player.sendStatusMessage(new TextComponentString(
                                         TextFormatting.YELLOW + "⚠ 能量耗尽！护盾破碎！"
                                 ), true);
@@ -80,6 +92,11 @@ public class ShambhalaFirstAidCompat {
                         // 没有能量 = 死亡（这是香巴拉的核心代价）
                     }
                 }
+            }
+
+            // 第二道防线：如果成功阻止了致命伤害，取消事件防止进一步处理
+            if (preventedFatal) {
+                event.setCanceled(true);
             }
 
             // 同步到客户端
