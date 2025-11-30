@@ -31,22 +31,6 @@ public class TileEntitySwordUpgradeStationMaterial extends TileEntity {
             if (slot == SLOT_MAT)  return SwordUpgradeRegistry.isValidMaterial(stack.getItem());
             return true;
         }
-        // 可选增强：显式允许从输出槽提取，避免个别环境"模拟抽取"误判
-        @Override
-        public ItemStack extractItem(int slot, int amount, boolean simulate) {
-            if (slot == SLOT_OUT) {
-                ItemStack cur = getStackInSlot(slot);
-                if (cur.isEmpty() || amount <= 0) return ItemStack.EMPTY;
-                ItemStack ret = cur.copy();
-                ret.setCount(Math.min(amount, cur.getCount()));
-                if (!simulate) {
-                    cur.shrink(ret.getCount());
-                    setStackInSlot(slot, cur.isEmpty() ? ItemStack.EMPTY : cur);
-                }
-                return ret;
-            }
-            return super.extractItem(slot, amount, simulate);
-        }
     };
 
     public ItemStack getStackInSlot(int slot) { return items.getStackInSlot(slot); }
@@ -139,5 +123,6 @@ public class TileEntitySwordUpgradeStationMaterial extends TileEntity {
     public void readFromNBT(NBTTagCompound tag) {
         super.readFromNBT(tag);
         if (tag.hasKey("inv")) items.deserializeNBT(tag.getCompoundTag("inv"));
+        recalcOutput(); // 重新计算输出槽，确保世界加载后显示正确
     }
 }
