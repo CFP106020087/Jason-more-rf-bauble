@@ -24,8 +24,9 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
  * 处理所有破碎饰品的战斗效果
  *
  * 设计说明：
- * - LivingHurtEvent LOWEST: 应用伤害倍率（暴击×3、狂战士、终结×2）
- * - LivingDamageEvent LOWEST: 基于最终伤害计算真伤（投影100%真伤）
+ * - LivingHurtEvent LOWEST: 应用伤害倍率（暴击×3、狂战士、终结×5）
+ * - LivingDamageEvent HIGHEST: 在Boss减伤之前读取伤害，计算真伤（投影100%真伤）
+ *   注意：HIGHEST优先级确保在Riftwarden等Boss的伤害上限生效之前计算真伤
  * - AttackEntityEvent: 重置攻击冷却（手）
  * - LivingDeathEvent: 击杀效果（终结）
  * - 护甲粉碎: 由ItemBrokenArm的onWornTick光环处理
@@ -86,9 +87,10 @@ public class BrokenRelicEventHandler {
 
     /**
      * 处理玩家造成的最终伤害 - 应用真伤
-     * 优先级 LOWEST 确保获取到所有增伤后的最终数值
+     * 优先级 HIGHEST 确保在Boss减伤（如Riftwarden）之前读取伤害值
+     * 这样真伤计算基于完整伤害，不会被Boss的伤害上限影响
      */
-    @SubscribeEvent(priority = EventPriority.LOWEST)
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onPlayerDealFinalDamage(LivingDamageEvent event) {
         if (!(event.getSource().getTrueSource() instanceof EntityPlayer)) return;
 
