@@ -23,6 +23,7 @@ public class moremodTransformer implements IClassTransformer {
     private static final boolean ENABLE_SETBONUS_COMPAT     = true;
     private static final boolean ENABLE_SWORD_UPGRADE       = true;
     private static final boolean ENABLE_BROKEN_GOD_DEATH    = true;
+    private static final boolean ENABLE_SHAMBHALA_DEATH     = true;
 
     public static Side side;
 
@@ -948,16 +949,25 @@ public class moremodTransformer implements IClassTransformer {
         new ClassReader(bytes).accept(cn, ClassReader.EXPAND_FRAMES);
         boolean modified = false;
 
+        // 调试：打印所有方法（便于找到正确的方法名）
+        System.out.println("[moremodTransformer]   Scanning EntityLivingBase methods...");
+        for (MethodNode mn : cn.methods) {
+            // 打印所有可能相关的方法（包括混淆名）
+            if (mn.desc.endsWith("F)Z") || mn.desc.endsWith("F)V") || mn.desc.endsWith(";)V")
+                    || mn.name.contains("attack") || mn.name.contains("damage") || mn.name.contains("Death")
+                    || mn.name.equals("func_70097_a") || mn.name.equals("func_70665_d") || mn.name.equals("func_70645_a")) {
+                System.out.println("[moremodTransformer]     Method: " + mn.name + " " + mn.desc);
+            }
+        }
+
         for (MethodNode mn : cn.methods) {
 
             // ========== 1. attackEntityFrom 注入 ==========
-            // 方法签名: public boolean attackEntityFrom(DamageSource source, float amount)
-            // SRG名: func_70097_a
-            // 描述符模式: (L...;F)Z (接受一个对象和float，返回boolean)
-            if (("attackEntityFrom".equals(mn.name) || "func_70097_a".equals(mn.name))
-                    && mn.desc.startsWith("(L") && mn.desc.endsWith(";F)Z")) {
-
-                System.out.println("[moremodTransformer]   Patching attackEntityFrom... (desc: " + mn.desc + ")");
+            // MCP名: attackEntityFrom, SRG名: func_70097_a
+            // 描述符模式: (L???;F)Z - 一个对象参数 + float，返回 boolean
+            if ("attackEntityFrom".equals(mn.name) || "func_70097_a".equals(mn.name)) {
+                if (mn.desc.endsWith("F)Z") && mn.desc.startsWith("(L")) {
+                    System.out.println("[moremodTransformer]   Patching attackEntityFrom... (desc: " + mn.desc + ")");
 
                 InsnList inject = new InsnList();
                 LabelNode continueLabel = new LabelNode();
@@ -984,16 +994,15 @@ public class moremodTransformer implements IClassTransformer {
                 mn.instructions.insert(inject);
                 modified = true;
                 System.out.println("[moremodTransformer]     + Injected shutdown check at attackEntityFrom HEAD");
+                }
             }
 
             // ========== 2. damageEntity 注入 ==========
-            // 方法签名: protected void damageEntity(DamageSource source, float damage)
-            // SRG名: func_70665_d
-            // 描述符模式: (L...;F)V (接受一个对象和float，返回void)
-            if (("damageEntity".equals(mn.name) || "func_70665_d".equals(mn.name))
-                    && mn.desc.startsWith("(L") && mn.desc.endsWith(";F)V")) {
-
-                System.out.println("[moremodTransformer]   Patching damageEntity... (desc: " + mn.desc + ")");
+            // MCP名: damageEntity, SRG名: func_70665_d
+            // 描述符模式: (L???;F)V - 一个对象参数 + float，返回 void
+            if ("damageEntity".equals(mn.name) || "func_70665_d".equals(mn.name)) {
+                if (mn.desc.endsWith("F)V") && mn.desc.startsWith("(L")) {
+                    System.out.println("[moremodTransformer]   Patching damageEntity... (desc: " + mn.desc + ")");
 
                 InsnList inject = new InsnList();
                 LabelNode continueLabel = new LabelNode();
@@ -1014,36 +1023,37 @@ public class moremodTransformer implements IClassTransformer {
                 inject.add(continueLabel);
 
                 // ========== 香巴拉致命伤害检测 ==========
-                LabelNode shambhalaContinue = new LabelNode();
-                // if (ShambhalaDeathHook.checkAndAbsorbDamage(this, source, damage)) return;
-                inject.add(new VarInsnNode(Opcodes.ALOAD, 0));  // this
-                inject.add(new VarInsnNode(Opcodes.ALOAD, 1));  // source
-                inject.add(new VarInsnNode(Opcodes.FLOAD, 2));  // damage
-                inject.add(new MethodInsnNode(
-                        Opcodes.INVOKESTATIC,
-                        "com/moremod/core/ShambhalaDeathHook",
-                        "checkAndAbsorbDamage",
-                        "(Lnet/minecraft/entity/EntityLivingBase;Lnet/minecraft/util/DamageSource;F)Z",
-                        false
-                ));
-                inject.add(new JumpInsnNode(Opcodes.IFEQ, shambhalaContinue));
-                inject.add(new InsnNode(Opcodes.RETURN));  // void return
-                inject.add(shambhalaContinue);
+                if (ENABLE_SHAMBHALA_DEATH) {
+                    LabelNode shambhalaContinue = new LabelNode();
+                    // if (ShambhalaDeathHook.checkAndAbsorbDamage(this, source, damage)) return;
+                    inject.add(new VarInsnNode(Opcodes.ALOAD, 0));  // this
+                    inject.add(new VarInsnNode(Opcodes.ALOAD, 1));  // source
+                    inject.add(new VarInsnNode(Opcodes.FLOAD, 2));  // damage
+                    inject.add(new MethodInsnNode(
+                            Opcodes.INVOKESTATIC,
+                            "com/moremod/core/ShambhalaDeathHook",
+                            "checkAndAbsorbDamage",
+                            "(Lnet/minecraft/entity/EntityLivingBase;Lnet/minecraft/util/DamageSource;F)Z",
+                            false
+                    ));
+                    inject.add(new JumpInsnNode(Opcodes.IFEQ, shambhalaContinue));
+                    inject.add(new InsnNode(Opcodes.RETURN));  // void return
+                    inject.add(shambhalaContinue);
+                    System.out.println("[moremodTransformer]     + Injected Shambhala damage absorption at damageEntity HEAD");
+                }
 
                 mn.instructions.insert(inject);
                 modified = true;
                 System.out.println("[moremodTransformer]     + Injected shutdown trigger check at damageEntity HEAD");
-                System.out.println("[moremodTransformer]     + Injected Shambhala damage absorption at damageEntity HEAD");
+                }
             }
 
             // ========== 3. onDeath 注入（最终防线） ==========
-            // 方法签名: public void onDeath(DamageSource cause)
-            // SRG名: func_70645_a
-            // 描述符模式: (L...;)V (接受一个对象，返回void)
-            if (("onDeath".equals(mn.name) || "func_70645_a".equals(mn.name))
-                    && mn.desc.startsWith("(L") && mn.desc.endsWith(";)V")) {
-
-                System.out.println("[moremodTransformer]   Patching onDeath... (desc: " + mn.desc + ")");
+            // MCP名: onDeath, SRG名: func_70645_a
+            // 描述符模式: (L???;)V - 一个对象参数，返回 void
+            if ("onDeath".equals(mn.name) || "func_70645_a".equals(mn.name)) {
+                if (mn.desc.endsWith(";)V") && mn.desc.startsWith("(L")) {
+                    System.out.println("[moremodTransformer]   Patching onDeath... (desc: " + mn.desc + ")");
 
                 InsnList inject = new InsnList();
                 LabelNode continueLabel = new LabelNode();
@@ -1063,25 +1073,28 @@ public class moremodTransformer implements IClassTransformer {
                 inject.add(continueLabel);
 
                 // ========== 香巴拉死亡拦截（最终防线） ==========
-                LabelNode shambhalaContinue = new LabelNode();
-                // if (ShambhalaDeathHook.shouldPreventDeath(this, cause)) return;
-                inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
-                inject.add(new VarInsnNode(Opcodes.ALOAD, 1));
-                inject.add(new MethodInsnNode(
-                        Opcodes.INVOKESTATIC,
-                        "com/moremod/core/ShambhalaDeathHook",
-                        "shouldPreventDeath",
-                        "(Lnet/minecraft/entity/EntityLivingBase;Lnet/minecraft/util/DamageSource;)Z",
-                        false
-                ));
-                inject.add(new JumpInsnNode(Opcodes.IFEQ, shambhalaContinue));
-                inject.add(new InsnNode(Opcodes.RETURN));
-                inject.add(shambhalaContinue);
+                if (ENABLE_SHAMBHALA_DEATH) {
+                    LabelNode shambhalaContinue = new LabelNode();
+                    // if (ShambhalaDeathHook.shouldPreventDeath(this, cause)) return;
+                    inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                    inject.add(new VarInsnNode(Opcodes.ALOAD, 1));
+                    inject.add(new MethodInsnNode(
+                            Opcodes.INVOKESTATIC,
+                            "com/moremod/core/ShambhalaDeathHook",
+                            "shouldPreventDeath",
+                            "(Lnet/minecraft/entity/EntityLivingBase;Lnet/minecraft/util/DamageSource;)Z",
+                            false
+                    ));
+                    inject.add(new JumpInsnNode(Opcodes.IFEQ, shambhalaContinue));
+                    inject.add(new InsnNode(Opcodes.RETURN));
+                    inject.add(shambhalaContinue);
+                    System.out.println("[moremodTransformer]     + Injected Shambhala death prevention at onDeath HEAD");
+                }
 
                 mn.instructions.insert(inject);
                 modified = true;
                 System.out.println("[moremodTransformer]     + Injected death prevention at onDeath HEAD");
-                System.out.println("[moremodTransformer]     + Injected Shambhala death prevention at onDeath HEAD");
+                }
             }
         }
 
