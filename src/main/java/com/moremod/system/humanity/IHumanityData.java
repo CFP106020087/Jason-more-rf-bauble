@@ -270,6 +270,24 @@ public interface IHumanityData {
      */
     void addLowHumanityTicks(long ticks);
 
+    // ========== 香巴拉升格条件 ==========
+
+    /**
+     * 获取高人性值累计时间（tick）
+     * 用于香巴拉升格条件
+     */
+    long getHighHumanityTicks();
+
+    /**
+     * 设置高人性值累计时间
+     */
+    void setHighHumanityTicks(long ticks);
+
+    /**
+     * 增加高人性值累计时间
+     */
+    void addHighHumanityTicks(long ticks);
+
     // ========== 破碎之神专用 ==========
 
     /**
@@ -321,4 +339,22 @@ public interface IHumanityData {
      * 复制数据（用于死亡重生）
      */
     void copyFrom(IHumanityData other);
+
+    // ========== 高人性情报系统 (High Humanity Intel System) ==========
+
+    /**
+     * 获取已学习的情报（生物ID -> 学习次数）
+     * 这是高人性玩家的特攻系统，每学习一次情报书提供 +10% 伤害
+     */
+    Map<ResourceLocation, Integer> getLearnedIntel();
+
+    /**
+     * 获取对指定生物的情报等级
+     */
+    int getIntelLevel(ResourceLocation entityId);
+
+    /**
+     * 设置对指定生物的情报等级
+     */
+    void setIntelLevel(ResourceLocation entityId, int level);
 }

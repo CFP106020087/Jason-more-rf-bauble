@@ -34,8 +34,15 @@ public class HumanityEffectsManager {
     /** MaxHP 修改器的 UUID */
     private static final UUID HUMANITY_HP_MODIFIER_UUID = UUID.fromString("a5b6c7d8-e9f0-1234-5678-9abcdef01234");
 
+    /** 破碎之神 MaxHP 锁定修改器的 UUID */
+    private static final UUID BROKEN_GOD_HP_LOCK_UUID = UUID.fromString("b6c7d8e9-f0a1-2345-6789-abcdef012345");
+
     /** 修改器名称 */
     private static final String HUMANITY_HP_MODIFIER_NAME = "Humanity MaxHP Modifier";
+    private static final String BROKEN_GOD_HP_LOCK_NAME = "Broken God MaxHP Lock";
+
+    /** 破碎之神固定最大血量 */
+    private static final double BROKEN_GOD_MAX_HEALTH = 10.0;
 
     /**
      * 更新玩家的 MaxHP 基于人性值
@@ -48,8 +55,19 @@ public class HumanityEffectsManager {
         if (data == null || !data.isSystemActive()) {
             // 系统未激活，移除修改器
             removeHPModifier(player);
+            removeBrokenGodHPLock(player);
             return;
         }
+
+        // 破碎之神：强制锁定最大血量为 10
+        if (data.getAscensionRoute() == AscensionRoute.BROKEN_GOD) {
+            removeHPModifier(player);
+            applyBrokenGodHPLock(player);
+            return;
+        }
+
+        // 非破碎之神：移除锁定修改器
+        removeBrokenGodHPLock(player);
 
         float humanity = data.getHumanity();
 
@@ -58,6 +76,73 @@ public class HumanityEffectsManager {
 
         // 应用修改器
         applyHPModifier(player, hpReduction);
+    }
+
+    /**
+     * 应用破碎之神最大血量锁定
+     * 强制将最大血量设为 10，无论其他任何修改器
+     */
+    private static void applyBrokenGodHPLock(EntityPlayer player) {
+        IAttributeInstance maxHealthAttr = player.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH);
+        if (maxHealthAttr == null) return;
+
+        // 获取基础值（不包含修改器）
+        double baseValue = maxHealthAttr.getBaseValue();
+
+        // 计算需要的修改量：目标是让最终值 = 10
+        // 最终值 = 基础值 + 加法修改器 + (基础值 * 乘法修改器)
+        // 使用 Operation 0 (加法) 来直接设置到 10
+        // amount = 目标值 - 基础值
+        double currentMaxHealth = maxHealthAttr.getAttributeValue();
+
+        // 如果已经是 10，不需要修改
+        if (Math.abs(currentMaxHealth - BROKEN_GOD_MAX_HEALTH) < 0.01) {
+            // 确保当前血量不超过最大值
+            if (player.getHealth() > BROKEN_GOD_MAX_HEALTH) {
+                player.setHealth((float) BROKEN_GOD_MAX_HEALTH);
+            }
+            return;
+        }
+
+        // 移除旧的锁定修改器
+        AttributeModifier existingMod = maxHealthAttr.getModifier(BROKEN_GOD_HP_LOCK_UUID);
+        if (existingMod != null) {
+            maxHealthAttr.removeModifier(existingMod);
+        }
+
+        // 重新计算当前值（移除旧修改器后）
+        currentMaxHealth = maxHealthAttr.getAttributeValue();
+
+        // 计算需要的调整量
+        double adjustment = BROKEN_GOD_MAX_HEALTH - currentMaxHealth;
+
+        // 创建新的锁定修改器
+        AttributeModifier lockMod = new AttributeModifier(
+                BROKEN_GOD_HP_LOCK_UUID,
+                BROKEN_GOD_HP_LOCK_NAME,
+                adjustment,
+                0 // Operation: Add
+        );
+
+        maxHealthAttr.applyModifier(lockMod);
+
+        // 确保当前血量不超过最大值
+        if (player.getHealth() > BROKEN_GOD_MAX_HEALTH) {
+            player.setHealth((float) BROKEN_GOD_MAX_HEALTH);
+        }
+    }
+
+    /**
+     * 移除破碎之神最大血量锁定
+     */
+    private static void removeBrokenGodHPLock(EntityPlayer player) {
+        IAttributeInstance maxHealthAttr = player.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH);
+        if (maxHealthAttr == null) return;
+
+        AttributeModifier existingMod = maxHealthAttr.getModifier(BROKEN_GOD_HP_LOCK_UUID);
+        if (existingMod != null) {
+            maxHealthAttr.removeModifier(existingMod);
+        }
     }
 
     /**
@@ -232,7 +317,7 @@ public class HumanityEffectsManager {
 
         switch (level) {
             case TRUSTED:
-                return 0.85f; // -15% 折扣
+                return 0.70f; // -30% 折扣
             case NORMAL:
                 return 1.0f;
             case SUSPICIOUS:

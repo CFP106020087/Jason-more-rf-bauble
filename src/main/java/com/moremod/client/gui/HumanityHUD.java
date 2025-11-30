@@ -208,7 +208,7 @@ public class HumanityHUD extends Gui {
         }
 
         if (humanity >= 80f) {
-            return "\u00a7b猎人协议";
+            return "\u00a7b研究协议";
         } else if (humanity >= 60f) {
             return "\u00a77高人性";
         } else if (humanity >= 40f) {

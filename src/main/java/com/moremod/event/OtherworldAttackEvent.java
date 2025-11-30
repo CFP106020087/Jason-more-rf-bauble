@@ -1,5 +1,6 @@
 package com.moremod.event;
 
+import com.moremod.combat.TrueDamageHelper;
 import com.moremod.fabric.data.UpdatedFabricPlayerData;
 import com.moremod.fabric.system.FabricWeavingSystem;
 import net.minecraft.entity.EntityLivingBase;
@@ -385,7 +386,7 @@ public class OtherworldAttackEvent {
     private static void applyAbyssGazeSpecialEffect(EntityPlayer player, EntityLivingBase target, int stacks) {
         if (stacks >= 10) {
             if (target.getHealth() < target.getMaxHealth() * 0.2f) {
-                target.setHealth(0);
+                TrueDamageHelper.triggerVanillaDeathChain(target);
                 player.sendStatusMessage(new TextComponentString("§5§l深渊吞噬！"), false);
                 updateOtherworldData(player, "AbyssGazeStacks", Math.max(stacks - 3, 0));
             }

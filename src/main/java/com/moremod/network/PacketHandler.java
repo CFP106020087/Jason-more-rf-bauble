@@ -201,6 +201,14 @@ public class PacketHandler {
                 Side.CLIENT
         );
 
+        // === 香巴拉宁静光环技能 (C->S) ===
+        INSTANCE.registerMessage(
+                PacketShambhalaPeaceAura.Handler.class,
+                PacketShambhalaPeaceAura.class,
+                id++,
+                Side.SERVER
+        );
+
         System.out.println("[MoreMod] 网络包注册完成，共 " + id + " 个消息类型");
     }
 }

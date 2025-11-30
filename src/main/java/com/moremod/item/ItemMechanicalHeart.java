@@ -21,6 +21,8 @@ import net.minecraftforge.energy.IEnergyStorage;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
+import com.moremod.system.ascension.AscensionTooltips;
+
 import javax.annotation.Nullable;
 import java.util.List;
 
@@ -266,6 +268,9 @@ public class ItemMechanicalHeart extends Item {
             tooltip.add(TextFormatting.YELLOW + "将其携带在身，时间会庇护你");
             tooltip.add(TextFormatting.BLUE + "与神秘能量装置产生共鸣");
         }
+
+        // ═══ 升格专属tooltip ═══
+        AscensionTooltips.addHeartAscensionTooltip(tooltip);
     }
 
     // 能量存储实现类

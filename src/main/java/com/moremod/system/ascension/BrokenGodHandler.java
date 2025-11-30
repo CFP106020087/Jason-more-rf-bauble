@@ -376,9 +376,9 @@ public class BrokenGodHandler {
         // 固定人性值为 0
         data.setHumanity(0);
 
-        // 发送升格动画包到客户端
+        // 发送升格动画包到客户端（使用破碎之神专属动画）
         if (player instanceof EntityPlayerMP) {
-            PacketHandler.INSTANCE.sendTo(new PacketAscensionAnimation(), (EntityPlayerMP) player);
+            PacketHandler.INSTANCE.sendTo(PacketAscensionAnimation.brokenGod(), (EntityPlayerMP) player);
         }
 
         // 发送升格消息（延迟显示，让动画先播放）

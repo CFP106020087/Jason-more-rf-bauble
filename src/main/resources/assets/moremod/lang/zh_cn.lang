@@ -358,3 +358,7 @@ gui.dimension_loom.output=输出
 effect.moremod.minor_malfunction=轻微故障
 item.holy_water.name=纯洁圣水
 item.holy_water.tooltip=解除诅咒并恢复生命力
+
+# 情报系统 (High Humanity Intel System)
+item.biological_sample.name=生物样本
+item.intel_book.name=情报书

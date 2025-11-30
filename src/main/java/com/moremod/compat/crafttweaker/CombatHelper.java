@@ -22,6 +22,8 @@ import net.minecraft.world.World;
 import net.minecraftforge.fml.common.ObfuscationReflectionHelper;
 import net.minecraftforge.fml.relauncher.ReflectionHelper;
 
+import com.moremod.combat.TrueDamageHelper;
+
 import java.lang.reflect.Field;
 import java.util.List;
 
@@ -121,15 +123,15 @@ public class CombatHelper {
 
     /* ========================= 直接改血 / 护盾处理 ========================= */
 
-    /** 真实伤害（不走护甲/药水/无敌帧）：直接改 health；返回实际伤害量 */
+    /** 真实伤害（不走护甲/药水/无敌帧）：使用包装的真实伤害系统；返回实际伤害量 */
     @ZenMethod
     public static float trueDamage(IEntity victim, float amount, @Optional IEntity attacker) {
         EntityLivingBase v = asLiving(victim);
         if (v == null || amount <= 0f) return 0f;
         float before = v.getHealth();
-        float after  = Math.max(0f, before - amount);
-        v.setHealth(after);
-        return before - after;
+        Entity src = attacker != null ? asEntity(attacker) : null;
+        TrueDamageHelper.applyWrappedTrueDamage(v, src, amount, TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE);
+        return before - v.getHealth();
     }
 
     /** 百分比最大生命伤害（真实伤害） */
@@ -164,9 +166,7 @@ public class CombatHelper {
             left -= use;
         }
         if (left > 0f) {
-            float hp = v.getHealth();
-            float after = Math.max(0f, hp - left);
-            v.setHealth(after);
+            TrueDamageHelper.applyWrappedTrueDamage(v, null, left, TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE);
         }
         return amount;
     }
@@ -345,9 +345,7 @@ public class CombatHelper {
                 v.hurtResistantTime = 0;
                 setLastDamage(v, 0f);
             }
-            float before = v.getHealth();
-            float after  = Math.max(0f, before - amount);
-            v.setHealth(after);
+            TrueDamageHelper.applyWrappedTrueDamage(v, src, amount, TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE);
             hits++;
         }
         return hits;

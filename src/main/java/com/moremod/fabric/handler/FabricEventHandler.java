@@ -354,6 +354,10 @@ public class FabricEventHandler {
         public long chronoEndTime = 0;
         public float temporalEnergy = 100f;
 
+        // 延迟任务字段（替代 Thread.sleep）
+        public long protectiveInvulEndTime = 0;  // 保护性时停无敌结束时间
+        public long riftNoClipEndTime = 0;       // 时空裂隙穿墙结束时间
+
         // 时空布料
         public int spatialCount = 0;
         public int lastSpatialCount = 0;
@@ -673,6 +677,27 @@ public class FabricEventHandler {
 
         if (data.hasEquipmentChanged()) {
             handleEquipmentChange(player, data);
+        }
+
+        // 处理延迟任务（替代 Thread.sleep）
+        long now = System.currentTimeMillis();
+
+        // 保护性时停无敌结束
+        if (data.protectiveInvulEndTime > 0 && now >= data.protectiveInvulEndTime) {
+            data.protectiveInvulEndTime = 0;
+            player.setEntityInvulnerable(false);
+        }
+
+        // 时空裂隙穿墙结束
+        if (data.riftNoClipEndTime > 0 && now >= data.riftNoClipEndTime) {
+            data.riftNoClipEndTime = 0;
+            player.noClip = false;
+            player.setEntityInvulnerable(false);
+        }
+
+        // 时间加速结束
+        if (data.chronoAccelerated && data.chronoEndTime > 0 && now >= data.chronoEndTime) {
+            removeChronoAttributes(player, data);
         }
 
         if (player.ticksExisted % 10 == 0) {
@@ -1411,29 +1436,17 @@ public class FabricEventHandler {
 
         player.setEntityInvulnerable(true);
 
-        new Thread(() -> {
-            try {
-                Thread.sleep(3000);
-                player.setEntityInvulnerable(false);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }).start();
+        // 使用基于Tick的延迟任务替代 Thread.sleep
+        data.protectiveInvulEndTime = System.currentTimeMillis() + 3000;
     }
 
     private static void createAdvancedTemporalRift(EntityPlayer player, DamageSource source) {
+        PlayerFabricData data = getPlayerData(player);
         player.noClip = true;
         player.setEntityInvulnerable(true);
 
-        new Thread(() -> {
-            try {
-                Thread.sleep(2000);
-                player.noClip = false;
-                player.setEntityInvulnerable(false);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }).start();
+        // 使用基于Tick的延迟任务替代 Thread.sleep
+        data.riftNoClipEndTime = System.currentTimeMillis() + 2000;
 
         if (source.getTrueSource() instanceof EntityLivingBase) {
             EntityLivingBase attacker = (EntityLivingBase) source.getTrueSource();
@@ -1518,14 +1531,7 @@ public class FabricEventHandler {
 
         player.addPotionEffect(new PotionEffect(MobEffects.HASTE, duration, 4, false, false));
 
-        new Thread(() -> {
-            try {
-                Thread.sleep(duration * 50);
-                removeChronoAttributes(player, data);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }).start();
+        // chronoEndTime 已在上面设置，延迟任务在 onPlayerTick 中处理
 
         player.sendStatusMessage(new TextComponentString(
                 "§b⚡ 时间加速！你的速度超越了时间！"), false);

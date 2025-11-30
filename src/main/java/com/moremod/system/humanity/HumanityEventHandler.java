@@ -70,13 +70,16 @@ public class HumanityEventHandler {
         // 更新人性值
         HumanitySpectrumSystem.updateHumanity(player);
 
-        // 每秒更新一次MaxHP修改器（基于人性值）
+        // 每秒更新一次MaxHP修改器（包括破碎之神的血量锁定）
         if (player.ticksExisted % 20 == 0) {
             HumanityEffectsManager.updateMaxHP(player);
         }
 
-        // 应用异常场效果
+        // 应用异常场效果 (低人性)
         HumanitySpectrumSystem.applyAnomalyFieldEffect(player);
+
+        // 应用治愈光环效果 (高人性 80%+)
+        HumanitySpectrumSystem.applyHealingAuraEffect(player);
 
         // 同步系统
         if (player instanceof EntityPlayerMP) {
@@ -315,7 +318,7 @@ public class HumanityEventHandler {
 
         float humanity = HumanitySpectrumSystem.getHumanity(player);
 
-        // 极低人性：无痛麻木 - 伤害优先命中要害
+        // 极低人性(<10)：无痛麻木 - 伤害优先命中要害
         if (humanity < 10f && HumanityConfig.extremeLowHumanityCritChance > 0) {
             // 概率触发无痛麻木效果
             if (player.world.rand.nextFloat() < HumanityConfig.extremeLowHumanityCritChance) {
@@ -326,9 +329,16 @@ public class HumanityEventHandler {
 
     /**
      * 应用无痛麻木效果 - 将四肢伤害转移到头部和躯干
+     * 仅在极低人性(<10%)时生效
      */
     @Optional.Method(modid = "firstaid")
     private static void applyPainlessNumbnessEffect(FirstAidLivingDamageEvent event, EntityPlayer player) {
+        // 双重检查：确保只在低人性时执行
+        float humanity = HumanitySpectrumSystem.getHumanity(player);
+        if (humanity >= 10f) {
+            return; // 安全检查：高人性不应执行此效果
+        }
+
         AbstractPlayerDamageModel beforeDamage = event.getBeforeDamage();
         AbstractPlayerDamageModel afterDamage = event.getAfterDamage();
 

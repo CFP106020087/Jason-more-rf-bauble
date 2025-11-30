@@ -164,7 +164,7 @@ public class SmartRejectionGuide extends Gui {
                 "§d✦ 人性值系统已激活", 300, 10,
                 "§7你已完成人机融合，进入人性值阶段",
                 String.format("§7当前人性值: §f%.0f%%", humanity),
-                "§b高人性(>60%): §7猎人协议，精准打击",
+                "§b高人性(>60%): §7研究协议，精准打击",
                 "§5低人性(<40%): §7异常协议，存在扭曲",
                 "§e灰域(40-60%): §7不稳定，量子叠加"
         ), true);
@@ -196,20 +196,21 @@ public class SmartRejectionGuide extends Gui {
         if (humanity >= 80 && !shownMilestones.contains("hum80")) {
             shownMilestones.add("hum80");
             showGuide(new GuideInfo(
-                    "§a◈ 高度人性", 180, 5,
+                    "§a◈ 高度人性", 200, 5,
                     String.format("§7人性值: §a%.0f%%", humanity),
-                    "§a效果: §7猎人协议全面激活",
-                    "§a效果: §7生物档案槽位最大化",
-                    "§7保持人类行为维持人性"
+                    "§a治愈光环: §73格内友方每3秒+1心",
+                    "§a研究协议: §7伤害/掉落大幅加成",
+                    "§a信任折扣: §7NPC价格-30%"
             ), false);
         }
         else if (humanity >= 60 && humanity < 80 && !shownMilestones.contains("hum60")) {
             shownMilestones.add("hum60");
             showGuide(new GuideInfo(
-                    "§b◈ 稳定人性", 160, 4,
+                    "§b◈ 稳定人性", 180, 4,
                     String.format("§7人性值: §b%.0f%%", humanity),
-                    "§b效果: §7猎人协议可用",
-                    "§7可使用生物档案系统"
+                    "§b研究协议: §7伤害+15%/30%/50%",
+                    "§b掉落加成: §7已分析生物+20%/50%/100%",
+                    "§7可使用链结站"
             ), false);
         }
         // 灰域警告
@@ -218,30 +219,43 @@ public class SmartRejectionGuide extends Gui {
             showGuide(new GuideInfo(
                     "§e⚡ 进入灰域", 200, 6,
                     String.format("§7人性值: §e%.0f%%", humanity),
-                    "§e警告: §7存在状态不稳定",
-                    "§e效果: §7量子叠加可能触发",
-                    "§e效果: §7致命伤害时可能坍缩"
+                    "§e警告: §7量子叠加状态不稳定",
+                    "§e限制: §7链结站需要60%+人性值",
+                    "§e交易: §7NPC开始怀疑你 (+50%价格)"
             ), false);
         }
         // 低人性里程碑
         else if (humanity >= 25 && humanity < 40 && !shownMilestones.contains("hum25")) {
             shownMilestones.add("hum25");
             showGuide(new GuideInfo(
-                    "§5◈ 低人性状态", 200, 6,
+                    "§5◈ 低人性状态", 220, 6,
                     String.format("§7人性值: §5%.0f%%", humanity),
-                    "§5效果: §7异常协议激活",
-                    "§5效果: §7异常场开始影响周围",
-                    "§c警告: §7治疗效果降低"
+                    "§5增益: §7异常协议 +20%伤害",
+                    "§5增益: §7异常场减速周围敌人",
+                    "§c惩罚: §7最大生命-15% | 治疗-50%",
+                    "§c交易: §7NPC拒绝与你交易"
             ), false);
         }
         else if (humanity >= 10 && humanity < 25 && !shownMilestones.contains("hum10")) {
             shownMilestones.add("hum10");
             showGuide(new GuideInfo(
-                    "§4⚠ 极低人性", 200, 7,
+                    "§4⚠ 极低人性", 220, 7,
                     String.format("§7人性值: §4%.0f%%", humanity),
-                    "§4效果: §7异常协议强化",
-                    "§4效果: §7畸变脉冲可能触发",
+                    "§4增益: §7异常协议 +40%伤害",
+                    "§4增益: §7异常场附加凋零效果",
+                    "§c惩罚: §7最大生命-30% | NPC无视你",
                     "§c危险: §7接近存在崩解边缘"
+            ), true);
+        }
+        else if (humanity > 5 && humanity < 10 && !shownMilestones.contains("hum5")) {
+            shownMilestones.add("hum5");
+            showGuide(new GuideInfo(
+                    "§4⚠ 临界人性", 240, 8,
+                    String.format("§7人性值: §4%.1f%%", humanity),
+                    "§4增益: §7异常协议 +60%伤害",
+                    "§4增益: §7畸变脉冲(受击AOE反伤)",
+                    "§c惩罚: §7最大生命-50%",
+                    "§c无痛麻木: §7伤害优先命中头/躯干"
             ), true);
         }
         else if (humanity <= 5 && !shownMilestones.contains("humCritical")) {
@@ -629,7 +643,7 @@ public class SmartRejectionGuide extends Gui {
         String title;
         int titleColor;
         if (humanity >= 60) {
-            title = "§b✦ 人性值系统 - 猎人协议";
+            title = "§b✦ 人性值系统 - 研究协议";
             titleColor = 0x55FFFF;
         } else if (humanity >= 40) {
             title = "§e⚡ 人性值系统 - 灰域状态";
@@ -856,7 +870,7 @@ public class SmartRejectionGuide extends Gui {
                 "§8【代价】", 0x888888, new String[] {
             "§8• §7药水完全无效",
             "§8• §7无法使用链结站",
-            "§8• §7猎人协议失效",
+            "§8• §7研究协议失效",
             "§8• §7NPC完全无视你"
         });
 
@@ -891,8 +905,8 @@ public class SmartRejectionGuide extends Gui {
 
     // 获取人性值区间文本
     private static String getHumanityZoneText(float humanity) {
-        if (humanity >= 80) return "§a区间: 高度人性 (猎人协议完全激活)";
-        if (humanity >= 60) return "§b区间: 稳定人性 (猎人协议可用)";
+        if (humanity >= 80) return "§a区间: 高度人性 (研究协议完全激活)";
+        if (humanity >= 60) return "§b区间: 稳定人性 (研究协议可用)";
         if (humanity >= 40) return "§e区间: 灰域 (量子叠加不稳定)";
         if (humanity >= 25) return "§5区间: 低人性 (异常协议激活)";
         if (humanity >= 10) return "§4区间: 极低人性 (异常协议强化)";
@@ -904,31 +918,48 @@ public class SmartRejectionGuide extends Gui {
         List<String> effects = new ArrayList<>();
 
         if (humanity >= 60) {
-            // 高人性效果
-            effects.add("§a• 猎人协议: 已分析生物伤害+");
+            // 高人性效果 - 研究协议
+            effects.add("§a• 研究协议伤害: +15%/30%/50%");
+            effects.add("§a• 掉落加成: +20%/50%/100%");
+            effects.add("§7  (样本+生物掉落物)");
             int slots = (int)(humanity / 10f);
             effects.add("§a• 生物档案槽位: " + slots);
             if (humanity >= 80) {
-                effects.add("§a• 未知敌人惩罚: 最小化");
+                effects.add("§a• 治愈光环: 3格内友方+1心/3秒");
+                effects.add("§a• NPC信任: -30%价格");
+                effects.add("§a• 精通暴击: +20%");
             }
         } else if (humanity >= 40) {
             // 灰域效果
-            effects.add("§e• 量子叠加: 致命伤害时可能坍缩");
-            effects.add("§e• 协议混合: 部分猎人+部分异常");
-            effects.add("§7• 异常场: 间歇激活");
+            effects.add("§e• 量子叠加: 致命伤害可能坍缩");
+            effects.add("§e• 异常场: 间歇激活");
+            effects.add("§c─────限制─────");
+            effects.add("§c• 链结站: 需要60%+人性值");
+            effects.add("§c• NPC交易: +50%价格");
+            effects.add("§c• 样本掉落: 减半");
         } else {
-            // 低人性效果
+            // 低人性效果 - 增益
             float anomalyBonus = humanity <= 10 ? 60 : (humanity <= 25 ? 40 : 20);
-            effects.add("§5• 异常伤害加成: +" + (int)anomalyBonus + "%");
+            effects.add("§5• 异常伤害: +" + (int)anomalyBonus + "%");
             float radius = (50f - humanity) / 10f;
-            effects.add("§5• 异常场半径: " + String.format("%.1f", radius) + "格");
+            effects.add("§5• 异常场: " + String.format("%.1f", radius) + "格减速");
             if (humanity <= 25) {
                 effects.add("§5• 凋零光环: 激活");
             }
             if (humanity <= 10) {
-                effects.add("§4• 畸变脉冲: 可能触发");
+                effects.add("§4• 畸变脉冲: 受击时AOE反伤");
+                effects.add("§4• 无痛麻木: 伤害命中要害");
             }
-            effects.add("§c• 治疗效果: 降低");
+            // 低人性效果 - 惩罚
+            effects.add("§c─────惩罚─────");
+            int hpReduction = humanity < 10 ? 50 : (humanity < 25 ? 30 : 15);
+            effects.add("§c• 最大生命: -" + hpReduction + "%");
+            effects.add("§c• 治疗效果: -50%");
+            if (humanity < 25) {
+                effects.add("§c• NPC: 完全无视你");
+            } else {
+                effects.add("§c• NPC: 拒绝交易");
+            }
         }
 
         if (effects.isEmpty()) {

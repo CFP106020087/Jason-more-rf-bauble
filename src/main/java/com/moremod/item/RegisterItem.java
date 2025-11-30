@@ -10,7 +10,9 @@ import com.moremod.item.broken.ItemBrokenArm;
 import com.moremod.item.broken.ItemBrokenShackles;
 import com.moremod.item.broken.ItemBrokenProjection;
 import com.moremod.item.broken.ItemBrokenTerminus;
+import com.moremod.item.shambhala.*;
 import com.moremod.system.ascension.BrokenGodItems;
+import com.moremod.system.ascension.ShambhalaItems;
 
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.item.Item;
@@ -195,6 +197,14 @@ public class RegisterItem {
     public static Item BROKEN_PROJECTION;
     public static Item BROKEN_TERMINUS;
 
+    // 香巴拉终局饰品
+    public static Item SHAMBHALA_CORE;
+    public static Item SHAMBHALA_BASTION;
+    public static Item SHAMBHALA_THORNS;
+    public static Item SHAMBHALA_PURIFY;
+    public static Item SHAMBHALA_VEIL;
+    public static Item SHAMBHALA_SANCTUARY;
+
     // 战斗类升级
     public static Item DAMAGE_BOOST_LV1;
     public static Item DAMAGE_BOOST_LV2;
@@ -316,6 +326,21 @@ public class RegisterItem {
         BrokenGodItems.BROKEN_SHACKLES = (ItemBrokenShackles) BROKEN_SHACKLES;
         BrokenGodItems.BROKEN_PROJECTION = (ItemBrokenProjection) BROKEN_PROJECTION;
         BrokenGodItems.BROKEN_TERMINUS = (ItemBrokenTerminus) BROKEN_TERMINUS;
+
+        // 香巴拉终局饰品
+        SHAMBHALA_CORE = newSafe(ItemShambhalaCore::new, "shambhala_core");
+        SHAMBHALA_BASTION = newSafe(ItemShambhalaBastion::new, "shambhala_bastion");
+        SHAMBHALA_THORNS = newSafe(ItemShambhalaThorns::new, "shambhala_thorns");
+        SHAMBHALA_PURIFY = newSafe(ItemShambhalaPurify::new, "shambhala_purify");
+        SHAMBHALA_VEIL = newSafe(ItemShambhalaVeil::new, "shambhala_veil");
+        SHAMBHALA_SANCTUARY = newSafe(ItemShambhalaSanctuary::new, "shambhala_sanctuary");
+        // 同步到 ShambhalaItems
+        ShambhalaItems.SHAMBHALA_CORE = (ItemShambhalaCore) SHAMBHALA_CORE;
+        ShambhalaItems.SHAMBHALA_BASTION = (ItemShambhalaBastion) SHAMBHALA_BASTION;
+        ShambhalaItems.SHAMBHALA_THORNS = (ItemShambhalaThorns) SHAMBHALA_THORNS;
+        ShambhalaItems.SHAMBHALA_PURIFY = (ItemShambhalaPurify) SHAMBHALA_PURIFY;
+        ShambhalaItems.SHAMBHALA_VEIL = (ItemShambhalaVeil) SHAMBHALA_VEIL;
+        ShambhalaItems.SHAMBHALA_SANCTUARY = (ItemShambhalaSanctuary) SHAMBHALA_SANCTUARY;
 
         // SimpleDifficulty（按需）
         initSimpleDifficultyItems();
@@ -468,7 +493,8 @@ public class RegisterItem {
                 ANTIKYTHERA_GEAR, TOGGLE_RENDER,DIMENSIONALRIPPER,DIMENSIONALANCOR,SPACETIME_SHARD,ANCHORKEY,
                 ENCHANT_RING_T1,ENCHANT_RING_T2,ENCHANT_RING_T3,ENCHANT_RING_ULTIMATE,TIME_BLOCK,LIGHTING_BOLT,
                 SAGEBOOK,HOLY_WATER,
-                BROKEN_HAND, BROKEN_HEART, BROKEN_ARM, BROKEN_SHACKLES, BROKEN_PROJECTION, BROKEN_TERMINUS
+                BROKEN_HAND, BROKEN_HEART, BROKEN_ARM, BROKEN_SHACKLES, BROKEN_PROJECTION, BROKEN_TERMINUS,
+                SHAMBHALA_CORE, SHAMBHALA_BASTION, SHAMBHALA_THORNS, SHAMBHALA_PURIFY, SHAMBHALA_VEIL, SHAMBHALA_SANCTUARY
         );
         if (SIMPLE_DIFFICULTY_LOADED) {
             addIfNotNull(itemsToRegister, TEMPERATURE_REGULATOR, THIRST_PROCESSOR);

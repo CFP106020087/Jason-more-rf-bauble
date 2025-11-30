@@ -4,7 +4,9 @@ package com.moremod.system.humanity;
  * 升格路线枚举
  * Ascension Route Enum
  *
- * 当前只有破碎之神路线，高人性路线待实现
+ * 两条对偶路线：
+ * - 破碎之神 (Broken God) - 绝对的矛，人性归零，全攻无守
+ * - 香巴拉 (Shambhala) - 绝对的盾，人性圆满，全守无攻
  */
 public enum AscensionRoute {
     /** 未升格 */
@@ -19,7 +21,19 @@ public enum AscensionRoute {
      * - 存在干扰
      * - 失去与人类世界的交互能力
      */
-    BROKEN_GOD("broken_god", "破碎之神", "Broken God");
+    BROKEN_GOD("broken_god", "破碎之神", "Broken God"),
+
+    /**
+     * 香巴拉 - 永恒�的轮圣化身
+     * Avatar of Eternal Gearwork Shambhala
+     * 人性圆满的机械升格
+     * - 绝对防御
+     * - 高倍率反伤
+     * - 免疫负面效果
+     * - 代价：伤害削弱，防御机制消耗大量能量
+     * - 只要有能量就不会倒下
+     */
+    SHAMBHALA("shambhala", "香巴拉", "Shambhala");
 
     private final String id;
     private final String displayNameCN;
@@ -65,12 +79,10 @@ public enum AscensionRoute {
     }
 
     /**
-     * 检查是否是高人性路线（待实现）
-     * @deprecated 高人性升格路线尚未实现
+     * 检查是否是香巴拉路线
      */
-    @Deprecated
-    public boolean isMekhane() {
-        return false;
+    public boolean isShambhala() {
+        return this == SHAMBHALA;
     }
 
     /**

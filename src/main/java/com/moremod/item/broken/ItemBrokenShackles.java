@@ -49,6 +49,14 @@ public class ItemBrokenShackles extends ItemBrokenBaubleBase {
     // 追踪已经被冻结的实体
     private static final Map<Integer, Long> frozenEntities = new HashMap<>();
 
+    /**
+     * 清理所有静态状态（防止跨存档污染）
+     * 在世界卸载时调用
+     */
+    public static void clearAllState() {
+        frozenEntities.clear();
+    }
+
     public ItemBrokenShackles() {
         setRegistryName("broken_shackles");
         setTranslationKey("broken_shackles");
