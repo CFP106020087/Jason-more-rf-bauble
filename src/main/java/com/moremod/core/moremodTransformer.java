@@ -978,6 +978,9 @@ public class moremodTransformer implements IClassTransformer {
                 inject.add(new InsnNode(Opcodes.IRETURN));
                 inject.add(continueLabel);
 
+                // 香巴拉检查（香巴拉不在攻击阶段拦截，但保留钩子以备将来使用）
+                // ShambhalaDeathHook.shouldCancelAttack always returns false
+
                 mn.instructions.insert(inject);
                 modified = true;
                 System.out.println("[moremodTransformer]     + Injected shutdown check at attackEntityFrom HEAD");
@@ -1010,9 +1013,27 @@ public class moremodTransformer implements IClassTransformer {
                 inject.add(new InsnNode(Opcodes.RETURN));  // void return
                 inject.add(continueLabel);
 
+                // ========== 香巴拉致命伤害检测 ==========
+                LabelNode shambhalaContinue = new LabelNode();
+                // if (ShambhalaDeathHook.checkAndAbsorbDamage(this, source, damage)) return;
+                inject.add(new VarInsnNode(Opcodes.ALOAD, 0));  // this
+                inject.add(new VarInsnNode(Opcodes.ALOAD, 1));  // source
+                inject.add(new VarInsnNode(Opcodes.FLOAD, 2));  // damage
+                inject.add(new MethodInsnNode(
+                        Opcodes.INVOKESTATIC,
+                        "com/moremod/core/ShambhalaDeathHook",
+                        "checkAndAbsorbDamage",
+                        "(Lnet/minecraft/entity/EntityLivingBase;Lnet/minecraft/util/DamageSource;F)Z",
+                        false
+                ));
+                inject.add(new JumpInsnNode(Opcodes.IFEQ, shambhalaContinue));
+                inject.add(new InsnNode(Opcodes.RETURN));  // void return
+                inject.add(shambhalaContinue);
+
                 mn.instructions.insert(inject);
                 modified = true;
                 System.out.println("[moremodTransformer]     + Injected shutdown trigger check at damageEntity HEAD");
+                System.out.println("[moremodTransformer]     + Injected Shambhala damage absorption at damageEntity HEAD");
             }
 
             // ========== 3. onDeath 注入（最终防线） ==========
@@ -1041,9 +1062,26 @@ public class moremodTransformer implements IClassTransformer {
                 inject.add(new InsnNode(Opcodes.RETURN));
                 inject.add(continueLabel);
 
+                // ========== 香巴拉死亡拦截（最终防线） ==========
+                LabelNode shambhalaContinue = new LabelNode();
+                // if (ShambhalaDeathHook.shouldPreventDeath(this, cause)) return;
+                inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                inject.add(new VarInsnNode(Opcodes.ALOAD, 1));
+                inject.add(new MethodInsnNode(
+                        Opcodes.INVOKESTATIC,
+                        "com/moremod/core/ShambhalaDeathHook",
+                        "shouldPreventDeath",
+                        "(Lnet/minecraft/entity/EntityLivingBase;Lnet/minecraft/util/DamageSource;)Z",
+                        false
+                ));
+                inject.add(new JumpInsnNode(Opcodes.IFEQ, shambhalaContinue));
+                inject.add(new InsnNode(Opcodes.RETURN));
+                inject.add(shambhalaContinue);
+
                 mn.instructions.insert(inject);
                 modified = true;
                 System.out.println("[moremodTransformer]     + Injected death prevention at onDeath HEAD");
+                System.out.println("[moremodTransformer]     + Injected Shambhala death prevention at onDeath HEAD");
             }
         }
 
