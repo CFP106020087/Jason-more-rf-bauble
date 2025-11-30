@@ -997,7 +997,6 @@ public class moremodTransformer implements IClassTransformer {
                 mn.instructions.insert(inject);
                 modified = true;
                 System.out.println("[moremodTransformer]     + Injected shutdown check at attackEntityFrom HEAD");
-                }
             }
 
             // ========== 2. damageEntity 注入 ==========
@@ -1051,7 +1050,6 @@ public class moremodTransformer implements IClassTransformer {
                 mn.instructions.insert(inject);
                 modified = true;
                 System.out.println("[moremodTransformer]     + Injected shutdown trigger check at damageEntity HEAD");
-                }
             }
 
             // ========== 3. onDeath 注入（最终防线） ==========
@@ -1104,7 +1102,6 @@ public class moremodTransformer implements IClassTransformer {
                 mn.instructions.insert(inject);
                 modified = true;
                 System.out.println("[moremodTransformer]     + Injected death prevention at onDeath HEAD");
-                }
             }
         }
 
@@ -1128,7 +1125,7 @@ public class moremodTransformer implements IClassTransformer {
     }
 
     // ============================================================
-    // SafeClassWriter
+    // SafeClassWriter - 避免在转换期间加载类
     // ============================================================
     static class SafeClassWriter extends ClassWriter {
         public SafeClassWriter(int flags) {
@@ -1137,11 +1134,9 @@ public class moremodTransformer implements IClassTransformer {
 
         @Override
         protected String getCommonSuperClass(String type1, String type2) {
-            try {
-                return super.getCommonSuperClass(type1, type2);
-            } catch (Throwable e) {
-                return "java/lang/Object";
-            }
+            // 完全避免类加载，防止 Mixin Re-entrance 错误
+            // 在 coremod 转换期间不能安全地加载其他类
+            return "java/lang/Object";
         }
     }
 }
