@@ -220,28 +220,11 @@ public class ItemBrokenHeart extends ItemBrokenBaubleBase {
     @Override
     @SideOnly(Side.CLIENT)
     public void addInformation(ItemStack stack, @Nullable World worldIn, List<String> tooltip, ITooltipFlag flagIn) {
-        tooltip.add(TextFormatting.DARK_RED + "═══════════════════════════");
         tooltip.add(TextFormatting.RED + "" + TextFormatting.BOLD + "破碎_心核");
-        tooltip.add(TextFormatting.DARK_GRAY + "Broken Heartcore");
-        tooltip.add("");
-        tooltip.add(TextFormatting.GOLD + "◆ 极限生命压缩");
-        tooltip.add(TextFormatting.GRAY + "  最大生命值固定为 " + (int) BrokenGodConfig.heartcoreCompressedHP + " HP");
-        tooltip.add("");
-        tooltip.add(TextFormatting.GREEN + "◆ 完全生命汲取");
-        tooltip.add(TextFormatting.GRAY + "  伤害的 " + (int)(BrokenGodConfig.heartcoreLifestealRatio * 100) + "% 转化为治疗");
-        tooltip.add(TextFormatting.GRAY + "  溢出转吸收之心 (上限 " + (int) BrokenGodConfig.heartcoreMaxAbsorption + " HP)");
-        tooltip.add("");
-        tooltip.add(TextFormatting.RED + "◆ 狂战士");
-        tooltip.add(TextFormatting.GRAY + "  血量越低伤害越高");
-        tooltip.add(TextFormatting.YELLOW + "  最高 ×" + (int) BrokenGodConfig.heartcoreBerserkerMaxMultiplier + " 倍伤害");
-        tooltip.add("");
-        tooltip.add(TextFormatting.AQUA + "◆ 不朽");
-        tooltip.add(TextFormatting.GRAY + "  HP不会低于1");
-        tooltip.add(TextFormatting.GRAY + "  免疫: 凋零/中毒/出血");
-        tooltip.add("");
-        tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"不朽引擎，永不停息\"");
-        tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"越接近死亡，越是强大\"");
-        tooltip.add(TextFormatting.DARK_RED + "═══════════════════════════");
+        tooltip.add(TextFormatting.GOLD + "◆ 生命压缩: " + TextFormatting.GRAY + "最大HP固定 " + (int) TARGET_MAX_HP);
+        tooltip.add(TextFormatting.GREEN + "◆ 吸血: " + TextFormatting.GRAY + (int)(BrokenGodConfig.heartcoreLifestealRatio * 100) + "% 溢出转吸收");
+        tooltip.add(TextFormatting.RED + "◆ 狂战士: " + TextFormatting.GRAY + "低血高伤 最高×" + (int) BrokenGodConfig.heartcoreBerserkerMaxMultiplier);
+        tooltip.add(TextFormatting.AQUA + "◆ 不朽: " + TextFormatting.GRAY + "HP≥1 免疫凋零/中毒");
         tooltip.add(TextFormatting.DARK_RED + "⚠ 无法卸除");
     }
 

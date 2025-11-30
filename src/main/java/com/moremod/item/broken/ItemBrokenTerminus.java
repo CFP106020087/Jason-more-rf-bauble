@@ -99,23 +99,10 @@ public class ItemBrokenTerminus extends ItemBrokenBaubleBase {
     @Override
     @SideOnly(Side.CLIENT)
     public void addInformation(ItemStack stack, @Nullable World worldIn, List<String> tooltip, ITooltipFlag flagIn) {
-        tooltip.add(TextFormatting.DARK_RED + "═══════════════════════════");
         tooltip.add(TextFormatting.DARK_RED + "" + TextFormatting.BOLD + "破碎_终结");
-        tooltip.add(TextFormatting.DARK_GRAY + "Broken Terminus");
-        tooltip.add("");
-        tooltip.add(TextFormatting.GOLD + "◆ 伤害倍增");
-        tooltip.add(TextFormatting.YELLOW + "  所有伤害 ×" + (int) BrokenGodConfig.terminusDamageMultiplier);
-        tooltip.add("");
-        tooltip.add(TextFormatting.GREEN + "◆ 死亡收割");
-        tooltip.add(TextFormatting.GRAY + "  击杀敌人回复 " + (int) BrokenGodConfig.terminusKillHeal + " HP");
-        tooltip.add(TextFormatting.GRAY + "  击杀敌人获得 " + (int) BrokenGodConfig.terminusKillAbsorption + " 吸收");
-        tooltip.add("");
-        tooltip.add(TextFormatting.AQUA + "※ 顶点饰品 - 纯增益");
-        tooltip.add("");
-        tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"终焉之力，毁灭与重生\"");
-        tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"每一次杀戮都让自己更强\"");
-        tooltip.add(TextFormatting.DARK_RED + "═══════════════════════════");
-        tooltip.add(TextFormatting.DARK_RED + "⚠ 破碎系列顶点饰品");
+        tooltip.add(TextFormatting.GOLD + "◆ 伤害: " + TextFormatting.YELLOW + "×" + (int) BrokenGodConfig.terminusDamageMultiplier);
+        tooltip.add(TextFormatting.GREEN + "◆ 收割: " + TextFormatting.GRAY + "击杀+" + (int) BrokenGodConfig.terminusKillHeal + "HP +" + (int) BrokenGodConfig.terminusKillAbsorption + "吸收");
+        tooltip.add(TextFormatting.AQUA + "※ 顶点饰品");
         tooltip.add(TextFormatting.DARK_RED + "⚠ 无法卸除");
     }
 

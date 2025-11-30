@@ -209,24 +209,10 @@ public class ItemBrokenShackles extends ItemBrokenBaubleBase {
     @Override
     @SideOnly(Side.CLIENT)
     public void addInformation(ItemStack stack, @Nullable World worldIn, List<String> tooltip, ITooltipFlag flagIn) {
-        tooltip.add(TextFormatting.DARK_RED + "═══════════════════════════");
         tooltip.add(TextFormatting.RED + "" + TextFormatting.BOLD + "破碎_枷锁");
-        tooltip.add(TextFormatting.DARK_GRAY + "Broken Shackles");
-        tooltip.add("");
-        tooltip.add(TextFormatting.BLUE + "◆ 时空冻结");
-        tooltip.add(TextFormatting.GRAY + "  " + (int) BrokenGodConfig.shacklesAuraRange + " 格内敌人");
-        tooltip.add(TextFormatting.AQUA + "  移动速度归零");
-        tooltip.add("");
-        tooltip.add(TextFormatting.LIGHT_PURPLE + "◆ 混乱领域");
-        tooltip.add(TextFormatting.GRAY + "  范围内敌人陷入混乱");
-        tooltip.add("");
-        tooltip.add(TextFormatting.YELLOW + "◆ 坚守代价");
-        tooltip.add(TextFormatting.RED + "  自身移速 -" + (int)(BrokenGodConfig.shacklesSelfSlow * 100) + "%");
-        tooltip.add(TextFormatting.GREEN + "  所受伤害 -" + (int)(BrokenGodConfig.shacklesDamageReduction * 100) + "%");
-        tooltip.add("");
-        tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"绝对领域，时空静止\"");
-        tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"在此范围内，一切归于沉寂\"");
-        tooltip.add(TextFormatting.DARK_RED + "═══════════════════════════");
+        tooltip.add(TextFormatting.BLUE + "◆ 冻结: " + TextFormatting.GRAY + (int) BrokenGodConfig.shacklesAuraRange + "格内敌人定身");
+        tooltip.add(TextFormatting.LIGHT_PURPLE + "◆ 混乱: " + TextFormatting.GRAY + "范围敌人陷入混乱");
+        tooltip.add(TextFormatting.YELLOW + "◆ 代价: " + TextFormatting.RED + "-" + (int)(BrokenGodConfig.shacklesSelfSlow * 100) + "%移速 " + TextFormatting.GREEN + "-" + (int)(BrokenGodConfig.shacklesDamageReduction * 100) + "%受伤");
         tooltip.add(TextFormatting.DARK_RED + "⚠ 无法卸除");
     }
 
