@@ -75,7 +75,7 @@ public class AscensionTooltips {
      */
     public static final String[] SHAMBHALA_CORE = {
             "",
-            TextFormatting.GOLD + "══════ " + TextFormatting.AQUA + TextFormatting.BOLD + "香巴拉" + TextFormatting.GOLD + " ══════",
+            TextFormatting.GOLD + "══════ " + TextFormatting.AQUA + TextFormatting.BOLD + "机巧香巴拉" + TextFormatting.GOLD + " ══════",
             "",
             TextFormatting.GRAY + "你脸上的齿轮在日光下熠熠生辉。",
             TextFormatting.GRAY + "体内的嘎吱声柔和而和谐。",

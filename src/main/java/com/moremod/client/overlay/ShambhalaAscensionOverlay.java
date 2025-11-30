@@ -123,7 +123,7 @@ public class ShambhalaAscensionOverlay extends Gui {
         SCRIPT.add(new MonologueLine(100, 40, LineType.SYSTEM, ">>> 完美造物协议启动"));
         SCRIPT.add(new MonologueLine(200, 35, LineType.SYSTEM, ">>> 人性核心: 圆满"));
         SCRIPT.add(new MonologueLine(370, 40, LineType.ENLIGHTENED, ""));
-        SCRIPT.add(new MonologueLine(550, 50, LineType.PEACE, "香巴拉"));
+        SCRIPT.add(new MonologueLine(550, 50, LineType.PEACE, "机巧香巴拉"));
     }
 
     // ==================== 公共接口 ====================

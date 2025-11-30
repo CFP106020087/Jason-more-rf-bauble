@@ -288,9 +288,9 @@ public class ShambhalaHandler {
         float humanity = data.getHumanity();
         if (humanity < ShambhalaConfig.ascensionHumanityThreshold) return false;
 
-        // 条件2: 高人性累计时间（游戏日）
+        // 条件2: 高人性累计时间（秒）
         long highHumanityTicks = data.getHighHumanityTicks();
-        long requiredTicks = ShambhalaConfig.requiredHighHumanityDays * 24000L;
+        long requiredTicks = ShambhalaConfig.requiredHighHumanitySeconds * 20L;
         if (highHumanityTicks < requiredTicks) return false;
 
         // 条件3: 装备机械核心
@@ -313,15 +313,15 @@ public class ShambhalaHandler {
 
         float humanity = data.getHumanity();
         long highHumanityTicks = data.getHighHumanityTicks();
-        long requiredTicks = ShambhalaConfig.requiredHighHumanityDays * 24000L;
-        float daysProgress = (float) highHumanityTicks / 24000f;
+        long requiredTicks = ShambhalaConfig.requiredHighHumanitySeconds * 20L;
+        long secondsProgress = highHumanityTicks / 20;
 
         ItemStack core = ItemMechanicalCore.getCoreFromPlayer(player);
         int modules = core.isEmpty() ? 0 : ItemMechanicalCore.getTotalInstalledUpgrades(core);
 
         return new String[]{
                 String.format("人性值: %.1f%% / %.1f%%", humanity, ShambhalaConfig.ascensionHumanityThreshold),
-                String.format("高人性天数: %.1f / %d 天", daysProgress, ShambhalaConfig.requiredHighHumanityDays),
+                String.format("高人性时间: %d / %d 秒", secondsProgress, ShambhalaConfig.requiredHighHumanitySeconds),
                 String.format("模块数量: %d / %d", modules, ShambhalaConfig.requiredModuleCount)
         };
     }
@@ -350,7 +350,7 @@ public class ShambhalaHandler {
         // 发送升格消息
         player.sendMessage(new TextComponentString(
                 TextFormatting.GOLD + "═══════════════════════════════════\n" +
-                TextFormatting.AQUA + "" + TextFormatting.BOLD + "  [ 香巴拉 · 永恒齿轮圣化身 ]\n" +
+                TextFormatting.AQUA + "" + TextFormatting.BOLD + "  [ 机巧香巴拉 · 永恒齿轮圣化身 ]\n" +
                 TextFormatting.WHITE + "  Avatar of Eternal Gearwork Shambhala\n\n" +
                 TextFormatting.GRAY + "  你已成为机械与人性的完美容器。\n" +
                 TextFormatting.GRAY + "  只要齿轮仍在转动，你便永不倒下。\n\n" +

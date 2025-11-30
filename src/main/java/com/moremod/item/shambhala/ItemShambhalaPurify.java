@@ -7,12 +7,15 @@ import com.moremod.system.ascension.ShambhalaHandler;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.MobEffects;
 import net.minecraft.item.ItemStack;
 import net.minecraft.potion.Potion;
 import net.minecraft.potion.PotionEffect;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
+import net.minecraftforge.event.entity.living.PotionEvent;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.common.eventhandler.Event;
+import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
@@ -22,12 +25,14 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * 香巴拉_净化 (Shambhala Purify) - 免疫与净化
+ * 香巴拉_净化 (Shambhala Purify) - 被动免疫负面效果
  *
  * 能力：
- * - 自动清除负面效果
- * - 免疫凋零和中毒
+ * - 被动免疫所有负面效果（包括模组效果）
+ * - 每秒消耗能量维持免疫
+ * - 能量不足时失去免疫
  */
+@Mod.EventBusSubscriber(modid = "moremod")
 public class ItemShambhalaPurify extends ItemShambhalaBaubleBase {
 
     public ItemShambhalaPurify() {
@@ -56,43 +61,66 @@ public class ItemShambhalaPurify extends ItemShambhalaBaubleBase {
         if (player.world.isRemote) return;
         if (!ShambhalaHandler.isShambhala(player)) return;
 
-        // 定期清除负面效果
-        if (entity.ticksExisted % ShambhalaConfig.purifyCleanseInterval == 0) {
-            cleanseBadEffects(player);
+        // 每秒消耗能量（每20tick = 1秒）
+        if (entity.ticksExisted % 20 == 0) {
+            // 尝试消耗能量
+            if (ShambhalaHandler.consumeEnergy(player, ShambhalaConfig.purifyEnergyPerSecond)) {
+                // 成功消耗能量，清除所有现有的负面效果
+                removeAllBadEffects(player);
+            }
         }
     }
 
-    private void cleanseBadEffects(EntityPlayer player) {
+    /**
+     * 清除所有负面效果
+     */
+    private void removeAllBadEffects(EntityPlayer player) {
         Collection<PotionEffect> effects = new ArrayList<>(player.getActivePotionEffects());
 
         for (PotionEffect effect : effects) {
             Potion potion = effect.getPotion();
 
-            // 免疫凋零
-            if (ShambhalaConfig.purifyWitherImmune && potion == MobEffects.WITHER) {
-                player.removeActivePotionEffect(potion);
-                consumeCleanseEnergy(player);
-                continue;
-            }
-
-            // 免疫中毒
-            if (ShambhalaConfig.purifyPoisonImmune && potion == MobEffects.POISON) {
-                player.removeActivePotionEffect(potion);
-                consumeCleanseEnergy(player);
-                continue;
-            }
-
-            // 清除其他负面效果
+            // 检查是否是负面效果
             if (potion.isBadEffect()) {
-                if (ShambhalaHandler.consumeEnergy(player, ShambhalaConfig.energyPerCleanse)) {
-                    player.removeActivePotionEffect(potion);
-                }
+                player.removeActivePotionEffect(potion);
             }
         }
     }
 
-    private void consumeCleanseEnergy(EntityPlayer player) {
-        ShambhalaHandler.consumeEnergy(player, ShambhalaConfig.energyPerCleanse / 2);
+    /**
+     * 检查玩家是否有足够能量维持免疫
+     */
+    public static boolean hasImmunityEnergy(EntityPlayer player) {
+        if (!ShambhalaHandler.isShambhala(player)) return false;
+        return ShambhalaHandler.hasEnergy(player, ShambhalaConfig.purifyEnergyPerSecond);
+    }
+
+    /**
+     * 阻止负面效果被施加 - 事件处理
+     */
+    @SubscribeEvent
+    public static void onPotionApplicable(PotionEvent.PotionApplicableEvent event) {
+        if (!(event.getEntityLiving() instanceof EntityPlayer)) return;
+        EntityPlayer player = (EntityPlayer) event.getEntityLiving();
+
+        // 服务端检查
+        if (player.world.isRemote) return;
+
+        // 检查是否是机巧香巴拉
+        if (!ShambhalaHandler.isShambhala(player)) return;
+
+        // 检查药水是否是负面效果
+        PotionEffect effect = event.getPotionEffect();
+        if (effect == null) return;
+
+        Potion potion = effect.getPotion();
+        if (!potion.isBadEffect()) return;
+
+        // 检查是否有足够能量
+        if (hasImmunityEnergy(player)) {
+            // 阻止负面效果被施加
+            event.setResult(Event.Result.DENY);
+        }
     }
 
     @Override
@@ -100,19 +128,16 @@ public class ItemShambhalaPurify extends ItemShambhalaBaubleBase {
     public void addInformation(ItemStack stack, @Nullable World worldIn, List<String> tooltip, ITooltipFlag flagIn) {
         tooltip.add(TextFormatting.GOLD + "═══════════════════════════");
         tooltip.add(TextFormatting.AQUA + "" + TextFormatting.BOLD + "香巴拉_净化");
-        tooltip.add(TextFormatting.DARK_GRAY + "Shambhala Purify - Cleansing Light");
+        tooltip.add(TextFormatting.DARK_GRAY + "Shambhala Purify - Absolute Immunity");
         tooltip.add("");
-        tooltip.add(TextFormatting.GREEN + "◆ 净化之力");
-        tooltip.add(TextFormatting.GRAY + "  每 " + (ShambhalaConfig.purifyCleanseInterval / 20f) + " 秒自动清除负面效果");
-        if (ShambhalaConfig.purifyWitherImmune) {
-            tooltip.add(TextFormatting.DARK_PURPLE + "  免疫凋零");
+        tooltip.add(TextFormatting.GREEN + "◆ 绝对净化");
+        tooltip.add(TextFormatting.GRAY + "  被动免疫所有负面效果");
+        if (ShambhalaConfig.purifyImmuneAll) {
+            tooltip.add(TextFormatting.DARK_AQUA + "  包括模组添加的负面效果");
         }
-        if (ShambhalaConfig.purifyPoisonImmune) {
-            tooltip.add(TextFormatting.DARK_GREEN + "  免疫中毒");
-        }
-        tooltip.add(TextFormatting.YELLOW + "  消耗能量: " + ShambhalaConfig.energyPerCleanse + " RF/效果");
+        tooltip.add(TextFormatting.YELLOW + "  能量消耗: " + ShambhalaConfig.purifyEnergyPerSecond + " RF/秒");
         tooltip.add("");
-        tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"不洁之物，远离此躯\"");
+        tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"与世独立，不受侵扰\"");
         tooltip.add(TextFormatting.GOLD + "═══════════════════════════");
         tooltip.add(TextFormatting.RED + "⚠ 无法卸除");
     }
