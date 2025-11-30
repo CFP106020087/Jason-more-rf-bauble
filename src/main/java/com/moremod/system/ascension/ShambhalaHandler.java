@@ -342,9 +342,9 @@ public class ShambhalaHandler {
         // 固定人性值为 100
         data.setHumanity(100);
 
-        // 发送升格动画包到客户端
+        // 发送升格动画包到客户端（使用香巴拉专属动画）
         if (player instanceof EntityPlayerMP) {
-            PacketHandler.INSTANCE.sendTo(new PacketAscensionAnimation(), (EntityPlayerMP) player);
+            PacketHandler.INSTANCE.sendTo(PacketAscensionAnimation.shambhala(), (EntityPlayerMP) player);
         }
 
         // 发送升格消息
