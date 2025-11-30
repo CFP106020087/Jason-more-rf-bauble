@@ -32,7 +32,7 @@ import org.apache.logging.log4j.Logger;
  *
  * 处理所有香巴拉相关的游戏事件：
  * - 能量护盾（伤害吸收）
- * - 反伤
+ * - 反伤（AoE + 循环防护）
  * - 死亡拦截
  * - 伤害输出削弱
  * - 高人性时间累计
@@ -69,14 +69,19 @@ public class ShambhalaEventHandler {
             data.setHumanity(100);
         }
 
-        // 血量锁定检查
-        ShambhalaHandler.tryLockHealth(player);
+        // 血量锁定由 First Aid 兼容层处理 (ShambhalaFirstAidCompat)
+        // 原版 MC 的死亡由 onLivingDeath 处理
     }
 
     // ========== 伤害处理（防御核心） ==========
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onLivingHurt(LivingHurtEvent event) {
+        // 跳过香巴拉反伤造成的伤害（防止循环）
+        if (ShambhalaHandler.isShambhalaReflectDamage(event.getSource())) {
+            return;
+        }
+
         // 香巴拉受伤：能量护盾吸收
         if (event.getEntityLiving() instanceof EntityPlayer) {
             EntityPlayer player = (EntityPlayer) event.getEntityLiving();
@@ -94,9 +99,10 @@ public class ShambhalaEventHandler {
 
                 event.setAmount(remainingDamage);
 
-                // 触发反伤
+                // 触发反伤（传递DamageSource进行循环检测）
                 if (event.getSource().getTrueSource() != null) {
-                    ShambhalaHandler.reflectDamage(player, event.getSource().getTrueSource(), originalDamage);
+                    ShambhalaHandler.reflectDamage(player, event.getSource().getTrueSource(),
+                            originalDamage, event.getSource());
                 }
             }
         }
@@ -106,13 +112,16 @@ public class ShambhalaEventHandler {
             EntityPlayer attacker = (EntityPlayer) event.getSource().getTrueSource();
 
             if (ShambhalaHandler.isShambhala(attacker)) {
-                float reduction = (float) ShambhalaConfig.damageOutputReduction;
-                event.setAmount(event.getAmount() * (1 - reduction));
+                // 跳过反伤伤害的削弱
+                if (!ShambhalaHandler.isReflecting(attacker)) {
+                    float reduction = (float) ShambhalaConfig.damageOutputReduction;
+                    event.setAmount(event.getAmount() * (1 - reduction));
+                }
             }
         }
     }
 
-    // ========== 死亡拦截 ==========
+    // ========== 死亡拦截（原版MC后备） ==========
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onLivingDeath(LivingDeathEvent event) {
@@ -121,7 +130,7 @@ public class ShambhalaEventHandler {
         EntityPlayer player = (EntityPlayer) event.getEntityLiving();
 
         if (ShambhalaHandler.isShambhala(player)) {
-            // 检查是否有能量
+            // 检查是否有能量（这是原版MC的后备，First Aid由专门的兼容层处理）
             if (ShambhalaHandler.getCurrentEnergy(player) > 0) {
                 // 拦截死亡
                 event.setCanceled(true);
@@ -139,35 +148,7 @@ public class ShambhalaEventHandler {
 
                 LOGGER.info("[Shambhala] Intercepted death for player {}", player.getName());
             }
-        }
-    }
-
-    // ========== 怪物侦测距离减少 ==========
-
-    @SubscribeEvent
-    public static void onLivingSetAttackTarget(LivingSetAttackTargetEvent event) {
-        if (!(event.getTarget() instanceof EntityPlayer)) return;
-        if (!(event.getEntityLiving() instanceof EntityMob)) return;
-
-        EntityPlayer target = (EntityPlayer) event.getTarget();
-        EntityMob attacker = (EntityMob) event.getEntityLiving();
-
-        if (!ShambhalaHandler.isShambhala(target)) return;
-
-        // 减少侦测距离
-        double normalRange = attacker.getEntityAttribute(
-                net.minecraft.entity.SharedMonsterAttributes.FOLLOW_RANGE).getAttributeValue();
-        double reducedRange = normalRange * (1 - ShambhalaConfig.veilDetectionReduction);
-        double distance = attacker.getDistance(target);
-
-        // 如果超出减少后的范围，取消目标
-        if (distance > reducedRange) {
-            attacker.setAttackTarget(null);
-        }
-
-        // 潜行时完全隐身
-        if (ShambhalaConfig.veilSneakInvisible && target.isSneaking()) {
-            attacker.setAttackTarget(null);
+            // 没有能量 = 真正死亡（这是香巴拉的核心代价）
         }
     }
 
@@ -186,6 +167,7 @@ public class ShambhalaEventHandler {
     @SubscribeEvent
     public static void onPlayerLogout(PlayerLoggedOutEvent event) {
         ShambhalaHandler.cleanupPlayer(event.player.getUniqueID());
+        ItemShambhalaVeil.cleanupPlayer(event.player.getUniqueID());
     }
 
     // ========== 世界卸载（防止跨存档数据污染） ==========
@@ -194,6 +176,7 @@ public class ShambhalaEventHandler {
     public static void onWorldUnload(net.minecraftforge.event.world.WorldEvent.Unload event) {
         if (!event.getWorld().isRemote && event.getWorld().provider.getDimension() == 0) {
             ShambhalaHandler.clearAllState();
+            ItemShambhalaVeil.clearAllState();
             LOGGER.info("[Shambhala] Cleared all static state on world unload");
         }
     }

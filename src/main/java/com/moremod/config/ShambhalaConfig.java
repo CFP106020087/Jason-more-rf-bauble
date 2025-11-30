@@ -147,19 +147,27 @@ public class ShambhalaConfig {
     // ============================================================
 
     @Config.Comment({
-            "反伤倍率",
-            "Damage reflection multiplier"
+            "反伤倍率（香巴拉攻击力下降，所以反伤倍率较高）",
+            "Damage reflection multiplier (higher due to reduced attack)"
     })
     @Config.Name("棘刺:反伤倍率 | Thorns: Reflect Multiplier")
-    @Config.RangeDouble(min = 1.0, max = 10.0)
-    public static double thornsReflectMultiplier = 3.0;
+    @Config.RangeDouble(min = 1.0, max = 20.0)
+    public static double thornsReflectMultiplier = 5.0;
 
     @Config.Comment({
-            "反伤是否为真实伤害",
-            "Whether reflected damage is true damage"
+            "反伤是否为真实伤害（使用包装后的setHealth）",
+            "Whether reflected damage is true damage (wrapped setHealth)"
     })
     @Config.Name("棘刺:真实伤害 | Thorns: True Damage")
     public static boolean thornsTrueDamage = true;
+
+    @Config.Comment({
+            "范围反伤半径（0=仅攻击者，>0=以攻击者为中心的范围）",
+            "AoE reflect radius (0=attacker only, >0=radius around attacker)"
+    })
+    @Config.Name("棘刺:范围半径 | Thorns: AoE Radius")
+    @Config.RangeDouble(min = 0, max = 10)
+    public static double thornsAoeRadius = 3.0;
 
     // ============================================================
     // 香巴拉_净化 (Shambhala Purify) - 免疫与净化
@@ -188,23 +196,32 @@ public class ShambhalaConfig {
     public static boolean purifyPoisonImmune = true;
 
     // ============================================================
-    // 香巴拉_隐匿 (Shambhala Veil) - 反侦察
+    // 香巴拉_宁静 (Shambhala Veil) - 宁静光环 / 仇恨消除
     // ============================================================
 
     @Config.Comment({
-            "怪物侦测距离减少比例",
-            "Mob detection range reduction"
+            "仇恨消除技能的能量消耗",
+            "Energy cost for aggro cancel skill"
     })
-    @Config.Name("隐匿:侦测减少 | Veil: Detection Reduction")
-    @Config.RangeDouble(min = 0.5, max = 1.0)
-    public static double veilDetectionReduction = 0.8;
+    @Config.Name("宁静:技能能耗 | Veil: Skill Energy Cost")
+    @Config.RangeInt(min = 10000, max = 500000)
+    public static int veilSkillEnergyCost = 50000;
 
     @Config.Comment({
-            "是否在潜行时完全隐身",
-            "Invisible to mobs while sneaking"
+            "仇恨消除技能的范围（格）",
+            "Range for aggro cancel skill"
     })
-    @Config.Name("隐匿:潜行隐身 | Veil: Sneak Invisible")
-    public static boolean veilSneakInvisible = true;
+    @Config.Name("宁静:技能范围 | Veil: Skill Range")
+    @Config.RangeDouble(min = 5, max = 50)
+    public static double veilSkillRange = 16.0;
+
+    @Config.Comment({
+            "仇恨消除技能的冷却时间（tick）",
+            "Cooldown for aggro cancel skill in ticks"
+    })
+    @Config.Name("宁静:技能冷却 | Veil: Skill Cooldown")
+    @Config.RangeInt(min = 20, max = 1200)
+    public static int veilSkillCooldown = 200;
 
     // ============================================================
     // 香巴拉_圣域 (Shambhala Sanctuary) - 终极防线

@@ -69,8 +69,7 @@ public class ItemShambhalaCore extends ItemShambhalaBaubleBase {
             applyHealthBonus(player);
         }
 
-        // 血量锁定
-        ShambhalaHandler.tryLockHealth(player);
+        // 血量锁定由 ShambhalaFirstAidCompat 和 ShambhalaEventHandler.onLivingDeath 处理
     }
 
     private void applyHealthBonus(EntityPlayer player) {

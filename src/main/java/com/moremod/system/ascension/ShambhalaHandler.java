@@ -46,6 +46,12 @@ public class ShambhalaHandler {
     /** 能量护盾冷却（防止无限触发） */
     private static final Map<UUID, Integer> shieldCooldowns = new HashMap<>();
 
+    /** 反伤循环防护标记 */
+    private static final Set<UUID> reflectingPlayers = new HashSet<>();
+
+    /** 香巴拉反伤伤害源标识 */
+    public static final String SHAMBHALA_REFLECT_SOURCE = "shambhala_reflect";
+
     // ========== 核心状态检查 ==========
 
     /**
@@ -151,54 +157,119 @@ public class ShambhalaHandler {
     }
 
     /**
-     * 反射伤害给攻击者
+     * 检查是否正在执行反伤（防止循环）
      */
-    public static void reflectDamage(EntityPlayer player, net.minecraft.entity.Entity attacker, float originalDamage) {
+    public static boolean isReflecting(EntityPlayer player) {
+        return reflectingPlayers.contains(player.getUniqueID());
+    }
+
+    /**
+     * 检查伤害源是否来自香巴拉反伤
+     */
+    public static boolean isShambhalaReflectDamage(net.minecraft.util.DamageSource source) {
+        if (source == null) return false;
+        // 检查伤害类型名称
+        if (SHAMBHALA_REFLECT_SOURCE.equals(source.getDamageType())) return true;
+        // 检查是否是荆棘伤害且来源是香巴拉玩家
+        if (source.getDamageType().equals("thorns") && source.getTrueSource() instanceof EntityPlayer) {
+            EntityPlayer src = (EntityPlayer) source.getTrueSource();
+            return isShambhala(src);
+        }
+        return false;
+    }
+
+    /**
+     * 反射伤害给攻击者（带AoE和循环防护）
+     * @param damageSource 原始伤害源（用于检测循环）
+     */
+    public static void reflectDamage(EntityPlayer player, net.minecraft.entity.Entity attacker,
+                                      float originalDamage, net.minecraft.util.DamageSource damageSource) {
         if (!isShambhala(player)) return;
-        if (attacker == null || !(attacker instanceof net.minecraft.entity.EntityLivingBase)) return;
+        if (attacker == null) return;
 
-        float reflectDamage = originalDamage * (float) ShambhalaConfig.thornsReflectMultiplier;
-        int energyCost = (int) (reflectDamage * ShambhalaConfig.energyPerReflect);
+        // 循环防护：检查是否是反伤造成的伤害
+        if (isShambhalaReflectDamage(damageSource)) return;
+        if (isReflecting(player)) return;
 
-        if (consumeEnergy(player, energyCost)) {
-            net.minecraft.entity.EntityLivingBase target = (net.minecraft.entity.EntityLivingBase) attacker;
+        // 标记正在反伤
+        reflectingPlayers.add(player.getUniqueID());
 
-            if (ShambhalaConfig.thornsTrueDamage) {
-                // 使用包装的真实伤害
-                com.moremod.combat.TrueDamageHelper.applyWrappedTrueDamage(
-                        target, player, reflectDamage,
-                        com.moremod.combat.TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE
+        try {
+            float reflectDamage = originalDamage * (float) ShambhalaConfig.thornsReflectMultiplier;
+            double aoeRadius = ShambhalaConfig.thornsAoeRadius;
+
+            // 计算总能量消耗（主目标 + AoE）
+            int baseCost = (int) (reflectDamage * ShambhalaConfig.energyPerReflect);
+
+            // 主目标反伤
+            if (attacker instanceof net.minecraft.entity.EntityLivingBase) {
+                if (consumeEnergy(player, baseCost)) {
+                    applyReflectDamageToTarget(player, (net.minecraft.entity.EntityLivingBase) attacker, reflectDamage);
+                } else {
+                    return; // 没能量就不反伤
+                }
+            }
+
+            // AoE 反伤
+            if (aoeRadius > 0 && attacker instanceof net.minecraft.entity.EntityLivingBase) {
+                net.minecraft.util.math.AxisAlignedBB aabb = new net.minecraft.util.math.AxisAlignedBB(
+                        attacker.posX - aoeRadius, attacker.posY - aoeRadius, attacker.posZ - aoeRadius,
+                        attacker.posX + aoeRadius, attacker.posY + aoeRadius, attacker.posZ + aoeRadius
                 );
-            } else {
-                target.attackEntityFrom(net.minecraft.util.DamageSource.causeThornsDamage(player), reflectDamage);
+
+                java.util.List<net.minecraft.entity.EntityLivingBase> nearbyMobs =
+                        player.world.getEntitiesWithinAABB(net.minecraft.entity.EntityLivingBase.class, aabb,
+                                e -> e != player && e != attacker && !(e instanceof EntityPlayer));
+
+                float aoeDamage = reflectDamage * 0.5f; // AoE伤害减半
+                int aoeCost = (int) (aoeDamage * ShambhalaConfig.energyPerReflect);
+
+                for (net.minecraft.entity.EntityLivingBase mob : nearbyMobs) {
+                    if (consumeEnergy(player, aoeCost)) {
+                        applyReflectDamageToTarget(player, mob, aoeDamage);
+                    } else {
+                        break; // 能量不足停止AoE
+                    }
+                }
             }
 
-            // 反伤粒子效果
-            if (player.world instanceof WorldServer) {
-                WorldServer ws = (WorldServer) player.world;
-                ws.spawnParticle(EnumParticleTypes.CRIT_MAGIC,
-                        target.posX, target.posY + target.height / 2, target.posZ,
-                        15, 0.5, 0.5, 0.5, 0.1);
-            }
+        } finally {
+            // 清除反伤标记
+            reflectingPlayers.remove(player.getUniqueID());
         }
     }
 
     /**
-     * 血量锁定检查（只要有能量就不会死）
-     * @return 是否成功锁血
+     * 对单个目标施加反伤
      */
-    public static boolean tryLockHealth(EntityPlayer player) {
-        if (!isShambhala(player)) return false;
-
-        // 只要有任何能量，就锁定在最低血量
-        if (getCurrentEnergy(player) > 0) {
-            float minHealth = (float) ShambhalaConfig.coreHealthLock;
-            if (player.getHealth() < minHealth) {
-                player.setHealth(minHealth);
-                return true;
-            }
+    private static void applyReflectDamageToTarget(EntityPlayer player, net.minecraft.entity.EntityLivingBase target, float damage) {
+        if (ShambhalaConfig.thornsTrueDamage) {
+            // 使用包装的真实伤害
+            com.moremod.combat.TrueDamageHelper.applyWrappedTrueDamage(
+                    target, player, damage,
+                    com.moremod.combat.TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE
+            );
+        } else {
+            // 使用自定义的反伤伤害源
+            net.minecraft.util.DamageSource reflectSource = new net.minecraft.util.DamageSource(SHAMBHALA_REFLECT_SOURCE);
+            reflectSource.setDamageBypassesArmor();
+            target.attackEntityFrom(reflectSource, damage);
         }
-        return false;
+
+        // 反伤粒子效果
+        if (player.world instanceof WorldServer) {
+            WorldServer ws = (WorldServer) player.world;
+            ws.spawnParticle(EnumParticleTypes.CRIT_MAGIC,
+                    target.posX, target.posY + target.height / 2, target.posZ,
+                    15, 0.5, 0.5, 0.5, 0.1);
+        }
+    }
+
+    /**
+     * 旧版反射方法（兼容）
+     */
+    public static void reflectDamage(EntityPlayer player, net.minecraft.entity.Entity attacker, float originalDamage) {
+        reflectDamage(player, attacker, originalDamage, null);
     }
 
     // ========== 升格条件检查 ==========
@@ -350,5 +421,6 @@ public class ShambhalaHandler {
     public static void clearAllState() {
         shambhalaBackup.clear();
         shieldCooldowns.clear();
+        reflectingPlayers.clear();
     }
 }
