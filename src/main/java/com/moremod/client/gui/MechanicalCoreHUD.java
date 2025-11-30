@@ -297,6 +297,9 @@ public class MechanicalCoreHUD extends Gui {
             if (humanityData != null && humanityData.getAscensionRoute() == AscensionRoute.BROKEN_GOD) {
                 statusText = "۞ 破碎之神";
                 statusColor = TextFormatting.DARK_PURPLE;
+            } else if (humanityData != null && humanityData.getAscensionRoute() == AscensionRoute.SHAMBHALA) {
+                statusText = "☀ 机巧香巴拉";
+                statusColor = TextFormatting.AQUA;
             }
         }
         drawSeparator(contentX, currentY - 2, contentWidth);
@@ -342,9 +345,20 @@ public class MechanicalCoreHUD extends Gui {
             float hVal = humanityData.getHumanity();
             AscensionRoute route = humanityData.getAscensionRoute();
             int hColor = getHumanityBarColor(hVal, route);
-            String hTitle = (route == AscensionRoute.BROKEN_GOD) ? "⚛ 神性" : "⚛ 人性";
+            String hTitle;
+            TextFormatting titleColor;
+            if (route == AscensionRoute.BROKEN_GOD) {
+                hTitle = "⚛ 神性";
+                titleColor = TextFormatting.DARK_PURPLE;
+            } else if (route == AscensionRoute.SHAMBHALA) {
+                hTitle = "☀ 圆满";
+                titleColor = TextFormatting.AQUA;
+            } else {
+                hTitle = "⚛ 人性";
+                titleColor = TextFormatting.LIGHT_PURPLE;
+            }
 
-            fr.drawStringWithShadow(TextFormatting.LIGHT_PURPLE + hTitle, contentX, currentY, 0xFFFFFF);
+            fr.drawStringWithShadow(titleColor + hTitle, contentX, currentY, 0xFFFFFF);
             drawRightAlignedString((int)hVal + "%", contentX + contentWidth, currentY, 0xFFFFFF, fr);
 
             currentY += 10;
@@ -560,6 +574,7 @@ public class MechanicalCoreHUD extends Gui {
 
     private int getHumanityBarColor(float h, AscensionRoute r) {
         if (r == AscensionRoute.BROKEN_GOD) return 0xFF5500AA; // 破碎之神暗紫
+        if (r == AscensionRoute.SHAMBHALA) return 0xFF00DDFF;  // 机巧香巴拉青金
         if (h < 25) return 0xFFAA0000;
         if (h < 50) return 0xFFAA00AA;
         return 0xFF00AAFF;
