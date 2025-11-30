@@ -11,6 +11,7 @@ import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.MoverType;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.*;
 import net.minecraft.entity.monster.EntityMob;
@@ -24,6 +25,7 @@ import net.minecraft.network.datasync.DataParameter;
 import net.minecraft.network.datasync.DataSerializers;
 import net.minecraft.network.datasync.EntityDataManager;
 import net.minecraft.network.play.server.SPacketAnimation;
+import net.minecraft.pathfinding.PathNavigateGround;
 import net.minecraft.potion.Potion;
 import net.minecraft.potion.PotionEffect;
 import net.minecraft.util.*;
@@ -56,13 +58,30 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
 
     private static final String MODID = "moremod";
     private static final float  MAX_HP           = 4000F;
-    private static final double MOVE_SPEED       = 0.30D;
-    // 移除 INVUL_TICKS_BASE - Gate系统已简化
 
+    // ========== 移动速度配置 ==========
+    // 玩家走路: ~0.22 blocks/tick, 跑步: ~0.28 blocks/tick
+    // 设置为比玩家跑步略快，玩家需要边打边跑
+    private static final double MOVE_SPEED       = 0.2D;
+
+    // ========== Gate限伤系统（仿CursedKnight） ==========
     private static final String CHUNK_ID = MODID + ".rift_chunk";
     public static final DamageSource RIFT_CHUNK = new DamageSource(CHUNK_ID)
             .setDamageIsAbsolute()
             .setDamageBypassesArmor();
+
+    // Gate系统核心变量
+    private int invulTicks = 0;
+    private boolean pendingChunk = false;
+    private boolean applyingChunk = false;
+    private float frozenHealth = -1F;
+    private float frozenAbsorb = -1F;
+    private int gateOpenFxCooldown = 0;
+    private static final int INVUL_TICKS_BASE = 25;  // 1.25秒基础无敌
+
+    // 限伤参数
+    private static final float MIN_DAMAGE_THRESHOLD = 8.0F;      // 低于此伤害直接取消
+    private static final float MAX_SINGLE_HIT_FRACTION = 0.05F;  // 单次最多5%最大生命(200伤害)
 
     public static final DamageSource LASER_DAMAGE_SOURCE = new DamageSource(MODID + ".laser")
             .setDamageBypassesArmor()
@@ -103,10 +122,6 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
     private float ballRotation = 0.0F;
     private float ballOrbitRadius = 3.0F;
 
-    // ========== 简化后：移除Gate系统字段 ==========
-    // 只保留gateOpenFxCooldown用于防御特效节流
-    private int    gateOpenFxCooldown = 0;
-
     // Boss信息条
     private final BossInfoServer bossBar =
             new BossInfoServer(this.getDisplayName(), BossInfo.Color.PURPLE, BossInfo.Overlay.PROGRESS);
@@ -120,7 +135,7 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
     private boolean waveP2Fired = false;
     private boolean waveP3Fired = false;
 
-    // 能力冷却
+    // 能力冷却 - 大幅降低以提升攻击欲望
     private int blockBreakCooldown = 0;
     private int antiFlyingCooldown = 0;
     private int bulletBarrageCooldown = 0;
@@ -133,10 +148,10 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
     private int laserFiringTime = 0;
 
     // ========== 第一阶段新增攻击冷却 ==========
-    private int chainLightningCooldown = 0;      // 链式闪电冷却
-    private int spiralBulletCooldown = 0;        // 螺旋子弹冷却
-    private int burstBulletCooldown = 0;         // 爆发子弹冷却
-    private float spiralAngle = 0F;              // 螺旋角度追踪
+    private int chainLightningCooldown = 0;
+    private int spiralBulletCooldown = 0;
+    private int burstBulletCooldown = 0;
+    private float spiralAngle = 0F;
 
     // 闪电弧系统
     private List<EntityLightningArc> activeArcs = new ArrayList<>();
@@ -145,21 +160,20 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
 
     // 蓄力发射子弹机制
     private int  chargeShootTimer    = 0;
-    private int  chargeShootCooldown = 200;
+    private int  chargeShootCooldown = 160;  // 降低冷却
     private boolean isChargingShooting = false;
     private int  chargeShootDuration = 60;
 
-    // 攻击动画 - 时长基于JSON动画文件（1秒=20ticks）
+    // 攻击动画
     private static final byte MSG_ATTACK_START = 10;
     private int attackAnimationTimer = 0;
-    // animation.crack.right_attack / left_attack = 1.5833秒 ≈ 32 ticks
     private static final int ATTACK_ANIMATION_LENGTH = 32;
     private int comboCounter = 0;
     private int slamCooldown = 0;
     private boolean useLeftAttack = false;
     private int currentAttackTicks = 0;
 
-    // 远程攻击动画时长: animation.crack.range_right_attack = 1.6667秒 ≈ 34 ticks
+    // 远程攻击动画时长
     private static final int RANGE_ATTACK_ANIM_LENGTH = 34;
 
     // 激光虚弱状态
@@ -167,10 +181,12 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
     private static final int LASER_EXHAUSTION_DURATION = 400;
     private boolean isKneeling = false;
 
-    // 瞬移系统
+    // ========== 传送追击系统（增强版） ==========
     private int teleportCooldown = 0;
-    private static final int TELEPORT_COOLDOWN_TIME = 60;
-    private static final double TELEPORT_TRIGGER_DISTANCE = 400.0D;
+    private static final int TELEPORT_COOLDOWN_TIME = 40;           // 降低冷却（原60）
+    private static final double TELEPORT_TRIGGER_DISTANCE = 256.0D; // 降低触发距离（原400）
+    private static final double TELEPORT_CHASE_DISTANCE = 144.0D;   // 追击传送距离（12格）
+    private int chaseTeleportCooldown = 0;                          // 追击传送独立冷却
 
     // 追踪被禁飞的玩家
     private final Set<Integer> disabledFlyingPlayers = new HashSet<>();
@@ -182,7 +198,7 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
     private static final float LASER_DAMAGE_PER_TICK = 1.5F;
     private static final float BULLET_DAMAGE      = 8F;
     private static final float LIGHTNING_BASE_DAMAGE = 15F;
-    private static final float CHAIN_LIGHTNING_DAMAGE = 8F;  // 链式闪电伤害
+    private static final float CHAIN_LIGHTNING_DAMAGE = 8F;
 
     public EntityRiftwarden(World worldIn) {
         super(worldIn);
@@ -191,6 +207,9 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
         this.isImmuneToFire = true;
         this.hurtResistantTime = 10;
         this.maxHurtResistantTime = 10;
+
+        // ========== 提升上阶梯能力 ==========
+        this.stepHeight = 1.5F;  // 可以直接走上1.5格高的台阶
 
         bossBar.setCreateFog(false);
         bossBar.setDarkenSky(false);
@@ -216,18 +235,22 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
         return new ResourceLocation(MODID, "entities/rift_warden");
     }
 
+    // ========== AI配置 - 使用标准AI系统 ==========
     @Override
     protected void initEntityAI() {
         this.tasks.addTask(0, new EntityAISwimming(this));
-        this.tasks.addTask(2, new EntityAIAttackMelee(this, 1.1D, false) {
+
+        // 近战AI - 适中速度倍率
+        this.tasks.addTask(1, new EntityAIAttackMelee(this, 1.2D, true) {  // 速度倍率1.2
             @Override
             public boolean shouldExecute() {
-                // 使用shouldStopMovement - 允许在播放动画时继续追击
-                return !EntityRiftwarden.this.shouldStopMovement() && super.shouldExecute();
+                if (EntityRiftwarden.this.shouldStopMovement()) return false;
+                return super.shouldExecute();
             }
             @Override
             public boolean shouldContinueExecuting() {
-                return !EntityRiftwarden.this.shouldStopMovement() && super.shouldContinueExecuting();
+                if (EntityRiftwarden.this.shouldStopMovement()) return false;
+                return super.shouldContinueExecuting();
             }
             @Override
             public void updateTask() {
@@ -237,7 +260,13 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
                 }
                 super.updateTask();
             }
+            @Override
+            protected double getAttackReachSqr(EntityLivingBase attackTarget) {
+                // 增大攻击范围判定
+                return (double)(this.attacker.width * 2.5F * this.attacker.width * 2.5F + attackTarget.width);
+            }
         });
+
         this.tasks.addTask(5, new EntityAIMoveTowardsRestriction(this, 1.0D) {
             @Override
             public boolean shouldExecute() {
@@ -253,16 +282,16 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
         this.tasks.addTask(8, new EntityAIWatchClosest(this, EntityPlayer.class, 16.0F));
         this.tasks.addTask(8, new EntityAILookIdle(this));
 
+        // 目标选择
         this.targetTasks.addTask(1, new EntityAIHurtByTarget(this, false));
-        this.targetTasks.addTask(2, new EntityAINearestAttackableTarget<>(this, EntityPlayer.class, true));
+        this.targetTasks.addTask(2, new EntityAINearestAttackableTarget<>(this, EntityPlayer.class, 0, true, false, null));
     }
 
     /**
-     * 是否需要停止移动 - 用于AI任务判断
-     * 只在真正需要站定的状态返回true（激光序列、虚弱、蓄力射击中期）
+     * 是否需要停止移动
      */
     public boolean shouldStopMovement() {
-        return isChargingShooting && chargeShootTimer < chargeShootDuration // 蓄力后期才站定
+        return isChargingShooting && chargeShootTimer < chargeShootDuration
                 || laserWarningTime > 0
                 || laserChargeTime > 0
                 || laserFiringTime > 0
@@ -271,8 +300,7 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
     }
 
     /**
-     * 统一的"忙碌"状态检查 - 用于禁止开始新的主动技能
-     * 当Boss正在执行需要完整播放的动作时返回true
+     * 统一的"忙碌"状态检查
      */
     public boolean isBusy() {
         return isChargingShooting
@@ -282,20 +310,12 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
                 || currentAttackTicks > 0
                 || laserExhaustionTime > 0
                 || this.dataManager.get(IS_KNEELING);
-        // 注意：移除了 rangeAnimTicks 和 RANGE_ANIM_STATE 检查
-        // 这些只是动画状态，不应阻止新技能
     }
 
-    /**
-     * 是否正在执行远程攻击动画
-     */
     private boolean isPerformingRangeAttack() {
         return laserFiringTime > 0 || rangeAnimTicks > 0 || this.dataManager.get(RANGE_ANIM_STATE) > 0;
     }
 
-    /**
-     * 是否正在执行远程技能（包括准备阶段）
-     */
     private boolean isPerformingRangeSkill() {
         return isChargingShooting ||
                 laserWarningTime > 0 ||
@@ -305,31 +325,40 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
                 this.dataManager.get(RANGE_ANIM_STATE) > 0;
     }
 
+    // ========== 增强传送系统 ==========
     private void handleTeleportation(EntityPlayer target) {
         if (target == null || world.isRemote || laserExhaustionTime > 0) return;
 
-        if (teleportCooldown > 0) {
-            teleportCooldown--;
+        if (teleportCooldown > 0) teleportCooldown--;
+        if (chaseTeleportCooldown > 0) chaseTeleportCooldown--;
+
+        double distanceSq = this.getDistanceSq(target);
+
+        // 1. 远距离传送（玩家太远）
+        if (!isPerformingRangeSkill() && teleportCooldown <= 0 &&
+                distanceSq > TELEPORT_TRIGGER_DISTANCE && distanceSq < 2500) {
+            performTeleport(target, false);
             return;
         }
 
-        double distanceSq = this.getDistanceSq(target);
-        if (!isPerformingRangeSkill() &&
-                distanceSq > TELEPORT_TRIGGER_DISTANCE &&
-                distanceSq < 2500) {
-
-            performTeleport(target);
+        // 2. 追击传送（玩家逃跑中，且无法追上）
+        if (chaseTeleportCooldown <= 0 && distanceSq > TELEPORT_CHASE_DISTANCE) {
+            // 检查是否长时间追不上
+            if (!this.getNavigator().noPath() && this.ticksExisted % 60 == 0) {
+                // 每3秒检查一次，如果玩家持续远离则传送
+                performTeleport(target, true);
+            }
         }
     }
 
-    private void performTeleport(EntityPlayer target) {
+    private void performTeleport(EntityPlayer target, boolean isChase) {
         if (world.isRemote) return;
 
         spawnTeleportEffect(this.posX, this.posY, this.posZ, true);
         playGlobal(SoundEvents.ENTITY_ENDERMEN_TELEPORT, 1.5F, 0.5F);
 
         double angle = this.rand.nextDouble() * Math.PI * 2;
-        double distance = 3 + this.rand.nextDouble() * 2;
+        double distance = isChase ? (2 + this.rand.nextDouble() * 2) : (3 + this.rand.nextDouble() * 2);
         double newX = target.posX + Math.cos(angle) * distance;
         double newZ = target.posZ + Math.sin(angle) * distance;
         double newY = target.posY;
@@ -354,45 +383,40 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
         playGlobal(SoundEvents.ENTITY_ENDERMEN_TELEPORT, 1.5F, 1.5F);
 
         this.faceEntity(target, 360.0F, 360.0F);
-
         this.hurtResistantTime = 20;
 
-        teleportCooldown = TELEPORT_COOLDOWN_TIME - phase * 10;
+        if (isChase) {
+            chaseTeleportCooldown = 80 - phase * 10;  // 追击传送独立冷却
+        } else {
+            teleportCooldown = TELEPORT_COOLDOWN_TIME - phase * 8;
+        }
 
-        if (phase >= 2) {
-            for (int i = 0; i < 3 + phase; i++) {
-                double shootAngle = (Math.PI * 2 * i) / (3 + phase);
+        // 传送后立即发射子弹
+        if (phase >= 1) {
+            int bulletCount = 4 + phase * 2;
+            for (int i = 0; i < bulletCount; i++) {
+                double shootAngle = (Math.PI * 2 * i) / bulletCount;
                 shootRadialBullet(shootAngle);
             }
         }
 
         if (target instanceof EntityPlayerMP) {
-            target.sendMessage(new net.minecraft.util.text.TextComponentString("§5虚空守望者撕裂空间出现在你身边！"));
+            String msg = isChase ? "§5虚空守望者追踪你的气息！" : "§5虚空守望者撕裂空间出现在你身边！";
+            target.sendMessage(new net.minecraft.util.text.TextComponentString(msg));
         }
     }
 
     private void spawnTeleportEffect(double x, double y, double z, boolean isStart) {
+        if (!PARTICLES_ENABLED) return;
         if (!(world instanceof WorldServer)) return;
         WorldServer ws = (WorldServer) world;
 
-        for (int i = 0; i < 32; i++) {
-            double angle = (Math.PI * 2 * i) / 32;
-            for (double h = 0; h < this.height; h += 0.5) {
-                double px = x + Math.cos(angle) * (isStart ? 1.5 : 2.0);
-                double pz = z + Math.sin(angle) * (isStart ? 1.5 : 2.0);
-                ws.spawnParticle(EnumParticleTypes.PORTAL,
-                        px, y + h, pz,
-                        2, 0.1, 0.1, 0.1, 0.0);
-                ws.spawnParticle(EnumParticleTypes.SPELL_WITCH,
-                        px, y + h, pz,
-                        1, 0.0, 0.0, 0.0, 0.0);
-            }
-        }
-
-        if (!isStart) {
-            ws.spawnParticle(EnumParticleTypes.EXPLOSION_LARGE,
-                    x, y + this.height * 0.5, z,
-                    3, 0.0, 0.0, 0.0, 0.0);
+        // 精简：只生成少量标志性粒子
+        for (int i = 0; i < 8; i++) {
+            double angle = (Math.PI * 2 * i) / 8;
+            double px = x + Math.cos(angle) * 1.5;
+            double pz = z + Math.sin(angle) * 1.5;
+            ws.spawnParticle(EnumParticleTypes.PORTAL, px, y + this.height * 0.5, pz, 2, 0.1, 0.3, 0.1, 0.0);
         }
     }
 
@@ -404,13 +428,20 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
         this.getEntityAttribute(SharedMonsterAttributes.ARMOR).setBaseValue(14.0D);
         this.getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).setBaseValue(12.0D);
         this.getEntityAttribute(SharedMonsterAttributes.KNOCKBACK_RESISTANCE).setBaseValue(1.0D);
-        this.getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE).setBaseValue(40.0D);
+        this.getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE).setBaseValue(64.0D);  // 大追踪范围
     }
 
     @Override
     public void onAddedToWorld() {
         super.onAddedToWorld();
         this.setHealth(this.getMaxHealth());
+
+        // 确保寻路器设置正确
+        if (this.getNavigator() instanceof PathNavigateGround) {
+            PathNavigateGround nav = (PathNavigateGround) this.getNavigator();
+            nav.setCanSwim(true);
+            nav.setBreakDoors(true);
+        }
     }
 
     // GeckoLib 动画相关
@@ -422,16 +453,18 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
     private PlayState predicate(AnimationEvent event) {
         // 优先级0：虚弱状态动画
         if (this.dataManager.get(IS_KNEELING) || this.dataManager.get(IS_EXHAUSTED)) {
+            event.getController().setAnimationSpeed(1.0);
             event.getController().setAnimation(new AnimationBuilder().addAnimation(ANIM_KNEEL, true));
             return PlayState.CONTINUE;
         }
 
-        // 优先级1：引导动画（激光、蓄力射击）- 使用队列：起手 → 引导循环
+        // 优先级1：引导动画
         if (this.dataManager.get(IS_CHANNELING)) {
+            event.getController().setAnimationSpeed(1.0);
             if (this.dataManager.get(USE_RIGHT_CHANNEL)) {
                 event.getController().setAnimation(new AnimationBuilder()
-                        .addAnimation(ANIM_RANGE_RIGHT, false)    // 先播放起手动画（一次）
-                        .addAnimation(ANIM_CHANNEL_RIGHT, true)); // 然后循环引导
+                        .addAnimation(ANIM_RANGE_RIGHT, false)
+                        .addAnimation(ANIM_CHANNEL_RIGHT, true));
             } else {
                 event.getController().setAnimation(new AnimationBuilder()
                         .addAnimation(ANIM_RANGE_LEFT, false)
@@ -440,9 +473,10 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
             return PlayState.CONTINUE;
         }
 
-        // 优先级2：蓄力射击动画 - 同样使用队列
+        // 优先级2：蓄力射击动画
         boolean isCharging = this.dataManager.get(IS_CHARGING);
         if (isCharging) {
+            event.getController().setAnimationSpeed(1.0);
             if (this.dataManager.get(USE_RIGHT_CHANNEL)) {
                 event.getController().setAnimation(new AnimationBuilder()
                         .addAnimation(ANIM_RANGE_RIGHT, false)
@@ -457,8 +491,9 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
 
         int rangeAnimState = this.dataManager.get(RANGE_ANIM_STATE);
 
-        // 优先级3：远程攻击动画（闪电等单次攻击）
+        // 优先级3：远程攻击动画
         if (rangeAnimState > 0 || rangeAnimTicks > 0) {
+            event.getController().setAnimationSpeed(1.0);
             if (rangeAnimState == 1) {
                 event.getController().setAnimation(new AnimationBuilder().addAnimation(ANIM_RANGE_RIGHT, false));
             } else if (rangeAnimState == 2) {
@@ -473,6 +508,7 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
 
         // 优先级4：近战攻击动画
         if (this.dataManager.get(ATTACKING) || currentAttackTicks > 0) {
+            event.getController().setAnimationSpeed(1.0);
             if (useLeftAttack) {
                 event.getController().setAnimation(new AnimationBuilder().addAnimation(ANIM_LEFT_ATTACK, false));
             } else {
@@ -481,10 +517,23 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
             return PlayState.CONTINUE;
         }
 
-        // 优先级3：移动或待机
-        if (event.isMoving()) {
+        // 优先级5：移动或待机
+        // 使用 limbSwingAmount 检测移动
+        float limbSwing = this.limbSwingAmount;
+        boolean isActuallyMoving = limbSwing > 0.01F || event.isMoving();
+
+        if (isActuallyMoving) {
+            // ========== 固定动画速度 ==========
+            // 动画周期 1.0833秒（约22tick），设计移速约 0.048 blocks/tick
+            // MOVE_SPEED=0.32, AI倍率1.2 → 实际约 0.32×1.2 ≈ 0.38 blocks/tick
+            // 速度比: 0.38 / 0.048 ≈ 8x
+            //
+            // 但8x太快会看不清动画，使用固定值让动画看起来自然
+            // 实测：2.5-3.0x 看起来比较舒服
+            event.getController().setAnimationSpeed(2.5);
             event.getController().setAnimation(new AnimationBuilder().addAnimation(ANIM_MOVE, true));
         } else {
+            event.getController().setAnimationSpeed(1.0);
             event.getController().setAnimation(new AnimationBuilder().addAnimation(ANIM_IDLE_BALL, true));
         }
 
@@ -532,11 +581,10 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
 
     @Override
     public boolean attackEntityAsMob(Entity entityIn) {
-        // 站定状态时不能近战攻击
         if (shouldStopMovement()) return false;
 
         this.attackAnimationTimer = ATTACK_ANIMATION_LENGTH;
-        this.currentAttackTicks = ATTACK_ANIMATION_LENGTH + 5; // 动画时长 + 少量缓冲
+        this.currentAttackTicks = ATTACK_ANIMATION_LENGTH + 5;
         this.useLeftAttack = this.rand.nextBoolean();
         this.dataManager.set(ATTACKING, true);
 
@@ -554,20 +602,11 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
 
             entityIn.addVelocity(knockbackX, knockbackY, knockbackZ);
 
-            if (world instanceof WorldServer) {
+            if (PARTICLES_ENABLED && world instanceof WorldServer) {
                 WorldServer ws = (WorldServer) world;
                 ws.spawnParticle(EnumParticleTypes.CRIT_MAGIC,
                         entityIn.posX, entityIn.posY + entityIn.height * 0.5, entityIn.posZ,
-                        20, 0.3, 0.3, 0.3, 0.1);
-
-                for (int i = 0; i < 8; i++) {
-                    double angle = (Math.PI * 2 * i) / 8;
-                    double px = entityIn.posX + Math.cos(angle) * 0.5;
-                    double pz = entityIn.posZ + Math.sin(angle) * 0.5;
-                    ws.spawnParticle(EnumParticleTypes.SPELL_WITCH,
-                            px, entityIn.posY, pz,
-                            1, 0, 0.2, 0, 0.05);
-                }
+                        5, 0.2, 0.2, 0.2, 0.05);
             }
 
             this.playSound(SoundEvents.ENTITY_IRONGOLEM_ATTACK, 1.0F, 0.8F);
@@ -619,7 +658,7 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
 
                             this.playSound(SoundEvents.ENTITY_PLAYER_ATTACK_SWEEP, 1.0F, 0.8F + strike * 0.1F);
 
-                            if (world instanceof WorldServer) {
+                            if (PARTICLES_ENABLED && world instanceof WorldServer) {
                                 WorldServer ws = (WorldServer) world;
                                 ws.spawnParticle(EnumParticleTypes.SWEEP_ATTACK,
                                         target.posX, target.posY + target.height * 0.5, target.posZ,
@@ -671,17 +710,16 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
 
                             this.playSound(SoundEvents.ENTITY_GENERIC_EXPLODE, 1.5F, 0.5F);
 
-                            if (world instanceof WorldServer) {
+                            // 精简：只生成一圈爆炸粒子
+                            if (PARTICLES_ENABLED && world instanceof WorldServer) {
                                 WorldServer ws = (WorldServer) world;
-                                for (int i = 0; i < 32; i++) {
-                                    double angle = (Math.PI * 2 * i) / 32;
-                                    for (double r = 0.5; r < 5; r += 0.5) {
-                                        double px = this.posX + Math.cos(angle) * r;
-                                        double pz = this.posZ + Math.sin(angle) * r;
-                                        ws.spawnParticle(EnumParticleTypes.EXPLOSION_NORMAL,
-                                                px, this.posY, pz,
-                                                1, 0, 0.3, 0, 0.1);
-                                    }
+                                for (int i = 0; i < 8; i++) {
+                                    double angle = (Math.PI * 2 * i) / 8;
+                                    double px = this.posX + Math.cos(angle) * 2.5;
+                                    double pz = this.posZ + Math.sin(angle) * 2.5;
+                                    ws.spawnParticle(EnumParticleTypes.EXPLOSION_NORMAL,
+                                            px, this.posY, pz,
+                                            1, 0, 0.2, 0, 0.05);
                                 }
                             }
                         }
@@ -747,8 +785,32 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
     public void onLivingUpdate() {
         super.onLivingUpdate();
 
+        // ========== 调试日志（测试后删除）==========
+        if (!this.world.isRemote && this.ticksExisted % 20 == 0) {
+            EntityPlayer p = this.world.getNearestAttackablePlayer(this, 50, 50);
+            EntityLivingBase target = this.getAttackTarget();
+            String stopReason = "";
+            if (shouldStopMovement()) {
+                if (isChargingShooting) stopReason += "charging,";
+                if (laserWarningTime > 0) stopReason += "laserWarn,";
+                if (laserChargeTime > 0) stopReason += "laserCharge,";
+                if (laserFiringTime > 0) stopReason += "laserFire,";
+                if (laserExhaustionTime > 0) stopReason += "exhausted,";
+                if (this.dataManager.get(IS_KNEELING)) stopReason += "kneeling,";
+            }
+            System.out.println("[Riftwarden] " +
+                    "target=" + (target != null ? "YES" : "NO") +
+                    ", player=" + (p != null ? String.format("%.1f格", Math.sqrt(getDistanceSq(p))) : "NULL") +
+                    ", shouldStop=" + shouldStopMovement() + (stopReason.isEmpty() ? "" : "(" + stopReason + ")") +
+                    ", limbSwing=" + String.format("%.2f", limbSwingAmount) +
+                    ", speed=" + String.format("%.3f", Math.sqrt(motionX*motionX + motionZ*motionZ)));
+        }
+
         if (!this.world.isRemote) {
-            this.clearActivePotions();
+            // 药水免疫已通过 isPotionApplicable() 实现，无需每tick清除
+
+            // ========== Gate系统处理 ==========
+            handleGateInvulnerability();
 
             // 处理虚弱状态
             updateExhaustionState();
@@ -757,29 +819,35 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
             if (laserExhaustionTime > 0) {
                 this.motionX = 0;
                 this.motionZ = 0;
-                // 注意：不设置motionY=0，允许重力
                 return;
             }
         }
 
-        // ========== 统一的移动控制 ==========
-        // 只在真正需要站定时才锁定移动
-        if (shouldStopMovement()) {
-            this.motionX = 0;
-            this.motionZ = 0;
-            // 朝向目标（如果有）
-            EntityPlayer nearestPlayer = this.world.getNearestAttackablePlayer(this, 50, 50);
-            if (nearestPlayer != null) {
-                // 根据状态决定转向速度
-                float turnSpeed = (laserFiringTime > 0) ? 5.0F : 10.0F;
-                this.faceEntity(nearestPlayer, turnSpeed, turnSpeed);
-            }
-        } else {
-            // 非站定状态，正常处理
-            EntityPlayer nearestPlayer = this.world.getNearestAttackablePlayer(this, 50, 50);
-            if (nearestPlayer != null) {
-                this.faceEntity(nearestPlayer, 30.0F, 30.0F);
-                handleTeleportation(nearestPlayer);
+        // ========== 简化的移动控制 - 只在特定状态停止移动 ==========
+        if (!this.world.isRemote) {
+            if (shouldStopMovement()) {
+                // 清除路径并停止移动
+                this.getNavigator().clearPath();
+                this.motionX = 0;
+                this.motionZ = 0;
+
+                // 面向玩家
+                EntityPlayer nearestPlayer = this.world.getNearestAttackablePlayer(this, 50, 50);
+                if (nearestPlayer != null) {
+                    float turnSpeed = (laserFiringTime > 0) ? 5.0F : 10.0F;
+                    this.faceEntity(nearestPlayer, turnSpeed, turnSpeed);
+                }
+            } else {
+                // 让AI系统处理移动，只做辅助
+                EntityPlayer nearestPlayer = this.world.getNearestAttackablePlayer(this, 50, 50);
+                if (nearestPlayer != null) {
+                    // 确保有攻击目标
+                    if (this.getAttackTarget() == null) {
+                        this.setAttackTarget(nearestPlayer);
+                    }
+                    // 处理传送
+                    handleTeleportation(nearestPlayer);
+                }
             }
         }
 
@@ -817,7 +885,7 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
             this.attackAnimationTimer--;
 
             if (!world.isRemote && this.attackAnimationTimer > ATTACK_ANIMATION_LENGTH / 2) {
-                if (world instanceof WorldServer) {
+                if (PARTICLES_ENABLED && world instanceof WorldServer) {
                     WorldServer ws = (WorldServer) world;
                     double armOffset = this.attackAnimationTimer % 2 == 0 ? 1.0 : -1.0;
                     ws.spawnParticle(EnumParticleTypes.SPELL_WITCH,
@@ -828,9 +896,6 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
                 }
             }
         }
-
-        // ========== 优化后的锁血处理 ==========
-        handleInvulnerabilityOptimized();
 
         if (!this.world.isRemote) {
             updateCooldowns();
@@ -855,13 +920,84 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
         updateBossBar();
     }
 
-    // ========== 简化后的防御状态处理 ==========
-    private void handleInvulnerabilityOptimized() {
-        // 简化：不再有复杂的锁血机制
-        // 只处理gateOpenFxCooldown用于防御特效节流
-        if (gateOpenFxCooldown > 0) {
-            gateOpenFxCooldown--;
+    // ========== Gate限伤系统核心方法（仿CursedKnight） ==========
+
+    private void handleGateInvulnerability() {
+        if (this.invulTicks > 0) {
+            this.invulTicks--;
+
+            // 冻结血量
+            if (!this.applyingChunk) {
+                if (this.frozenHealth >= 0F && this.getHealth() != this.frozenHealth) {
+                    this.setHealth(this.frozenHealth);
+                }
+                if (this.frozenAbsorb >= 0F && this.getAbsorptionAmount() != this.frozenAbsorb) {
+                    this.setAbsorptionAmount(this.frozenAbsorb);
+                }
+            }
+
+            // 无敌粒子效果 - 精简
+            if (this.ticksExisted % 10 == 0 && world instanceof WorldServer) {
+                spawnRing(EnumParticleTypes.PORTAL, 8, 1.5D);
+            }
+
+            // 无敌结束
+            if (this.invulTicks == 0) {
+                if (this.pendingChunk && this.getHealth() > 0F) {
+                    float dmg = getChunkSize();
+                    this.applyingChunk = true;
+                    try {
+                        super.attackEntityFrom(RIFT_CHUNK, dmg);
+                        playSound(SoundEvents.BLOCK_ANVIL_LAND, 0.8F, 0.8F);
+                        spawnRing(EnumParticleTypes.CRIT_MAGIC, 48, 2.5D);
+                    } finally {
+                        this.applyingChunk = false;
+                    }
+                }
+                this.pendingChunk = false;
+                this.frozenHealth = -1F;
+                this.frozenAbsorb = -1F;
+            }
         }
+    }
+
+    /**
+     * 获取单次伤害上限（最大生命值的1/20）
+     */
+    public float getChunkSize() {
+        return this.getMaxHealth() / 20.0F;  // 4000/20 = 200
+    }
+
+    /**
+     * 是否处于Gate无敌状态
+     */
+    public boolean isGateInvulnerable() {
+        return invulTicks > 0;
+    }
+
+    /**
+     * 开启Gate并冻结血量
+     */
+    public void openGateAndFreeze(boolean scheduleChunk) {
+        int base = INVUL_TICKS_BASE - phase * 4;  // 阶段越高无敌时间越短
+        this.invulTicks = Math.max(this.invulTicks, Math.max(15, base));
+
+        this.frozenHealth = this.getHealth();
+        this.frozenAbsorb = this.getAbsorptionAmount();
+        this.pendingChunk = scheduleChunk;
+
+        if (gateOpenFxCooldown <= 0) {
+            playSound(SoundEvents.ITEM_SHIELD_BLOCK, 0.8F, 1.0F);
+            spawnRing(EnumParticleTypes.SPELL_WITCH, 32, 2.0D);
+            gateOpenFxCooldown = 5;
+        }
+    }
+
+    /**
+     * 是否是可信的Chunk伤害源
+     */
+    public boolean isTrustedChunkSource(DamageSource src) {
+        return src != null && CHUNK_ID.equals(src.getDamageType());
     }
 
     // 虚弱状态处理
@@ -875,7 +1011,10 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
         this.motionZ = 0;
         this.setNoAI(true);
 
-        // ========== 关键：完全移除无敌帧 ==========
+        // 虚弱期间关闭Gate保护
+        this.invulTicks = 0;
+        this.frozenHealth = -1F;
+        this.frozenAbsorb = -1F;
         this.hurtResistantTime = 0;
         this.maxHurtResistantTime = 0;
 
@@ -901,22 +1040,12 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
             }
         }
 
-        if (world instanceof WorldServer) {
+        if (PARTICLES_ENABLED && world instanceof WorldServer) {
             WorldServer ws = (WorldServer) world;
-
-            for (int i = 0; i < 50; i++) {
-                double angle = (Math.PI * 2 * i) / 50;
-                double radius = 2.0;
-                ws.spawnParticle(EnumParticleTypes.SMOKE_LARGE,
-                        this.posX + Math.cos(angle) * radius,
-                        this.posY + 0.1,
-                        this.posZ + Math.sin(angle) * radius,
-                        1, 0, 0.1, 0, 0.02);
-            }
-
-            ws.spawnParticle(EnumParticleTypes.SPELL_WITCH,
+            // 只生成少量烟雾表示虚弱
+            ws.spawnParticle(EnumParticleTypes.SMOKE_LARGE,
                     this.posX, this.posY + this.height * 0.5, this.posZ,
-                    30, 0.5, 0.5, 0.5, 0.0);
+                    8, 0.5, 0.3, 0.5, 0.02);
         }
     }
 
@@ -924,25 +1053,17 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
         if (laserExhaustionTime > 0) {
             laserExhaustionTime--;
 
-            // ========== 确保虚弱期间无敌帧始终为0 ==========
+            // 虚弱期间确保无Gate保护
+            this.invulTicks = 0;
             this.hurtResistantTime = 0;
             this.maxHurtResistantTime = 0;
 
-            if (laserExhaustionTime % 10 == 0 && world instanceof WorldServer) {
+            // 精简粒子：每40tick一次，只生成少量
+            if (PARTICLES_ENABLED && laserExhaustionTime % 40 == 0 && world instanceof WorldServer) {
                 WorldServer ws = (WorldServer) world;
-
                 ws.spawnParticle(EnumParticleTypes.CLOUD,
                         this.posX, this.posY + this.height * 0.3, this.posZ,
-                        5, 0.3, 0.2, 0.3, 0.02);
-
-                for (int i = 0; i < 8; i++) {
-                    double angle = (Math.PI * 2 * i) / 8;
-                    ws.spawnParticle(EnumParticleTypes.REDSTONE,
-                            this.posX + Math.cos(angle) * 1.5,
-                            this.posY + 0.5,
-                            this.posZ + Math.sin(angle) * 1.5,
-                            1, 0.8, 0.8, 0.0, 1.0);
-                }
+                        2, 0.2, 0.1, 0.2, 0.01);
             }
 
             if (laserExhaustionTime % 20 == 0) {
@@ -998,24 +1119,12 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
             }
         }
 
-        if (world instanceof WorldServer) {
+        // 精简：只生成一个爆炸效果
+        if (PARTICLES_ENABLED && world instanceof WorldServer) {
             WorldServer ws = (WorldServer) world;
-
             ws.spawnParticle(EnumParticleTypes.EXPLOSION_LARGE,
                     this.posX, this.posY + this.height * 0.5, this.posZ,
-                    5, 0, 0, 0.0, 0);
-
-            for (int ring = 0; ring < 3; ring++) {
-                double radius = 1.5 + ring * 0.8;
-                for (int i = 0; i < 32; i++) {
-                    double angle = (Math.PI * 2 * i) / 32;
-                    ws.spawnParticle(EnumParticleTypes.SPELL_WITCH,
-                            this.posX + Math.cos(angle) * radius,
-                            this.posY + ring * 0.5,
-                            this.posZ + Math.sin(angle) * radius,
-                            1, 0, 0.2, 0, 0.1);
-                }
-            }
+                    2, 0, 0, 0.0, 0);
         }
 
         performRecoveryAttack();
@@ -1047,10 +1156,8 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
 
     @Override
     public boolean attackEntityFrom(DamageSource source, float amount) {
-        // 伤害处理已移至EventHooks
-        // 这里只处理虚弱状态的视觉反馈
+        // 虚弱状态允许所有攻击，无Gate保护
         if (laserExhaustionTime > 0) {
-            // 强制清除无敌帧
             this.hurtResistantTime = 0;
 
             if (world instanceof WorldServer && source.getTrueSource() instanceof EntityPlayer) {
@@ -1060,9 +1167,124 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
                         20, 0.5, 0.5, 0.5, 0.1);
                 playGlobal(SoundEvents.ENTITY_PLAYER_ATTACK_CRIT, 1.5F, 1.0F);
             }
+            return super.attackEntityFrom(source, amount);
+        }
+
+        // Gate无敌期间阻挡非信任伤害
+        if (this.isGateInvulnerable() && !isTrustedChunkSource(source)) {
+            if (world instanceof WorldServer && gateOpenFxCooldown <= 0) {
+                WorldServer ws = (WorldServer) world;
+                ws.spawnParticle(EnumParticleTypes.SPELL_WITCH,
+                        posX, posY + height * 0.5, posZ,
+                        10, 0.5, 0.5, 0.5, 0.1);
+                playSound(SoundEvents.ITEM_SHIELD_BLOCK, 1.0F, 1.5F);
+                gateOpenFxCooldown = 3;
+            }
+            return false;
         }
 
         return super.attackEntityFrom(source, amount);
+    }
+
+    /**
+     * 核心伤害处理 - Gate限伤系统
+     */
+    @Override
+    protected void damageEntity(DamageSource damageSrc, float damageAmount) {
+        // 信任伤害源直接通过
+        if (isTrustedChunkSource(damageSrc)) {
+            super.damageEntity(damageSrc, damageAmount);
+            return;
+        }
+
+        // 虚弱期间无Gate保护，双倍伤害
+        if (laserExhaustionTime > 0) {
+            super.damageEntity(damageSrc, damageAmount * 2.0F);
+            return;
+        }
+
+        // Gate无敌期间不处理
+        if (this.isGateInvulnerable()) {
+            return;
+        }
+
+        // ========== 限伤核心逻辑 ==========
+
+        // 1. 低于门槛的伤害直接取消
+        if (damageAmount < MIN_DAMAGE_THRESHOLD) {
+            if (world instanceof WorldServer && gateOpenFxCooldown <= 0) {
+                WorldServer ws = (WorldServer) world;
+                ws.spawnParticle(EnumParticleTypes.BARRIER,
+                        posX, posY + height * 0.5, posZ,
+                        3, 0.3, 0.3, 0.3, 0.0);
+                playSound(SoundEvents.ITEM_SHIELD_BLOCK, 0.5F, 1.8F);
+                gateOpenFxCooldown = 3;
+            }
+
+            // 给玩家反馈
+            if (damageSrc.getTrueSource() instanceof EntityPlayer) {
+                EntityPlayer player = (EntityPlayer) damageSrc.getTrueSource();
+                if (player instanceof EntityPlayerMP) {
+                    ((EntityPlayerMP) player).sendStatusMessage(
+                            new net.minecraft.util.text.TextComponentString(
+                                    "§7伤害不足 §c" + String.format("%.1f", damageAmount) +
+                                            " §7< §e" + String.format("%.1f", MIN_DAMAGE_THRESHOLD) + " §7(已取消)"),
+                            true);
+                }
+            }
+            return;  // 伤害被取消
+        }
+
+        // 2. 计算实际伤害（上限为最大生命值的1/20）
+        float maxDamage = getChunkSize();  // 200
+        float actualDamage = Math.min(damageAmount, maxDamage);
+
+        // 3. 判断是否需要累积大额伤害
+        boolean scheduleChunk = damageAmount >= maxDamage;
+
+        // 4. 开启Gate并冻结血量
+        openGateAndFreeze(scheduleChunk);
+
+        // 5. 立即应用限制后的伤害
+        if (!this.applyingChunk) {
+            this.applyingChunk = true;
+            try {
+                super.damageEntity(damageSrc, actualDamage);
+            } finally {
+                this.applyingChunk = false;
+            }
+        }
+
+        // 6. 给玩家反馈
+        if (damageSrc.getTrueSource() instanceof EntityPlayer) {
+            EntityPlayer player = (EntityPlayer) damageSrc.getTrueSource();
+            float healthPercent = (this.getHealth() / this.getMaxHealth()) * 100;
+
+            if (player instanceof EntityPlayerMP) {
+                String msg;
+                if (damageAmount > maxDamage) {
+                    msg = String.format("§c虚空守望者 §7| §e%.0f%% §7(伤害被限制: %.0f→%.0f)",
+                            healthPercent, damageAmount, actualDamage);
+                } else {
+                    msg = String.format("§c虚空守望者 §7| §e%.0f%% §7(伤害: %.0f)",
+                            healthPercent, actualDamage);
+                }
+                ((EntityPlayerMP) player).sendStatusMessage(new net.minecraft.util.text.TextComponentString(msg), true);
+
+                if (scheduleChunk) {
+                    player.sendMessage(new net.minecraft.util.text.TextComponentString(
+                            "§6§l强力一击！将在无敌结束后造成额外伤害！"));
+                }
+            }
+        }
+
+        // 7. 特效 - 精简
+        if (PARTICLES_ENABLED && world instanceof WorldServer) {
+            WorldServer ws = (WorldServer) world;
+            ws.spawnParticle(EnumParticleTypes.DRAGON_BREATH,
+                    posX, posY + height * 0.5, posZ,
+                    4, 0.3, 0.3, 0.3, 0.02);
+        }
     }
 
     private void updateLightningArcs() {
@@ -1080,13 +1302,7 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
                     if (arc.ticksExisted % 5 == 0) {
                         target.attackEntityFrom(DamageSource.causeMobDamage(this).setDamageBypassesArmor(),
                                 ARC_DAMAGE / 4);
-
-                        if (world instanceof WorldServer) {
-                            WorldServer ws = (WorldServer) world;
-                            ws.spawnParticle(EnumParticleTypes.SPELL_INSTANT,
-                                    target.posX, target.posY + target.height * 0.5, target.posZ,
-                                    10, 0.3, 0.3, 0.3, 0.1);
-                        }
+                        // 移除粒子效果，闪电实体本身已有视觉效果
                     }
                 }
             }
@@ -1125,22 +1341,26 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
         playGlobal(SoundEvents.ENTITY_ENDERDRAGON_GROWL, 1.0F, 0.95F + 0.05F * phase);
         spawnRing(EnumParticleTypes.SPELL_WITCH, 96, 3.0 + phase);
 
+        // 阶段变化时提升攻击能力
         switch (phase) {
             case 0:
                 this.summonPeriodTicks = 400;
                 this.minionCap = 3;
                 break;
             case 1:
-                this.summonPeriodTicks = 360;
+                this.summonPeriodTicks = 320;  // 更频繁
                 this.minionCap = 4;
+                this.stepHeight = 1.8F;  // 提升爬楼能力
                 break;
             case 2:
-                this.summonPeriodTicks = 320;
+                this.summonPeriodTicks = 260;
                 this.minionCap = 5;
+                this.stepHeight = 2.0F;
                 break;
             case 3:
-                this.summonPeriodTicks = 280;
+                this.summonPeriodTicks = 200;
                 this.minionCap = 6;
+                this.stepHeight = 2.5F;  // 狂暴阶段可以跳上更高台阶
                 break;
         }
 
@@ -1158,7 +1378,6 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
                 boolean playerOnRight = isPlayerOnRightSide(target);
                 this.useRightRange = playerOnRight;
 
-                // 使用正确的动画时长
                 this.rangeAnimTicks = RANGE_ATTACK_ANIM_LENGTH + chargeShootDuration + 20;
 
                 isChargingShooting = true;
@@ -1166,14 +1385,13 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
 
                 this.dataManager.set(IS_CHARGING, true);
                 this.dataManager.set(USE_RIGHT_CHANNEL, useRightRange);
-                this.dataManager.set(RANGE_ANIM_STATE, 0); // 清除普通远程动画状态
+                this.dataManager.set(RANGE_ANIM_STATE, 0);
 
-                // 移动锁定在shouldStopMovement()中处理（蓄力后期才站定）
                 this.faceEntity(target, 30.0F, 30.0F);
 
                 playGlobal(SoundEvents.ENTITY_WITHER_AMBIENT, 1.5F, 0.5F);
             }
-            chargeShootCooldown = 200 - phase * 20;
+            chargeShootCooldown = 160 - phase * 25;  // 降低冷却
         }
 
         if (isChargingShooting) {
@@ -1231,7 +1449,7 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
     }
 
     private void spawnChargeParticles() {
-        if (world instanceof WorldServer) {
+        if (PARTICLES_ENABLED && world instanceof WorldServer) {
             WorldServer ws = (WorldServer) world;
             Vec3d handPos = getHandPosition(this.useRightRange);
             double radius = 3.0 + (chargeShootDuration - chargeShootTimer) * 0.05;
@@ -1253,7 +1471,7 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
         if (lightningArcCooldown > 0) lightningArcCooldown--;
         if (laserCooldown > 0) laserCooldown--;
         if (teleportCooldown > 0) teleportCooldown--;
-        // 新增冷却
+        if (chaseTeleportCooldown > 0) chaseTeleportCooldown--;
         if (chainLightningCooldown > 0) chainLightningCooldown--;
         if (spiralBulletCooldown > 0) spiralBulletCooldown--;
         if (burstBulletCooldown > 0) burstBulletCooldown--;
@@ -1271,25 +1489,23 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
         }
     }
 
-    // ========== 执行能力（包含第一阶段新增攻击） ==========
+    // ========== 执行能力（增强攻击欲望） ==========
     private void executeAbilities(EntityPlayer target) {
-        // 虚弱状态下不执行任何技能
         if (laserExhaustionTime > 0) return;
 
-        // 所有阶段都有的基础攻击
+        double distSq = this.getDistanceSq(target);
+
+        // 所有阶段都有的基础攻击 - 更激进
         tryShootBullets(target);
 
-        // ========== 第一阶段新增攻击 ==========
+        // 第一阶段攻击
         if (phase == 0) {
-            // 链式闪电（使用Ice and Fire的API）
             tryChainLightning(target);
-            // 螺旋子弹
             trySpiralBullets(target);
-            // 爆发子弹
             tryBurstBullets(target);
         }
 
-        // 第二阶段及以后
+        // 第二阶段及以后 - 远程技能更激进
         if (phase >= 1) {
             tryLightningStrike(target);
             if (phase >= 2) {
@@ -1297,67 +1513,49 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
             }
         }
 
-        if (phase >= 2 && laserWarningTime <= 0 && laserChargeTime <= 0 && laserFiringTime <= 0) {
+        // 激光 - 稍微降低触发门槛
+        if (phase >= 2 && distSq > 36 && laserWarningTime <= 0 && laserChargeTime <= 0 && laserFiringTime <= 0) {
             tryLaserBeam(target);
         }
     }
 
-    // ========== 第一阶段新增：链式闪电（使用Ice and Fire API） ==========
+    // ========== 第一阶段：链式闪电 ==========
     private void tryChainLightning(EntityPlayer target) {
         if (chainLightningCooldown > 0 || laserExhaustionTime > 0) return;
-        if (this.getDistanceSq(target) > 400) return; // 20格范围内
+        if (this.getDistanceSq(target) > 400) return;
 
-        // 30%概率触发
-        if (this.rand.nextFloat() > 0.3F) return;
+        if (this.rand.nextFloat() > 0.35F) return;  // 提高触发概率
 
-        // 使用Ice and Fire的链式闪电
         try {
-            // ChainLightningUtils.createChainLightningFromTarget参数：
-            // world, target(第一个被击中的目标), attacker, damage[], range, isParalysisEnabled
-            // damage数组的长度决定最大跳跃次数，每个元素是该次跳跃的伤害
             float[] damagePerHop = new float[]{
-                    CHAIN_LIGHTNING_DAMAGE,           // 第一次: 8点
-                    CHAIN_LIGHTNING_DAMAGE * 0.75F,   // 第二次: 6点
-                    CHAIN_LIGHTNING_DAMAGE * 0.5F,    // 第三次: 4点
-                    CHAIN_LIGHTNING_DAMAGE * 0.25F    // 第四次: 2点
+                    CHAIN_LIGHTNING_DAMAGE,
+                    CHAIN_LIGHTNING_DAMAGE * 0.75F,
+                    CHAIN_LIGHTNING_DAMAGE * 0.5F,
+                    CHAIN_LIGHTNING_DAMAGE * 0.25F
             };
 
             ChainLightningUtils.createChainLightningFromTarget(
                     this.world,
-                    target,         // 第一个目标
-                    this,           // 攻击者
-                    damagePerHop,   // 每次跳跃的伤害
-                    8,              // 连锁范围8格
-                    false           // 不启用麻痹效果
+                    target,
+                    this,
+                    damagePerHop,
+                    8,
+                    false
             );
 
             playGlobal(SoundEvents.ENTITY_LIGHTNING_THUNDER, 0.6F, 1.8F);
-
-            // 视觉效果
-            if (world instanceof WorldServer) {
-                WorldServer ws = (WorldServer) world;
-                Vec3d handPos = getHandPosition(this.rand.nextBoolean());
-
-                // 手部蓄力效果
-                ws.spawnParticle(EnumParticleTypes.SPELL_INSTANT,
-                        handPos.x, handPos.y, handPos.z,
-                        15, 0.2, 0.2, 0.2, 0.1);
-            }
+            // 移除手部粒子，闪电实体本身已有效果
         } catch (Exception e) {
-            // 如果Ice and Fire API不可用，使用备用方案
             fallbackChainLightning(target);
         }
 
-        chainLightningCooldown = 80; // 4秒冷却
+        chainLightningCooldown = 60;  // 降低冷却
     }
 
-    // 备用链式闪电实现（如果Ice and Fire不可用）
     private void fallbackChainLightning(EntityPlayer target) {
-        // 对主目标造成伤害
         target.attackEntityFrom(DamageSource.causeMobDamage(this).setDamageBypassesArmor(),
                 CHAIN_LIGHTNING_DAMAGE);
 
-        // 寻找附近的其他玩家进行连锁
         List<EntityPlayer> nearbyPlayers = world.getEntitiesWithinAABB(
                 EntityPlayer.class,
                 target.getEntityBoundingBox().grow(8.0),
@@ -1372,10 +1570,9 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
 
             chainTarget.attackEntityFrom(
                     DamageSource.causeMobDamage(this).setDamageBypassesArmor(),
-                    CHAIN_LIGHTNING_DAMAGE * (1.0F - chainCount * 0.2F) // 递减伤害
+                    CHAIN_LIGHTNING_DAMAGE * (1.0F - chainCount * 0.2F)
             );
 
-            // 连锁视觉效果
             spawnLightningLine(lastTarget, chainTarget);
             lastTarget = chainTarget;
             chainCount++;
@@ -1384,32 +1581,31 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
         playGlobal(SoundEvents.ENTITY_LIGHTNING_THUNDER, 0.6F, 1.8F);
     }
 
-    // 生成闪电线条效果
     private void spawnLightningLine(EntityLivingBase from, EntityLivingBase to) {
-        if (!(world instanceof WorldServer)) return;
+        if (!PARTICLES_ENABLED || !(world instanceof WorldServer)) return;
         WorldServer ws = (WorldServer) world;
 
         double dx = to.posX - from.posX;
         double dy = (to.posY + to.height * 0.5) - (from.posY + from.height * 0.5);
         double dz = to.posZ - from.posZ;
 
-        int particles = 10;
+        // 减少粒子数量：10->4
+        int particles = 4;
         for (int i = 0; i <= particles; i++) {
             double p = (double) i / particles;
-            double px = from.posX + dx * p + (rand.nextDouble() - 0.5) * 0.3;
-            double py = from.posY + from.height * 0.5 + dy * p + (rand.nextDouble() - 0.5) * 0.3;
-            double pz = from.posZ + dz * p + (rand.nextDouble() - 0.5) * 0.3;
+            double px = from.posX + dx * p;
+            double py = from.posY + from.height * 0.5 + dy * p;
+            double pz = from.posZ + dz * p;
 
             ws.spawnParticle(EnumParticleTypes.SPELL_INSTANT, px, py, pz, 1, 0, 0, 0.0, 0);
         }
     }
 
-    // ========== 第一阶段新增：螺旋子弹 ==========
+    // ========== 螺旋子弹 ==========
     private void trySpiralBullets(EntityPlayer target) {
         if (spiralBulletCooldown > 0 || laserExhaustionTime > 0) return;
-        if (this.getDistanceSq(target) > 625) return; // 25格范围内
+        if (this.getDistanceSq(target) > 625) return;
 
-        // 发射螺旋子弹
         int bulletCount = 6;
         for (int i = 0; i < bulletCount; i++) {
             double angle = spiralAngle + (Math.PI * 2 * i) / bulletCount;
@@ -1430,28 +1626,25 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
             this.world.spawnEntity(bullet);
         }
 
-        // 更新螺旋角度
-        spiralAngle += Math.PI / 6; // 每次旋转30度
+        spiralAngle += Math.PI / 6;
         if (spiralAngle >= Math.PI * 2) {
             spiralAngle -= Math.PI * 2;
         }
 
         playGlobal(SoundEvents.ENTITY_BLAZE_SHOOT, 0.8F, 1.2F);
-        spiralBulletCooldown = 30; // 1.5秒冷却
+        spiralBulletCooldown = 20;  // 降低冷却
     }
 
-    // ========== 第一阶段新增：爆发子弹 ==========
+    // ========== 爆发子弹 ==========
     private void tryBurstBullets(EntityPlayer target) {
         if (burstBulletCooldown > 0 || laserExhaustionTime > 0) return;
         if (this.getDistanceSq(target) > 400) return;
 
-        // 25%概率触发
-        if (this.rand.nextFloat() > 0.25F) return;
+        if (this.rand.nextFloat() > 0.30F) return;  // 提高概率
 
-        // 向玩家方向发射一组快速子弹
         int bulletCount = 5;
         double baseAngle = Math.atan2(target.posZ - this.posZ, target.posX - this.posX);
-        double spreadAngle = Math.PI / 8; // 22.5度扇形
+        double spreadAngle = Math.PI / 8;
 
         for (int i = 0; i < bulletCount; i++) {
             double angle = baseAngle - spreadAngle / 2 + (spreadAngle * i) / (bulletCount - 1);
@@ -1469,22 +1662,21 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
                     this.posY + this.height * 0.6,
                     this.posZ + dz * 2
             );
-            bullet.shoot(dx, dy, dz, 1.8F, 1.0F); // 更快的速度
+            bullet.shoot(dx, dy, dz, 1.8F, 1.0F);
 
             this.world.spawnEntity(bullet);
         }
 
         playGlobal(SoundEvents.ENTITY_BLAZE_SHOOT, 1.0F, 0.7F);
 
-        // 视觉效果
-        if (world instanceof WorldServer) {
+        if (PARTICLES_ENABLED && world instanceof WorldServer) {
             WorldServer ws = (WorldServer) world;
             ws.spawnParticle(EnumParticleTypes.SMOKE_LARGE,
                     this.posX, this.posY + this.height * 0.6, this.posZ,
                     15, 0.3, 0.3, 0.3, 0.05);
         }
 
-        burstBulletCooldown = 60; // 3秒冷却
+        burstBulletCooldown = 45;  // 降低冷却
     }
 
     private void continuousBlockBreak() {
@@ -1500,7 +1692,7 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
                             world.destroyBlock(pos, false);
                             BossBlockTracker.removeBlock(this, pos);
 
-                            if (world instanceof WorldServer) {
+                            if (PARTICLES_ENABLED && world instanceof WorldServer) {
                                 WorldServer ws = (WorldServer) world;
                                 ws.spawnParticle(EnumParticleTypes.BLOCK_CRACK,
                                         pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
@@ -1533,7 +1725,7 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
                     BossBlockTracker.removeBlock(this, pos);
                     destroyed++;
 
-                    if (world instanceof WorldServer) {
+                    if (PARTICLES_ENABLED && world instanceof WorldServer) {
                         WorldServer ws = (WorldServer) world;
                         ws.spawnParticle(EnumParticleTypes.EXPLOSION_NORMAL,
                                 pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
@@ -1571,7 +1763,7 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
                     player.sendMessage(new net.minecraft.util.text.TextComponentString("§c虚空守望者的力量禁锢了你的飞行能力！"));
                 }
 
-                if (world instanceof WorldServer) {
+                if (PARTICLES_ENABLED && world instanceof WorldServer) {
                     WorldServer ws = (WorldServer) world;
                     ws.spawnParticle(EnumParticleTypes.SPELL_WITCH,
                             player.posX, player.posY, player.posZ,
@@ -1594,7 +1786,7 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
                 shootVoidBullet(target, angle);
             }
             playGlobal(SoundEvents.ENTITY_BLAZE_SHOOT, 1.0F, 0.5F);
-            bulletBarrageCooldown = 60 - phase * 10;
+            bulletBarrageCooldown = 45 - phase * 8;  // 降低冷却
         }
     }
 
@@ -1621,17 +1813,17 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
         );
         bullet.shoot(newDx, dy, newDz, 1.5F, 2.0F);
 
-        if (world instanceof WorldServer) {
+        // 精简射击粒子
+        if (PARTICLES_ENABLED && world instanceof WorldServer) {
             WorldServer ws = (WorldServer) world;
             ws.spawnParticle(EnumParticleTypes.SMOKE_LARGE,
                     bullet.posX, bullet.posY, bullet.posZ,
-                    20, 0.3, 0.3, 0.3, 0.1);
+                    3, 0.2, 0.2, 0.2, 0.05);
         }
         this.world.spawnEntity(bullet);
     }
 
     private void tryLightningStrike(EntityPlayer target) {
-        // 具体检查：不在蓄力射击、不在激光序列中
         if (lightningCooldown <= 0 && target != null && laserExhaustionTime <= 0
                 && !isChargingShooting
                 && laserWarningTime <= 0 && laserChargeTime <= 0 && laserFiringTime <= 0) {
@@ -1644,6 +1836,7 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
 
             playGlobal(SoundEvents.ENTITY_WITHER_AMBIENT, 1.0F, 1.5F);
 
+            // 延迟发射闪电
             if (world instanceof WorldServer) {
                 WorldServer ws = (WorldServer) world;
                 for (int i = 0; i < 30; i++) {
@@ -1656,7 +1849,7 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
                 }
             }
 
-            lightningCooldown = 100 - phase * 20;
+            lightningCooldown = 80 - phase * 15;  // 降低冷却
         }
     }
 
@@ -1692,7 +1885,6 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
     }
 
     private void tryLightningArc(EntityPlayer target) {
-        // 具体检查：不在蓄力射击、不在激光序列中
         if (lightningArcCooldown <= 0 && target != null && this.getDistanceSq(target) < 900
                 && laserExhaustionTime <= 0
                 && !isChargingShooting
@@ -1709,6 +1901,7 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
             createLightningChargingEffect();
             playGlobal(SoundEvents.ENTITY_WITHER_SPAWN, 1.5F, 2.0F);
 
+            // 延迟创建闪电弧
             if (world instanceof WorldServer) {
                 WorldServer ws = (WorldServer) world;
                 for (int i = 0; i < 35; i++) {
@@ -1721,7 +1914,7 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
                 }
             }
 
-            lightningArcCooldown = 150 - phase * 20;
+            lightningArcCooldown = 120 - phase * 20;  // 降低冷却
         }
     }
 
@@ -1758,73 +1951,26 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
     }
 
     private void createLightningArcEffect(EntityPlayer target, Vec3d startPos) {
-        if (!(world instanceof WorldServer)) return;
+        if (!PARTICLES_ENABLED || !(world instanceof WorldServer)) return;
         WorldServer ws = (WorldServer) world;
 
-        double startX = startPos.x;
-        double startY = startPos.y;
-        double startZ = startPos.z;
-
-        double endX = target.posX;
-        double endY = target.posY + target.height * 0.5;
-        double endZ = target.posZ;
-
-        int particleCount = 20;
-        for (int i = 0; i <= particleCount; i++) {
-            double p = (double) i / particleCount;
-            double px = startX + (endX - startX) * p;
-            double py = startY + (endY - startY) * p;
-            double pz = startZ + (endZ - startZ) * p;
-
-            px += (rand.nextDouble() - 0.5) * 0.5;
-            py += (rand.nextDouble() - 0.5) * 0.5;
-            pz += (rand.nextDouble() - 0.5) * 0.5;
-
-            ws.spawnParticle(EnumParticleTypes.SMOKE_LARGE, px, py, pz, 1, 0, 0, 0, 0.0);
-            ws.spawnParticle(EnumParticleTypes.SPELL_MOB, px, py, pz, 1, 0.1, 0.0, 0.1, 0.0);
-        }
-
-        for (int i = 0; i < 16; i++) {
-            double angle = (Math.PI * 2 * i) / 16;
-            double px = target.posX + Math.cos(angle) * 1.5;
-            double pz = target.posZ + Math.sin(angle) * 1.5;
-            ws.spawnParticle(EnumParticleTypes.SMOKE_NORMAL,
-                    px, target.posY, pz,
-                    1, 0, 0.2, 0, 0.05);
-        }
+        // 精简：只在起点和终点生成少量粒子
+        ws.spawnParticle(EnumParticleTypes.SMOKE_LARGE, startPos.x, startPos.y, startPos.z, 2, 0.1, 0.1, 0.1, 0.0);
+        ws.spawnParticle(EnumParticleTypes.SMOKE_LARGE, target.posX, target.posY + target.height * 0.5, target.posZ, 2, 0.2, 0.2, 0.2, 0.02);
     }
 
     private void createLightningChargingEffect() {
-        if (!(world instanceof WorldServer)) return;
+        if (!PARTICLES_ENABLED || !(world instanceof WorldServer)) return;
         WorldServer ws = (WorldServer) world;
 
         Vec3d handPos = getHandPosition(this.useRightRange);
-
-        for (int ring = 0; ring < 3; ring++) {
-            double radius = 1.0 + ring * 0.3;
-            for (int i = 0; i < 20; i++) {
-                double angle = (Math.PI * 2 * i) / 20;
-                double px = handPos.x + Math.cos(angle) * radius;
-                double pz = handPos.z + Math.sin(angle) * radius;
-                double py = handPos.y + ring * 0.2;
-
-                ws.spawnParticle(EnumParticleTypes.SMOKE_NORMAL,
-                        px, py, pz,
-                        1, 0, 0.1, 0.0, 0);
-            }
-        }
-
-        for (int i = 0; i < 10; i++) {
-            ws.spawnParticle(EnumParticleTypes.SMOKE_LARGE,
-                    handPos.x + (rand.nextDouble() - 0.5) * 0.3,
-                    handPos.y - i * 0.3,
-                    handPos.z + (rand.nextDouble() - 0.5) * 0.3,
-                    1, 0, 0.2, 0, 0.05);
-        }
+        // 精简：只在手部位置生成少量粒子
+        ws.spawnParticle(EnumParticleTypes.SMOKE_LARGE,
+                handPos.x, handPos.y, handPos.z,
+                3, 0.2, 0.2, 0.2, 0.02);
     }
 
     private void tryLaserBeam(EntityPlayer target) {
-        // 具体检查：不在蓄力射击中（激光序列检查已在executeAbilities中）
         if (laserCooldown <= 0 && this.getDistanceSq(target) < 625
                 && !isChargingShooting
                 && laserExhaustionTime <= 0) {
@@ -1835,10 +1981,9 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
 
             this.rangeAnimTicks = LASER_WARNING_TIME + LASER_CHARGE_TIME + LASER_FIRING_TIME + 20;
 
-            // 设置引导动画状态（同步到客户端）
             this.dataManager.set(IS_CHANNELING, true);
             this.dataManager.set(USE_RIGHT_CHANNEL, useRightRange);
-            this.dataManager.set(RANGE_ANIM_STATE, 0); // 清除普通远程动画状态
+            this.dataManager.set(RANGE_ANIM_STATE, 0);
 
             this.laserTarget = target;
             this.laserWarningTime = LASER_WARNING_TIME;
@@ -1853,7 +1998,7 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
             }
 
             playGlobal(SoundEvents.ENTITY_ELDER_GUARDIAN_CURSE, 1.0F, 0.5F);
-            this.laserCooldown = 250;
+            this.laserCooldown = 200;  // 降低冷却
         }
     }
 
@@ -1934,8 +2079,6 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
         if (laserChargeTime > 0 && laserTarget != null) {
             laserChargeTime--;
 
-            // 朝向在shouldStopMovement()逻辑中处理
-
             if (laserChargeTime % 10 == 0) {
                 float pitch = 2.0F + (LASER_CHARGE_TIME - laserChargeTime) * 0.02F;
                 playGlobal(SoundEvents.ENTITY_WITHER_AMBIENT, 0.5F, pitch);
@@ -1961,11 +2104,7 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
         if (laserFiringTime > 0) {
             laserFiringTime--;
 
-            // 移动锁定在shouldStopMovement()中统一处理
-
             if (laserTarget != null && laserTarget.isEntityAlive()) {
-                // 朝向在shouldStopMovement()逻辑中以较慢速度处理
-
                 if (this.canEntityBeSeen(laserTarget) && this.getDistanceSq(laserTarget) < 625) {
                     int originalHurtTime = laserTarget.hurtResistantTime;
                     laserTarget.hurtResistantTime = 0;
@@ -1974,7 +2113,7 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
 
                     laserTarget.hurtResistantTime = Math.min(originalHurtTime, 5);
 
-                    if (world instanceof WorldServer && laserFiringTime % 2 == 0) {
+                    if (PARTICLES_ENABLED && world instanceof WorldServer && laserFiringTime % 4 == 0) {
                         WorldServer ws = (WorldServer) world;
 
                         Vec3d handPos = getHandPosition(this.useRightRange);
@@ -1984,7 +2123,8 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
                         double dz = laserTarget.posZ - handPos.z;
                         double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
-                        int particleCount = (int) (distance * 3);
+                        // 精简：沿线只生成少量粒子
+                        int particleCount = Math.max(3, (int) (distance * 0.5));
                         for (int i = 0; i < particleCount; i++) {
                             double p = (double) i / particleCount;
                             double px = handPos.x + dx * p;
@@ -1993,14 +2133,8 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
 
                             ws.spawnParticle(EnumParticleTypes.SMOKE_LARGE,
                                     px, py, pz,
-                                    1, 0.1, 0.0, 0.1, 0.0);
+                                    1, 0.05, 0.0, 0.05, 0.0);
                         }
-
-                        ws.spawnParticle(EnumParticleTypes.CRIT_MAGIC,
-                                laserTarget.posX,
-                                laserTarget.posY + laserTarget.height * 0.5,
-                                laserTarget.posZ,
-                                10, 0.3, 0.3, 0.3, 0.1);
                     }
 
                     if (laserFiringTime % 5 == 0) {
@@ -2020,20 +2154,26 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
                 this.dataManager.set(RANGE_ANIM_STATE, 0);
                 this.dataManager.set(IS_CHANNELING, false);
 
-                // 触发虚弱状态
                 enterExhaustionState();
             }
         }
     }
 
+    // 粒子效果总开关 - 设为false完全关闭
+    private static final boolean PARTICLES_ENABLED = false;  // 关闭所有粒子
+    private static final float PARTICLE_REDUCTION = 0.25F;
+
     private void spawnRing(EnumParticleTypes type, int count, double radius) {
+        if (!PARTICLES_ENABLED) return;
         if (this.world.isRemote || !(world instanceof WorldServer)) return;
         WorldServer ws = (WorldServer) this.world;
+        // 大幅减少粒子数量
+        int actualCount = Math.max(4, (int)(count * PARTICLE_REDUCTION));
         double cx = this.posX;
         double cy = this.posY + this.height * 0.6D;
         double cz = this.posZ;
-        for (int i = 0; i < count; i++) {
-            double ang = (Math.PI * 2 * i) / count;
+        for (int i = 0; i < actualCount; i++) {
+            double ang = (Math.PI * 2 * i) / actualCount;
             double dx = cx + Math.cos(ang) * radius;
             double dz = cz + Math.sin(ang) * radius;
             ws.spawnParticle(type, dx, cy, dz, 1, 0, 0, 0, 0.0D);
@@ -2047,7 +2187,6 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
     @Override
     public void writeEntityToNBT(NBTTagCompound nbt) {
         super.writeEntityToNBT(nbt);
-        // 移除Gate系统相关: GateInvul, GatePendingChunk, GateFrozenHealth
         nbt.setInteger("Phase", phase);
         nbt.setInteger("SummonCD", summonCooldown);
         nbt.setInteger("SummonPeriod", summonPeriodTicks);
@@ -2068,19 +2207,23 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
         nbt.setInteger("RangeAnimTicks", rangeAnimTicks);
         nbt.setBoolean("UseRightRange", useRightRange);
         nbt.setInteger("TeleportCD", teleportCooldown);
+        nbt.setInteger("ChaseTeleportCD", chaseTeleportCooldown);
         nbt.setInteger("LaserExhaustion", laserExhaustionTime);
         nbt.setBoolean("IsKneeling", isKneeling);
-        // 新增冷却保存
         nbt.setInteger("ChainLightningCD", chainLightningCooldown);
         nbt.setInteger("SpiralBulletCD", spiralBulletCooldown);
         nbt.setInteger("BurstBulletCD", burstBulletCooldown);
         nbt.setFloat("SpiralAngle", spiralAngle);
+        // Gate系统
+        nbt.setInteger("GateInvul", invulTicks);
+        nbt.setBoolean("GatePendingChunk", pendingChunk);
+        nbt.setFloat("GateFrozenHealth", frozenHealth);
+        nbt.setFloat("GateFrozenAbsorb", frozenAbsorb);
     }
 
     @Override
     public void readEntityFromNBT(NBTTagCompound nbt) {
         super.readEntityFromNBT(nbt);
-        // 移除Gate系统相关读取
         this.phase = nbt.getInteger("Phase");
         this.summonCooldown = nbt.getInteger("SummonCD");
         this.summonPeriodTicks = Math.max(120, nbt.getInteger("SummonPeriod"));
@@ -2101,14 +2244,19 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
         this.rangeAnimTicks = nbt.getInteger("RangeAnimTicks");
         this.useRightRange = nbt.getBoolean("UseRightRange");
         this.teleportCooldown = nbt.getInteger("TeleportCD");
+        this.chaseTeleportCooldown = nbt.getInteger("ChaseTeleportCD");
         this.laserExhaustionTime = nbt.getInteger("LaserExhaustion");
         this.isKneeling = nbt.getBoolean("IsKneeling");
         this.dataManager.set(IS_KNEELING, this.isKneeling);
-        // 新增冷却读取
         this.chainLightningCooldown = nbt.getInteger("ChainLightningCD");
         this.spiralBulletCooldown = nbt.getInteger("SpiralBulletCD");
         this.burstBulletCooldown = nbt.getInteger("BurstBulletCD");
         this.spiralAngle = nbt.getFloat("SpiralAngle");
+        // Gate系统
+        this.invulTicks = nbt.getInteger("GateInvul");
+        this.pendingChunk = nbt.getBoolean("GatePendingChunk");
+        this.frozenHealth = nbt.getFloat("GateFrozenHealth");
+        this.frozenAbsorb = nbt.getFloat("GateFrozenAbsorb");
     }
 
     @Override
@@ -2153,123 +2301,15 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
 
     @Override
     public boolean isEntityInvulnerable(DamageSource source) {
-        // 简化：移除Gate相关判断
-        // Boss不再有完全无敌状态，伤害减免在EventHooks中处理
         return super.isEntityInvulnerable(source);
     }
 
-    // ========== 简化后的伤害处理系统 ==========
-    // 改为：百分比减伤 + 单次伤害上限，而非完全锁血
-    private static final float BASE_DAMAGE_REDUCTION = 0.25F;      // 基础减伤25%
-    private static final float MAX_SINGLE_HIT_PERCENT = 0.03F;     // 单次攻击最多造成3%最大生命值
-    private static final float EXHAUSTED_DAMAGE_MULTIPLIER = 2.0F; // 虚弱时受到双倍伤害
-    private int damageReductionCooldown = 0;                       // 高伤害冷却
-
-    @Mod.EventBusSubscriber(modid = MODID)
-    public static class EventHooks {
-        @SubscribeEvent(priority = EventPriority.HIGHEST)
-        public static void onAttackPre(LivingAttackEvent e) {
-            if (!(e.getEntityLiving() instanceof EntityRiftwarden)) return;
-            EntityRiftwarden boss = (EntityRiftwarden) e.getEntityLiving();
-
-            // 虚弱状态允许所有攻击
-            if (boss.laserExhaustionTime > 0) {
-                return;
-            }
-
-            // 不再完全阻挡攻击，让伤害事件继续
-        }
-
-        @SubscribeEvent(priority = EventPriority.HIGHEST)
-        public static void onHeal(LivingHealEvent e) {
-            if (!(e.getEntityLiving() instanceof EntityRiftwarden)) return;
-            EntityRiftwarden boss = (EntityRiftwarden) e.getEntityLiving();
-            // 战斗中限制治疗效果
-            if (boss.getAttackTarget() != null) {
-                e.setAmount(e.getAmount() * 0.25F); // 战斗中治疗效果降低75%
-            }
-        }
-
-        @SubscribeEvent(priority = EventPriority.LOWEST)
-        public static void onFinalDamage(LivingDamageEvent e) {
-            if (!(e.getEntityLiving() instanceof EntityRiftwarden)) return;
-            EntityRiftwarden boss = (EntityRiftwarden) e.getEntityLiving();
-
-            float originalDamage = e.getAmount();
-            float finalDamage = originalDamage;
-
-            // ========== 虚弱状态：双倍伤害，无减伤 ==========
-            if (boss.laserExhaustionTime > 0) {
-                finalDamage = originalDamage * EXHAUSTED_DAMAGE_MULTIPLIER;
-                boss.hurtResistantTime = 0; // 确保无无敌帧
-                e.setAmount(finalDamage);
-
-                // 虚弱暴击特效
-                if (boss.world instanceof WorldServer) {
-                    WorldServer ws = (WorldServer) boss.world;
-                    ws.spawnParticle(EnumParticleTypes.CRIT_MAGIC,
-                            boss.posX, boss.posY + boss.height * 0.5, boss.posZ,
-                            15, 0.4, 0.4, 0.4, 0.1);
-                }
-                return;
-            }
-
-            // ========== 正常状态：百分比减伤 + 单次伤害上限 ==========
-            // 1. 基础减伤
-            float phaseReduction = BASE_DAMAGE_REDUCTION - boss.phase * 0.05F; // 阶段越高减伤越少
-            phaseReduction = Math.max(0.1F, phaseReduction); // 最低10%减伤
-            finalDamage = originalDamage * (1.0F - phaseReduction);
-
-            // 2. 单次伤害上限（防止秒杀，但不会完全锁血）
-            float maxSingleHit = boss.getMaxHealth() * MAX_SINGLE_HIT_PERCENT;
-            // 阶段越高上限越高
-            maxSingleHit *= (1.0F + boss.phase * 0.5F); // P0:3%, P1:4.5%, P2:6%, P3:7.5%
-
-            if (finalDamage > maxSingleHit) {
-                // 超出上限的部分按30%计算（而不是完全忽略）
-                float excess = finalDamage - maxSingleHit;
-                finalDamage = maxSingleHit + excess * 0.3F;
-
-                // 高伤害反馈特效
-                if (boss.world instanceof WorldServer) {
-                    WorldServer ws = (WorldServer) boss.world;
-                    boss.spawnRing(EnumParticleTypes.BARRIER, 8, 1.5D);
-                }
-                boss.playGlobal(SoundEvents.ITEM_SHIELD_BLOCK, 0.6F, 1.2F);
-            }
-
-            // 3. 最终伤害不能低于原始伤害的10%（确保有伤害反馈）
-            finalDamage = Math.max(finalDamage, originalDamage * 0.1F);
-
-            e.setAmount(finalDamage);
-        }
-    }
-
-    // ========== 简化后的防御系统 ==========
-    // 移除了复杂的Gate锁血机制，改用EventHooks中的百分比减伤
-
-    public float getChunkSize() {
-        // 保留此方法用于兼容，但不再用于锁血
-        return this.getMaxHealth() / 20.0F;
-    }
-
-    public boolean isGateInvulnerable() {
-        // 简化：只在虚弱状态时返回false表示脆弱
-        // 其他时候返回false，伤害由EventHooks处理
+    /**
+     * 完全免疫药水效果 - 药水根本无法被附加
+     */
+    @Override
+    public boolean isPotionApplicable(PotionEffect potioneffectIn) {
         return false;
-    }
-
-    public void openGateAndFreeze(boolean scheduleChunk) {
-        // 简化：仅播放防御特效，不再锁血
-        if (gateOpenFxCooldown <= 0) {
-            playGlobal(SoundEvents.ITEM_SHIELD_BLOCK, 0.5F, 1.0F);
-            gateOpenFxCooldown = 10;
-        }
-    }
-
-    public boolean isTrustedChunkSource(DamageSource src) {
-        // 保留用于特殊伤害源判断
-        return src != null && CHUNK_ID.equals(src.getDamageType());
     }
 
     private int countKnightsNearby(double r) {
@@ -2315,7 +2355,7 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
             EntityPlayer target = ws.getNearestAttackablePlayer(this, 32, 32);
             if (target != null) k.setAttackTarget(target);
 
-            spawnBurstAt(ws, pos, EnumParticleTypes.SPELL_MOB, 30);
+            spawnBurstAt(ws, pos, EnumParticleTypes.SPELL_MOB, 8);  // 减少粒子
 
             ws.spawnEntity(k);
             return true;
@@ -2324,12 +2364,70 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
     }
 
     private void spawnBurstAt(WorldServer ws, BlockPos p, EnumParticleTypes type, int count) {
-        for (int i = 0; i < count; i++) {
-            double ox = (this.rand.nextDouble() - 0.5) * 0.8;
-            double oy = this.rand.nextDouble() * 1.0;
-            double oz = (this.rand.nextDouble() - 0.5) * 0.8;
+        if (!PARTICLES_ENABLED) return;
+        // 减少到原来的1/3
+        int actualCount = Math.max(3, count / 3);
+        for (int i = 0; i < actualCount; i++) {
+            double ox = (this.rand.nextDouble() - 0.5) * 0.6;
+            double oy = this.rand.nextDouble() * 0.8;
+            double oz = (this.rand.nextDouble() - 0.5) * 0.6;
             ws.spawnParticle(type, p.getX() + 0.5 + ox, p.getY() + 0.2 + oy, p.getZ() + 0.5 + oz,
                     1, 0, 0, 0, 0.0);
+        }
+    }
+
+    // ========== 事件处理器（Gate系统核心） ==========
+    @Mod.EventBusSubscriber(modid = MODID)
+    public static class EventHooks {
+        @SubscribeEvent(priority = EventPriority.HIGHEST)
+        public static void onAttackPre(LivingAttackEvent e) {
+            if (!(e.getEntityLiving() instanceof EntityRiftwarden)) return;
+            EntityRiftwarden boss = (EntityRiftwarden) e.getEntityLiving();
+
+            // 虚弱状态允许所有攻击
+            if (boss.laserExhaustionTime > 0) {
+                return;
+            }
+
+            // Gate无敌期间阻挡非信任伤害
+            if (boss.isGateInvulnerable() && !boss.isTrustedChunkSource(e.getSource())) {
+                e.setCanceled(true);
+            }
+        }
+
+        @SubscribeEvent(priority = EventPriority.HIGHEST)
+        public static void onHeal(LivingHealEvent e) {
+            if (!(e.getEntityLiving() instanceof EntityRiftwarden)) return;
+            EntityRiftwarden boss = (EntityRiftwarden) e.getEntityLiving();
+
+            // Gate无敌期间禁止治疗
+            if (boss.isGateInvulnerable()) {
+                e.setCanceled(true);
+                e.setAmount(0F);
+                return;
+            }
+
+            // 战斗中限制治疗效果
+            if (boss.getAttackTarget() != null) {
+                e.setAmount(e.getAmount() * 0.25F);
+            }
+        }
+
+        @SubscribeEvent(priority = EventPriority.LOWEST, receiveCanceled = true)
+        public static void onFinalDamage(LivingDamageEvent e) {
+            if (!(e.getEntityLiving() instanceof EntityRiftwarden)) return;
+            EntityRiftwarden boss = (EntityRiftwarden) e.getEntityLiving();
+
+            // 信任伤害源通过
+            if (boss.isTrustedChunkSource(e.getSource())) {
+                return;
+            }
+
+            // Gate无敌期间取消伤害
+            if (boss.isGateInvulnerable()) {
+                e.setCanceled(true);
+                e.setAmount(0F);
+            }
         }
     }
 }

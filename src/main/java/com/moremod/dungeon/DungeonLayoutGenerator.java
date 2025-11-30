@@ -71,7 +71,7 @@ public class DungeonLayoutGenerator {
     // ---------------- 分离重叠 ----------------
 
     private void separateRooms(List<RoomNode> rooms, int dungeonSize) {
-        int iterations = 0, maxIter = 200;
+        int iterations = 0, maxIter = 400;
         boolean ok = false;
         int half = dungeonSize / 2;
         int minX = -half, maxX = half - SHELL_SIZE;
