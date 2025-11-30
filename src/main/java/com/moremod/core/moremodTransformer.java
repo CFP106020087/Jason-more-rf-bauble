@@ -963,11 +963,14 @@ public class moremodTransformer implements IClassTransformer {
         for (MethodNode mn : cn.methods) {
 
             // ========== 1. attackEntityFrom 注入 ==========
-            // MCP名: attackEntityFrom, SRG名: func_70097_a
+            // MCP名: attackEntityFrom, SRG名: func_70097_a, 混淆名: a
             // 描述符模式: (L???;F)Z - 一个对象参数 + float，返回 boolean
-            if ("attackEntityFrom".equals(mn.name) || "func_70097_a".equals(mn.name)) {
-                if (mn.desc.endsWith("F)Z") && mn.desc.startsWith("(L")) {
-                    System.out.println("[moremodTransformer]   Patching attackEntityFrom... (desc: " + mn.desc + ")");
+            boolean isAttackEntityFrom = "attackEntityFrom".equals(mn.name)
+                    || "func_70097_a".equals(mn.name)
+                    || "a".equals(mn.name);  // 混淆名
+
+            if (isAttackEntityFrom && mn.desc.endsWith("F)Z") && mn.desc.startsWith("(L")) {
+                System.out.println("[moremodTransformer]   Patching attackEntityFrom... (desc: " + mn.desc + ")");
 
                 InsnList inject = new InsnList();
                 LabelNode continueLabel = new LabelNode();
@@ -998,11 +1001,14 @@ public class moremodTransformer implements IClassTransformer {
             }
 
             // ========== 2. damageEntity 注入 ==========
-            // MCP名: damageEntity, SRG名: func_70665_d
+            // MCP名: damageEntity, SRG名: func_70665_d, 混淆名: d
             // 描述符模式: (L???;F)V - 一个对象参数 + float，返回 void
-            if ("damageEntity".equals(mn.name) || "func_70665_d".equals(mn.name)) {
-                if (mn.desc.endsWith("F)V") && mn.desc.startsWith("(L")) {
-                    System.out.println("[moremodTransformer]   Patching damageEntity... (desc: " + mn.desc + ")");
+            boolean isDamageEntity = "damageEntity".equals(mn.name)
+                    || "func_70665_d".equals(mn.name)
+                    || "d".equals(mn.name);  // 混淆名
+
+            if (isDamageEntity && mn.desc.endsWith("F)V") && mn.desc.startsWith("(L")) {
+                System.out.println("[moremodTransformer]   Patching damageEntity... (desc: " + mn.desc + ")");
 
                 InsnList inject = new InsnList();
                 LabelNode continueLabel = new LabelNode();
@@ -1049,11 +1055,15 @@ public class moremodTransformer implements IClassTransformer {
             }
 
             // ========== 3. onDeath 注入（最终防线） ==========
-            // MCP名: onDeath, SRG名: func_70645_a
+            // MCP名: onDeath, SRG名: func_70645_a, 混淆名: a (描述符 (Lur;)V)
             // 描述符模式: (L???;)V - 一个对象参数，返回 void
-            if ("onDeath".equals(mn.name) || "func_70645_a".equals(mn.name)) {
-                if (mn.desc.endsWith(";)V") && mn.desc.startsWith("(L")) {
-                    System.out.println("[moremodTransformer]   Patching onDeath... (desc: " + mn.desc + ")");
+            // 注意：混淆环境下 DamageSource = ur
+            boolean isOnDeath = "onDeath".equals(mn.name)
+                    || "func_70645_a".equals(mn.name)
+                    || ("a".equals(mn.name) && mn.desc.equals("(Lur;)V"));  // 混淆名 + 精确描述符
+
+            if (isOnDeath && mn.desc.endsWith(";)V") && mn.desc.startsWith("(L")) {
+                System.out.println("[moremodTransformer]   Patching onDeath... (desc: " + mn.desc + ")");
 
                 InsnList inject = new InsnList();
                 LabelNode continueLabel = new LabelNode();
