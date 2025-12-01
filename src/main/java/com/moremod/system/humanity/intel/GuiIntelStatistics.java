@@ -154,6 +154,19 @@ public class GuiIntelStatistics extends GuiScreen {
                 guiLeft + 120, y, 0xFFFFFF);
         fontRenderer.drawStringWithShadow(String.format("记录: §d%d种", allProfiles.size()),
                 guiLeft + 190, y, 0xFFFFFF);
+        y += 12;
+
+        // ========== 情报加成总览 ==========
+        int totalIntelTypes = IntelDataHelper.getIntelTypesLearned(data);
+        int totalIntelLevels = IntelDataHelper.getTotalIntelLearned(data);
+        float avgDmgBonus = totalIntelTypes > 0 ? (totalIntelLevels * ItemIntelBook.DAMAGE_BONUS_PER_BOOK * 100) / totalIntelTypes : 0;
+
+        fontRenderer.drawStringWithShadow(String.format("§c情报书: §f%d种 §7(共%d级)", totalIntelTypes, totalIntelLevels),
+                guiLeft + 15, y, 0xFFFFFF);
+        if (totalIntelTypes > 0) {
+            fontRenderer.drawStringWithShadow(String.format("§c平均+%.0f%%伤害", avgDmgBonus),
+                    guiLeft + 160, y, 0xFFFFFF);
+        }
         y += 16;
 
         // 分隔线

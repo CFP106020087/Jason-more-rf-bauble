@@ -942,21 +942,23 @@ public class SmartRejectionGuide extends Gui {
         y = renderShambhalaSection(centerX, y, fr, alphaInt, bgAlpha,
                 "§b【香巴拉_核心】", 0x55FFFF, new String[] {
             "§b• §f永恒之心: 能量=生命",
-            "§b• §f有能量时完全无法死亡"
+            "§b• §f有能量时完全无法死亡",
+            "§b• §f永恒驱动: 血量越低回血越快",
+            "§b• §f磐石之躯: 免疫击退"
         });
 
         // ========== 香巴拉_壁垒 ==========
         y = renderShambhalaSection(centerX, y, fr, alphaInt, bgAlpha,
                 "§e【香巴拉_壁垒】", 0xFFFF55, new String[] {
             "§e• §f绝对防御: 伤害100%转换为能量消耗",
-            "§e• §f1点伤害=1000RF"
+            "§e• §f1点伤害=500RF (上限50000RF)"
         });
 
         // ========== 香巴拉_棘刺 ==========
         y = renderShambhalaSection(centerX, y, fr, alphaInt, bgAlpha,
                 "§c【香巴拉_棘刺】", 0xFF5555, new String[] {
-            "§c• §f因果反噬: 反射150%伤害",
-            "§c• §f每点反伤消耗500RF"
+            "§c• §f因果反噬: 按比例反射伤害",
+            "§c• §f每点受伤消耗200RF (上限25000RF)"
         });
 
         // ========== 香巴拉_净化 ==========
