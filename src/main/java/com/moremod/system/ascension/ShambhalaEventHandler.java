@@ -283,9 +283,13 @@ public class ShambhalaEventHandler {
 
         EntityPlayer player = (EntityPlayer) event.getEntityLiving();
 
+        System.out.println("[Shambhala Death] Player death event: " + player.getName() + ", source=" + event.getSource().getDamageType());
+        System.out.println("[Shambhala Death] isShambhala=" + ShambhalaHandler.isShambhala(player) + ", energy=" + ShambhalaHandler.getCurrentEnergy(player));
+
         if (ShambhalaHandler.isShambhala(player)) {
             // 检查是否有能量（这是原版MC的后备，First Aid由专门的兼容层处理）
             if (ShambhalaHandler.getCurrentEnergy(player) > 0) {
+                System.out.println("[Shambhala Death] Cancelling death!");
                 // 拦截死亡
                 event.setCanceled(true);
 
