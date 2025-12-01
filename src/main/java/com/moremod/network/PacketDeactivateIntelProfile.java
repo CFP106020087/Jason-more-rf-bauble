@@ -1,6 +1,7 @@
 package com.moremod.network;
 
 import com.moremod.system.humanity.HumanityCapabilityHandler;
+import com.moremod.system.humanity.HumanitySpectrumSystem;
 import com.moremod.system.humanity.IHumanityData;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -56,7 +57,7 @@ public class PacketDeactivateIntelProfile implements IMessage {
                     data.deactivateProfile(entityId);
 
                     // 同步数据到客户端
-                    HumanityCapabilityHandler.syncToClient(player);
+                    HumanitySpectrumSystem.forceSync(player);
 
                     System.out.println("[IntelSystem] " + player.getName() + " 卸除了情报档案: " + entityId);
                 }
