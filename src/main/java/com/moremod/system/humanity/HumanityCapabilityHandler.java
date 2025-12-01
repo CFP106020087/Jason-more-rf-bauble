@@ -10,6 +10,8 @@ import net.minecraftforge.event.AttachCapabilitiesEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerChangedDimensionEvent;
+import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerLoggedInEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerRespawnEvent;
 
 /**
@@ -98,8 +100,41 @@ public class HumanityCapabilityHandler {
     @SubscribeEvent
     public static void onPlayerRespawn(PlayerRespawnEvent event) {
         if (event.player instanceof EntityPlayerMP) {
-            // 延迟一点同步，确保客户端准备好
-            HumanitySpectrumSystem.forceSync(event.player);
+            EntityPlayerMP player = (EntityPlayerMP) event.player;
+            // 延迟1tick同步，确保客户端准备好
+            player.getServerWorld().addScheduledTask(() -> {
+                HumanitySpectrumSystem.syncNow(player);
+            });
+        }
+    }
+
+    /**
+     * 玩家切换维度后同步人性值数据到客户端
+     * 解决维度切换后 HUD 脱节问题
+     */
+    @SubscribeEvent
+    public static void onPlayerChangedDimension(PlayerChangedDimensionEvent event) {
+        if (event.player instanceof EntityPlayerMP) {
+            EntityPlayerMP player = (EntityPlayerMP) event.player;
+            // 延迟同步，确保维度切换完成
+            player.getServerWorld().addScheduledTask(() -> {
+                HumanitySpectrumSystem.syncNow(player);
+            });
+        }
+    }
+
+    /**
+     * 玩家登录后同步人性值数据到客户端
+     * 确保登录时数据正确
+     */
+    @SubscribeEvent
+    public static void onPlayerLoggedIn(PlayerLoggedInEvent event) {
+        if (event.player instanceof EntityPlayerMP) {
+            EntityPlayerMP player = (EntityPlayerMP) event.player;
+            // 延迟同步，确保客户端完全加载
+            player.getServerWorld().addScheduledTask(() -> {
+                HumanitySpectrumSystem.syncNow(player);
+            });
         }
     }
 }

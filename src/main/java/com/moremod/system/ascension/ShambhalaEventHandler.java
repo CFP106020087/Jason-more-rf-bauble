@@ -29,9 +29,12 @@ import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerChangedDimensionEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerLoggedInEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerLoggedOutEvent;
+import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerRespawnEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.world.World;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -180,8 +183,6 @@ public class ShambhalaEventHandler {
                 boolean inTrueDmgCtx = TrueDamageHelper.isInTrueDamageContext();
                 boolean isTrueDmgSrc = TrueDamageHelper.isTrueDamageSource(source);
 
-                System.out.println("[Shambhala Reflect] inTrueDmgCtx=" + inTrueDmgCtx + ", isTrueDmgSrc=" + isTrueDmgSrc + ", originalDamage=" + originalDamage);
-
                 if (!inTrueDmgCtx && !isTrueDmgSrc) {
                     float rawDamage = getAndClearCapturedRawDamage();
                     Entity capturedAtt = getAndClearCapturedAttacker();
@@ -189,13 +190,8 @@ public class ShambhalaEventHandler {
                     float reflectBaseDamage = rawDamage > 0 ? rawDamage : originalDamage;
                     Entity realAttacker = capturedAtt != null ? capturedAtt : source.getTrueSource();
 
-                    System.out.println("[Shambhala Reflect] rawDamage=" + rawDamage + ", reflectBaseDamage=" + reflectBaseDamage + ", attacker=" + (realAttacker != null ? realAttacker.getClass().getSimpleName() : "null"));
-
                     if (realAttacker != null && realAttacker instanceof EntityLivingBase && reflectBaseDamage > 0) {
-                        System.out.println("[Shambhala Reflect] Triggering reflect damage!");
                         ShambhalaDeathHook.triggerTrueDamageReflect(player, (EntityLivingBase) realAttacker, reflectBaseDamage);
-                    } else {
-                        System.out.println("[Shambhala Reflect] Skipped: attacker=" + (realAttacker != null) + ", isLiving=" + (realAttacker instanceof EntityLivingBase));
                     }
                 }
 
@@ -283,13 +279,9 @@ public class ShambhalaEventHandler {
 
         EntityPlayer player = (EntityPlayer) event.getEntityLiving();
 
-        System.out.println("[Shambhala Death] Player death event: " + player.getName() + ", source=" + event.getSource().getDamageType());
-        System.out.println("[Shambhala Death] isShambhala=" + ShambhalaHandler.isShambhala(player) + ", energy=" + ShambhalaHandler.getCurrentEnergy(player));
-
         if (ShambhalaHandler.isShambhala(player)) {
             // 检查是否有能量（这是原版MC的后备，First Aid由专门的兼容层处理）
             if (ShambhalaHandler.getCurrentEnergy(player) > 0) {
-                System.out.println("[Shambhala Death] Cancelling death!");
                 // 拦截死亡
                 event.setCanceled(true);
 
@@ -329,6 +321,35 @@ public class ShambhalaEventHandler {
         ItemShambhalaVeil.cleanupPlayer(event.player.getUniqueID());
     }
 
+    /**
+     * 玩家切换维度后重新注册香巴拉状态
+     * 解决维度切换后状态丢失问题
+     */
+    @SubscribeEvent
+    public static void onPlayerChangedDimension(PlayerChangedDimensionEvent event) {
+        EntityPlayer player = event.player;
+        IHumanityData data = HumanityCapabilityHandler.getData(player);
+        if (data != null && data.getAscensionRoute() == AscensionRoute.SHAMBHALA) {
+            ShambhalaHandler.registerShambhala(player);
+            LOGGER.info("[Shambhala] Re-registered Shambhala player {} after dimension change (from {} to {})",
+                    player.getName(), event.fromDim, event.toDim);
+        }
+    }
+
+    /**
+     * 玩家重生后重新注册香巴拉状态
+     * 解决死亡重生后状态丢失问题
+     */
+    @SubscribeEvent
+    public static void onPlayerRespawn(PlayerRespawnEvent event) {
+        EntityPlayer player = event.player;
+        IHumanityData data = HumanityCapabilityHandler.getData(player);
+        if (data != null && data.getAscensionRoute() == AscensionRoute.SHAMBHALA) {
+            ShambhalaHandler.registerShambhala(player);
+            LOGGER.info("[Shambhala] Re-registered Shambhala player {} after respawn", player.getName());
+        }
+    }
+
     // ========== 世界卸载（防止跨存档数据污染） ==========
 
     @SubscribeEvent
@@ -346,6 +367,23 @@ public class ShambhalaEventHandler {
     @SubscribeEvent
     public static void onPlayerClone(PlayerEvent.Clone event) {
         // 香巴拉状态通过 IHumanityData 的 copyFrom 保留
+        // 如果是香巴拉玩家，重生后重新装备套装
+        if (event.isWasDeath()) {
+            EntityPlayer newPlayer = event.getEntityPlayer();
+            EntityPlayer oldPlayer = event.getOriginal();
+
+            // 检查旧玩家是否是香巴拉
+            if (ShambhalaHandler.isShambhala(oldPlayer)) {
+                // 延迟1 tick装备，确保玩家完全加载
+                newPlayer.getServer().addScheduledTask(() -> {
+                    // 再次检查新玩家的香巴拉状态
+                    if (ShambhalaHandler.isShambhala(newPlayer)) {
+                        ShambhalaItems.replacePlayerBaubles(newPlayer);
+                        LOGGER.info("[Shambhala] Re-equipped Shambhala set after death for {}", newPlayer.getName());
+                    }
+                });
+            }
+        }
     }
 
     // ========== 香巴拉饰品死亡不掉落 ==========
@@ -355,7 +393,11 @@ public class ShambhalaEventHandler {
      */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onPlayerDrops(PlayerDropsEvent event) {
-        event.getDrops().removeIf(item -> ShambhalaItems.isShambhalaItem(item.getItem()));
+        EntityPlayer player = event.getEntityPlayer();
+        // 只为香巴拉玩家处理
+        if (ShambhalaHandler.isShambhala(player)) {
+            event.getDrops().removeIf(item -> ShambhalaItems.isShambhalaItem(item.getItem()));
+        }
     }
 
     /**
@@ -364,7 +406,10 @@ public class ShambhalaEventHandler {
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onLivingDrops(LivingDropsEvent event) {
         if (event.getEntityLiving() instanceof EntityPlayer) {
-            event.getDrops().removeIf(item -> ShambhalaItems.isShambhalaItem(item.getItem()));
+            EntityPlayer player = (EntityPlayer) event.getEntityLiving();
+            if (ShambhalaHandler.isShambhala(player)) {
+                event.getDrops().removeIf(item -> ShambhalaItems.isShambhalaItem(item.getItem()));
+            }
         }
     }
 
@@ -385,7 +430,8 @@ public class ShambhalaEventHandler {
     }
 
     /**
-     * 阻止香巴拉饰品物品实体生成（防止其他方式产生掉落）
+     * 阻止香巴拉饰品物品实体生成（防止死亡掉落）
+     * 只阻止没有拾取延迟的物品（掉落物通常有延迟）
      */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onItemSpawn(net.minecraftforge.event.entity.EntityJoinWorldEvent event) {
@@ -393,7 +439,12 @@ public class ShambhalaEventHandler {
             EntityItem item = (EntityItem) event.getEntity();
             ItemStack stack = item.getItem();
             if (ShambhalaItems.isShambhalaItem(stack)) {
-                event.setCanceled(true);
+                // 阻止掉落物生成（掉落物通常有拾取延迟）
+                // 但不阻止 replacePlayerBaubles 创建的物品（延迟=20）
+                // 死亡掉落通常延迟=40
+                if (item.pickupDelay != 20) {
+                    event.setCanceled(true);
+                }
             }
         }
     }

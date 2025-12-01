@@ -31,6 +31,7 @@ import java.util.UUID;
 public class ItemShambhalaCore extends ItemShambhalaBaubleBase {
 
     private static final UUID HEALTH_BONUS_UUID = UUID.fromString("a1234567-89ab-cdef-0123-456789abcde0");
+    private static final UUID KNOCKBACK_RESIST_UUID = UUID.fromString("a1234567-89ab-cdef-0123-456789abcde1");
 
     public ItemShambhalaCore() {
         setRegistryName("shambhala_core");
@@ -47,6 +48,7 @@ public class ItemShambhalaCore extends ItemShambhalaBaubleBase {
     public void onEquipped(ItemStack itemstack, EntityLivingBase player) {
         if (player instanceof EntityPlayer) {
             applyHealthBonus((EntityPlayer) player);
+            applyKnockbackResist((EntityPlayer) player);
         }
     }
 
@@ -54,6 +56,7 @@ public class ItemShambhalaCore extends ItemShambhalaBaubleBase {
     public void onUnequipped(ItemStack itemstack, EntityLivingBase player) {
         if (player instanceof EntityPlayer) {
             removeHealthBonus((EntityPlayer) player);
+            removeKnockbackResist((EntityPlayer) player);
         }
     }
 
@@ -64,12 +67,36 @@ public class ItemShambhalaCore extends ItemShambhalaBaubleBase {
         if (player.world.isRemote) return;
         if (!ShambhalaHandler.isShambhala(player)) return;
 
-        // 确保血量加成存在
+        // 确保属性加成存在
         if (entity.ticksExisted % 100 == 0) {
             applyHealthBonus(player);
+            applyKnockbackResist(player);
+        }
+
+        // 血量越低回血越快（每秒处理一次）
+        if (entity.ticksExisted % 20 == 0) {
+            applyLowHPRegen(player);
         }
 
         // 血量锁定由 ShambhalaFirstAidCompat 和 ShambhalaEventHandler.onLivingDeath 处理
+    }
+
+    /**
+     * 血量越低回血越快
+     * 公式: healRate = baseRegen + (maxRegen - baseRegen) * (1 - currentHP/maxHP)
+     */
+    private void applyLowHPRegen(EntityPlayer player) {
+        float currentHP = player.getHealth();
+        float maxHP = player.getMaxHealth();
+
+        if (currentHP >= maxHP) return; // 满血不回
+
+        float hpRatio = currentHP / maxHP;
+        // 血量越低，回血越多
+        float healRate = (float) (ShambhalaConfig.coreBaseRegen +
+                (ShambhalaConfig.coreMaxRegen - ShambhalaConfig.coreBaseRegen) * (1.0f - hpRatio));
+
+        player.heal(healRate);
     }
 
     private void applyHealthBonus(EntityPlayer player) {
@@ -97,6 +124,33 @@ public class ItemShambhalaCore extends ItemShambhalaBaubleBase {
         }
     }
 
+    private void applyKnockbackResist(EntityPlayer player) {
+        if (!ShambhalaConfig.coreKnockbackImmune) return;
+
+        IAttributeInstance knockbackAttr = player.getEntityAttribute(SharedMonsterAttributes.KNOCKBACK_RESISTANCE);
+        if (knockbackAttr == null) return;
+
+        AttributeModifier existing = knockbackAttr.getModifier(KNOCKBACK_RESIST_UUID);
+        if (existing == null) {
+            knockbackAttr.applyModifier(new AttributeModifier(
+                    KNOCKBACK_RESIST_UUID,
+                    "Shambhala Core Knockback Immunity",
+                    1.0, // 100% 击退抗性
+                    0 // 加法
+            ));
+        }
+    }
+
+    private void removeKnockbackResist(EntityPlayer player) {
+        IAttributeInstance knockbackAttr = player.getEntityAttribute(SharedMonsterAttributes.KNOCKBACK_RESISTANCE);
+        if (knockbackAttr == null) return;
+
+        AttributeModifier existing = knockbackAttr.getModifier(KNOCKBACK_RESIST_UUID);
+        if (existing != null) {
+            knockbackAttr.removeModifier(existing);
+        }
+    }
+
     @Override
     @SideOnly(Side.CLIENT)
     public void addInformation(ItemStack stack, @Nullable World worldIn, List<String> tooltip, ITooltipFlag flagIn) {
@@ -108,6 +162,16 @@ public class ItemShambhalaCore extends ItemShambhalaBaubleBase {
         tooltip.add(TextFormatting.GRAY + "  最大生命值 +" + (int) ShambhalaConfig.coreHealthBonus);
         tooltip.add(TextFormatting.AQUA + "  有能量时血量不会低于1");
         tooltip.add("");
+        tooltip.add(TextFormatting.RED + "◆ 永恒驱动");
+        tooltip.add(TextFormatting.GRAY + "  血量越低回血越快");
+        tooltip.add(TextFormatting.GRAY + "  满血: " + String.format("%.1f", ShambhalaConfig.coreBaseRegen) +
+                " HP/s → 濒死: " + String.format("%.1f", ShambhalaConfig.coreMaxRegen) + " HP/s");
+        tooltip.add("");
+        if (ShambhalaConfig.coreKnockbackImmune) {
+            tooltip.add(TextFormatting.YELLOW + "◆ 磐石之躯");
+            tooltip.add(TextFormatting.GRAY + "  免疫击退");
+            tooltip.add("");
+        }
         tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"只要齿轮仍在转动\"");
         tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"这座机械圣像便永不倒下\"");
         tooltip.add(TextFormatting.GOLD + "═══════════════════════════");

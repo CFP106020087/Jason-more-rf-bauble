@@ -49,6 +49,9 @@ public class HumanityDataImpl implements IHumanityData {
     private int dissolutionTicks = 0;
     private long existenceAnchorUntil = 0;
 
+    // 标记：是否已执行过自动激活（用于兼容旧存档，只在首次加载时运行）
+    private transient boolean autoActivationDone = false;
+
     // 猎人协议数据
     private Map<ResourceLocation, BiologicalProfile> profiles = new HashMap<>();
     private Set<ResourceLocation> activeProfiles = new HashSet<>();
@@ -662,15 +665,22 @@ public class HumanityDataImpl implements IHumanityData {
             }
         }
 
-        // 自动激活所有符合条件但未激活的档案（兼容旧存档）
+        // 自动激活所有符合条件但未激活的档案（兼容旧存档，只在首次加载时运行）
         autoActivateEligibleProfiles();
     }
 
     /**
      * 自动激活所有符合条件但未激活的档案
      * 用于兼容旧存档，确保已记录的档案能被激活
+     * 只在首次加载时运行，之后的同步不会重复运行
      */
     private void autoActivateEligibleProfiles() {
+        // 如果已经执行过自动激活，跳过（防止同步时重新激活已卸除的档案）
+        if (autoActivationDone) {
+            return;
+        }
+        autoActivationDone = true;
+
         int maxActive = getMaxActiveProfiles();
         for (Map.Entry<ResourceLocation, BiologicalProfile> entry : profiles.entrySet()) {
             ResourceLocation entityId = entry.getKey();
