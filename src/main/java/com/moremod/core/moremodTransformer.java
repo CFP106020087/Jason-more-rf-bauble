@@ -970,6 +970,7 @@ public class moremodTransformer implements IClassTransformer {
                 InsnList inject = new InsnList();
                 LabelNode continueLabel = new LabelNode();
 
+                // ===== 破碎之神：检查是否取消攻击 =====
                 inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
                 inject.add(new VarInsnNode(Opcodes.ALOAD, 1));
                 inject.add(new VarInsnNode(Opcodes.FLOAD, 2));
@@ -985,9 +986,24 @@ public class moremodTransformer implements IClassTransformer {
                 inject.add(new InsnNode(Opcodes.IRETURN));
                 inject.add(continueLabel);
 
+                // ===== 香巴拉：捕获原始伤害（用于反伤计算） =====
+                // 不会取消攻击，只是记录原始伤害值
+                inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                inject.add(new VarInsnNode(Opcodes.ALOAD, 1));
+                inject.add(new VarInsnNode(Opcodes.FLOAD, 2));
+                inject.add(new MethodInsnNode(
+                        Opcodes.INVOKESTATIC,
+                        "com/moremod/core/ShambhalaDeathHook",
+                        "shouldCancelAttack",
+                        "(Lnet/minecraft/entity/EntityLivingBase;Lnet/minecraft/util/DamageSource;F)Z",
+                        false
+                ));
+                inject.add(new InsnNode(Opcodes.POP)); // 忽略返回值，香巴拉不取消攻击
+
                 mn.instructions.insert(inject);
                 modified = true;
                 System.out.println("[moremodTransformer]     + Injected shutdown check at attackEntityFrom HEAD");
+                System.out.println("[moremodTransformer]     + Injected Shambhala raw damage capture at attackEntityFrom HEAD");
             }
 
             // ========== 2. damageEntity 注入 ==========

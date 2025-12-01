@@ -65,7 +65,8 @@ public class ItemShambhalaThorns extends ItemShambhalaBaubleBase {
         tooltip.add(TextFormatting.DARK_GRAY + "Shambhala Thorns - Karmic Retribution");
         tooltip.add("");
         tooltip.add(TextFormatting.RED + "◆ 因果反噬（比例反伤）");
-        tooltip.add(TextFormatting.GRAY + "  公式: (伤害/你的血量) × 敌人血量");
+        tooltip.add(TextFormatting.GRAY + "  公式: (原始伤害/你的血量) × 敌人血量");
+        tooltip.add(TextFormatting.DARK_GRAY + "  基于护甲前的原始伤害计算");
         tooltip.add(TextFormatting.DARK_RED + "  反伤为真实伤害");
         tooltip.add(TextFormatting.YELLOW + "  消耗能量: " + ShambhalaConfig.energyPerReflect + " RF/反伤");
         tooltip.add("");

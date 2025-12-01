@@ -21,9 +21,9 @@ import java.util.UUID;
  * Shambhala Death Hook
  *
  * 此类由 ASM Transformer 调用，提供能量护盾保护和真伤反伤：
- * 1. attackEntityFrom - 无条件放行（香巴拉不免疫攻击）
- * 2. damageEntity - 检测伤害，消耗能量吸收 + 触发真伤反伤
- * 3. onDeath - 最终防线，消耗能量阻止死亡
+ * 1. attackEntityFrom HEAD - 捕获原始伤害用于反伤计算
+ * 2. damageEntity HEAD - 消耗能量吸收 + 触发真伤反伤（使用原始伤害）
+ * 3. onDeath HEAD - 最终防线，消耗能量阻止死亡
  *
  * 与破碎之神的区别：
  * - 破碎之神：停机模式，完全免疫
@@ -34,14 +34,40 @@ public class ShambhalaDeathHook {
     /** 正在进行反伤的玩家（防止循环） */
     private static final Set<UUID> reflectingPlayers = new HashSet<>();
 
+    /**
+     * 存储原始伤害（护甲前）用于反伤计算
+     * Key: 玩家UUID, Value: 原始伤害量
+     */
+    private static final ThreadLocal<Float> capturedRawDamage = ThreadLocal.withInitial(() -> 0f);
+    private static final ThreadLocal<Entity> capturedAttacker = ThreadLocal.withInitial(() -> null);
+
     // ========== Hook 1: attackEntityFrom ==========
-    // 香巴拉不在这里拦截，让伤害正常计算
+    // 香巴拉在这里捕获原始伤害，但不拦截
 
     /**
-     * 检查是否应该取消攻击
-     * 香巴拉：始终返回false，不免疫攻击
+     * 在 attackEntityFrom HEAD 调用，捕获原始伤害
+     * 香巴拉：捕获伤害但不拦截（返回false）
+     *
+     * @param entity 受伤实体
+     * @param source 伤害源
+     * @param rawAmount 原始伤害（护甲前）
+     * @return false = 不取消攻击，让伤害继续
      */
-    public static boolean shouldCancelAttack(EntityLivingBase entity, DamageSource source, float amount) {
+    public static boolean shouldCancelAttack(EntityLivingBase entity, DamageSource source, float rawAmount) {
+        // 为香巴拉玩家捕获原始伤害
+        if (entity instanceof EntityPlayer) {
+            EntityPlayer player = (EntityPlayer) entity;
+            if (ShambhalaHandler.isShambhala(player)) {
+                // 跳过真伤和反伤（不重复捕获）
+                if (!TrueDamageHelper.isInTrueDamageContext()
+                    && !TrueDamageHelper.isTrueDamageSource(source)
+                    && !ShambhalaHandler.isShambhalaReflectDamage(source)) {
+
+                    capturedRawDamage.set(rawAmount);
+                    capturedAttacker.set(source.getTrueSource());
+                }
+            }
+        }
         // 香巴拉不在攻击阶段拦截
         return false;
     }
@@ -82,10 +108,21 @@ public class ShambhalaDeathHook {
                 return false;
             }
 
-            // ========== 触发反伤（在吸收伤害之前，用原始伤害计算） ==========
-            Entity attacker = source.getTrueSource();
-            if (attacker != null && attacker instanceof EntityLivingBase && damage > 0) {
-                triggerTrueDamageReflect(player, (EntityLivingBase) attacker, damage);
+            // ========== 触发反伤（使用原始伤害计算，护甲前） ==========
+            float rawDamage = capturedRawDamage.get();
+            Entity capturedAtt = capturedAttacker.get();
+
+            // 清理捕获的数据
+            capturedRawDamage.set(0f);
+            capturedAttacker.set(null);
+
+            // 使用原始伤害进行反伤计算
+            // 如果没有捕获到原始伤害（可能是真伤等直接调用damageEntity的情况），回退到最终伤害
+            float reflectBaseDamage = rawDamage > 0 ? rawDamage : damage;
+            Entity attacker = capturedAtt != null ? capturedAtt : source.getTrueSource();
+
+            if (attacker != null && attacker instanceof EntityLivingBase && reflectBaseDamage > 0) {
+                triggerTrueDamageReflect(player, (EntityLivingBase) attacker, reflectBaseDamage);
             }
 
             // ========== 能量护盾吸收 ==========
