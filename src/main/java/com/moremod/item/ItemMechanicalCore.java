@@ -11,7 +11,10 @@ import java.util.WeakHashMap;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.LinkedHashSet;
 import java.util.concurrent.ConcurrentHashMap;
+
+import com.moremod.module.ModuleAutoRegistry;
 import javax.annotation.Nullable;
 
 import baubles.api.BaubleType;
@@ -88,14 +91,51 @@ public class ItemMechanicalCore extends Item implements IBauble {
     }
     private static final Map<UUID, BatteryCache> batteryCache = new ConcurrentHashMap<>();
 
-    // ===== 扩展升级ID（统一管理） =====
-    private static final String[] EXTENDED_UPGRADE_IDS = {
+    // ===== 扩展升级ID（基础模块 - 不通过自动注册系统注册的模块） =====
+    private static final String[] BASE_EXTENDED_UPGRADE_IDS = {
             "YELLOW_SHIELD","HEALTH_REGEN","HUNGER_THIRST","THORNS","FIRE_EXTINGUISH","MOVEMENT_SPEED",
             "STEALTH","ORE_VISION","EXP_AMPLIFIER","DAMAGE_BOOST","ATTACK_SPEED","RANGE_EXTENSION",
             "PURSUIT","KINETIC_GENERATOR","SOLAR_GENERATOR","VOID_ENERGY","COMBAT_CHARGER","WATERPROOF_MODULE",
             "POISON_IMMUNITY","NIGHT_VISION","WATER_BREATHING","CRITICAL_STRIKE","ITEM_MAGNET",
-            "NEURAL_SYNCHRONIZER","MAGIC_ABSORB"  // 添加缺失的模块
+            "NEURAL_SYNCHRONIZER","MAGIC_ABSORB"
     };
+
+    // 缓存合并后的ID数组
+    private static String[] cachedAllExtendedIds = null;
+
+    /**
+     * 获取所有扩展升级ID（包含基础模块 + 自动注册模块）
+     * 使用缓存避免重复计算
+     */
+    private static String[] getAllExtendedUpgradeIds() {
+        if (cachedAllExtendedIds != null) {
+            return cachedAllExtendedIds;
+        }
+
+        // 使用 LinkedHashSet 保持顺序并去重
+        Set<String> allIds = new LinkedHashSet<>(Arrays.asList(BASE_EXTENDED_UPGRADE_IDS));
+
+        // 尝试从自动注册系统获取额外模块
+        try {
+            String[] autoIds = ModuleAutoRegistry.getAllModuleIds();
+            if (autoIds != null && autoIds.length > 0) {
+                allIds.addAll(Arrays.asList(autoIds));
+                System.out.println("[ItemMechanicalCore] 加载自动注册模块: " + autoIds.length + " 个");
+            }
+        } catch (Throwable e) {
+            // 自动注册系统可能尚未初始化，忽略
+        }
+
+        cachedAllExtendedIds = allIds.toArray(new String[0]);
+        return cachedAllExtendedIds;
+    }
+
+    /**
+     * 刷新扩展升级ID缓存（当自动注册系统初始化后调用）
+     */
+    public static void refreshExtendedUpgradeIds() {
+        cachedAllExtendedIds = null;
+    }
 
     // ===== 升级类型 =====
     public enum UpgradeType {
@@ -897,7 +937,7 @@ public class ItemMechanicalCore extends Item implements IBauble {
         }
 
         // 扩展升级（统一常量）
-        for (String id : EXTENDED_UPGRADE_IDS) {
+        for (String id : getAllExtendedUpgradeIds()) {
             if (isUpgradeActive(stack, id)) {
                 int lv = 0;
                 try { lv = ItemMechanicalCoreExtended.getUpgradeLevel(stack, id); } catch (Throwable ignored) {}
@@ -960,7 +1000,7 @@ public class ItemMechanicalCore extends Item implements IBauble {
         }
 
         // 扩展
-        for (String id : EXTENDED_UPGRADE_IDS) {
+        for (String id : getAllExtendedUpgradeIds()) {
             int lv = 0;
             try { lv = ItemMechanicalCoreExtended.getUpgradeLevel(stack, id); } catch (Throwable ignored) {}
             boolean installed = (nbt != null && nbt.getBoolean("HasUpgrade_" + id)) || lv > 0;
@@ -1594,7 +1634,7 @@ public class ItemMechanicalCore extends Item implements IBauble {
         } catch (Throwable ignored) {}
 
         if (!gotExtIds) {
-            for (String id : EXTENDED_UPGRADE_IDS) {
+            for (String id : getAllExtendedUpgradeIds()) {
                 int lv = 0;
                 try { lv = ItemMechanicalCoreExtended.getUpgradeLevel(stack, id); } catch (Throwable ignored) {}
                 if (lv > 0 || (nbt.getBoolean("HasUpgrade_" + id))) {
@@ -1694,7 +1734,7 @@ public class ItemMechanicalCore extends Item implements IBauble {
                 String id = type.getKey();
                 if (seen.add(norm(id))) total += getEffectiveUpgradeLevel(stack, id);
             }
-            for (String id : EXTENDED_UPGRADE_IDS) {
+            for (String id : getAllExtendedUpgradeIds()) {
                 if (seen.add(norm(id))) total += getEffectiveUpgradeLevel(stack, id);
             }
             return total;

@@ -13,33 +13,44 @@ import com.moremod.item.upgrades.ItemUpgradeComponent;
  * ║                        模块注册完整链路说明                                    ║
  * ╠══════════════════════════════════════════════════════════════════════════════╣
  * ║                                                                              ║
+ * ║  【方式一】手动注册 (本类使用的方式)                                            ║
+ * ║  ─────────────────────────────────────────────────                           ║
  * ║  1. ItemMechanicalCoreExtended.registerUpgrades()                            ║
  * ║     └─ 注册模块元数据 (ID, 显示名, 颜色, 最大等级, 类别)                        ║
- * ║     └─ 位置: ItemMechanicalCoreExtended.java                                 ║
  * ║                                                                              ║
  * ║  2. UpgradeType 枚举                                                         ║
  * ║     └─ 添加枚举值 (用于物品创建和类型识别)                                      ║
- * ║     └─ 位置: com.moremod.item.UpgradeType                                    ║
  * ║                                                                              ║
  * ║  3. UpgradeItemsExtended (本类)                                              ║
- * ║     └─ 定义物品实例 (使用 createUpgrade 方法)                                  ║
- * ║     └─ 添加到 getAllExtendedUpgrades() 返回数组                               ║
+ * ║     └─ 定义物品实例 + 添加到 getAllExtendedUpgrades()                          ║
  * ║                                                                              ║
  * ║  4. RegisterItem.java                                                        ║
- * ║     └─ 从本类获取物品引用并注册到 Forge Registry                               ║
- * ║     └─ 调用 event.getRegistry().register(item)                               ║
+ * ║     └─ 注册到 Forge Registry                                                 ║
  * ║                                                                              ║
- * ║  5. ItemMechanicalCore.EXTENDED_UPGRADE_IDS                                  ║
- * ║     └─ 添加模块ID字符串 (用于tooltip激活/已安装计数)                            ║
- * ║     └─ 位置: ItemMechanicalCore.java 顶部                                    ║
+ * ║  5. ItemMechanicalCore.BASE_EXTENDED_UPGRADE_IDS                             ║
+ * ║     └─ 添加模块ID字符串 (用于tooltip计数)                                      ║
  * ║                                                                              ║
  * ║  6. 语言文件 (en_us.lang / zh_cn.lang)                                       ║
  * ║     └─ 添加 item.registryName.name=显示名称                                   ║
- * ║     └─ 位置: resources/assets/moremod/lang/                                  ║
  * ║                                                                              ║
- * ║  7. 效果实现                                                                  ║
- * ║     └─ 事件处理器 / Mixin / Tick处理                                          ║
- * ║     └─ 检查 isUpgradeActive() 并实现具体效果                                   ║
+ * ║  7. 效果实现 (事件处理器 / Mixin / Tick处理)                                   ║
+ * ║                                                                              ║
+ * ╠══════════════════════════════════════════════════════════════════════════════╣
+ * ║                                                                              ║
+ * ║  【方式二】自动注册 (推荐新模块使用)                                            ║
+ * ║  ─────────────────────────────────────────────────                           ║
+ * ║  在 ModuleAutoRegistry.registerAllModules() 中添加定义:                       ║
+ * ║                                                                              ║
+ * ║  ModuleDefinition.builder("NEW_MODULE")                                      ║
+ * ║      .displayName("新模块")                                                   ║
+ * ║      .color(TextFormatting.GOLD)                                             ║
+ * ║      .category(Category.COMBAT)                                              ║
+ * ║      .maxLevel(3)                                                            ║
+ * ║      .levelDescriptions(lv -> new String[]{"描述..."})                        ║
+ * ║      .register();                                                            ║
+ * ║                                                                              ║
+ * ║  自动完成: 物品创建、Forge注册、EXTENDED_IDS填充                                ║
+ * ║  仍需手动: UpgradeType枚举、语言文件、效果实现                                   ║
  * ║                                                                              ║
  * ╚══════════════════════════════════════════════════════════════════════════════╝
  */
