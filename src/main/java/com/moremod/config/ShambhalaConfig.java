@@ -218,6 +218,15 @@ public class ShambhalaConfig {
     @Config.RangeInt(min = 20, max = 1200)
     public static int veilSkillCooldown = 200;
 
+    @Config.Comment({
+            "宁静光环持续时间（tick）",
+            "Duration of peace aura effect in ticks",
+            "进入光环范围的生物会持续被清除仇恨"
+    })
+    @Config.Name("宁静:光环持续时间 | Veil: Aura Duration")
+    @Config.RangeInt(min = 20, max = 600)
+    public static int veilAuraDuration = 200; // 默认10秒
+
     // ============================================================
     // 香巴拉_圣域 (Shambhala Sanctuary) - 终极防线
     // ============================================================
