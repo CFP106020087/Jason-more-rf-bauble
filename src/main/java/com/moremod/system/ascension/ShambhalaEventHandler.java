@@ -29,9 +29,12 @@ import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerChangedDimensionEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerLoggedInEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerLoggedOutEvent;
+import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerRespawnEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.world.World;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -316,6 +319,35 @@ public class ShambhalaEventHandler {
         ShambhalaHandler.cleanupPlayer(event.player.getUniqueID());
         ShambhalaDeathHook.cleanupPlayer(event.player.getUniqueID());
         ItemShambhalaVeil.cleanupPlayer(event.player.getUniqueID());
+    }
+
+    /**
+     * 玩家切换维度后重新注册香巴拉状态
+     * 解决维度切换后状态丢失问题
+     */
+    @SubscribeEvent
+    public static void onPlayerChangedDimension(PlayerChangedDimensionEvent event) {
+        EntityPlayer player = event.player;
+        IHumanityData data = HumanityCapabilityHandler.getData(player);
+        if (data != null && data.getAscensionRoute() == AscensionRoute.SHAMBHALA) {
+            ShambhalaHandler.registerShambhala(player);
+            LOGGER.info("[Shambhala] Re-registered Shambhala player {} after dimension change (from {} to {})",
+                    player.getName(), event.fromDim, event.toDim);
+        }
+    }
+
+    /**
+     * 玩家重生后重新注册香巴拉状态
+     * 解决死亡重生后状态丢失问题
+     */
+    @SubscribeEvent
+    public static void onPlayerRespawn(PlayerRespawnEvent event) {
+        EntityPlayer player = event.player;
+        IHumanityData data = HumanityCapabilityHandler.getData(player);
+        if (data != null && data.getAscensionRoute() == AscensionRoute.SHAMBHALA) {
+            ShambhalaHandler.registerShambhala(player);
+            LOGGER.info("[Shambhala] Re-registered Shambhala player {} after respawn", player.getName());
+        }
     }
 
     // ========== 世界卸载（防止跨存档数据污染） ==========
