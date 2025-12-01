@@ -90,10 +90,17 @@ public class ItemBrokenTerminus extends ItemBrokenBaubleBase {
         float healAmount = getKillHeal();
         player.heal(healAmount);
 
-        // 获得吸收之心
+        // 获得吸收之心（受配置上限限制）
         float absorptionGain = getKillAbsorption();
         float currentAbsorption = player.getAbsorptionAmount();
-        player.setAbsorptionAmount(currentAbsorption + absorptionGain);
+        float maxAbsorption = (float) BrokenGodConfig.brokenGodMaxAbsorption;
+        float newAbsorption = currentAbsorption + absorptionGain;
+
+        // 应用上限（0表示无上限）
+        if (maxAbsorption > 0 && newAbsorption > maxAbsorption) {
+            newAbsorption = maxAbsorption;
+        }
+        player.setAbsorptionAmount(newAbsorption);
     }
 
     @Override

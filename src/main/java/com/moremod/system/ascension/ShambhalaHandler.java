@@ -138,8 +138,9 @@ public class ShambhalaHandler {
             return damage;
         }
 
-        // 计算吸收伤害需要的能量
+        // 计算吸收伤害需要的能量，应用能量上限
         int energyRequired = (int) (damage * ShambhalaConfig.energyPerDamage);
+        energyRequired = Math.min(energyRequired, ShambhalaConfig.absorptionEnergyCap);
 
         // 尝试消耗能量
         if (consumeEnergy(player, energyRequired)) {
