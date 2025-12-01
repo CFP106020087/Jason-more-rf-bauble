@@ -255,10 +255,10 @@ public class HumanityDataImpl implements IHumanityData {
 
     @Override
     public int getMaxActiveProfiles() {
-        // 人性值/10，向下取整
-        // 100% = 10槽，50% = 5槽，40%以下 = 无法使用
+        // 人性值/10 + 5，向下取整
+        // 100% = 15槽，50% = 10槽，40% = 9槽，低于40% = 无法使用
         if (humanity < 40f) return 0;
-        return (int) (humanity / 10f);
+        return (int) (humanity / 10f) + 5;
     }
 
     // ========== 分析系统 ==========
