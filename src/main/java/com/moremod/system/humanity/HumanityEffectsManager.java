@@ -3,6 +3,7 @@ package com.moremod.system.humanity;
 import com.moremod.config.BrokenGodConfig;
 import com.moremod.config.HumanityConfig;
 import com.moremod.moremod;
+import com.moremod.util.DirectHealthHelper;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.attributes.AttributeModifier;
 import net.minecraft.entity.ai.attributes.IAttributeInstance;
@@ -97,9 +98,9 @@ public class HumanityEffectsManager {
 
         // 如果已经是 10，不需要修改
         if (Math.abs(currentMaxHealth - BROKEN_GOD_MAX_HEALTH) < 0.01) {
-            // 确保当前血量不超过最大值
+            // 确保当前血量不超过最大值（使用直接设置绕过 First Aid）
             if (player.getHealth() > BROKEN_GOD_MAX_HEALTH) {
-                player.setHealth((float) BROKEN_GOD_MAX_HEALTH);
+                DirectHealthHelper.setHealthDirect(player, (float) BROKEN_GOD_MAX_HEALTH);
             }
             return;
         }
@@ -126,9 +127,9 @@ public class HumanityEffectsManager {
 
         maxHealthAttr.applyModifier(lockMod);
 
-        // 确保当前血量不超过最大值
+        // 确保当前血量不超过最大值（使用直接设置绕过 First Aid）
         if (player.getHealth() > BROKEN_GOD_MAX_HEALTH) {
-            player.setHealth((float) BROKEN_GOD_MAX_HEALTH);
+            DirectHealthHelper.setHealthDirect(player, (float) BROKEN_GOD_MAX_HEALTH);
         }
     }
 
