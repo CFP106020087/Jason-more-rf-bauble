@@ -151,10 +151,15 @@ public class ShambhalaHandler {
         // 能量不足，计算部分吸收
         int currentEnergy = getCurrentEnergy(player);
         if (currentEnergy > 0) {
-            float absorbedDamage = (float) currentEnergy / ShambhalaConfig.energyPerDamage;
-            consumeEnergy(player, currentEnergy); // 消耗所有剩余能量
-            spawnAbsorbParticles(player);
-            return Math.max(0, damage - absorbedDamage);
+            // 保留至少1点能量用于死亡拦截
+            // 这样即使部分吸收后仍有致命伤害，死亡拦截仍能生效
+            int energyToConsume = Math.max(0, currentEnergy - 1);
+            if (energyToConsume > 0) {
+                float absorbedDamage = (float) energyToConsume / ShambhalaConfig.energyPerDamage;
+                consumeEnergy(player, energyToConsume);
+                spawnAbsorbParticles(player);
+                return Math.max(0, damage - absorbedDamage);
+            }
         }
 
         return damage;
