@@ -335,6 +335,23 @@ public class ShambhalaEventHandler {
     @SubscribeEvent
     public static void onPlayerClone(PlayerEvent.Clone event) {
         // 香巴拉状态通过 IHumanityData 的 copyFrom 保留
+        // 如果是香巴拉玩家，重生后重新装备套装
+        if (event.isWasDeath()) {
+            EntityPlayer newPlayer = event.getEntityPlayer();
+            EntityPlayer oldPlayer = event.getOriginal();
+
+            // 检查旧玩家是否是香巴拉
+            if (ShambhalaHandler.isShambhala(oldPlayer)) {
+                // 延迟1 tick装备，确保玩家完全加载
+                newPlayer.getServer().addScheduledTask(() -> {
+                    // 再次检查新玩家的香巴拉状态
+                    if (ShambhalaHandler.isShambhala(newPlayer)) {
+                        ShambhalaItems.replacePlayerBaubles(newPlayer);
+                        LOGGER.info("[Shambhala] Re-equipped Shambhala set after death for {}", newPlayer.getName());
+                    }
+                });
+            }
+        }
     }
 
     // ========== 香巴拉饰品死亡不掉落 ==========
@@ -344,7 +361,11 @@ public class ShambhalaEventHandler {
      */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onPlayerDrops(PlayerDropsEvent event) {
-        event.getDrops().removeIf(item -> ShambhalaItems.isShambhalaItem(item.getItem()));
+        EntityPlayer player = event.getEntityPlayer();
+        // 只为香巴拉玩家处理
+        if (ShambhalaHandler.isShambhala(player)) {
+            event.getDrops().removeIf(item -> ShambhalaItems.isShambhalaItem(item.getItem()));
+        }
     }
 
     /**
@@ -353,7 +374,10 @@ public class ShambhalaEventHandler {
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onLivingDrops(LivingDropsEvent event) {
         if (event.getEntityLiving() instanceof EntityPlayer) {
-            event.getDrops().removeIf(item -> ShambhalaItems.isShambhalaItem(item.getItem()));
+            EntityPlayer player = (EntityPlayer) event.getEntityLiving();
+            if (ShambhalaHandler.isShambhala(player)) {
+                event.getDrops().removeIf(item -> ShambhalaItems.isShambhalaItem(item.getItem()));
+            }
         }
     }
 
@@ -374,7 +398,8 @@ public class ShambhalaEventHandler {
     }
 
     /**
-     * 阻止香巴拉饰品物品实体生成（防止其他方式产生掉落）
+     * 阻止香巴拉饰品物品实体生成（防止死亡掉落）
+     * 只阻止没有拾取延迟的物品（掉落物通常有延迟）
      */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onItemSpawn(net.minecraftforge.event.entity.EntityJoinWorldEvent event) {
@@ -382,7 +407,12 @@ public class ShambhalaEventHandler {
             EntityItem item = (EntityItem) event.getEntity();
             ItemStack stack = item.getItem();
             if (ShambhalaItems.isShambhalaItem(stack)) {
-                event.setCanceled(true);
+                // 阻止掉落物生成（掉落物通常有拾取延迟）
+                // 但不阻止 replacePlayerBaubles 创建的物品（延迟=20）
+                // 死亡掉落通常延迟=40
+                if (item.pickupDelay != 20) {
+                    event.setCanceled(true);
+                }
             }
         }
     }
