@@ -25,8 +25,10 @@ import java.util.WeakHashMap;
 /**
  * 勇者之剑 - 事件处理（修复版）
  *
- * 真伤机制：在攻击时清除目标护甲，让伤害不被减免，
- * 然后在 LivingDamageEvent 阶段恢复护甲并转换为真伤
+ * 真伤机制：
+ * 1. 在攻击时清除目标护甲，让伤害不被减免
+ * 2. 在各个事件阶段追踪最大伤害值，防止其他模组减伤
+ * 3. 在 LivingDamageEvent 阶段使用最大值施加真伤
  */
 @Mod.EventBusSubscriber(modid = "moremod")
 public class HeroSwordEventHandler {
@@ -35,7 +37,10 @@ public class HeroSwordEventHandler {
     private static final Map<EntityLivingBase, Double> savedArmor = new WeakHashMap<>();
     private static final Map<EntityLivingBase, Double> savedArmorToughness = new WeakHashMap<>();
 
-    // ===== 攻击前：清除目标护甲（护甲穿透）=====
+    // 追踪各阶段的最大伤害值（防止其他模组减伤）
+    private static final Map<EntityLivingBase, Float> maxDamageTracker = new WeakHashMap<>();
+
+    // ===== 攻击前：清除目标护甲 + 记录初始伤害 =====
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onLivingAttack(LivingAttackEvent event) {
         DamageSource src = event.getSource();
@@ -50,6 +55,10 @@ public class HeroSwordEventHandler {
 
         EntityLivingBase target = event.getEntityLiving();
         if (target.isDead) return;
+
+        // 记录初始伤害值
+        float initialDamage = event.getAmount();
+        maxDamageTracker.put(target, initialDamage);
 
         // 保存并清除护甲
         IAttributeInstance armorAttr = target.getEntityAttribute(SharedMonsterAttributes.ARMOR);
@@ -101,9 +110,15 @@ public class HeroSwordEventHandler {
         HeroSwordNBT.addHitTaken(main, 1, tick);
     }
 
-    // ===== 对敌伤害：巨像杀手 + 宿命重担倍率 =====
-    @SubscribeEvent(priority = EventPriority.LOW)
-    public static void onEntityHurt(LivingHurtEvent event) {
+    // ===== 对敌伤害：追踪最大伤害（HIGHEST）=====
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onEntityHurtHighest(LivingHurtEvent event) {
+        trackMaxDamage(event);
+    }
+
+    // ===== 对敌伤害：巨像杀手 + 宿命重担倍率（HIGH）=====
+    @SubscribeEvent(priority = EventPriority.HIGH)
+    public static void onEntityHurtHigh(LivingHurtEvent event) {
         DamageSource src = event.getSource();
         Entity trueSrc = src.getTrueSource();
         if (!(trueSrc instanceof EntityPlayer)) return;
@@ -129,14 +144,83 @@ public class HeroSwordEventHandler {
 
         float finalDamage = damage * giantMult * burdenMult;
         event.setAmount(finalDamage);
+
+        // 更新最大伤害
+        trackMaxDamage(event);
     }
 
-    // ===== 真伤：宿命裁决（将全部伤害转换为真伤）=====
+    // ===== 对敌伤害：追踪最大伤害（NORMAL）=====
+    @SubscribeEvent(priority = EventPriority.NORMAL)
+    public static void onEntityHurtNormal(LivingHurtEvent event) {
+        trackMaxDamage(event);
+    }
+
+    // ===== 对敌伤害：追踪最大伤害（LOW）=====
+    @SubscribeEvent(priority = EventPriority.LOW)
+    public static void onEntityHurtLow(LivingHurtEvent event) {
+        trackMaxDamage(event);
+    }
+
+    // ===== 对敌伤害：追踪最大伤害（LOWEST）=====
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onEntityHurtLowest(LivingHurtEvent event) {
+        trackMaxDamage(event);
+    }
+
+    /**
+     * 追踪并更新最大伤害值
+     */
+    private static void trackMaxDamage(LivingHurtEvent event) {
+        DamageSource src = event.getSource();
+        Entity trueSrc = src.getTrueSource();
+        if (!(trueSrc instanceof EntityPlayer)) return;
+
+        EntityPlayer player = (EntityPlayer) trueSrc;
+        if (player.world.isRemote) return;
+
+        ItemStack main = player.getHeldItemMainhand();
+        if (main.isEmpty() || !(main.getItem() instanceof ItemHeroSword)) return;
+
+        EntityLivingBase target = event.getEntityLiving();
+        float currentDamage = event.getAmount();
+
+        // 更新最大值
+        Float maxDamage = maxDamageTracker.get(target);
+        if (maxDamage == null || currentDamage > maxDamage) {
+            maxDamageTracker.put(target, currentDamage);
+        }
+    }
+
+    // ===== LivingDamageEvent：追踪最大伤害（HIGHEST）=====
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onEntityDamageHighest(LivingDamageEvent event) {
+        trackMaxDamageFinal(event);
+    }
+
+    // ===== LivingDamageEvent：追踪最大伤害（HIGH）=====
+    @SubscribeEvent(priority = EventPriority.HIGH)
+    public static void onEntityDamageHigh(LivingDamageEvent event) {
+        trackMaxDamageFinal(event);
+    }
+
+    // ===== LivingDamageEvent：追踪最大伤害（NORMAL）=====
+    @SubscribeEvent(priority = EventPriority.NORMAL)
+    public static void onEntityDamageNormal(LivingDamageEvent event) {
+        trackMaxDamageFinal(event);
+    }
+
+    // ===== LivingDamageEvent：追踪最大伤害（LOW）=====
+    @SubscribeEvent(priority = EventPriority.LOW)
+    public static void onEntityDamageLow(LivingDamageEvent event) {
+        trackMaxDamageFinal(event);
+    }
+
+    // ===== 真伤：宿命裁决（使用最大追踪值施加真伤）=====
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onEntityDamage(LivingDamageEvent event) {
         EntityLivingBase target = event.getEntityLiving();
 
-        // 无论如何都要恢复护甲（在 finally 块中处理）
+        // 无论如何都要清理数据（在 finally 块中处理）
         try {
             // 避免递归：如果已经在真伤处理中，跳过
             if (TrueDamageHelper.isInTrueDamageContext()) return;
@@ -153,22 +237,54 @@ public class HeroSwordEventHandler {
 
             if (target.isDead || target.getHealth() <= 0.0F) return;
 
-            float baseDamage = event.getAmount();
-            if (baseDamage <= 0.0F) return;
+            // 最后一次更新最大值
+            trackMaxDamageFinal(event);
+
+            // 获取追踪到的最大伤害值
+            Float maxDamage = maxDamageTracker.get(target);
+            float currentDamage = event.getAmount();
+            float finalDamage = (maxDamage != null) ? Math.max(maxDamage, currentDamage) : currentDamage;
+
+            if (finalDamage <= 0.0F) return;
 
             // 取消原始伤害，改用 TrueDamageHelper 施加真伤
             event.setCanceled(true);
 
-            // 通过 TrueDamageHelper 施加真伤
+            // 通过 TrueDamageHelper 施加真伤（使用最大追踪值）
             TrueDamageHelper.applyWrappedTrueDamage(
                     target,
                     player,
-                    baseDamage,
+                    finalDamage,
                     TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE
             );
         } finally {
-            // 恢复目标护甲
+            // 恢复目标护甲并清理追踪数据
             restoreArmor(target);
+            maxDamageTracker.remove(target);
+        }
+    }
+
+    /**
+     * 追踪 LivingDamageEvent 阶段的最大伤害值
+     */
+    private static void trackMaxDamageFinal(LivingDamageEvent event) {
+        DamageSource src = event.getSource();
+        Entity trueSrc = src.getTrueSource();
+        if (!(trueSrc instanceof EntityPlayer)) return;
+
+        EntityPlayer player = (EntityPlayer) trueSrc;
+        if (player.world.isRemote) return;
+
+        ItemStack main = player.getHeldItemMainhand();
+        if (main.isEmpty() || !(main.getItem() instanceof ItemHeroSword)) return;
+
+        EntityLivingBase target = event.getEntityLiving();
+        float currentDamage = event.getAmount();
+
+        // 更新最大值
+        Float maxDamage = maxDamageTracker.get(target);
+        if (maxDamage == null || currentDamage > maxDamage) {
+            maxDamageTracker.put(target, currentDamage);
         }
     }
 
