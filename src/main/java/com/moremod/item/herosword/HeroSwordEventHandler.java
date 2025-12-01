@@ -4,10 +4,13 @@ import com.moremod.combat.TrueDamageHelper;
 import com.moremod.item.ItemHeroSword;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.SharedMonsterAttributes;
+import net.minecraft.entity.ai.attributes.IAttributeInstance;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.EntityDamageSource;
+import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.living.LivingDamageEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
@@ -16,11 +19,51 @@ import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
+import java.util.Map;
+import java.util.WeakHashMap;
+
 /**
  * 勇者之剑 - 事件处理（修复版）
+ *
+ * 真伤机制：在攻击时清除目标护甲，让伤害不被减免，
+ * 然后在 LivingDamageEvent 阶段恢复护甲并转换为真伤
  */
 @Mod.EventBusSubscriber(modid = "moremod")
 public class HeroSwordEventHandler {
+
+    // 临时存储被清除的护甲值
+    private static final Map<EntityLivingBase, Double> savedArmor = new WeakHashMap<>();
+    private static final Map<EntityLivingBase, Double> savedArmorToughness = new WeakHashMap<>();
+
+    // ===== 攻击前：清除目标护甲（护甲穿透）=====
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onLivingAttack(LivingAttackEvent event) {
+        DamageSource src = event.getSource();
+        Entity trueSrc = src.getTrueSource();
+        if (!(trueSrc instanceof EntityPlayer)) return;
+
+        EntityPlayer player = (EntityPlayer) trueSrc;
+        if (player.world.isRemote) return;
+
+        ItemStack main = player.getHeldItemMainhand();
+        if (main.isEmpty() || !(main.getItem() instanceof ItemHeroSword)) return;
+
+        EntityLivingBase target = event.getEntityLiving();
+        if (target.isDead) return;
+
+        // 保存并清除护甲
+        IAttributeInstance armorAttr = target.getEntityAttribute(SharedMonsterAttributes.ARMOR);
+        IAttributeInstance toughnessAttr = target.getEntityAttribute(SharedMonsterAttributes.ARMOR_TOUGHNESS);
+
+        if (armorAttr != null) {
+            savedArmor.put(target, armorAttr.getBaseValue());
+            armorAttr.setBaseValue(0);
+        }
+        if (toughnessAttr != null) {
+            savedArmorToughness.put(target, toughnessAttr.getBaseValue());
+            toughnessAttr.setBaseValue(0);
+        }
+    }
 
     // ===== 击杀加经验 =====
     @SubscribeEvent(priority = EventPriority.NORMAL)
@@ -91,35 +134,65 @@ public class HeroSwordEventHandler {
     // ===== 真伤：宿命裁决（将全部伤害转换为真伤）=====
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onEntityDamage(LivingDamageEvent event) {
-        // 避免递归：如果已经在真伤处理中，跳过
-        if (TrueDamageHelper.isInTrueDamageContext()) return;
-
-        DamageSource src = event.getSource();
-        Entity trueSrc = src.getTrueSource();
-        if (!(trueSrc instanceof EntityPlayer)) return;
-
-        EntityPlayer player = (EntityPlayer) trueSrc;
-        if (player.world.isRemote) return;
-
-        ItemStack main = player.getHeldItemMainhand();
-        if (main.isEmpty() || !(main.getItem() instanceof ItemHeroSword)) return;
-
         EntityLivingBase target = event.getEntityLiving();
-        if (target.isDead || target.getHealth() <= 0.0F) return;
 
-        float baseDamage = event.getAmount();
-        if (baseDamage <= 0.0F) return;
+        // 无论如何都要恢复护甲（在 finally 块中处理）
+        try {
+            // 避免递归：如果已经在真伤处理中，跳过
+            if (TrueDamageHelper.isInTrueDamageContext()) return;
 
-        // 取消原始伤害，改用 TrueDamageHelper 施加真伤
-        event.setCanceled(true);
+            DamageSource src = event.getSource();
+            Entity trueSrc = src.getTrueSource();
+            if (!(trueSrc instanceof EntityPlayer)) return;
 
-        // 通过 TrueDamageHelper 施加真伤
-        TrueDamageHelper.applyWrappedTrueDamage(
-                target,
-                player,
-                baseDamage,
-                TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE
-        );
+            EntityPlayer player = (EntityPlayer) trueSrc;
+            if (player.world.isRemote) return;
+
+            ItemStack main = player.getHeldItemMainhand();
+            if (main.isEmpty() || !(main.getItem() instanceof ItemHeroSword)) return;
+
+            if (target.isDead || target.getHealth() <= 0.0F) return;
+
+            float baseDamage = event.getAmount();
+            if (baseDamage <= 0.0F) return;
+
+            // 取消原始伤害，改用 TrueDamageHelper 施加真伤
+            event.setCanceled(true);
+
+            // 通过 TrueDamageHelper 施加真伤
+            TrueDamageHelper.applyWrappedTrueDamage(
+                    target,
+                    player,
+                    baseDamage,
+                    TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE
+            );
+        } finally {
+            // 恢复目标护甲
+            restoreArmor(target);
+        }
+    }
+
+    /**
+     * 恢复目标的护甲值
+     */
+    private static void restoreArmor(EntityLivingBase target) {
+        if (target == null) return;
+
+        Double savedArmorValue = savedArmor.remove(target);
+        Double savedToughnessValue = savedArmorToughness.remove(target);
+
+        if (savedArmorValue != null) {
+            IAttributeInstance armorAttr = target.getEntityAttribute(SharedMonsterAttributes.ARMOR);
+            if (armorAttr != null) {
+                armorAttr.setBaseValue(savedArmorValue);
+            }
+        }
+        if (savedToughnessValue != null) {
+            IAttributeInstance toughnessAttr = target.getEntityAttribute(SharedMonsterAttributes.ARMOR_TOUGHNESS);
+            if (toughnessAttr != null) {
+                toughnessAttr.setBaseValue(savedToughnessValue);
+            }
+        }
     }
 
     // ===== 玩家Tick：宿命重担渐进式衰减（修复版）=====
