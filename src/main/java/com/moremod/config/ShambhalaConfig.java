@@ -34,17 +34,17 @@ public class ShambhalaConfig {
             "Minimum installed modules required for ascension"
     })
     @Config.Name("模块数量要求 | Required Module Count")
-    @Config.RangeInt(min = 1, max = 50)
-    public static int requiredModuleCount = 20;
+    @Config.RangeInt(min = 1, max = 60)
+    public static int requiredModuleCount = 40;
 
     @Config.Comment({
             "升格所需的高人性值累计时间（秒）",
             "Seconds at high humanity required for ascension",
-            "与破碎之神的时间单位保持一致"
+            "默认7天 = 604800秒"
     })
     @Config.Name("高人性秒数要求 | High Humanity Seconds")
-    @Config.RangeInt(min = 60, max = 86400)
-    public static int requiredHighHumanitySeconds = 8400;
+    @Config.RangeInt(min = 60, max = 604800)
+    public static int requiredHighHumanitySeconds = 604800; // 7天
 
     @Config.Comment({
             "高人性值阈值（高于此值时开始累计时间）",

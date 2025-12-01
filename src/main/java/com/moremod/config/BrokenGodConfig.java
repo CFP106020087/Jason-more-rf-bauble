@@ -37,11 +37,12 @@ public class BrokenGodConfig {
     @Config.Comment({
             "升格所需的低人性值累计时间（秒）",
             "Cumulative time at low humanity required for ascension (seconds)",
-            "当人性值低于阈值时，每秒累计1秒"
+            "当人性值低于阈值时，每秒累计1秒",
+            "默认3天 = 259200秒"
     })
     @Config.Name("低人性累计时间 | Low Humanity Time")
-    @Config.RangeInt(min = 60, max = 36000)
-    public static int requiredLowHumanitySeconds = 1800; // 默认30分钟
+    @Config.RangeInt(min = 60, max = 604800)
+    public static int requiredLowHumanitySeconds = 259200; // 3天
 
     @Config.Comment({
             "低人性值阈值（低于此值时开始累计时间）",
