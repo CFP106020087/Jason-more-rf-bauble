@@ -31,8 +31,8 @@ public class BrokenGodConfig {
             "Minimum installed modules required for ascension"
     })
     @Config.Name("模块数量要求 | Required Module Count")
-    @Config.RangeInt(min = 1, max = 50)
-    public static int requiredModuleCount = 20;
+    @Config.RangeInt(min = 1, max = 60)
+    public static int requiredModuleCount = 40;
 
     @Config.Comment({
             "升格所需的低人性值累计时间（秒）",
