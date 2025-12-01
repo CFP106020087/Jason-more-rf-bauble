@@ -1,5 +1,7 @@
 package com.moremod.system.ascension;
 
+import baubles.api.BaublesApi;
+import baubles.api.cap.IBaublesItemHandler;
 import com.moremod.combat.TrueDamageHelper;
 import com.moremod.config.ShambhalaConfig;
 import com.moremod.core.ShambhalaDeathHook;
@@ -386,30 +388,68 @@ public class ShambhalaEventHandler {
         }
     }
 
-    // ========== 香巴拉饰品死亡不掉落 ==========
+    // ========== 香巴拉饰品死亡不掉落（参考 CoreDropProtection 实现） ==========
 
     /**
-     * 玩家死亡时移除香巴拉饰品掉落
+     * 玩家死亡时，主动从饰品栏移除香巴拉饰品
+     * 这样 Baubles 就不会将它们添加到掉落列表
+     * （参考 CoreDropProtection.onPlayerDeath）
      */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public static void onPlayerDrops(PlayerDropsEvent event) {
-        EntityPlayer player = event.getEntityPlayer();
+    public static void onShambhalaPlayerDeath(LivingDeathEvent event) {
+        if (!(event.getEntityLiving() instanceof EntityPlayer)) return;
+        EntityPlayer player = (EntityPlayer) event.getEntityLiving();
+        if (player.world.isRemote) return;
+
         // 只为香巴拉玩家处理
-        if (ShambhalaHandler.isShambhala(player)) {
-            event.getDrops().removeIf(item -> ShambhalaItems.isShambhalaItem(item.getItem()));
+        if (!ShambhalaHandler.isShambhala(player)) return;
+
+        // 从饰品栏移除香巴拉饰品（不掉落，重生后会重新装备）
+        try {
+            IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(player);
+            if (baubles != null) {
+                for (int i = 0; i < baubles.getSlots(); i++) {
+                    ItemStack stack = baubles.getStackInSlot(i);
+                    if (!stack.isEmpty() && ShambhalaItems.isShambhalaItem(stack)) {
+                        // 直接移除，不掉落
+                        baubles.setStackInSlot(i, ItemStack.EMPTY);
+                        LOGGER.debug("[Shambhala] Removed {} from baubles slot {} on death",
+                                stack.getDisplayName(), i);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.error("[Shambhala] Error removing baubles on death", e);
+        }
+
+        // 同时从背包移除（以防万一）
+        for (int i = 0; i < player.inventory.getSizeInventory(); i++) {
+            ItemStack stack = player.inventory.getStackInSlot(i);
+            if (!stack.isEmpty() && ShambhalaItems.isShambhalaItem(stack)) {
+                player.inventory.setInventorySlotContents(i, ItemStack.EMPTY);
+                LOGGER.debug("[Shambhala] Removed {} from inventory slot {} on death",
+                        stack.getDisplayName(), i);
+            }
         }
     }
 
     /**
-     * 实体死亡时移除香巴拉饰品掉落（防止通过其他方式掉落）
+     * 玩家死亡时移除香巴拉饰品掉落（后备）
+     */
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onPlayerDrops(PlayerDropsEvent event) {
+        // 无条件移除所有香巴拉饰品掉落（参考 CoreDropProtection）
+        event.getDrops().removeIf(item -> ShambhalaItems.isShambhalaItem(item.getItem()));
+    }
+
+    /**
+     * 实体死亡时移除香巴拉饰品掉落（后备）
      */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onLivingDrops(LivingDropsEvent event) {
         if (event.getEntityLiving() instanceof EntityPlayer) {
-            EntityPlayer player = (EntityPlayer) event.getEntityLiving();
-            if (ShambhalaHandler.isShambhala(player)) {
-                event.getDrops().removeIf(item -> ShambhalaItems.isShambhalaItem(item.getItem()));
-            }
+            // 无条件移除所有香巴拉饰品掉落
+            event.getDrops().removeIf(item -> ShambhalaItems.isShambhalaItem(item.getItem()));
         }
     }
 
@@ -431,7 +471,8 @@ public class ShambhalaEventHandler {
 
     /**
      * 阻止香巴拉饰品物品实体生成（防止死亡掉落）
-     * 只阻止没有拾取延迟的物品（掉落物通常有延迟）
+     * 无条件阻止所有香巴拉饰品掉落物生成
+     * 注意：replacePlayerBaubles 只掉落非香巴拉饰品（被替换的旧饰品）
      */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onItemSpawn(net.minecraftforge.event.entity.EntityJoinWorldEvent event) {
@@ -439,12 +480,10 @@ public class ShambhalaEventHandler {
             EntityItem item = (EntityItem) event.getEntity();
             ItemStack stack = item.getItem();
             if (ShambhalaItems.isShambhalaItem(stack)) {
-                // 阻止掉落物生成（掉落物通常有拾取延迟）
-                // 但不阻止 replacePlayerBaubles 创建的物品（延迟=20）
-                // 死亡掉落通常延迟=40
-                if (item.pickupDelay != 20) {
-                    event.setCanceled(true);
-                }
+                // 无条件阻止所有香巴拉饰品掉落物
+                // 香巴拉饰品是灵魂绑定的，不应该以任何方式掉落
+                event.setCanceled(true);
+                LOGGER.debug("[Shambhala] Blocked Shambhala item drop: {}", stack.getDisplayName());
             }
         }
     }
