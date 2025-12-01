@@ -190,6 +190,10 @@ public class ShambhalaHandler {
 
     /**
      * 反射伤害给攻击者（带AoE和循环防护）
+     *
+     * 新公式（比例反伤）：
+     * 反伤 = (受到的伤害 / 玩家最大血量) * 攻击者最大血量
+     *
      * @param damageSource 原始伤害源（用于检测循环）
      */
     public static void reflectDamage(EntityPlayer player, net.minecraft.entity.Entity attacker,
@@ -205,16 +209,25 @@ public class ShambhalaHandler {
         reflectingPlayers.add(player.getUniqueID());
 
         try {
-            float reflectDamage = originalDamage * (float) ShambhalaConfig.thornsReflectMultiplier;
-            double aoeRadius = ShambhalaConfig.thornsAoeRadius;
+            // ========== 新公式：比例反伤 ==========
+            // (受到的伤害 / 玩家最大血量) * 攻击者最大血量
+            float playerMaxHealth = player.getMaxHealth();
+            if (playerMaxHealth <= 0) playerMaxHealth = 20.0F; // 防止除零
 
-            // 计算总能量消耗（主目标 + AoE）
-            int baseCost = (int) (reflectDamage * ShambhalaConfig.energyPerReflect);
+            float damageRatio = originalDamage / playerMaxHealth;
+
+            double aoeRadius = ShambhalaConfig.thornsAoeRadius;
 
             // 主目标反伤
             if (attacker instanceof net.minecraft.entity.EntityLivingBase) {
+                net.minecraft.entity.EntityLivingBase livingAttacker = (net.minecraft.entity.EntityLivingBase) attacker;
+                float reflectDamage = damageRatio * livingAttacker.getMaxHealth();
+                reflectDamage *= (float) ShambhalaConfig.thornsReflectMultiplier;
+
+                int baseCost = (int) (reflectDamage * ShambhalaConfig.energyPerReflect);
+
                 if (consumeEnergy(player, baseCost)) {
-                    applyReflectDamageToTarget(player, (net.minecraft.entity.EntityLivingBase) attacker, reflectDamage);
+                    applyReflectDamageToTarget(player, livingAttacker, reflectDamage);
                 } else {
                     return; // 没能量就不反伤
                 }
@@ -231,10 +244,13 @@ public class ShambhalaHandler {
                         player.world.getEntitiesWithinAABB(net.minecraft.entity.EntityLivingBase.class, aabb,
                                 e -> e != player && e != attacker && !(e instanceof EntityPlayer));
 
-                float aoeDamage = reflectDamage * 0.5f; // AoE伤害减半
-                int aoeCost = (int) (aoeDamage * ShambhalaConfig.energyPerReflect);
-
+                // AoE也使用比例反伤，基于每个mob自己的血量
                 for (net.minecraft.entity.EntityLivingBase mob : nearbyMobs) {
+                    float aoeDamage = damageRatio * mob.getMaxHealth() * 0.5f; // AoE伤害减半
+                    aoeDamage *= (float) ShambhalaConfig.thornsReflectMultiplier;
+
+                    int aoeCost = (int) (aoeDamage * ShambhalaConfig.energyPerReflect);
+
                     if (consumeEnergy(player, aoeCost)) {
                         applyReflectDamageToTarget(player, mob, aoeDamage);
                     } else {

@@ -137,6 +137,11 @@ public class ShambhalaDeathHook {
      * 触发真伤反伤
      * 使用 TrueDamageHelper 造成真实伤害，绕过护甲和ASM吸收
      *
+     * 新公式（比例反伤）：
+     * 反伤 = (受到的伤害 / 玩家最大血量) * 攻击者最大血量
+     * 例如：玩家有20血，受到10伤害（50%血量），攻击者有100血
+     *       反伤 = (10/20) * 100 = 50 真实伤害
+     *
      * @param player   香巴拉玩家
      * @param attacker 攻击者
      * @param damage   受到的原始伤害
@@ -157,11 +162,20 @@ public class ShambhalaDeathHook {
         reflectingPlayers.add(playerId);
 
         try {
-            // 计算反伤伤害
-            float reflectDamage = damage * (float) ShambhalaConfig.thornsReflectMultiplier;
+            // ========== 新公式：比例反伤 ==========
+            // (受到的伤害 / 玩家最大血量) * 攻击者最大血量
+            float playerMaxHealth = player.getMaxHealth();
+            if (playerMaxHealth <= 0) playerMaxHealth = 20.0F; // 防止除零
+
+            float damageRatio = damage / playerMaxHealth;
+            float reflectDamage = damageRatio * attacker.getMaxHealth();
+
+            // 应用配置的倍率修正（可选，默认1.0则无效果）
+            reflectDamage *= (float) ShambhalaConfig.thornsReflectMultiplier;
+
             double aoeRadius = ShambhalaConfig.thornsAoeRadius;
 
-            // 计算能量消耗
+            // 计算能量消耗（基于造成的反伤）
             int baseCost = (int) (reflectDamage * ShambhalaConfig.energyPerReflect);
 
             // ========== 主目标反伤 ==========
@@ -184,12 +198,15 @@ public class ShambhalaDeathHook {
                         e -> e != null && e != player && e != attacker && !(e instanceof EntityPlayer) && e.isEntityAlive()
                 );
 
-                float aoeDamage = reflectDamage * 0.5f; // AoE伤害减半
-                int aoeCost = (int) (aoeDamage * ShambhalaConfig.energyPerReflect);
-
+                // AoE也使用比例反伤，基于每个mob自己的血量
                 for (EntityLivingBase mob : nearbyMobs) {
+                    float aoeReflectDamage = damageRatio * mob.getMaxHealth() * 0.5f; // AoE伤害减半
+                    aoeReflectDamage *= (float) ShambhalaConfig.thornsReflectMultiplier;
+
+                    int aoeCost = (int) (aoeReflectDamage * ShambhalaConfig.energyPerReflect);
+
                     if (ShambhalaHandler.consumeEnergy(player, aoeCost)) {
-                        applyTrueDamageReflect(player, mob, aoeDamage);
+                        applyTrueDamageReflect(player, mob, aoeReflectDamage);
                     } else {
                         break; // 能量不足停止AoE
                     }
