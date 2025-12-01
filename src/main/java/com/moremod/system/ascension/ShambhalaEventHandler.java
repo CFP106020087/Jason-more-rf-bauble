@@ -1,8 +1,11 @@
 package com.moremod.system.ascension;
 
+import com.moremod.combat.TrueDamageHelper;
 import com.moremod.config.ShambhalaConfig;
 import com.moremod.core.ShambhalaDeathHook;
 import com.moremod.item.shambhala.ItemShambhalaVeil;
+import net.minecraft.entity.Entity;
+import net.minecraft.util.DamageSource;
 import com.moremod.moremod;
 import com.moremod.system.humanity.AscensionRoute;
 import com.moremod.system.humanity.HumanityCapabilityHandler;
@@ -77,6 +80,53 @@ public class ShambhalaEventHandler {
 
         // 血量锁定由 First Aid 兼容层处理 (ShambhalaFirstAidCompat)
         // 原版 MC 的死亡由 onLivingDeath 处理
+    }
+
+    // ========== 原始伤害捕获（用于比例反伤） ==========
+    // LivingAttackEvent 在护甲计算前触发，能拿到原始伤害
+    // 这比 ASM 更简单，且不影响现有的减伤逻辑
+
+    private static final ThreadLocal<Float> capturedRawDamage = ThreadLocal.withInitial(() -> 0f);
+    private static final ThreadLocal<Entity> capturedAttacker = ThreadLocal.withInitial(() -> null);
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onLivingAttack(LivingAttackEvent event) {
+        // 为香巴拉玩家捕获原始伤害（护甲前）
+        if (event.getEntityLiving() instanceof EntityPlayer) {
+            EntityPlayer player = (EntityPlayer) event.getEntityLiving();
+
+            if (ShambhalaHandler.isShambhala(player)) {
+                DamageSource source = event.getSource();
+
+                // 跳过真伤和反伤（不重复捕获）
+                if (!TrueDamageHelper.isInTrueDamageContext()
+                    && !TrueDamageHelper.isTrueDamageSource(source)
+                    && !ShambhalaHandler.isShambhalaReflectDamage(source)) {
+
+                    capturedRawDamage.set(event.getAmount());
+                    capturedAttacker.set(source.getTrueSource());
+                }
+            }
+        }
+        // 不取消事件，让伤害继续流向护甲计算
+    }
+
+    /**
+     * 获取并清除捕获的原始伤害
+     */
+    public static float getAndClearCapturedRawDamage() {
+        float raw = capturedRawDamage.get();
+        capturedRawDamage.set(0f);
+        return raw;
+    }
+
+    /**
+     * 获取并清除捕获的攻击者
+     */
+    public static Entity getAndClearCapturedAttacker() {
+        Entity attacker = capturedAttacker.get();
+        capturedAttacker.set(null);
+        return attacker;
     }
 
     // ========== 伤害处理（HIGHEST - 能量吸收 + 输出削弱） ==========
