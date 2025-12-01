@@ -154,7 +154,7 @@ public class ItemShambhalaVeil extends ItemShambhalaBaubleBase {
 
         // 音效
         player.world.playSound(null, player.posX, player.posY, player.posZ,
-                SoundEvents.BLOCK_BEACON_ACTIVATE, SoundCategory.PLAYERS, 1.0f, 1.5f);
+                SoundEvents.BLOCK_PORTAL_TRIGGER, SoundCategory.PLAYERS, 1.0f, 1.5f);
 
         // 消息
         player.sendStatusMessage(new TextComponentString(

@@ -8,14 +8,11 @@ import com.moremod.network.MessageAutoAttackTrigger;
 import com.moremod.network.PacketHandler;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.ItemSword;
 import net.minecraft.util.EnumHand;
-import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.RayTraceResult;
-import net.minecraft.util.math.Vec3d;
 import net.minecraftforge.client.event.MouseEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
@@ -27,13 +24,13 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import java.util.List;
 
 /**
- * 平衡版自动攻击处理器
+ * 自动攻击客户端处理器
  * 
- * 考虑6槽叠加：
- * - 12-24倍：每5tick（4次/秒）
- * - 24-48倍：每3tick（6.7次/秒）
- * - 48-90倍：每2tick（10次/秒）
- * - 90倍+：每1tick（20次/秒）
+ * 职责：
+ * 1. 检测鼠标按住状态
+ * 2. 获取mc.objectMouseOver的目标实体
+ * 3. 发送目标ID到服务器（服务器负责所有攻击逻辑）
+ * 4. 播放挥舞动画
  */
 @Mod.EventBusSubscriber(modid = "moremod", value = Side.CLIENT)
 public class ClientAutoAttackHandler {
@@ -59,12 +56,23 @@ public class ClientAutoAttackHandler {
         
         if (mouseHeld) {
             event.setCanceled(true);
-            performAttack(mc);
+            
+            // 获取目标实体ID
+            int targetId = getTargetEntityId(mc);
+            
+            // 发送到服务器处理
+            PacketHandler.INSTANCE.sendToServer(new MessageAutoAttackTrigger(true, targetId));
+            
+            // 客户端播放动画
             mc.player.swingArm(EnumHand.MAIN_HAND);
             mc.player.resetCooldown();
+            
             wasAttacking = true;
             tickCounter = 0;
         } else {
+            if (wasAttacking) {
+                PacketHandler.INSTANCE.sendToServer(new MessageAutoAttackTrigger(false, -1));
+            }
             wasAttacking = false;
             tickCounter = 0;
         }
@@ -80,15 +88,17 @@ public class ClientAutoAttackHandler {
         
         if (player == null || mc.world == null) {
             wasAttacking = false;
+            mouseHeld = false;
             return;
         }
         
         ItemStack weapon = player.getHeldItemMainhand();
         if (weapon.isEmpty() || !(weapon.getItem() instanceof ItemSword)) {
             if (wasAttacking) {
-                PacketHandler.INSTANCE.sendToServer(new MessageAutoAttackTrigger(false));
+                PacketHandler.INSTANCE.sendToServer(new MessageAutoAttackTrigger(false, -1));
                 wasAttacking = false;
             }
+            mouseHeld = false;
             return;
         }
         
@@ -96,9 +106,10 @@ public class ClientAutoAttackHandler {
         
         if (!hasAutoAttack) {
             if (wasAttacking) {
-                PacketHandler.INSTANCE.sendToServer(new MessageAutoAttackTrigger(false));
+                PacketHandler.INSTANCE.sendToServer(new MessageAutoAttackTrigger(false, -1));
                 wasAttacking = false;
             }
+            mouseHeld = false;
             return;
         }
         
@@ -107,16 +118,9 @@ public class ClientAutoAttackHandler {
             
             float speedMultiplier = getAttackSpeedMultiplier(weapon);
             
-            // 平衡版攻击间隔（考虑6槽叠加后的总倍率）:
-            // speedMultiplier >= 90   → 每1tick（20次/秒）极限频率
-            // speedMultiplier >= 48   → 每2tick（10次/秒）
-            // speedMultiplier >= 24   → 每3tick（6.7次/秒）
-            // speedMultiplier >= 12   → 每5tick（4次/秒）
-            // speedMultiplier < 12    → 动态计算
-            
             int interval;
             if (speedMultiplier >= 90.0f) {
-                interval = 1; // 每tick都攻击
+                interval = 1;
             } else if (speedMultiplier >= 48.0f) {
                 interval = 2;
             } else if (speedMultiplier >= 24.0f) {
@@ -124,72 +128,41 @@ public class ClientAutoAttackHandler {
             } else if (speedMultiplier >= 12.0f) {
                 interval = 5;
             } else {
-                // 低于12倍时，使用传统计算
                 interval = Math.max(2, (int)(10 / speedMultiplier));
             }
             
             if (tickCounter >= interval) {
-                performAttack(mc);
+                // 获取目标实体ID
+                int targetId = getTargetEntityId(mc);
+                
+                // 发送到服务器处理
+                PacketHandler.INSTANCE.sendToServer(new MessageAutoAttackTrigger(true, targetId));
+                
+                // 客户端播放动画
                 mc.player.swingArm(EnumHand.MAIN_HAND);
                 mc.player.resetCooldown();
+                
                 tickCounter = 0;
             }
-            
-            if (!wasAttacking) {
-                PacketHandler.INSTANCE.sendToServer(new MessageAutoAttackTrigger(true));
-                wasAttacking = true;
-            }
         } else if (!mouseHeld && wasAttacking) {
-            PacketHandler.INSTANCE.sendToServer(new MessageAutoAttackTrigger(false));
+            PacketHandler.INSTANCE.sendToServer(new MessageAutoAttackTrigger(false, -1));
             wasAttacking = false;
             tickCounter = 0;
         }
     }
     
+    /**
+     * 获取目标实体ID - 使用Minecraft原版的objectMouseOver
+     */
     @SideOnly(Side.CLIENT)
-    private static void performAttack(Minecraft mc) {
-        Entity target = getMouseOverEntity(mc, 6.0);
-        if (target instanceof EntityLivingBase) {
-            mc.player.connection.sendPacket(new net.minecraft.network.play.client.CPacketUseEntity(target));
-            mc.player.attackTargetEntityWithCurrentItem(target);
-        }
-    }
-    
-    @SideOnly(Side.CLIENT)
-    private static Entity getMouseOverEntity(Minecraft mc, double distance) {
-        if (mc.getRenderViewEntity() == null) return null;
-        
-        Vec3d eyes = mc.getRenderViewEntity().getPositionEyes(1.0F);
-        Vec3d look = mc.getRenderViewEntity().getLook(1.0F);
-        Vec3d reach = eyes.add(look.x * distance, look.y * distance, look.z * distance);
-        
-        Entity pointed = null;
-        double minDist = distance;
-        
-        List<Entity> list = mc.world.getEntitiesWithinAABBExcludingEntity(
-            mc.getRenderViewEntity(),
-            mc.getRenderViewEntity().getEntityBoundingBox()
-                .expand(look.x * distance, look.y * distance, look.z * distance)
-                .grow(1.0)
-        );
-        
-        for (Entity e : list) {
-            if (!e.canBeCollidedWith()) continue;
-            if (!(e instanceof EntityLivingBase)) continue;
-            
-            AxisAlignedBB aabb = e.getEntityBoundingBox().grow(e.getCollisionBorderSize());
-            RayTraceResult hit = aabb.calculateIntercept(eyes, reach);
-            
-            if (hit != null) {
-                double dist = eyes.distanceTo(hit.hitVec);
-                if (dist < minDist) {
-                    minDist = dist;
-                    pointed = e;
-                }
+    private static int getTargetEntityId(Minecraft mc) {
+        if (mc.objectMouseOver != null && mc.objectMouseOver.typeOfHit == RayTraceResult.Type.ENTITY) {
+            Entity target = mc.objectMouseOver.entityHit;
+            if (target != null && !target.isDead) {
+                return target.getEntityId();
             }
         }
-        
-        return pointed;
+        return -1;
     }
     
     private static boolean hasAutoAttackAffix(ItemStack weapon) {

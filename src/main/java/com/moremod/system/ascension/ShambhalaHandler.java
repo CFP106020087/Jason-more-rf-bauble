@@ -10,6 +10,7 @@ import com.moremod.system.humanity.HumanityCapabilityHandler;
 import com.moremod.system.humanity.IHumanityData;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.init.SoundEvents;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.text.TextComponentString;
@@ -192,7 +193,7 @@ public class ShambhalaHandler {
      * @param damageSource 原始伤害源（用于检测循环）
      */
     public static void reflectDamage(EntityPlayer player, net.minecraft.entity.Entity attacker,
-                                      float originalDamage, net.minecraft.util.DamageSource damageSource) {
+                                     float originalDamage, net.minecraft.util.DamageSource damageSource) {
         if (!isShambhala(player)) return;
         if (attacker == null) return;
 
@@ -359,19 +360,19 @@ public class ShambhalaHandler {
         // 发送升格消息
         player.sendMessage(new TextComponentString(
                 TextFormatting.GOLD + "═══════════════════════════════════\n" +
-                TextFormatting.AQUA + "" + TextFormatting.BOLD + "  [ 机巧香巴拉 · 永恒齿轮圣化身 ]\n" +
-                TextFormatting.WHITE + "  Avatar of Eternal Gearwork Shambhala\n\n" +
-                TextFormatting.GRAY + "  你已成为机械与人性的完美容器。\n" +
-                TextFormatting.GRAY + "  只要齿轮仍在转动，你便永不倒下。\n\n" +
-                TextFormatting.YELLOW + "  ◆ 获得：绝对防御、因果反噬、净化之力\n" +
-                TextFormatting.RED + "  ◆ 代价：伤害输出削弱、防御消耗能量\n" +
-                TextFormatting.GOLD + "═══════════════════════════════════"
+                        TextFormatting.AQUA + "" + TextFormatting.BOLD + "  [ 机巧香巴拉 · 永恒齿轮圣化身 ]\n" +
+                        TextFormatting.WHITE + "  Avatar of Eternal Gearwork Shambhala\n\n" +
+                        TextFormatting.GRAY + "  你已成为机械与人性的完美容器。\n" +
+                        TextFormatting.GRAY + "  只要齿轮仍在转动，你便永不倒下。\n\n" +
+                        TextFormatting.YELLOW + "  ◆ 获得：绝对防御、因果反噬、净化之力\n" +
+                        TextFormatting.RED + "  ◆ 代价：伤害输出削弱、防御消耗能量\n" +
+                        TextFormatting.GOLD + "═══════════════════════════════════"
         ));
 
         // 装备替换消息
         player.sendMessage(new TextComponentString(
                 TextFormatting.AQUA + "\n所有饰品已被卸除。\n" +
-                TextFormatting.AQUA + "你的身体被重构为永恒机械的圣像。"
+                        TextFormatting.AQUA + "你的身体被重构为永恒机械的圣像。"
         ));
 
         // 替换饰品
@@ -399,7 +400,7 @@ public class ShambhalaHandler {
 
         // 音效 - 信标激活
         player.world.playSound(null, player.posX, player.posY, player.posZ,
-                net.minecraft.init.SoundEvents.BLOCK_BEACON_ACTIVATE,
+                SoundEvents.BLOCK_PORTAL_TRIGGER,
                 net.minecraft.util.SoundCategory.PLAYERS, 1.0f, 1.0f);
     }
 

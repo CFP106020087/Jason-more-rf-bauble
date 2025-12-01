@@ -746,9 +746,9 @@ public class moremodTransformer implements IClassTransformer {
                             break;
                         }
                     }
-                }
+                }  // ✅ 只有一个 }
             }
-        }
+        }  // ✅ for 循环结束
 
         if (!modified) {
             System.out.println("[moremodTransformer]   WARNING: Could not patch PotionFingers!");
@@ -1045,7 +1045,6 @@ public class moremodTransformer implements IClassTransformer {
         System.out.println("[moremodTransformer]   EntityLivingBase patched for Broken God shutdown system");
         return cw.toByteArray();
     }
-
     // ============================================================
     // SafeClassWriter - 避免在转换期间加载类
     // ============================================================

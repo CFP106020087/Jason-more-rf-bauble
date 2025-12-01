@@ -192,7 +192,7 @@ public class ShambhalaEventHandler {
 
                 player.sendMessage(new TextComponentString(
                         TextFormatting.AQUA + "[香巴拉] " +
-                        TextFormatting.WHITE + "永恒齿轮庇佑...死亡被拒绝"
+                                TextFormatting.WHITE + "永恒齿轮庇佑...死亡被拒绝"
                 ));
 
                 LOGGER.info("[Shambhala] Intercepted death for player {}", player.getName());
