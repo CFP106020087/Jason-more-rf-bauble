@@ -181,11 +181,12 @@ public class ShambhalaDeathHook {
 
             double aoeRadius = ShambhalaConfig.thornsAoeRadius;
 
-            // 计算能量消耗（基于造成的反伤），应用能量上限
-            int baseCost = (int) (reflectDamage * ShambhalaConfig.energyPerReflect);
+            // 计算能量消耗（基于受到的伤害，而非造成的反伤），应用能量上限
+            // 这样面对高血量敌人时不会瞬间耗尽能量
+            int baseCost = (int) (damage * ShambhalaConfig.energyPerReflect);
             baseCost = Math.min(baseCost, ShambhalaConfig.reflectEnergyCap);
 
-            System.out.println("[Shambhala TriggerReflect] reflectDamage=" + reflectDamage + ", baseCost=" + baseCost + ", currentEnergy=" + ShambhalaHandler.getCurrentEnergy(player));
+            System.out.println("[Shambhala TriggerReflect] receivedDamage=" + damage + ", reflectDamage=" + reflectDamage + ", baseCost=" + baseCost + ", currentEnergy=" + ShambhalaHandler.getCurrentEnergy(player));
 
             // ========== 主目标反伤 ==========
             if (ShambhalaHandler.consumeEnergy(player, baseCost)) {
@@ -210,13 +211,13 @@ public class ShambhalaDeathHook {
                 );
 
                 // AoE也使用比例反伤，基于每个mob自己的血量
+                // AoE能量消耗也基于受到的伤害（减半）
+                int aoeCost = (int) (damage * ShambhalaConfig.energyPerReflect * 0.5f);
+                aoeCost = Math.min(aoeCost, ShambhalaConfig.reflectEnergyCap);
+
                 for (EntityLivingBase mob : nearbyMobs) {
                     float aoeReflectDamage = damageRatio * mob.getMaxHealth() * 0.5f; // AoE伤害减半
                     aoeReflectDamage *= (float) ShambhalaConfig.thornsReflectMultiplier;
-
-                    // 应用能量上限
-                    int aoeCost = (int) (aoeReflectDamage * ShambhalaConfig.energyPerReflect);
-                    aoeCost = Math.min(aoeCost, ShambhalaConfig.reflectEnergyCap);
 
                     if (ShambhalaHandler.consumeEnergy(player, aoeCost)) {
                         applyTrueDamageReflect(player, mob, aoeReflectDamage);
