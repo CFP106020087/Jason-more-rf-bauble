@@ -180,8 +180,6 @@ public class ShambhalaEventHandler {
                 boolean inTrueDmgCtx = TrueDamageHelper.isInTrueDamageContext();
                 boolean isTrueDmgSrc = TrueDamageHelper.isTrueDamageSource(source);
 
-                System.out.println("[Shambhala Reflect] inTrueDmgCtx=" + inTrueDmgCtx + ", isTrueDmgSrc=" + isTrueDmgSrc + ", originalDamage=" + originalDamage);
-
                 if (!inTrueDmgCtx && !isTrueDmgSrc) {
                     float rawDamage = getAndClearCapturedRawDamage();
                     Entity capturedAtt = getAndClearCapturedAttacker();
@@ -189,13 +187,8 @@ public class ShambhalaEventHandler {
                     float reflectBaseDamage = rawDamage > 0 ? rawDamage : originalDamage;
                     Entity realAttacker = capturedAtt != null ? capturedAtt : source.getTrueSource();
 
-                    System.out.println("[Shambhala Reflect] rawDamage=" + rawDamage + ", reflectBaseDamage=" + reflectBaseDamage + ", attacker=" + (realAttacker != null ? realAttacker.getClass().getSimpleName() : "null"));
-
                     if (realAttacker != null && realAttacker instanceof EntityLivingBase && reflectBaseDamage > 0) {
-                        System.out.println("[Shambhala Reflect] Triggering reflect damage!");
                         ShambhalaDeathHook.triggerTrueDamageReflect(player, (EntityLivingBase) realAttacker, reflectBaseDamage);
-                    } else {
-                        System.out.println("[Shambhala Reflect] Skipped: attacker=" + (realAttacker != null) + ", isLiving=" + (realAttacker instanceof EntityLivingBase));
                     }
                 }
 
@@ -283,13 +276,9 @@ public class ShambhalaEventHandler {
 
         EntityPlayer player = (EntityPlayer) event.getEntityLiving();
 
-        System.out.println("[Shambhala Death] Player death event: " + player.getName() + ", source=" + event.getSource().getDamageType());
-        System.out.println("[Shambhala Death] isShambhala=" + ShambhalaHandler.isShambhala(player) + ", energy=" + ShambhalaHandler.getCurrentEnergy(player));
-
         if (ShambhalaHandler.isShambhala(player)) {
             // 检查是否有能量（这是原版MC的后备，First Aid由专门的兼容层处理）
             if (ShambhalaHandler.getCurrentEnergy(player) > 0) {
-                System.out.println("[Shambhala Death] Cancelling death!");
                 // 拦截死亡
                 event.setCanceled(true);
 

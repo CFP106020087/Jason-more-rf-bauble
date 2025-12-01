@@ -108,7 +108,6 @@ public class ShambhalaDeathHook {
                 if (ShambhalaHandler.consumeEnergy(player, energyCost)) {
                     // 成功用能量抵消
                     player.setHealth((float) ShambhalaConfig.coreHealthLock);
-                    System.out.println("[ShambhalaDeathHook] Absorbed fatal damage with energy for: " + player.getName());
                     return true;
                 }
 
@@ -151,17 +150,13 @@ public class ShambhalaDeathHook {
     public static void triggerTrueDamageReflect(EntityPlayer player, EntityLivingBase attacker, float damage) {
         UUID playerId = player.getUniqueID();
 
-        System.out.println("[Shambhala TriggerReflect] Called with damage=" + damage + ", attacker=" + attacker.getName());
-
         // 循环防护
         if (reflectingPlayers.contains(playerId)) {
-            System.out.println("[Shambhala TriggerReflect] Skipped: already reflecting");
             return;
         }
 
         // 不反伤自己
         if (attacker == player) {
-            System.out.println("[Shambhala TriggerReflect] Skipped: self-damage");
             return;
         }
 
@@ -186,15 +181,11 @@ public class ShambhalaDeathHook {
             int baseCost = (int) (damage * ShambhalaConfig.energyPerReflect);
             baseCost = Math.min(baseCost, ShambhalaConfig.reflectEnergyCap);
 
-            System.out.println("[Shambhala TriggerReflect] receivedDamage=" + damage + ", reflectDamage=" + reflectDamage + ", baseCost=" + baseCost + ", currentEnergy=" + ShambhalaHandler.getCurrentEnergy(player));
-
             // ========== 主目标反伤 ==========
             if (ShambhalaHandler.consumeEnergy(player, baseCost)) {
-                System.out.println("[Shambhala TriggerReflect] Applying reflect damage to " + attacker.getName());
                 applyTrueDamageReflect(player, attacker, reflectDamage);
             } else {
                 // 没能量就不反伤
-                System.out.println("[Shambhala TriggerReflect] Failed: not enough energy");
                 return;
             }
 
@@ -285,17 +276,13 @@ public class ShambhalaDeathHook {
 
                 // 恢复到最低血量
                 player.setHealth((float) ShambhalaConfig.coreHealthLock);
-
-                System.out.println("[ShambhalaDeathHook] Final defense: Prevented death for " + player.getName());
                 return true;
             }
 
             // 没有能量 = 真正死亡（香巴拉的核心代价）
-            System.out.println("[ShambhalaDeathHook] No energy remaining, death allowed for: " + player.getName());
             return false;
 
         } catch (Throwable t) {
-            System.err.println("[ShambhalaDeathHook] Error in shouldPreventDeath: " + t.getMessage());
             return false;
         }
     }

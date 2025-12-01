@@ -60,37 +60,41 @@ public class ShambhalaConfig {
 
     @Config.Comment({
             "每点伤害消耗的能量（RF）",
-            "Energy cost per damage point absorbed"
+            "Energy cost per damage point absorbed",
+            "建议值500：30伤害=15000RF，100伤害=50000RF(cap)"
     })
     @Config.Name("能量消耗/伤害 | Energy Per Damage")
     @Config.RangeInt(min = 100, max = 10000)
-    public static int energyPerDamage = 1000;
+    public static int energyPerDamage = 500;
 
     @Config.Comment({
-            "反伤每点消耗的能量（RF）",
-            "Energy cost per damage point reflected"
+            "反伤每点消耗的能量（RF）- 基于受到的伤害计算",
+            "Energy cost per damage point reflected (based on received damage)",
+            "建议值200：30伤害=6000RF反伤成本"
     })
     @Config.Name("反伤能量消耗 | Reflect Energy Cost")
     @Config.RangeInt(min = 50, max = 5000)
-    public static int energyPerReflect = 500;
+    public static int energyPerReflect = 200;
 
     @Config.Comment({
             "单次伤害吸收的能量消耗上限（RF）",
             "超过此值的伤害只扣除上限能量",
-            "Maximum energy cost per damage absorption"
+            "Maximum energy cost per damage absorption",
+            "建议值50000：510k能量可承受约10次极端伤害"
     })
     @Config.Name("免伤能量上限 | Absorption Energy Cap")
     @Config.RangeInt(min = 10000, max = 500000)
-    public static int absorptionEnergyCap = 100000;
+    public static int absorptionEnergyCap = 50000;
 
     @Config.Comment({
             "单次反伤的能量消耗上限（RF）",
             "超过此值的反伤只扣除上限能量",
-            "Maximum energy cost per reflect"
+            "Maximum energy cost per reflect",
+            "建议值25000"
     })
     @Config.Name("反伤能量上限 | Reflect Energy Cap")
     @Config.RangeInt(min = 5000, max = 200000)
-    public static int reflectEnergyCap = 50000;
+    public static int reflectEnergyCap = 25000;
 
     @Config.Comment({
             "清除debuff每次消耗的能量（RF）",
@@ -131,6 +135,29 @@ public class ShambhalaConfig {
     @Config.Name("核心:血量锁定 | Core: Health Lock")
     @Config.RangeDouble(min = 0.5, max = 5)
     public static double coreHealthLock = 1.0;
+
+    @Config.Comment({
+            "血量越低回血越快 - 基础回血量（HP/秒）",
+            "Low HP regen - base heal per second at full health"
+    })
+    @Config.Name("核心:基础回血 | Core: Base Regen")
+    @Config.RangeDouble(min = 0.1, max = 2.0)
+    public static double coreBaseRegen = 0.5;
+
+    @Config.Comment({
+            "血量越低回血越快 - 最大回血量（HP/秒，1HP时）",
+            "Low HP regen - max heal per second at 1 HP"
+    })
+    @Config.Name("核心:最大回血 | Core: Max Regen")
+    @Config.RangeDouble(min = 1.0, max = 10.0)
+    public static double coreMaxRegen = 5.0;
+
+    @Config.Comment({
+            "是否免疫击退",
+            "Immune to knockback"
+    })
+    @Config.Name("核心:免疫击退 | Core: Knockback Immunity")
+    public static boolean coreKnockbackImmune = true;
 
     // ============================================================
     // 香巴拉_壁垒 (Shambhala Bastion) - 绝对防御

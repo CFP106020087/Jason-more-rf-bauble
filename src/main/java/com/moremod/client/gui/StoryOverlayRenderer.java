@@ -447,16 +447,34 @@ public class StoryOverlayRenderer {
      * 更新齿轮状态 - 随机生成新齿轮
      */
     private void updateGears(int w, int h, float time) {
-        // 偶尔生成新齿轮 (约每2秒一个)
-        if (rand.nextFloat() < 0.01f) {
+        // 统计活跃齿轮数量
+        int activeCount = 0;
+        for (int i = 0; i < MAX_GEARS; i++) {
+            if (gearActive[i]) activeCount++;
+        }
+
+        // 根据活跃数量动态调整生成概率，保持1-3个齿轮在屏幕上
+        float spawnChance = activeCount < 2 ? 0.03f : (activeCount < 4 ? 0.015f : 0.005f);
+
+        if (rand.nextFloat() < spawnChance) {
             for (int i = 0; i < MAX_GEARS; i++) {
                 if (!gearActive[i]) {
-                    gearX[i] = rand.nextFloat() * w;
-                    gearY[i] = rand.nextFloat() * h;
-                    gearSize[i] = 30 + rand.nextFloat() * 60; // 30-90像素
+                    // 随机位置（避开屏幕中心）
+                    float rx = rand.nextFloat();
+                    float ry = rand.nextFloat();
+                    // 倾向于出现在边缘区域
+                    if (rand.nextBoolean()) {
+                        rx = rx < 0.5f ? rx * 0.4f : 0.6f + rx * 0.4f;
+                    }
+                    if (rand.nextBoolean()) {
+                        ry = ry < 0.5f ? ry * 0.4f : 0.6f + ry * 0.4f;
+                    }
+                    gearX[i] = rx * w;
+                    gearY[i] = ry * h;
+                    gearSize[i] = 40 + rand.nextFloat() * 80; // 40-120像素
                     gearRotation[i] = rand.nextFloat() * 360;
                     gearAlpha[i] = 0.0f;
-                    gearLifetime[i] = 3.0f + rand.nextFloat() * 3.0f; // 3-6秒
+                    gearLifetime[i] = 4.0f + rand.nextFloat() * 4.0f; // 4-8秒
                     gearActive[i] = true;
                     break;
                 }
