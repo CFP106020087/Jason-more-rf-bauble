@@ -142,7 +142,7 @@ public class GuiIntelStatistics extends GuiScreen {
         float humanity = data.getHumanity();
         int maxSlots = data.getMaxActiveProfiles();
         Set<ResourceLocation> activeProfiles = data.getActiveProfiles();
-        Map<ResourceLocation, BiologicalProfile> allProfiles = data.getAllProfiles();
+        Map<ResourceLocation, BiologicalProfile> allProfiles = data.getProfiles();
 
         int y = guiTop + 30;
 
