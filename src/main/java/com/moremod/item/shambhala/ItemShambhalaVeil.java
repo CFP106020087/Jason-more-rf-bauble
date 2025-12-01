@@ -15,6 +15,7 @@ import net.minecraft.util.EnumHandSide;
 import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.SoundCategory;
 import net.minecraft.util.math.AxisAlignedBB;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
@@ -24,6 +25,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 
 import javax.annotation.Nullable;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -39,6 +41,36 @@ public class ItemShambhalaVeil extends ItemShambhalaBaubleBase {
 
     // 冷却追踪
     private static final Map<UUID, Long> cooldowns = new HashMap<>();
+
+    // 活跃的宁静光环（持续性效果）
+    private static final Map<UUID, AuraData> activeAuras = new HashMap<>();
+
+    /**
+     * 光环数据类 - 追踪持续性宁静光环
+     */
+    public static class AuraData {
+        public final int dimension;
+        public final Vec3d position;
+        public final double range;
+        public final long expiryTick;
+
+        public AuraData(int dimension, Vec3d position, double range, long expiryTick) {
+            this.dimension = dimension;
+            this.position = position;
+            this.range = range;
+            this.expiryTick = expiryTick;
+        }
+
+        public boolean isExpired(long currentTick) {
+            return currentTick >= expiryTick;
+        }
+
+        public boolean isInRange(EntityLivingBase entity) {
+            if (entity.world.provider.getDimension() != dimension) return false;
+            double distSq = entity.getDistanceSq(position.x, position.y, position.z);
+            return distSq <= range * range;
+        }
+    }
 
     public ItemShambhalaVeil() {
         setRegistryName("shambhala_veil");
@@ -66,6 +98,7 @@ public class ItemShambhalaVeil extends ItemShambhalaBaubleBase {
 
     /**
      * 执行宁静光环技能
+     * 创建持续性的宁静光环，范围内的生物会持续被清除仇恨
      * @return 是否成功执行
      */
     public static boolean activatePeaceAura(EntityPlayer player) {
@@ -95,27 +128,84 @@ public class ItemShambhalaVeil extends ItemShambhalaBaubleBase {
         // 记录冷却
         cooldowns.put(playerId, now);
 
-        // 执行仇恨消除
+        // 创建持续性光环
         double range = ShambhalaConfig.veilSkillRange;
+        long duration = ShambhalaConfig.veilAuraDuration;
+        Vec3d auraCenter = new Vec3d(player.posX, player.posY, player.posZ);
+
+        AuraData aura = new AuraData(
+                player.world.provider.getDimension(),
+                auraCenter,
+                range,
+                now + duration
+        );
+        activeAuras.put(playerId, aura);
+
+        // 立即对范围内生物执行一次仇恨清除
+        int affected = clearAggroInAura(player.world, aura);
+
+        // 特效 - 光环边界粒子
+        if (player.world instanceof WorldServer) {
+            WorldServer ws = (WorldServer) player.world;
+            // 光环边界圆圈
+            for (int i = 0; i < 72; i++) {
+                double angle = (i / 72.0) * Math.PI * 2;
+                double x = player.posX + Math.cos(angle) * range;
+                double z = player.posZ + Math.sin(angle) * range;
+                ws.spawnParticle(EnumParticleTypes.END_ROD, x, player.posY + 0.5, z, 2, 0, 0.5, 0, 0.01);
+            }
+            // 中心光柱
+            for (int y = 0; y < 20; y++) {
+                ws.spawnParticle(EnumParticleTypes.FIREWORKS_SPARK,
+                        player.posX, player.posY + y * 0.5, player.posZ,
+                        3, 0.2, 0, 0.2, 0.01);
+            }
+        }
+
+        // 音效
+        player.world.playSound(null, player.posX, player.posY, player.posZ,
+                SoundEvents.BLOCK_PORTAL_TRIGGER, SoundCategory.PLAYERS, 1.0f, 1.5f);
+
+        // 消息
+        int durationSeconds = (int) (duration / 20);
+        player.sendStatusMessage(new TextComponentString(
+                TextFormatting.AQUA + "☀ 宁静光环激活 " + TextFormatting.GRAY +
+                "- 持续 " + durationSeconds + " 秒 | 影响 " + affected + " 个生物"
+        ), true);
+
+        return true;
+    }
+
+    /**
+     * 清除光环范围内生物的仇恨
+     */
+    public static int clearAggroInAura(World world, AuraData aura) {
+        if (world.isRemote) return 0;
+        if (world.provider.getDimension() != aura.dimension) return 0;
+
         AxisAlignedBB aabb = new AxisAlignedBB(
-                player.posX - range, player.posY - range, player.posZ - range,
-                player.posX + range, player.posY + range, player.posZ + range
+                aura.position.x - aura.range, aura.position.y - aura.range, aura.position.z - aura.range,
+                aura.position.x + aura.range, aura.position.y + aura.range, aura.position.z + aura.range
         );
 
-        List<EntityLiving> mobs = player.world.getEntitiesWithinAABB(EntityLiving.class, aabb);
+        List<EntityLiving> mobs = world.getEntitiesWithinAABB(EntityLiving.class, aabb);
         int affected = 0;
 
-        // 创建假目标用于迷惑怪物（参考 ProtectionFieldHandler 和 ImmortalAmulet）
-        DummyTarget dummyTarget = new DummyTarget(player.world);
+        // 创建假目标用于迷惑怪物
+        DummyTarget dummyTarget = new DummyTarget(world);
 
         for (EntityLiving mob : mobs) {
+            // 检查是否在圆形范围内
+            double distSq = mob.getDistanceSq(aura.position.x, aura.position.y, aura.position.z);
+            if (distSq > aura.range * aura.range) continue;
+
             // 清除所有仇恨相关
             if (mob.getAttackTarget() != null) {
                 mob.setAttackTarget(null);
                 affected++;
             }
 
-            // 使用假目标替换复仇目标，防止生物继续追踪
+            // 使用假目标替换复仇目标
             mob.setRevengeTarget(dummyTarget);
             mob.setLastAttackedEntity(null);
 
@@ -133,36 +223,74 @@ public class ItemShambhalaVeil extends ItemShambhalaBaubleBase {
             );
         }
 
-        // 特效
-        if (player.world instanceof WorldServer) {
-            WorldServer ws = (WorldServer) player.world;
-            // 光环扩散粒子
-            for (int i = 0; i < 100; i++) {
-                double angle = (i / 100.0) * Math.PI * 2;
-                double r = range * (i % 10) / 10.0;
-                double x = player.posX + Math.cos(angle) * r;
-                double z = player.posZ + Math.sin(angle) * r;
-                ws.spawnParticle(EnumParticleTypes.END_ROD, x, player.posY + 1, z, 1, 0, 0.1, 0, 0.02);
+        return affected;
+    }
+
+    /**
+     * 每tick处理所有活跃的光环
+     * 由 ShambhalaEventHandler 调用
+     */
+    public static void tickAuras(World world) {
+        if (world.isRemote) return;
+
+        long now = world.getTotalWorldTime();
+        int dimension = world.provider.getDimension();
+
+        // 遍历并处理所有活跃光环
+        Iterator<Map.Entry<UUID, AuraData>> iter = activeAuras.entrySet().iterator();
+        while (iter.hasNext()) {
+            Map.Entry<UUID, AuraData> entry = iter.next();
+            AuraData aura = entry.getValue();
+
+            // 检查过期
+            if (aura.isExpired(now)) {
+                iter.remove();
+                continue;
             }
-            // 中心光柱
-            for (int y = 0; y < 20; y++) {
-                ws.spawnParticle(EnumParticleTypes.FIREWORKS_SPARK,
-                        player.posX, player.posY + y * 0.5, player.posZ,
-                        3, 0.2, 0, 0.2, 0.01);
+
+            // 只处理同维度的光环
+            if (aura.dimension != dimension) continue;
+
+            // 每10tick清除一次仇恨（避免性能问题）
+            if (now % 10 == 0) {
+                clearAggroInAura(world, aura);
+            }
+
+            // 每20tick播放持续粒子效果
+            if (now % 20 == 0 && world instanceof WorldServer) {
+                WorldServer ws = (WorldServer) world;
+                // 光环边界粒子
+                for (int i = 0; i < 36; i++) {
+                    double angle = (i / 36.0) * Math.PI * 2;
+                    double x = aura.position.x + Math.cos(angle) * aura.range;
+                    double z = aura.position.z + Math.sin(angle) * aura.range;
+                    ws.spawnParticle(EnumParticleTypes.END_ROD, x, aura.position.y + 0.5, z, 1, 0, 0.2, 0, 0.005);
+                }
             }
         }
+    }
 
-        // 音效
-        player.world.playSound(null, player.posX, player.posY, player.posZ,
-                SoundEvents.BLOCK_PORTAL_TRIGGER, SoundCategory.PLAYERS, 1.0f, 1.5f);
+    /**
+     * 检查生物是否在任何活跃的宁静光环中
+     */
+    public static boolean isInPeaceAura(EntityLivingBase entity) {
+        if (entity == null || entity.world.isRemote) return false;
 
-        // 消息
-        player.sendStatusMessage(new TextComponentString(
-                TextFormatting.AQUA + "☀ 宁静光环 " + TextFormatting.GRAY +
-                "- 影响了 " + affected + " 个生物 (-" + ShambhalaConfig.veilSkillEnergyCost + " RF)"
-        ), true);
+        long now = entity.world.getTotalWorldTime();
 
-        return true;
+        for (AuraData aura : activeAuras.values()) {
+            if (aura.isExpired(now)) continue;
+            if (aura.isInRange(entity)) return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * 获取活跃光环数量（用于调试）
+     */
+    public static int getActiveAuraCount() {
+        return activeAuras.size();
     }
 
     /**
@@ -177,10 +305,11 @@ public class ItemShambhalaVeil extends ItemShambhalaBaubleBase {
     }
 
     /**
-     * 清理玩家冷却数据
+     * 清理玩家冷却数据和光环
      */
     public static void cleanupPlayer(UUID playerId) {
         cooldowns.remove(playerId);
+        activeAuras.remove(playerId);
     }
 
     /**
@@ -188,6 +317,7 @@ public class ItemShambhalaVeil extends ItemShambhalaBaubleBase {
      */
     public static void clearAllState() {
         cooldowns.clear();
+        activeAuras.clear();
     }
 
     @Override
@@ -198,7 +328,9 @@ public class ItemShambhalaVeil extends ItemShambhalaBaubleBase {
         tooltip.add(TextFormatting.DARK_GRAY + "Shambhala Veil - Peace Aura");
         tooltip.add("");
         tooltip.add(TextFormatting.DARK_PURPLE + "◆ 宁静光环 [主动技能]");
-        tooltip.add(TextFormatting.GRAY + "  按下技能键消除 " + (int) ShambhalaConfig.veilSkillRange + " 格内所有仇恨");
+        tooltip.add(TextFormatting.GRAY + "  在脚下创建 " + (int) ShambhalaConfig.veilSkillRange + " 格宁静圣域");
+        tooltip.add(TextFormatting.WHITE + "  进入圣域的生物会持续被清除仇恨");
+        tooltip.add(TextFormatting.YELLOW + "  持续时间: " + (ShambhalaConfig.veilAuraDuration / 20) + " 秒");
         tooltip.add(TextFormatting.RED + "  能量消耗: " + ShambhalaConfig.veilSkillEnergyCost + " RF");
         tooltip.add(TextFormatting.YELLOW + "  冷却时间: " + (ShambhalaConfig.veilSkillCooldown / 20) + " 秒");
         tooltip.add("");

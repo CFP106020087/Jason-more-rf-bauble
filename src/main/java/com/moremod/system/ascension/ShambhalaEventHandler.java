@@ -32,6 +32,7 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerLoggedInEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerLoggedOutEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
+import net.minecraft.world.World;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -50,6 +51,34 @@ import org.apache.logging.log4j.Logger;
 public class ShambhalaEventHandler {
 
     private static final Logger LOGGER = LogManager.getLogger("moremod");
+
+    // ========== 世界Tick处理（宁静光环） ==========
+
+    @SubscribeEvent
+    public static void onWorldTick(TickEvent.WorldTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) return;
+        if (event.world.isRemote) return;
+
+        // 处理所有活跃的宁静光环
+        ItemShambhalaVeil.tickAuras(event.world);
+    }
+
+    // ========== 仇恨目标拦截（宁静光环） ==========
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onSetAttackTarget(LivingSetAttackTargetEvent event) {
+        // 如果目标在宁静光环内，阻止生物获取新仇恨
+        if (event.getTarget() == null) return;
+
+        // 检查攻击者是否在任何活跃的宁静光环中
+        if (ItemShambhalaVeil.isInPeaceAura(event.getEntityLiving())) {
+            // 清除仇恨目标
+            if (event.getEntityLiving() instanceof EntityMob) {
+                EntityMob mob = (EntityMob) event.getEntityLiving();
+                mob.setAttackTarget(null);
+            }
+        }
+    }
 
     // ========== 玩家Tick处理 ==========
 
