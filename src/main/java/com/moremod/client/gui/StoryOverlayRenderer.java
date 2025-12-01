@@ -1,5 +1,8 @@
 package com.moremod.client.gui;
 
+import com.moremod.config.BrokenGodConfig;
+import com.moremod.config.HumanityConfig;
+import com.moremod.config.ShambhalaConfig;
 import com.moremod.logic.NarrativeLogicHandler;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ScaledResolution;
@@ -148,6 +151,11 @@ public class StoryOverlayRenderer {
         PlayerNarrativeState state = NarrativeLogicHandler.determineState(mc.player);
 
         if (state == PlayerNarrativeState.HUMAN_HIGH || state == PlayerNarrativeState.NONE) return;
+
+        // 检查配置：如果对应状态的视觉效果被禁用，直接返回
+        if (state == PlayerNarrativeState.HUMAN_LOW && !HumanityConfig.enableVisualDistortion) return;
+        if (state == PlayerNarrativeState.BROKEN_GOD && !BrokenGodConfig.enableVisualOverlay) return;
+        if (state == PlayerNarrativeState.SHAMBHALA && !ShambhalaConfig.enableVisualOverlay) return;
 
         ScaledResolution resolution = event.getResolution();
         int width = resolution.getScaledWidth();

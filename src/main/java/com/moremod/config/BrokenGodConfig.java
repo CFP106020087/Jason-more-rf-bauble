@@ -380,6 +380,18 @@ public class BrokenGodConfig {
     public static double terminusKillAbsorption = 10.0;
 
     // ============================================================
+    // 视觉效果设置
+    // ============================================================
+
+    @Config.Comment({
+            "启用破碎之神视觉覆盖效果（数字噪点、扫描线、撕裂效果）",
+            "Enable Broken God visual overlay effects (digital noise, scanlines, glitch)",
+            "关闭后破碎之神状态下不会显示特殊视觉效果"
+    })
+    @Config.Name("启用视觉效果 | Enable Visual Overlay")
+    public static boolean enableVisualOverlay = true;
+
+    // ============================================================
     // 配置变更监听
     // ============================================================
 

@@ -281,6 +281,18 @@ public class ShambhalaConfig {
     public static int sanctuaryThirstRestoration = 2;
 
     // ============================================================
+    // 视觉效果设置
+    // ============================================================
+
+    @Config.Comment({
+            "启用香巴拉视觉覆盖效果（金色边缘渐变和齿轮）",
+            "Enable Shambhala visual overlay effects (golden vignette and gears)",
+            "关闭后香巴拉状态下不会显示特殊视觉效果"
+    })
+    @Config.Name("启用视觉效果 | Enable Visual Overlay")
+    public static boolean enableVisualOverlay = true;
+
+    // ============================================================
     // 配置变更监听
     // ============================================================
 
