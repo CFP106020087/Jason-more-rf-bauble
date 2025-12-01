@@ -1,6 +1,7 @@
 package com.moremod.entity.boss;
 
 import com.github.alexthe666.iceandfire.api.ChainLightningUtils;
+import com.moremod.combat.TrueDamageHelper;
 import com.moremod.entity.EntityCursedKnight;
 import com.moremod.entity.fx.EntityLaserBeam;
 import com.moremod.entity.fx.EntityLightningArc;
@@ -926,8 +927,8 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
         if (this.invulTicks > 0) {
             this.invulTicks--;
 
-            // 冻结血量
-            if (!this.applyingChunk) {
+            // 冻结血量 - 但真伤上下文中跳过（允许破碎之神等真伤生效）
+            if (!this.applyingChunk && !TrueDamageHelper.isInTrueDamageContext()) {
                 if (this.frozenHealth >= 0F && this.getHealth() != this.frozenHealth) {
                     this.setHealth(this.frozenHealth);
                 }
