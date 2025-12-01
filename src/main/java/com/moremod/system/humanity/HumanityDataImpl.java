@@ -207,7 +207,14 @@ public class HumanityDataImpl implements IHumanityData {
             profile = new BiologicalProfile(entityId);
             profiles.put(entityId, profile);
         }
+        BiologicalProfile.Tier tierBefore = profile.getCurrentTier();
         profile.addSample();
+
+        // 自动激活：当档案从NONE升级到BASIC或更高时，自动激活
+        if (tierBefore == BiologicalProfile.Tier.NONE &&
+            profile.getCurrentTier() != BiologicalProfile.Tier.NONE) {
+            activateProfile(entityId);
+        }
     }
 
     @Override
@@ -217,7 +224,14 @@ public class HumanityDataImpl implements IHumanityData {
             profile = new BiologicalProfile(entityId);
             profiles.put(entityId, profile);
         }
+        BiologicalProfile.Tier tierBefore = profile.getCurrentTier();
         profile.incrementKillCount();
+
+        // 自动激活：当档案从NONE升级到BASIC或更高时，自动激活
+        if (tierBefore == BiologicalProfile.Tier.NONE &&
+            profile.getCurrentTier() != BiologicalProfile.Tier.NONE) {
+            activateProfile(entityId);
+        }
     }
 
     @Override

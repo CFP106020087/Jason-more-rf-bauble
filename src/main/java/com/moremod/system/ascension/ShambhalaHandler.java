@@ -89,21 +89,15 @@ public class ShambhalaHandler {
 
     /**
      * 从机械核心消耗能量
+     * 使用批量消耗方法绕过传输速率限制
      * @return 是否成功消耗
      */
     public static boolean consumeEnergy(EntityPlayer player, int amount) {
         ItemStack core = ItemMechanicalCore.getCoreFromPlayer(player);
         if (core.isEmpty()) return false;
 
-        IEnergyStorage storage = ItemMechanicalCore.getEnergyStorage(core);
-        if (storage == null) return false;
-
-        int extracted = storage.extractEnergy(amount, true);
-        if (extracted >= amount) {
-            storage.extractEnergy(amount, false);
-            return true;
-        }
-        return false;
+        // 使用批量消耗方法，绕过传输速率限制
+        return ItemMechanicalCore.consumeEnergyBulk(core, amount);
     }
 
     /**

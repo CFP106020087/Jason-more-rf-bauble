@@ -148,16 +148,20 @@ public class ShambhalaDeathHook {
      * @param attacker 攻击者
      * @param damage   受到的原始伤害
      */
-    private static void triggerTrueDamageReflect(EntityPlayer player, EntityLivingBase attacker, float damage) {
+    public static void triggerTrueDamageReflect(EntityPlayer player, EntityLivingBase attacker, float damage) {
         UUID playerId = player.getUniqueID();
+
+        System.out.println("[Shambhala TriggerReflect] Called with damage=" + damage + ", attacker=" + attacker.getName());
 
         // 循环防护
         if (reflectingPlayers.contains(playerId)) {
+            System.out.println("[Shambhala TriggerReflect] Skipped: already reflecting");
             return;
         }
 
         // 不反伤自己
         if (attacker == player) {
+            System.out.println("[Shambhala TriggerReflect] Skipped: self-damage");
             return;
         }
 
@@ -180,11 +184,15 @@ public class ShambhalaDeathHook {
             // 计算能量消耗（基于造成的反伤）
             int baseCost = (int) (reflectDamage * ShambhalaConfig.energyPerReflect);
 
+            System.out.println("[Shambhala TriggerReflect] reflectDamage=" + reflectDamage + ", baseCost=" + baseCost + ", currentEnergy=" + ShambhalaHandler.getCurrentEnergy(player));
+
             // ========== 主目标反伤 ==========
             if (ShambhalaHandler.consumeEnergy(player, baseCost)) {
+                System.out.println("[Shambhala TriggerReflect] Applying reflect damage to " + attacker.getName());
                 applyTrueDamageReflect(player, attacker, reflectDamage);
             } else {
                 // 没能量就不反伤
+                System.out.println("[Shambhala TriggerReflect] Failed: not enough energy");
                 return;
             }
 

@@ -1791,6 +1791,27 @@ public class ItemMechanicalCore extends Item implements IBauble {
         return stack.getCapability(CapabilityEnergy.ENERGY, null);
     }
 
+    /**
+     * 批量消耗能量（绕过传输速率限制）
+     * 用于一次性大额能量消耗（如技能释放）
+     * @param stack 机械核心物品栈
+     * @param amount 需要消耗的能量
+     * @return 是否成功消耗
+     */
+    public static boolean consumeEnergyBulk(ItemStack stack, int amount) {
+        if (stack == null || stack.isEmpty() || !stack.hasTagCompound()) return false;
+
+        IEnergyStorage storage = getEnergyStorage(stack);
+        if (storage == null) return false;
+
+        int currentEnergy = storage.getEnergyStored();
+        if (currentEnergy < amount) return false;
+
+        // 直接修改NBT绕过传输速率限制
+        stack.getTagCompound().setInteger("Energy", currentEnergy - amount);
+        return true;
+    }
+
     public static void addEnergy(ItemStack stack, int amount) {
         IEnergyStorage e = getEnergyStorage(stack);
         if (e != null) e.receiveEnergy(amount, false);

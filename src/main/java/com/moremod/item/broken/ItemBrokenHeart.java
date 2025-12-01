@@ -205,15 +205,10 @@ public class ItemBrokenHeart extends ItemBrokenBaubleBase {
             healAmount -= actualHeal;
         }
 
-        // 溢出部分转为吸收之心
+        // 溢出部分转为吸收之心（破碎之神无上限）
         if (healAmount > 0) {
             float currentAbsorption = player.getAbsorptionAmount();
-            float maxAbsorption = (float) BrokenGodConfig.heartcoreMaxAbsorption;
-
-            if (currentAbsorption < maxAbsorption) {
-                float newAbsorption = Math.min(currentAbsorption + healAmount, maxAbsorption);
-                player.setAbsorptionAmount(newAbsorption);
-            }
+            player.setAbsorptionAmount(currentAbsorption + healAmount);
         }
     }
 
