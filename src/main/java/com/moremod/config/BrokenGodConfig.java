@@ -380,6 +380,19 @@ public class BrokenGodConfig {
     public static double terminusKillAbsorption = 10.0;
 
     // ============================================================
+    // 破碎之神吸收之心上限
+    // ============================================================
+
+    @Config.Comment({
+            "破碎之神吸收之心（黄条）上限",
+            "Maximum absorption hearts for Broken God players",
+            "0 = 无上限（不推荐）"
+    })
+    @Config.Name("吸收之心上限 | Max Absorption Hearts")
+    @Config.RangeDouble(min = 0, max = 200)
+    public static double brokenGodMaxAbsorption = 100.0;
+
+    // ============================================================
     // 视觉效果设置
     // ============================================================
 

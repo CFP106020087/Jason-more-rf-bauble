@@ -661,6 +661,40 @@ public class HumanityDataImpl implements IHumanityData {
                 }
             }
         }
+
+        // 自动激活所有符合条件但未激活的档案（兼容旧存档）
+        autoActivateEligibleProfiles();
+    }
+
+    /**
+     * 自动激活所有符合条件但未激活的档案
+     * 用于兼容旧存档，确保已记录的档案能被激活
+     */
+    private void autoActivateEligibleProfiles() {
+        int maxActive = getMaxActiveProfiles();
+        for (Map.Entry<ResourceLocation, BiologicalProfile> entry : profiles.entrySet()) {
+            ResourceLocation entityId = entry.getKey();
+            BiologicalProfile profile = entry.getValue();
+
+            // 跳过NONE等级的档案
+            if (profile.getCurrentTier() == BiologicalProfile.Tier.NONE) {
+                continue;
+            }
+
+            // 跳过已激活的档案
+            if (activeProfiles.contains(entityId)) {
+                continue;
+            }
+
+            // 检查槽位限制
+            if (activeProfiles.size() >= maxActive) {
+                break; // 槽位已满
+            }
+
+            // 激活档案
+            profile.setActive(true);
+            activeProfiles.add(entityId);
+        }
     }
 
     @Override

@@ -75,6 +75,24 @@ public class ShambhalaConfig {
     public static int energyPerReflect = 500;
 
     @Config.Comment({
+            "单次伤害吸收的能量消耗上限（RF）",
+            "超过此值的伤害只扣除上限能量",
+            "Maximum energy cost per damage absorption"
+    })
+    @Config.Name("免伤能量上限 | Absorption Energy Cap")
+    @Config.RangeInt(min = 10000, max = 500000)
+    public static int absorptionEnergyCap = 100000;
+
+    @Config.Comment({
+            "单次反伤的能量消耗上限（RF）",
+            "超过此值的反伤只扣除上限能量",
+            "Maximum energy cost per reflect"
+    })
+    @Config.Name("反伤能量上限 | Reflect Energy Cap")
+    @Config.RangeInt(min = 5000, max = 200000)
+    public static int reflectEnergyCap = 50000;
+
+    @Config.Comment({
             "清除debuff每次消耗的能量（RF）",
             "Energy cost per debuff cleanse"
     })
