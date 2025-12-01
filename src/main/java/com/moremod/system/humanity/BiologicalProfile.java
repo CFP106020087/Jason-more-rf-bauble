@@ -118,6 +118,22 @@ public class BiologicalProfile {
     }
 
     /**
+     * 获取掉落加成
+     */
+    public float getDropBonus() {
+        switch (currentTier) {
+            case BASIC:
+                return 0.20f;      // +20%
+            case COMPLETE:
+                return 0.50f;      // +50%
+            case MASTERED:
+                return 1.00f;      // +100% (双倍)
+            default:
+                return 0f;
+        }
+    }
+
+    /**
      * 检查是否可以升级
      */
     public boolean canUpgrade() {
