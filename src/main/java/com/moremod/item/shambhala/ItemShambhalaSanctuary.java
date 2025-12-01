@@ -4,6 +4,7 @@ import baubles.api.BaubleType;
 import com.moremod.config.ShambhalaConfig;
 import com.moremod.creativetab.moremodCreativeTab;
 import com.moremod.system.ascension.ShambhalaHandler;
+import com.moremod.util.ThirstHelper;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.passive.EntityAnimal;
@@ -67,8 +68,58 @@ public class ItemShambhalaSanctuary extends ItemShambhalaBaubleBase {
             spawnSanctuaryParticles(player);
         }
 
-        // 注意：友军减伤需要在事件处理器中实现
-        // 这里可以添加额外的圣域效果
+        // 恢复圣域范围内的自己和友军的饥饿/口渴
+        if (entity.ticksExisted % ShambhalaConfig.sanctuaryRestorationInterval == 0) {
+            restoreAlliesInSanctuary(player);
+        }
+    }
+
+    /**
+     * 恢复圣域范围内所有友军（包括自己）的饥饿和口渴
+     */
+    private void restoreAlliesInSanctuary(EntityPlayer shambhalaPlayer) {
+        double range = ShambhalaConfig.sanctuaryAuraRange;
+        AxisAlignedBB aabb = new AxisAlignedBB(
+                shambhalaPlayer.posX - range, shambhalaPlayer.posY - range, shambhalaPlayer.posZ - range,
+                shambhalaPlayer.posX + range, shambhalaPlayer.posY + range, shambhalaPlayer.posZ + range
+        );
+
+        // 恢复自己
+        restoreHungerAndThirst(shambhalaPlayer);
+
+        // 恢复范围内的友方玩家
+        List<EntityPlayer> nearbyPlayers = shambhalaPlayer.world.getEntitiesWithinAABB(
+                EntityPlayer.class, aabb,
+                p -> p != shambhalaPlayer && isAlly(shambhalaPlayer, p)
+        );
+
+        for (EntityPlayer ally : nearbyPlayers) {
+            restoreHungerAndThirst(ally);
+        }
+    }
+
+    /**
+     * 恢复单个玩家的饥饿和口渴
+     */
+    private void restoreHungerAndThirst(EntityPlayer player) {
+        int hungerRestore = ShambhalaConfig.sanctuaryHungerRestoration;
+        int thirstRestore = ShambhalaConfig.sanctuaryThirstRestoration;
+
+        // 恢复饥饿值（原版系统）
+        int currentFood = player.getFoodStats().getFoodLevel();
+        if (currentFood < 20) {
+            // addStats 的第一个参数是食物值，第二个是饱和度
+            player.getFoodStats().addStats(hungerRestore, 0.5f);
+        }
+
+        // 恢复口渴值（SimpleDifficulty）
+        if (ThirstHelper.isAvailable()) {
+            int currentThirst = ThirstHelper.getThirstLevel(player);
+            if (currentThirst < 20) {
+                ThirstHelper.addThirstLevel(player, thirstRestore);
+                ThirstHelper.addThirstSaturation(player, 0.5f);
+            }
+        }
     }
 
     private void spawnSanctuaryParticles(EntityPlayer player) {
@@ -120,6 +171,14 @@ public class ItemShambhalaSanctuary extends ItemShambhalaBaubleBase {
         tooltip.add(TextFormatting.WHITE + "◆ 圣域护盾");
         tooltip.add(TextFormatting.GRAY + "  光环范围: " + (int) ShambhalaConfig.sanctuaryAuraRange + " 格");
         tooltip.add(TextFormatting.GREEN + "  范围内友军减伤: " + (int)(ShambhalaConfig.sanctuaryAllyProtection * 100) + "%");
+        tooltip.add("");
+        tooltip.add(TextFormatting.WHITE + "◆ 生命维持");
+        tooltip.add(TextFormatting.GRAY + "  每 " + (ShambhalaConfig.sanctuaryRestorationInterval / 20.0f) + " 秒恢复范围内友军:");
+        tooltip.add(TextFormatting.GOLD + "  饥饿值 +" + ShambhalaConfig.sanctuaryHungerRestoration);
+        if (ThirstHelper.SIMPLE_DIFFICULTY_LOADED) {
+            tooltip.add(TextFormatting.AQUA + "  口渴值 +" + ShambhalaConfig.sanctuaryThirstRestoration);
+        }
+        tooltip.add("");
         tooltip.add(TextFormatting.YELLOW + "  能量消耗: " + ShambhalaConfig.sanctuaryEnergyPerTick + " RF/tick");
         tooltip.add("");
         tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"在此圣域之内\"");

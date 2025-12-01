@@ -255,6 +255,31 @@ public class ShambhalaConfig {
     @Config.RangeInt(min = 1, max = 100)
     public static int sanctuaryEnergyPerTick = 10;
 
+    @Config.Comment({
+            "圣域恢复饥饿/口渴的间隔（tick）",
+            "Interval for hunger/thirst restoration in sanctuary (ticks)",
+            "默认60tick = 3秒"
+    })
+    @Config.Name("圣域:恢复间隔 | Sanctuary: Restoration Interval")
+    @Config.RangeInt(min = 20, max = 200)
+    public static int sanctuaryRestorationInterval = 60;
+
+    @Config.Comment({
+            "圣域每次恢复的饥饿值",
+            "Hunger restored per interval in sanctuary"
+    })
+    @Config.Name("圣域:饥饿恢复量 | Sanctuary: Hunger Restoration")
+    @Config.RangeInt(min = 1, max = 10)
+    public static int sanctuaryHungerRestoration = 2;
+
+    @Config.Comment({
+            "圣域每次恢复的口渴值",
+            "Thirst restored per interval in sanctuary"
+    })
+    @Config.Name("圣域:口渴恢复量 | Sanctuary: Thirst Restoration")
+    @Config.RangeInt(min = 1, max = 10)
+    public static int sanctuaryThirstRestoration = 2;
+
     // ============================================================
     // 配置变更监听
     // ============================================================
