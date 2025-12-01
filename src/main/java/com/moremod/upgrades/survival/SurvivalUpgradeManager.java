@@ -120,16 +120,16 @@ public class SurvivalUpgradeManager {
                 }
             }
 
-            // 确保不超过最大值（破碎之神玩家使用更高的上限）
-            float effectiveMax = maxShield;
+            // 确保不超过最大值（破碎之神玩家不受限制）
             IHumanityData data = HumanityCapabilityHandler.getData(player);
             if (data != null && data.getAscensionRoute() == AscensionRoute.BROKEN_GOD) {
-                // 破碎之神：使用心核的最大吸收值，与护盾上限取较大者
-                effectiveMax = Math.max(maxShield, (float) BrokenGodConfig.heartcoreMaxAbsorption);
-            }
-
-            if (currentShield > effectiveMax) {
-                player.setAbsorptionAmount(effectiveMax);
+                // 破碎之神：不限制吸收之心上限，通过击杀可无限累积
+                // 只有非破碎之神玩家才受护盾上限限制
+            } else {
+                // 普通玩家：限制在护盾等级决定的上限
+                if (currentShield > maxShield) {
+                    player.setAbsorptionAmount(maxShield);
+                }
             }
         }
 
