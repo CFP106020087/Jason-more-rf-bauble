@@ -250,25 +250,10 @@ public class ItemBrokenArm extends ItemBrokenBaubleBase {
     @Override
     @SideOnly(Side.CLIENT)
     public void addInformation(ItemStack stack, @Nullable World worldIn, List<String> tooltip, ITooltipFlag flagIn) {
-        tooltip.add(TextFormatting.DARK_RED + "═══════════════════════════");
         tooltip.add(TextFormatting.RED + "" + TextFormatting.BOLD + "破碎_臂");
-        tooltip.add(TextFormatting.DARK_GRAY + "Broken Arm");
-        tooltip.add("");
-        tooltip.add(TextFormatting.GOLD + "◆ 绝对暴击");
-        tooltip.add(TextFormatting.GRAY + "  所有攻击必定暴击");
-        tooltip.add(TextFormatting.YELLOW + "  伤害 ×" + BrokenGodConfig.armDamageMultiplier);
-        tooltip.add(TextFormatting.YELLOW + "  暴击伤害 ×" + BrokenGodConfig.armCritMultiplier);
-        tooltip.add("");
-        tooltip.add(TextFormatting.LIGHT_PURPLE + "◆ 极限延伸");
-        tooltip.add(TextFormatting.GRAY + "  攻击距离 +" + (int) BrokenGodConfig.armRangeExtension + " 格");
-        tooltip.add("");
-        tooltip.add(TextFormatting.RED + "◆ 护甲粉碎领域");
-        tooltip.add(TextFormatting.GRAY + "  " + (int) BrokenGodConfig.armArmorShredRange + " 格内敌人");
-        tooltip.add(TextFormatting.AQUA + "  护甲归零");
-        tooltip.add("");
-        tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"机械之臂，粉碎一切防御\"");
-        tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"在此领域内，护甲毫无意义\"");
-        tooltip.add(TextFormatting.DARK_RED + "═══════════════════════════");
+        tooltip.add(TextFormatting.GOLD + "◆ 暴击: " + TextFormatting.YELLOW + "×" + (int)BrokenGodConfig.armDamageMultiplier + " ×" + (int)BrokenGodConfig.armCritMultiplier + "暴伤");
+        tooltip.add(TextFormatting.LIGHT_PURPLE + "◆ 延伸: " + TextFormatting.GRAY + "攻击距离+" + (int) BrokenGodConfig.armRangeExtension);
+        tooltip.add(TextFormatting.RED + "◆ 护甲粉碎: " + TextFormatting.GRAY + (int) BrokenGodConfig.armArmorShredRange + "格内护甲归零");
         tooltip.add(TextFormatting.DARK_RED + "⚠ 无法卸除");
     }
 

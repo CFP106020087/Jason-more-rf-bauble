@@ -56,6 +56,14 @@ public final class NetworkHandler {
         );
         System.out.println("[moremod] ✅ 已註冊 MessageExecuteTrade（執行交易）");
 
+        // 情报系统：卸除档案
+        CHANNEL.registerMessage(
+                PacketDeactivateIntelProfile.Handler.class,
+                PacketDeactivateIntelProfile.class,
+                nextId(), Side.SERVER
+        );
+        System.out.println("[moremod] ✅ 已註冊 PacketDeactivateIntelProfile（情报卸除）");
+
         System.out.println("[moremod] 網路處理器初始化完成，已註冊 " + ID + " 個封包");
     }
 

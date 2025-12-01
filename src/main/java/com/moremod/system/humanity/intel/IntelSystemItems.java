@@ -21,17 +21,21 @@ public class IntelSystemItems {
     // 物品实例
     public static ItemBiologicalSample BIOLOGICAL_SAMPLE;
     public static ItemIntelBook INTEL_BOOK;
+    public static ItemIntelStatisticsBook INTEL_STATISTICS_BOOK;
 
     @SubscribeEvent
     public static void onRegisterItems(RegistryEvent.Register<Item> event) {
         BIOLOGICAL_SAMPLE = new ItemBiologicalSample();
         INTEL_BOOK = new ItemIntelBook();
+        INTEL_STATISTICS_BOOK = new ItemIntelStatisticsBook();
 
         event.getRegistry().register(BIOLOGICAL_SAMPLE);
         event.getRegistry().register(INTEL_BOOK);
+        event.getRegistry().register(INTEL_STATISTICS_BOOK);
 
         System.out.println("[MoreMod] 🧬 生物样本物品已注册");
         System.out.println("[MoreMod] 📖 情报书物品已注册");
+        System.out.println("[MoreMod] 📊 情报统计书物品已注册");
     }
 
     @SubscribeEvent
@@ -45,9 +49,11 @@ public class IntelSystemItems {
     public static void onModelRegister(ModelRegistryEvent event) {
         bindModel(BIOLOGICAL_SAMPLE, "biological_sample");
         bindModel(INTEL_BOOK, "intel_book");
+        bindModel(INTEL_STATISTICS_BOOK, "intel_statistics_book");
 
         System.out.println("[MoreMod] 🧬 生物样本模型已注册");
         System.out.println("[MoreMod] 📖 情报书模型已注册");
+        System.out.println("[MoreMod] 📊 情报统计书模型已注册");
     }
 
     @SideOnly(Side.CLIENT)

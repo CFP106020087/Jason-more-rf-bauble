@@ -322,9 +322,8 @@ public class moremodTransformer implements IClassTransformer {
                             modified = true;
                             System.out.println("[moremodTransformer]     - <init>: 14 -> " + capacity);
                         }
-                    }
-                }
-            }
+                    }}
+            }  // ✅ 只有一个 }
 
             // ⭐ 关键：修改所有方法中的硬编码 7
             else {
@@ -421,8 +420,7 @@ public class moremodTransformer implements IClassTransformer {
                         }
                         modified = true;
                     }
-                }
-            }
+            }}  // ✅ 只有一个 }
 
             // 也处理 ICONST_0 到 ICONST_5 的情况（虽然 7 不会用这个）
             // 以及 ILOAD 后跟 getArrayLength 的模式
@@ -793,9 +791,9 @@ public class moremodTransformer implements IClassTransformer {
                             break;
                         }
                     }
-                }
+                }  // ✅ 只有一个 }
             }
-        }
+        }  // ✅ for 循环结束
 
         if (!modified) {
             System.out.println("[moremodTransformer]   WARNING: Could not patch PotionFingers!");
@@ -952,7 +950,6 @@ public class moremodTransformer implements IClassTransformer {
         // 调试：打印所有方法（便于找到正确的方法名）
         System.out.println("[moremodTransformer]   Scanning EntityLivingBase methods...");
         for (MethodNode mn : cn.methods) {
-            // 打印所有可能相关的方法（包括混淆名）
             if (mn.desc.endsWith("F)Z") || mn.desc.endsWith("F)V") || mn.desc.endsWith(";)V")
                     || mn.name.contains("attack") || mn.name.contains("damage") || mn.name.contains("Death")
                     || mn.name.equals("func_70097_a") || mn.name.equals("func_70665_d") || mn.name.equals("func_70645_a")) {
@@ -963,11 +960,9 @@ public class moremodTransformer implements IClassTransformer {
         for (MethodNode mn : cn.methods) {
 
             // ========== 1. attackEntityFrom 注入 ==========
-            // MCP名: attackEntityFrom, SRG名: func_70097_a, 混淆名: a
-            // 描述符模式: (L???;F)Z - 一个对象参数 + float，返回 boolean
             boolean isAttackEntityFrom = "attackEntityFrom".equals(mn.name)
                     || "func_70097_a".equals(mn.name)
-                    || "a".equals(mn.name);  // 混淆名
+                    || "a".equals(mn.name);
 
             if (isAttackEntityFrom && mn.desc.endsWith("F)Z") && mn.desc.startsWith("(L")) {
                 System.out.println("[moremodTransformer]   Patching attackEntityFrom... (desc: " + mn.desc + ")");
@@ -975,10 +970,10 @@ public class moremodTransformer implements IClassTransformer {
                 InsnList inject = new InsnList();
                 LabelNode continueLabel = new LabelNode();
 
-                // if (BrokenGodDeathHook.shouldCancelAttack(this, source, amount)) return false;
-                inject.add(new VarInsnNode(Opcodes.ALOAD, 0));  // this
-                inject.add(new VarInsnNode(Opcodes.ALOAD, 1));  // source
-                inject.add(new VarInsnNode(Opcodes.FLOAD, 2));  // amount
+                // ===== 破碎之神：检查是否取消攻击 =====
+                inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                inject.add(new VarInsnNode(Opcodes.ALOAD, 1));
+                inject.add(new VarInsnNode(Opcodes.FLOAD, 2));
                 inject.add(new MethodInsnNode(
                         Opcodes.INVOKESTATIC,
                         "com/moremod/core/BrokenGodDeathHook",
@@ -987,12 +982,12 @@ public class moremodTransformer implements IClassTransformer {
                         false
                 ));
                 inject.add(new JumpInsnNode(Opcodes.IFEQ, continueLabel));
-                inject.add(new InsnNode(Opcodes.ICONST_0));  // return false
+                inject.add(new InsnNode(Opcodes.ICONST_0));
                 inject.add(new InsnNode(Opcodes.IRETURN));
                 inject.add(continueLabel);
 
-                // 香巴拉检查（香巴拉不在攻击阶段拦截，但保留钩子以备将来使用）
-                // ShambhalaDeathHook.shouldCancelAttack always returns false
+                // 香巴拉原始伤害捕获已移至 ShambhalaEventHandler.onLivingAttack (Forge事件)
+                // LivingAttackEvent 在护甲计算前触发，比 ASM 更简单
 
                 mn.instructions.insert(inject);
                 modified = true;
@@ -1000,11 +995,9 @@ public class moremodTransformer implements IClassTransformer {
             }
 
             // ========== 2. damageEntity 注入 ==========
-            // MCP名: damageEntity, SRG名: func_70665_d, 混淆名: d
-            // 描述符模式: (L???;F)V - 一个对象参数 + float，返回 void
             boolean isDamageEntity = "damageEntity".equals(mn.name)
                     || "func_70665_d".equals(mn.name)
-                    || "d".equals(mn.name);  // 混淆名
+                    || "d".equals(mn.name);
 
             if (isDamageEntity && mn.desc.endsWith("F)V") && mn.desc.startsWith("(L")) {
                 System.out.println("[moremodTransformer]   Patching damageEntity... (desc: " + mn.desc + ")");
@@ -1012,10 +1005,9 @@ public class moremodTransformer implements IClassTransformer {
                 InsnList inject = new InsnList();
                 LabelNode continueLabel = new LabelNode();
 
-                // if (BrokenGodDeathHook.checkAndTriggerShutdown(this, source, damage)) return;
-                inject.add(new VarInsnNode(Opcodes.ALOAD, 0));  // this
-                inject.add(new VarInsnNode(Opcodes.ALOAD, 1));  // source
-                inject.add(new VarInsnNode(Opcodes.FLOAD, 2));  // damage
+                inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                inject.add(new VarInsnNode(Opcodes.ALOAD, 1));
+                inject.add(new VarInsnNode(Opcodes.FLOAD, 2));
                 inject.add(new MethodInsnNode(
                         Opcodes.INVOKESTATIC,
                         "com/moremod/core/BrokenGodDeathHook",
@@ -1024,16 +1016,14 @@ public class moremodTransformer implements IClassTransformer {
                         false
                 ));
                 inject.add(new JumpInsnNode(Opcodes.IFEQ, continueLabel));
-                inject.add(new InsnNode(Opcodes.RETURN));  // void return
+                inject.add(new InsnNode(Opcodes.RETURN));
                 inject.add(continueLabel);
 
-                // ========== 香巴拉致命伤害检测 ==========
                 if (ENABLE_SHAMBHALA_DEATH) {
                     LabelNode shambhalaContinue = new LabelNode();
-                    // if (ShambhalaDeathHook.checkAndAbsorbDamage(this, source, damage)) return;
-                    inject.add(new VarInsnNode(Opcodes.ALOAD, 0));  // this
-                    inject.add(new VarInsnNode(Opcodes.ALOAD, 1));  // source
-                    inject.add(new VarInsnNode(Opcodes.FLOAD, 2));  // damage
+                    inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                    inject.add(new VarInsnNode(Opcodes.ALOAD, 1));
+                    inject.add(new VarInsnNode(Opcodes.FLOAD, 2));
                     inject.add(new MethodInsnNode(
                             Opcodes.INVOKESTATIC,
                             "com/moremod/core/ShambhalaDeathHook",
@@ -1042,7 +1032,7 @@ public class moremodTransformer implements IClassTransformer {
                             false
                     ));
                     inject.add(new JumpInsnNode(Opcodes.IFEQ, shambhalaContinue));
-                    inject.add(new InsnNode(Opcodes.RETURN));  // void return
+                    inject.add(new InsnNode(Opcodes.RETURN));
                     inject.add(shambhalaContinue);
                     System.out.println("[moremodTransformer]     + Injected Shambhala damage absorption at damageEntity HEAD");
                 }
@@ -1053,12 +1043,9 @@ public class moremodTransformer implements IClassTransformer {
             }
 
             // ========== 3. onDeath 注入（最终防线） ==========
-            // MCP名: onDeath, SRG名: func_70645_a, 混淆名: a (描述符 (Lur;)V)
-            // 描述符模式: (L???;)V - 一个对象参数，返回 void
-            // 注意：混淆环境下 DamageSource = ur
             boolean isOnDeath = "onDeath".equals(mn.name)
                     || "func_70645_a".equals(mn.name)
-                    || ("a".equals(mn.name) && mn.desc.equals("(Lur;)V"));  // 混淆名 + 精确描述符
+                    || ("a".equals(mn.name) && mn.desc.equals("(Lur;)V"));
 
             if (isOnDeath && mn.desc.endsWith(";)V") && mn.desc.startsWith("(L")) {
                 System.out.println("[moremodTransformer]   Patching onDeath... (desc: " + mn.desc + ")");
@@ -1066,7 +1053,6 @@ public class moremodTransformer implements IClassTransformer {
                 InsnList inject = new InsnList();
                 LabelNode continueLabel = new LabelNode();
 
-                // if (BrokenGodDeathHook.shouldPreventDeath(this, cause)) return;
                 inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
                 inject.add(new VarInsnNode(Opcodes.ALOAD, 1));
                 inject.add(new MethodInsnNode(
@@ -1080,10 +1066,8 @@ public class moremodTransformer implements IClassTransformer {
                 inject.add(new InsnNode(Opcodes.RETURN));
                 inject.add(continueLabel);
 
-                // ========== 香巴拉死亡拦截（最终防线） ==========
                 if (ENABLE_SHAMBHALA_DEATH) {
                     LabelNode shambhalaContinue = new LabelNode();
-                    // if (ShambhalaDeathHook.shouldPreventDeath(this, cause)) return;
                     inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
                     inject.add(new VarInsnNode(Opcodes.ALOAD, 1));
                     inject.add(new MethodInsnNode(
@@ -1107,7 +1091,6 @@ public class moremodTransformer implements IClassTransformer {
 
         if (!modified) {
             System.out.println("[moremodTransformer]   WARNING: No methods were modified!");
-            // 打印所有方法名帮助调试
             System.out.println("[moremodTransformer]   Available methods in EntityLivingBase:");
             for (MethodNode mn : cn.methods) {
                 if (mn.name.contains("Death") || mn.name.contains("attack") || mn.name.contains("damage")
@@ -1123,7 +1106,6 @@ public class moremodTransformer implements IClassTransformer {
         System.out.println("[moremodTransformer]   ✓ EntityLivingBase patched for Broken God shutdown system");
         return cw.toByteArray();
     }
-
     // ============================================================
     // SafeClassWriter - 避免在转换期间加载类
     // ============================================================

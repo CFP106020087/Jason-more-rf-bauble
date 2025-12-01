@@ -34,17 +34,17 @@ public class ShambhalaConfig {
             "Minimum installed modules required for ascension"
     })
     @Config.Name("模块数量要求 | Required Module Count")
-    @Config.RangeInt(min = 1, max = 50)
-    public static int requiredModuleCount = 20;
+    @Config.RangeInt(min = 1, max = 60)
+    public static int requiredModuleCount = 40;
 
     @Config.Comment({
             "升格所需的高人性值累计时间（秒）",
             "Seconds at high humanity required for ascension",
-            "与破碎之神的时间单位保持一致"
+            "默认7天 = 604800秒"
     })
     @Config.Name("高人性秒数要求 | High Humanity Seconds")
-    @Config.RangeInt(min = 60, max = 86400)
-    public static int requiredHighHumanitySeconds = 8400;
+    @Config.RangeInt(min = 60, max = 604800)
+    public static int requiredHighHumanitySeconds = 604800; // 7天
 
     @Config.Comment({
             "高人性值阈值（高于此值时开始累计时间）",
@@ -218,6 +218,15 @@ public class ShambhalaConfig {
     @Config.RangeInt(min = 20, max = 1200)
     public static int veilSkillCooldown = 200;
 
+    @Config.Comment({
+            "宁静光环持续时间（tick）",
+            "Duration of peace aura effect in ticks",
+            "进入光环范围的生物会持续被清除仇恨"
+    })
+    @Config.Name("宁静:光环持续时间 | Veil: Aura Duration")
+    @Config.RangeInt(min = 20, max = 600)
+    public static int veilAuraDuration = 200; // 默认10秒
+
     // ============================================================
     // 香巴拉_圣域 (Shambhala Sanctuary) - 终极防线
     // ============================================================
@@ -245,6 +254,43 @@ public class ShambhalaConfig {
     @Config.Name("圣域:每tick能耗 | Sanctuary: Energy Per Tick")
     @Config.RangeInt(min = 1, max = 100)
     public static int sanctuaryEnergyPerTick = 10;
+
+    @Config.Comment({
+            "圣域恢复饥饿/口渴的间隔（tick）",
+            "Interval for hunger/thirst restoration in sanctuary (ticks)",
+            "默认60tick = 3秒"
+    })
+    @Config.Name("圣域:恢复间隔 | Sanctuary: Restoration Interval")
+    @Config.RangeInt(min = 20, max = 200)
+    public static int sanctuaryRestorationInterval = 60;
+
+    @Config.Comment({
+            "圣域每次恢复的饥饿值",
+            "Hunger restored per interval in sanctuary"
+    })
+    @Config.Name("圣域:饥饿恢复量 | Sanctuary: Hunger Restoration")
+    @Config.RangeInt(min = 1, max = 10)
+    public static int sanctuaryHungerRestoration = 2;
+
+    @Config.Comment({
+            "圣域每次恢复的口渴值",
+            "Thirst restored per interval in sanctuary"
+    })
+    @Config.Name("圣域:口渴恢复量 | Sanctuary: Thirst Restoration")
+    @Config.RangeInt(min = 1, max = 10)
+    public static int sanctuaryThirstRestoration = 2;
+
+    // ============================================================
+    // 视觉效果设置
+    // ============================================================
+
+    @Config.Comment({
+            "启用香巴拉视觉覆盖效果（金色边缘渐变和齿轮）",
+            "Enable Shambhala visual overlay effects (golden vignette and gears)",
+            "关闭后香巴拉状态下不会显示特殊视觉效果"
+    })
+    @Config.Name("启用视觉效果 | Enable Visual Overlay")
+    public static boolean enableVisualOverlay = true;
 
     // ============================================================
     // 配置变更监听

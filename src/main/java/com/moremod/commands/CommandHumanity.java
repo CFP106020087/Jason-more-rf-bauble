@@ -141,7 +141,7 @@ public class CommandHumanity extends CommandBase {
             } else if (humanity <= 40f) {
                 player.sendMessage(new TextComponentString("§6  ▸ -15% MaxHP | +20%伤害 | 异常场Lv1"));
             } else if (humanity >= 80f) {
-                player.sendMessage(new TextComponentString("§a  ▸ 研究协议加强 | NPC信任"));
+                player.sendMessage(new TextComponentString("§a  ▸ 狩猎协议加强 | NPC信任"));
             }
         }
     }
@@ -322,7 +322,7 @@ public class CommandHumanity extends CommandBase {
         if (humanity <= 40f) return "异常协议";
         if (humanity <= 60f) return "灰域";
         if (humanity <= 80f) return "稳定人机";
-        return "研究协议";
+        return "狩猎协议";
     }
 
     private float getHPModifier(float humanity, AscensionRoute route) {

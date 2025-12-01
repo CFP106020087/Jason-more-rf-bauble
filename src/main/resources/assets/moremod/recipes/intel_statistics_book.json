@@ -1,0 +1,14 @@
+{
+  "type": "forge:ore_shapeless",
+  "ingredients": [
+    {
+      "item": "minecraft:book"
+    },
+    {
+      "item": "minecraft:experience_bottle"
+    }
+  ],
+  "result": {
+    "item": "moremod:intel_statistics_book"
+  }
+}

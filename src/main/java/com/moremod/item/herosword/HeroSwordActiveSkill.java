@@ -239,44 +239,7 @@ public class HeroSwordActiveSkill {
     /**
      * 终局审判伤害源
      */
-    public static class JudgmentDamage extends DamageSource {
-        private final EntityPlayer player;
-        
-        public JudgmentDamage(EntityPlayer player) {
-            super("final_judgment");
-            this.player = player;
-            this.setDamageBypassesArmor();
-            this.setDamageIsAbsolute();
-            this.setMagicDamage();
-        }
-        
-        @Override
-        public net.minecraft.entity.Entity getTrueSource() {
-            return this.player;
-        }
-        
-        @Override
-        public ITextComponent getDeathMessage(EntityLivingBase died) {
-            String killer = this.player.getDisplayName().getFormattedText();
-            String victim = died.getDisplayName().getFormattedText();
-            
-            if (HeroSwordStats.isBoss(died)) {
-                return new TextComponentString(
-                    TextFormatting.DARK_PURPLE + victim + 
-                    TextFormatting.GRAY + " 在 " + 
-                    TextFormatting.LIGHT_PURPLE + killer + 
-                    TextFormatting.GRAY + " 的终局审判下陨落"
-                );
-            } else {
-                return new TextComponentString(
-                    TextFormatting.RED + victim + 
-                    TextFormatting.GRAY + " 被 " + 
-                    TextFormatting.GOLD + killer + 
-                    TextFormatting.GRAY + " 执行了终局审判"
-                );
-            }
-        }
-    }
+
     
     // ==================== 兼容旧版本的方法 ====================
     

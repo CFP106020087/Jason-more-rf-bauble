@@ -78,11 +78,12 @@ public class SawBladeTooltip {
             tooltip.add("");
             tooltip.add(TextFormatting.DARK_GRAY + "潜行查看详细技能");
         }
-        
+
         // ========== 统计数据（F3+H）==========
-        if (flag.isAdvanced()) {
-            addStatistics(stack, tooltip);
-        }
+        // Debug tooltip 已关闭
+        // if (flag.isAdvanced()) {
+        //     addStatistics(stack, tooltip);
+        // }
         
         // ========== Lore ==========
         tooltip.add("");

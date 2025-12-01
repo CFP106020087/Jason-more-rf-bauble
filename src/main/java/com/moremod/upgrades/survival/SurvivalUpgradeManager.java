@@ -1,6 +1,10 @@
 package com.moremod.upgrades.survival;
 
+import com.moremod.config.BrokenGodConfig;
 import com.moremod.item.ItemMechanicalCore;
+import com.moremod.system.humanity.AscensionRoute;
+import com.moremod.system.humanity.HumanityCapabilityHandler;
+import com.moremod.system.humanity.IHumanityData;
 import com.moremod.upgrades.energy.EnergyDepletionManager;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
@@ -116,9 +120,16 @@ public class SurvivalUpgradeManager {
                 }
             }
 
-            // 确保不超过最大值
-            if (currentShield > maxShield) {
-                player.setAbsorptionAmount(maxShield);
+            // 确保不超过最大值（破碎之神玩家使用更高的上限）
+            float effectiveMax = maxShield;
+            IHumanityData data = HumanityCapabilityHandler.getData(player);
+            if (data != null && data.getAscensionRoute() == AscensionRoute.BROKEN_GOD) {
+                // 破碎之神：使用心核的最大吸收值，与护盾上限取较大者
+                effectiveMax = Math.max(maxShield, (float) BrokenGodConfig.heartcoreMaxAbsorption);
+            }
+
+            if (currentShield > effectiveMax) {
+                player.setAbsorptionAmount(effectiveMax);
             }
         }
 

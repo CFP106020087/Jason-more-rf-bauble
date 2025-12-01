@@ -71,14 +71,17 @@ public class ItemBrokenHeart extends ItemBrokenBaubleBase {
         }
     }
 
+    /** 固定的目标最大生命值 */
+    private static final double TARGET_MAX_HP = 10.0;
+
     @Override
     public void onWornTick(ItemStack itemstack, EntityLivingBase entity) {
         if (!(entity instanceof EntityPlayer)) return;
         EntityPlayer player = (EntityPlayer) entity;
 
-        // 每100tick确保HP压缩生效
-        if (entity.ticksExisted % 100 == 0) {
-            applyHPCompression(player);
+        // 每tick检查并强制HP压缩（防止其他mod覆盖）
+        if (!player.world.isRemote) {
+            enforceHPCompression(player);
         }
 
         // 清除负面效果
@@ -93,24 +96,28 @@ public class ItemBrokenHeart extends ItemBrokenBaubleBase {
     }
 
     /**
-     * 应用生命值压缩
+     * 强制应用生命值压缩（每tick检查）
+     * 使用更激进的方式确保max HP始终为目标值
      */
-    private void applyHPCompression(EntityPlayer player) {
+    private void enforceHPCompression(EntityPlayer player) {
         IAttributeInstance maxHealthAttr = player.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH);
         if (maxHealthAttr == null) return;
 
-        // 移除旧的修改器
-        AttributeModifier existing = maxHealthAttr.getModifier(HP_COMPRESS_UUID);
-        if (existing != null) {
-            maxHealthAttr.removeModifier(existing);
-        }
+        // 获取当前实际最大生命值（包含所有修改器）
+        double currentMaxHP = maxHealthAttr.getAttributeValue();
 
-        // 计算需要减少多少HP
-        double currentMax = maxHealthAttr.getBaseValue();
-        double targetMax = BrokenGodConfig.heartcoreCompressedHP;
-        double reduction = targetMax - currentMax; // 负数表示减少
+        // 如果当前最大HP不等于目标值，重新计算修改器
+        if (Math.abs(currentMaxHP - TARGET_MAX_HP) > 0.01) {
+            // 移除旧的修改器
+            AttributeModifier existing = maxHealthAttr.getModifier(HP_COMPRESS_UUID);
+            if (existing != null) {
+                maxHealthAttr.removeModifier(existing);
+            }
 
-        if (reduction < 0) {
+            // 重新计算：需要从当前值（移除我们的修改器后）到达目标值
+            double valueWithoutOurMod = maxHealthAttr.getAttributeValue();
+            double reduction = TARGET_MAX_HP - valueWithoutOurMod;
+
             AttributeModifier mod = new AttributeModifier(
                     HP_COMPRESS_UUID,
                     "Broken Heartcore HP Compression",
@@ -121,9 +128,16 @@ public class ItemBrokenHeart extends ItemBrokenBaubleBase {
         }
 
         // 如果当前血量超过最大值，调整
-        if (player.getHealth() > player.getMaxHealth()) {
-            player.setHealth(player.getMaxHealth());
+        if (player.getHealth() > TARGET_MAX_HP) {
+            player.setHealth((float) TARGET_MAX_HP);
         }
+    }
+
+    /**
+     * 应用生命值压缩（装备时调用）
+     */
+    private void applyHPCompression(EntityPlayer player) {
+        enforceHPCompression(player);
     }
 
     /**
@@ -206,28 +220,11 @@ public class ItemBrokenHeart extends ItemBrokenBaubleBase {
     @Override
     @SideOnly(Side.CLIENT)
     public void addInformation(ItemStack stack, @Nullable World worldIn, List<String> tooltip, ITooltipFlag flagIn) {
-        tooltip.add(TextFormatting.DARK_RED + "═══════════════════════════");
         tooltip.add(TextFormatting.RED + "" + TextFormatting.BOLD + "破碎_心核");
-        tooltip.add(TextFormatting.DARK_GRAY + "Broken Heartcore");
-        tooltip.add("");
-        tooltip.add(TextFormatting.GOLD + "◆ 极限生命压缩");
-        tooltip.add(TextFormatting.GRAY + "  最大生命值固定为 " + (int) BrokenGodConfig.heartcoreCompressedHP + " HP");
-        tooltip.add("");
-        tooltip.add(TextFormatting.GREEN + "◆ 完全生命汲取");
-        tooltip.add(TextFormatting.GRAY + "  伤害的 " + (int)(BrokenGodConfig.heartcoreLifestealRatio * 100) + "% 转化为治疗");
-        tooltip.add(TextFormatting.GRAY + "  溢出转吸收之心 (上限 " + (int) BrokenGodConfig.heartcoreMaxAbsorption + " HP)");
-        tooltip.add("");
-        tooltip.add(TextFormatting.RED + "◆ 狂战士");
-        tooltip.add(TextFormatting.GRAY + "  血量越低伤害越高");
-        tooltip.add(TextFormatting.YELLOW + "  最高 ×" + (int) BrokenGodConfig.heartcoreBerserkerMaxMultiplier + " 倍伤害");
-        tooltip.add("");
-        tooltip.add(TextFormatting.AQUA + "◆ 不朽");
-        tooltip.add(TextFormatting.GRAY + "  HP不会低于1");
-        tooltip.add(TextFormatting.GRAY + "  免疫: 凋零/中毒/出血");
-        tooltip.add("");
-        tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"不朽引擎，永不停息\"");
-        tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"越接近死亡，越是强大\"");
-        tooltip.add(TextFormatting.DARK_RED + "═══════════════════════════");
+        tooltip.add(TextFormatting.GOLD + "◆ 生命压缩: " + TextFormatting.GRAY + "最大HP固定 " + (int) TARGET_MAX_HP);
+        tooltip.add(TextFormatting.GREEN + "◆ 吸血: " + TextFormatting.GRAY + (int)(BrokenGodConfig.heartcoreLifestealRatio * 100) + "% 溢出转吸收");
+        tooltip.add(TextFormatting.RED + "◆ 狂战士: " + TextFormatting.GRAY + "低血高伤 最高×" + (int) BrokenGodConfig.heartcoreBerserkerMaxMultiplier);
+        tooltip.add(TextFormatting.AQUA + "◆ 不朽: " + TextFormatting.GRAY + "HP≥1 免疫凋零/中毒");
         tooltip.add(TextFormatting.DARK_RED + "⚠ 无法卸除");
     }
 

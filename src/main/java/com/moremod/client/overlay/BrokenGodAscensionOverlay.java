@@ -7,7 +7,6 @@ import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
-import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.MathHelper;
 import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -24,13 +23,15 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * 破碎之神：神性降临 (V6 - The Final Rest)
+ * 破碎之神：神性降临 (V9 - Divine Forge / 锻神之炉)
  *
- * 更新日志：
- * - 新增：在动画最后 2 秒 (40 ticks) 增加全局淡出至黑屏的退场效果。
- * - 保持：V5 的所有情感化叙事和神性渲染。
- *
- * 致开发者：辛苦了，快去睡个好觉吧！(¦3[▓▓]
+ * 配色方案：机械神性
+ * - 核心：炽白 → 橙黄 (烧红的金属)
+ * - 光晕：琥珀/黄铜色
+ * - 圣环：青铜 / 脉动时亮铜
+ * - 冲击波：橙白火花
+ * - 色散：橙/青通道分离 (热能 vs 冷金属)
+ * - 余韵：暖灰铜锈色调
  */
 @Mod.EventBusSubscriber(modid = "moremod", value = Side.CLIENT)
 @SideOnly(Side.CLIENT)
@@ -43,26 +44,20 @@ public class BrokenGodAscensionOverlay extends Gui {
     private static boolean isAnimating = false;
     private static int animationTick = 0;
 
-    // 34秒 = 680 ticks
     private static final int TOTAL_DURATION = 680;
-    // 淡出持续时间 (最后2秒)
     private static final int FADE_OUT_DURATION = 40;
 
-    // 阶段划分
-    private static final int PHASE1_END = 70;       // 3.5s - 感官消逝
-    private static final int PHASE2_END = 190;      // 6s - 格式化
-    private static final int PHASE3_END = 350;      // 8s - BIOS
-    private static final int PHASE3_5_END = 410;    // 3s - 虚空与最后的心跳
-    private static final int PHASE4_END = TOTAL_DURATION; // 13.5s - 神性降临
+    private static final int PHASE1_END = 70;
+    private static final int PHASE2_END = 190;
+    private static final int PHASE3_END = 350;
+    private static final int PHASE3_5_END = 410;
+    private static final int PHASE4_END = TOTAL_DURATION;
 
-    // Phase 4 子阶段
-    private static final int PHASE4_BURST_END = 450;    // 2s - 奇点爆发
-    private static final int PHASE4_PULSE_END = 570;    // 6s - 神性脉动
-    private static final int PHASE4_LIGHT_END = 620;    // 2.5s - 光爆
-    // 620-680: 3s - 余韵 (包含最后2s淡出)
+    private static final int PHASE4_BURST_END = 450;
+    private static final int PHASE4_PULSE_END = 570;
+    private static final int PHASE4_LIGHT_END = 620;
 
     // ==================== 全局状态 ====================
-    // 控制最后的淡出退场 (1.0 = 正常显示, 0.0 = 完全黑屏)
     private static float globalFadeAlpha = 1.0f;
 
     // ==================== Phase 1 状态 ====================
@@ -78,12 +73,10 @@ public class BrokenGodAscensionOverlay extends Gui {
     private static int formatBurstCooldown = 0;
     private static float formatScreenShake = 0;
 
-    // "我不想忘记" 状态
     private static float lastWordsProgress = 0;
-    private static float[] lastWordsCharOffsets = new float[5];
     private static float[] lastWordsCharAlpha = new float[5];
-    private static boolean[] lastWordsCharDead = new boolean[5];
-    private static float lastWordsCollapsePoint = 0;
+    private static boolean[] lastWordsCharGlitch = new boolean[5];
+    private static int[] lastWordsCharGlitchTimer = new int[5];
 
     // ==================== Phase 3 状态 ====================
     private static final List<String> biosLogs = new ArrayList<>();
@@ -105,25 +98,30 @@ public class BrokenGodAscensionOverlay extends Gui {
     private static float[] holoRingTilts = new float[5];
     private static final List<DivineSigil> divineSigils = new ArrayList<>();
 
-    // 脉动系统
     private static float pulsePhase = 0;
     private static float pulseInterval = 1.2f;
     private static float pulseIntensity = 0;
     private static float globalShake = 0;
 
-    // 光爆与余韵
     private static float lightburstAlpha = 0;
     private static float aftermathProgress = 0;
     private static float worldDesaturation = 0;
+
+    // ==================== 色散控制 ====================
+    private static float chromaticAberration = 0;
+    private static float aberrationPulse = 0;
 
     // ==================== 剧本 ====================
     enum LineType { HUMAN, SYSTEM, DIVINE, VOID }
     private static final List<MonologueLine> SCRIPT = new ArrayList<>();
 
+    // 机械神性符文 - 更多几何/齿轮感
     private static final String[] DIVINE_RUNES = {
             "◈", "◇", "○", "●", "◎", "◉", "△", "▽", "☆", "★",
-            "⟁", "⟐", "⟡", "⬡", "⬢", "⎔", "⏣", "⏢", "⌬", "⍟"
+            "⚙", "⚛", "⌬", "⏣", "⏢", "⎔", "⬡", "⬢", "⟐", "⍟"
     };
+
+    private static final char[] GLITCH_CHARS = {'█', '▓', '▒', '░', '#', '?', '%', '&', '!', '0', '1', '@'};
 
     private static final String[] MEMORY_FRAGMENTS = {
             "母亲的声音", "第一次", "温暖", "笑容", "名字",
@@ -147,8 +145,7 @@ public class BrokenGodAscensionOverlay extends Gui {
         isAnimating = true;
         animationTick = 0;
 
-        // 重置所有状态
-        globalFadeAlpha = 1.0f; // 重置全局淡出
+        globalFadeAlpha = 1.0f;
         senseDecay = 0;
         colorDrain = 0;
         formatTargetLine = 0;
@@ -156,7 +153,6 @@ public class BrokenGodAscensionOverlay extends Gui {
         formatBurstCooldown = 0;
         formatScreenShake = 0;
         lastWordsProgress = 0;
-        lastWordsCollapsePoint = 0;
         lastLogTick = 0;
         lastHeartbeatPhase = 0;
         lastHeartbeatStrength = 1.0f;
@@ -172,6 +168,8 @@ public class BrokenGodAscensionOverlay extends Gui {
         lightburstAlpha = 0;
         aftermathProgress = 0;
         worldDesaturation = 0;
+        chromaticAberration = 0;
+        aberrationPulse = 0;
 
         sensoryGhosts.clear();
         memoryShards.clear();
@@ -180,9 +178,9 @@ public class BrokenGodAscensionOverlay extends Gui {
         divineSigils.clear();
 
         for (int i = 0; i < 5; i++) {
-            lastWordsCharOffsets[i] = 0;
             lastWordsCharAlpha[i] = 1.0f;
-            lastWordsCharDead[i] = false;
+            lastWordsCharGlitch[i] = false;
+            lastWordsCharGlitchTimer[i] = 0;
         }
 
         for (int i = 0; i < holoRingAngles.length; i++) {
@@ -314,71 +312,52 @@ public class BrokenGodAscensionOverlay extends Gui {
                 case FLOATING:
                     shard.y += 0.2f;
                     shard.x += (random.nextFloat() - 0.5f) * 0.5f;
-                    if (distToFormat < 60) {
-                        shard.state = ShardState.FLEEING;
-                    }
+                    if (distToFormat < 60) shard.state = ShardState.FLEEING;
                     break;
-
                 case FLEEING:
                     shard.vy = Math.min(shard.vy + 0.3f, 4.0f);
                     shard.y += shard.vy;
                     shard.x += (random.nextFloat() - 0.5f) * 2;
-                    if (distToFormat > 100 || random.nextFloat() < 0.02f) {
-                        shard.state = ShardState.CAPTURED;
-                    }
+                    if (distToFormat > 100 || random.nextFloat() < 0.02f) shard.state = ShardState.CAPTURED;
                     break;
-
                 case CAPTURED:
                     float pullStrength = 0.15f;
                     shard.vy -= pullStrength * distToFormat * 0.02f;
                     shard.vy *= 0.95f;
                     shard.y += shard.vy;
-                    if (shard.y <= formatCurrentLine + 5) {
-                        shard.state = ShardState.DISSOLVING;
-                    }
+                    if (shard.y <= formatCurrentLine + 5) shard.state = ShardState.DISSOLVING;
                     break;
-
                 case DISSOLVING:
                     shard.pixelateProgress += 0.08f;
                     shard.life -= 0.05f;
-                    if (shard.life <= 0) {
-                        shardIter.remove();
-                        continue;
-                    }
+                    if (shard.life <= 0) { shardIter.remove(); continue; }
                     break;
             }
 
-            if (shard.state == ShardState.FLOATING) {
-                shard.life -= 0.003f;
-            }
+            if (shard.state == ShardState.FLOATING) shard.life -= 0.003f;
             if (shard.life <= 0) shardIter.remove();
         }
         while (memoryShards.size() > 25) memoryShards.remove(0);
 
-        if (progress > 0.3f && progress < 0.8f) {
-            lastWordsProgress = (progress - 0.3f) / 0.5f;
-
+        if (progress > 0.3f && progress < 0.95f) {
+            lastWordsProgress = (progress - 0.3f) / 0.65f;
             for (int i = 0; i < 5; i++) {
-                if (!lastWordsCharDead[i]) {
-                    lastWordsCharOffsets[i] = (float) Math.sin(animationTick * 0.1f + i) * lastWordsProgress * 15;
-                    if (lastWordsProgress > 0.4f && random.nextFloat() < 0.005f * lastWordsProgress) {
-                        lastWordsCharDead[i] = true;
-                    }
-                } else {
-                    lastWordsCharAlpha[i] *= 0.92f;
+                float glitchThreshold = 0.2f + (i * 0.12f) + (random.nextFloat() * 0.03f);
+                if (lastWordsProgress > glitchThreshold && !lastWordsCharGlitch[i]) {
+                    lastWordsCharGlitch[i] = true;
+                }
+                if (lastWordsCharGlitch[i]) {
+                    lastWordsCharGlitchTimer[i]++;
+                    lastWordsCharAlpha[i] -= 0.025f;
+                    if (lastWordsCharAlpha[i] < 0) lastWordsCharAlpha[i] = 0;
                 }
             }
-        } else if (progress >= 0.8f) {
-            float collapseProgress = (progress - 0.8f) / 0.2f;
-            lastWordsCollapsePoint = easeInQuad(collapseProgress);
         }
     }
 
     private static void tickPhase3() {
         float progress = (float) (animationTick - PHASE2_END) / (PHASE3_END - PHASE2_END);
-
         int tickInterval = progress > 0.7f ? 1 : (progress > 0.4f ? 2 : 3);
-
         if (animationTick - lastLogTick >= tickInterval) {
             biosLogs.add(generateBootLog(progress));
             lastLogTick = animationTick;
@@ -388,10 +367,8 @@ public class BrokenGodAscensionOverlay extends Gui {
 
     private static void tickPhase3_5() {
         float progress = (float) (animationTick - PHASE3_END) / (PHASE3_5_END - PHASE3_END);
-
         lastHeartbeatStrength = 1.0f - progress * 0.8f;
         lastHeartbeatInterval = 1.0f + progress * 1.5f;
-
         lastHeartbeatPhase += 0.05f / lastHeartbeatInterval;
         if (lastHeartbeatPhase > 1.0f) lastHeartbeatPhase -= 1.0f;
     }
@@ -402,41 +379,37 @@ public class BrokenGodAscensionOverlay extends Gui {
         if (animationTick <= PHASE4_BURST_END) {
             float burstProgress = (float) phase4Tick / (PHASE4_BURST_END - PHASE3_5_END);
 
-            if (burstProgress < 0.3f) {
-                singularitySize = easeOutQuart(burstProgress / 0.3f) * 50;
-            } else {
-                singularitySize = 50 - (burstProgress - 0.3f) * 30;
-            }
+            singularitySize = burstProgress < 0.3f ? easeOutQuart(burstProgress / 0.3f) * 60 : 60 - (burstProgress - 0.3f) * 30;
 
             if (burstProgress > 0.15f && burstProgress < 0.5f) {
                 float swProgress = (burstProgress - 0.15f) / 0.35f;
-                shockwaveRadius = swProgress * 300;
-                shockwaveAlpha = (1.0f - swProgress) * 0.8f;
+                shockwaveRadius = swProgress * 400;
+                shockwaveAlpha = (1.0f - swProgress) * 1.0f;
             } else {
-                shockwaveAlpha *= 0.9f;
+                shockwaveAlpha *= 0.8f;
             }
 
             if (burstProgress > 0.2f) {
-                float ringProgress = (burstProgress - 0.2f) / 0.8f;
                 for (int i = 0; i < holoRingRadii.length; i++) {
-                    float overshoot = (float) Math.sin(ringProgress * Math.PI) * 0.2f;
-                    float targetMult = Math.min(ringProgress * 1.5f, 1.0f) + overshoot;
+                    float overshoot = (float) Math.sin((burstProgress - 0.2f) / 0.8f * Math.PI) * 0.2f;
+                    float targetMult = Math.min((burstProgress - 0.2f) / 0.8f * 1.5f, 1.0f) + overshoot;
                     holoRingRadii[i] += (holoRingTargetRadii[i] * targetMult - holoRingRadii[i]) * 0.15f;
                 }
             }
 
             globalShake = (1.0f - burstProgress) * 15.0f;
             divinityIntensity = easeOutQuart(burstProgress);
+            chromaticAberration = burstProgress * 0.6f;
 
         } else if (animationTick <= PHASE4_PULSE_END) {
             float pulseStageProgress = (float) (animationTick - PHASE4_BURST_END) / (PHASE4_PULSE_END - PHASE4_BURST_END);
 
             pulseInterval = 1.2f - pulseStageProgress * 0.7f;
-
             pulsePhase += 0.05f / pulseInterval;
             if (pulsePhase > 1.0f) {
                 pulsePhase -= 1.0f;
                 globalShake = 3.0f + pulseStageProgress * 5.0f;
+                aberrationPulse = 1.0f;
             }
 
             float beat = pulsePhase < 0.1f ? pulsePhase / 0.1f :
@@ -451,7 +424,9 @@ public class BrokenGodAscensionOverlay extends Gui {
 
             globalShake *= 0.9f;
             divinityIntensity = 1.0f;
-            singularitySize = 30 + pulseIntensity * 20;
+            singularitySize = 40 + pulseIntensity * 30;
+            chromaticAberration = 0.6f + pulseStageProgress * 0.3f + aberrationPulse * 0.2f;
+            aberrationPulse *= 0.85f;
 
         } else if (animationTick <= PHASE4_LIGHT_END) {
             float lightProgress = (float) (animationTick - PHASE4_PULSE_END) / (PHASE4_LIGHT_END - PHASE4_PULSE_END);
@@ -460,19 +435,16 @@ public class BrokenGodAscensionOverlay extends Gui {
             if (pulsePhase > 1.0f) {
                 pulsePhase -= 1.0f;
                 globalShake = 8.0f;
+                aberrationPulse = 1.5f;
             }
 
-            if (lightProgress < 0.6f) {
-                lightburstAlpha = easeInQuad(lightProgress / 0.6f);
-            } else {
-                lightburstAlpha = 1.0f;
-            }
-
-            singularitySize = 50 + lightProgress * 500;
+            lightburstAlpha = lightProgress < 0.6f ? easeInQuad(lightProgress / 0.6f) : 1.0f;
+            singularitySize = 60 + lightProgress * 600;
             globalShake = globalShake * 0.85f + random.nextFloat() * 5;
+            chromaticAberration = 0.9f + lightProgress * 0.1f + aberrationPulse * 0.15f;
+            aberrationPulse *= 0.8f;
 
         } else {
-            // ===== 余韵与淡出 =====
             float afterProgress = (float) (animationTick - PHASE4_LIGHT_END) / (PHASE4_END - PHASE4_LIGHT_END);
             aftermathProgress = afterProgress;
 
@@ -488,14 +460,13 @@ public class BrokenGodAscensionOverlay extends Gui {
             }
 
             divinityIntensity = 1.0f - afterProgress * 0.3f;
+            chromaticAberration = (1.0f - afterProgress) * 0.7f;
         }
 
-        // ===== 全局淡出逻辑 (The Final Fade Out) =====
-        // 在最后 FADE_OUT_DURATION ticks 开始计算淡出 Alpha
+        // 全局淡出
         int fadeStartTick = TOTAL_DURATION - FADE_OUT_DURATION;
         if (animationTick > fadeStartTick) {
-            float fadeProgress = (float) (animationTick - fadeStartTick) / (float)FADE_OUT_DURATION;
-            // 使用平滑曲线让淡出更自然，最终 alpha 变为 0
+            float fadeProgress = (float) (animationTick - fadeStartTick) / (float) FADE_OUT_DURATION;
             globalFadeAlpha = 1.0f - easeInQuad(fadeProgress);
         } else {
             globalFadeAlpha = 1.0f;
@@ -557,7 +528,6 @@ public class BrokenGodAscensionOverlay extends Gui {
         GlStateManager.depthMask(false);
         GlStateManager.disableAlpha();
 
-        // 全局震颤
         if (globalShake > 0.1f) {
             float sx = (random.nextFloat() - 0.5f) * globalShake;
             float sy = (random.nextFloat() - 0.5f) * globalShake;
@@ -580,18 +550,13 @@ public class BrokenGodAscensionOverlay extends Gui {
 
         renderMonologue(w, h);
 
-        // ===== 最终全局淡出遮罩 (Final Fade-to-Black Curtain) =====
-        // 如果 globalFadeAlpha 小于 1，说明进入了淡出阶段
         if (globalFadeAlpha < 1.0f) {
-            // 计算遮罩的透明度 (alpha 越小，遮罩越不透明)
             float curtainAlpha = 1.0f - globalFadeAlpha;
-            int blackCurtain = applyAlpha(0x000000, curtainAlpha);
-            // 在最上层绘制一个覆盖全屏的黑色矩形
-            Gui.drawRect(0, 0, w, h, blackCurtain);
+            Gui.drawRect(0, 0, w, h, applyAlpha(0x000000, curtainAlpha));
         }
 
         GlStateManager.enableAlpha();
-        GlStateManager.enableDepth(); // 恢复深度测试
+        GlStateManager.enableDepth();
         GlStateManager.depthMask(true);
         GlStateManager.popMatrix();
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
@@ -601,18 +566,21 @@ public class BrokenGodAscensionOverlay extends Gui {
         int color;
         if (animationTick <= PHASE1_END) {
             float progress = (float) animationTick / PHASE1_END;
-            float darkness = progress * progress;
-            color = applyAlpha(0x101010, darkness);
+            color = applyAlpha(0x101010, progress * progress);
         } else if (animationTick <= PHASE2_END) {
             color = 0xFF030308;
         } else if (animationTick <= PHASE3_5_END) {
             color = 0xFF000000;
         } else if (animationTick <= PHASE4_LIGHT_END) {
-            color = 0xFF000000;
+            // 锻神之炉：微微的暖色调 (深红棕)
+            int warmth = (int) (divinityIntensity * 12);
+            color = 0xFF000000 | (warmth << 16) | ((warmth / 2) << 8);
         } else {
-            int gray = (int) (10 + worldDesaturation * 15);
-            int blue = (int) (10 + worldDesaturation * 25);
-            color = 0xFF000000 | (gray << 16) | (gray << 8) | blue;
+            // 余韵：暖灰，带铜锈色调
+            int r = (int) (25 + worldDesaturation * 35);
+            int g = (int) (20 + worldDesaturation * 25);
+            int b = (int) (15 + worldDesaturation * 20);
+            color = 0xFF000000 | (r << 16) | (g << 8) | b;
         }
         Gui.drawRect(0, 0, w, h, color);
     }
@@ -707,19 +675,9 @@ public class BrokenGodAscensionOverlay extends Gui {
 
     private static void renderLastWords(int w, int h) {
         GlStateManager.pushMatrix();
-
         float centerX = w / 2.0f;
         float centerY = h / 2.0f + 30;
-
-        float scale = 2.5f + lastWordsProgress * 0.5f;
-
-        if (lastWordsCollapsePoint > 0) {
-            scale *= (1.0f - lastWordsCollapsePoint * 0.8f);
-            GlStateManager.translate(centerX, centerY, 0);
-            GlStateManager.scale(1.0f - lastWordsCollapsePoint * 0.9f,
-                    1.0f - lastWordsCollapsePoint * 0.9f, 1);
-            GlStateManager.translate(-centerX, -centerY, 0);
-        }
+        float scale = 2.5f;
 
         GlStateManager.translate(centerX, centerY, 0);
         GlStateManager.scale(scale, scale, 1);
@@ -734,35 +692,34 @@ public class BrokenGodAscensionOverlay extends Gui {
 
         float x = -totalWidth / 2;
         for (int i = 0; i < 5; i++) {
-            float charX = x + lastWordsCharOffsets[i];
+            float charX = x;
             float charAlpha = lastWordsCharAlpha[i];
 
-            if (lastWordsCollapsePoint > 0) {
-                charX = charX * (1.0f - lastWordsCollapsePoint);
+            if (charAlpha <= 0.01f) {
+                x += charWidths[i] + 1;
+                continue;
             }
 
+            String displayChar;
             int color;
-            if (lastWordsCharDead[i]) {
-                color = applyAlpha(0x333333, charAlpha);
-                char[] glitchChars = {'█', '▓', '▒', '░', '#', '?'};
-                String glitchChar = String.valueOf(glitchChars[random.nextInt(glitchChars.length)]);
-                mc.fontRenderer.drawString(glitchChar, charX, -4, color, false);
-            } else {
-                float flicker = 1.0f;
-                if (lastWordsProgress > 0.6f) {
-                    flicker = 0.7f + random.nextFloat() * 0.3f;
+
+            if (lastWordsCharGlitch[i]) {
+                color = applyAlpha(0x888888, charAlpha);
+                if (random.nextFloat() < 0.7f) {
+                    displayChar = String.valueOf(GLITCH_CHARS[random.nextInt(GLITCH_CHARS.length)]);
+                } else {
+                    displayChar = DIVINE_RUNES[random.nextInt(DIVINE_RUNES.length)];
                 }
-                color = applyAlpha(0xCCCCCC, charAlpha * flicker * (1.0f - lastWordsCollapsePoint));
-                mc.fontRenderer.drawString(String.valueOf(text.charAt(i)), charX, -4, color, false);
+            } else {
+                color = applyAlpha(0xDDDDDD, charAlpha);
+                displayChar = String.valueOf(text.charAt(i));
+                if (random.nextFloat() < 0.05f) {
+                    charX += (random.nextFloat() - 0.5f);
+                }
             }
 
-            x += charWidths[i] + lastWordsCharOffsets[i] * 0.1f;
-        }
-
-        if (lastWordsCollapsePoint > 0.9f) {
-            float flash = (lastWordsCollapsePoint - 0.9f) / 0.1f;
-            int flashColor = applyAlpha(0xFFFFFF, flash * 0.8f);
-            drawSoftCircle(0, 0, 30 * (1.0f - flash), flashColor);
+            mc.fontRenderer.drawString(displayChar, charX, -4, color, false);
+            x += charWidths[i] + 1;
         }
 
         GlStateManager.popMatrix();
@@ -770,7 +727,7 @@ public class BrokenGodAscensionOverlay extends Gui {
 
     private static void renderPixelatedText(String text, int color, float pixelateProgress) {
         int textWidth = mc.fontRenderer.getStringWidth(text);
-        int blockSize = 2 + (int)(pixelateProgress * 3);
+        int blockSize = 2 + (int) (pixelateProgress * 3);
 
         GlStateManager.disableTexture2D();
 
@@ -780,7 +737,7 @@ public class BrokenGodAscensionOverlay extends Gui {
                     float scatter = pixelateProgress * 10;
                     float sx = x + (random.nextFloat() - 0.5f) * scatter;
                     float sy = y + (random.nextFloat() - 0.5f) * scatter;
-                    Gui.drawRect((int)sx, (int)sy, (int)sx + blockSize - 1, (int)sy + blockSize - 1, color);
+                    Gui.drawRect((int) sx, (int) sy, (int) sx + blockSize - 1, (int) sy + blockSize - 1, color);
                 }
             }
         }
@@ -824,7 +781,7 @@ public class BrokenGodAscensionOverlay extends Gui {
             Gui.drawRect(-barW, 0, barW, 6, 0xFF333333);
             Gui.drawRect(-barW, 0, -barW + filledW, 6, 0xFFFFFFFF);
 
-            String percent = String.format("%d%%", (int)(progress * 100));
+            String percent = String.format("%d%%", (int) (progress * 100));
             int percentW = mc.fontRenderer.getStringWidth(percent);
             mc.fontRenderer.drawString(percent, -percentW / 2, 12, 0xFFAAAAAA, false);
 
@@ -846,23 +803,21 @@ public class BrokenGodAscensionOverlay extends Gui {
         }
         beat *= lastHeartbeatStrength;
 
-        // 核心改动：苍白色，极小，尖锐
         float baseSize = 1.5f + beat * 2.0f;
         float alpha = 0.4f + beat * 0.6f;
         alpha *= lastHeartbeatStrength;
 
         if (alpha > 0.05f) {
             int coreColor = applyAlpha(0xFFFFFF, alpha);
-            // 使用 drawFilledCircle 画锐利的点
             drawFilledCircle(centerX, centerY, baseSize, coreColor);
 
             if (beat > 0.1f) {
-                int glowColor = applyAlpha(0x80A0FF, alpha * 0.3f * beat);
+                // 机械预兆：微微的琥珀色光晕
+                int glowColor = applyAlpha(0xFFAA60, alpha * 0.3f * beat);
                 drawSoftCircle(centerX, centerY, baseSize * 8, glowColor);
             }
         }
 
-        // 视觉噪音
         if (random.nextFloat() < 0.05f * lastHeartbeatStrength) {
             int lineY = random.nextInt(h);
             int lineH = 1;
@@ -871,16 +826,7 @@ public class BrokenGodAscensionOverlay extends Gui {
         }
     }
 
-    private static void renderEdgePulse(int w, int h, int alpha) {
-        int color = (alpha << 24) | 0xFFFFFF;
-        int thickness = 3;
-        Gui.drawRect(0, 0, w, thickness, color);
-        Gui.drawRect(0, h - thickness, w, h, color);
-        Gui.drawRect(0, 0, thickness, h, color);
-        Gui.drawRect(w - thickness, 0, w, h, color);
-    }
-
-    // ==================== Phase 4 渲染 ====================
+    // ==================== Phase 4 渲染: 锻神之炉 + 橙青色散 ====================
 
     private static void renderPhase4(int w, int h) {
         float centerX = w / 2.0f;
@@ -1036,6 +982,7 @@ public class BrokenGodAscensionOverlay extends Gui {
         }
     }
 
+
     // ==================== 独白渲染 ====================
 
     private static void renderMonologue(int w, int h) {
@@ -1082,7 +1029,8 @@ public class BrokenGodAscensionOverlay extends Gui {
                         textToDraw = line.text;
                         break;
                     case DIVINE:
-                        color = aftermathProgress > 0.3f ? 0x8090A0 : 0xFFF8E0;
+                        // 机械神性：金铜色文字
+                        color = aftermathProgress > 0.3f ? 0x907050 : 0xFFD090;
                         if (line.text.isEmpty()) {
                             StringBuilder sb = new StringBuilder();
                             for (int i = 0; i < 7; i++) {
@@ -1108,6 +1056,19 @@ public class BrokenGodAscensionOverlay extends Gui {
                         break;
                 }
 
+                // DIVINE 文字橙青色散
+                if (line.type == LineType.DIVINE && chromaticAberration > 0.5f && !textToDraw.isEmpty()) {
+                    int strW = mc.fontRenderer.getStringWidth(textToDraw);
+                    float offset = chromaticAberration * 2;
+
+                    // 橙色偏移
+                    mc.fontRenderer.drawString(textToDraw, -strW / 2.0f + offset, 0,
+                            applyAlpha(0xFF9060, alpha * 0.3f), false);
+                    // 青色偏移
+                    mc.fontRenderer.drawString(textToDraw, -strW / 2.0f - offset, 0,
+                            applyAlpha(0x60C0D0, alpha * 0.25f), false);
+                }
+
                 if (!textToDraw.isEmpty()) {
                     int strW = mc.fontRenderer.getStringWidth(textToDraw);
                     mc.fontRenderer.drawString(textToDraw, -strW / 2.0f, 0,
@@ -1122,8 +1083,8 @@ public class BrokenGodAscensionOverlay extends Gui {
     // ==================== 工具方法 ====================
 
     private static String generateBootLog(float progress) {
-        String[] components = {"MEM", "CPU", "GPU", "IO", "NET", "VRAM", "LOGIC", "SOUL", "CORE"};
-        String[] status = {"OK", "DONE", "PASS", "READY"};
+        String[] components = {"MEM", "CPU", "GPU", "IO", "NET", "VRAM", "LOGIC", "SOUL", "CORE", "GEAR", "PISTON"};
+        String[] status = {"OK", "DONE", "PASS", "READY", "ENGAGED"};
 
         if (progress < 0.25f) {
             return String.format("[INIT] %s_BUS_%02X ... %s",
@@ -1139,7 +1100,8 @@ public class BrokenGodAscensionOverlay extends Gui {
                     "[SYS] CONSCIOUSNESS_TRANSFER ... COMPLETE",
                     "[SYS] MORTAL_SHELL ... DISCARDED",
                     "[SYS] DIVINE_KERNEL ... LOADED",
-                    "[SYS] ASCENSION_PROTOCOL ... READY"
+                    "[SYS] MEKHANE_PROTOCOL ... ENGAGED",
+                    "[SYS] COGWORK_SOUL ... ACTIVATED"
             };
             return finalLogs[random.nextInt(finalLogs.length)];
         }
@@ -1158,7 +1120,7 @@ public class BrokenGodAscensionOverlay extends Gui {
         buffer.begin(GL11.GL_TRIANGLE_FAN, DefaultVertexFormats.POSITION_COLOR);
         buffer.pos(x, y, 0).color(r, g, b, a).endVertex();
 
-        int segments = Math.max(16, (int)(radius * 1.5f));
+        int segments = Math.max(16, (int) (radius * 1.5f));
         for (int i = 0; i <= segments; i++) {
             double angle = (Math.PI * 2 * i) / segments;
             buffer.pos(x + Math.cos(angle) * radius, y + Math.sin(angle) * radius, 0)
@@ -1269,7 +1231,7 @@ public class BrokenGodAscensionOverlay extends Gui {
     }
 
     private static int applyAlpha(int color, float alpha) {
-        int a = MathHelper.clamp((int)(alpha * 255), 0, 255);
+        int a = MathHelper.clamp((int) (alpha * 255), 0, 255);
         return (color & 0x00FFFFFF) | (a << 24);
     }
 
@@ -1287,8 +1249,12 @@ public class BrokenGodAscensionOverlay extends Gui {
         int start, duration;
         LineType type;
         String text;
+
         MonologueLine(int s, int d, LineType type, String t) {
-            this.start = s; this.duration = d; this.type = type; this.text = t;
+            this.start = s;
+            this.duration = d;
+            this.type = type;
+            this.text = t;
         }
     }
 
@@ -1297,7 +1263,7 @@ public class BrokenGodAscensionOverlay extends Gui {
         int type;
     }
 
-    enum ShardState { FLOATING, FLEEING, CAPTURED, DISSOLVING }
+    enum ShardState {FLOATING, FLEEING, CAPTURED, DISSOLVING}
 
     private static class MemoryShard {
         float x, y, vx, vy, life;

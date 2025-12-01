@@ -3,6 +3,7 @@ package com.moremod.proxy;
 import com.moremod.client.ClientEventHandler;
 import com.moremod.client.ClientHandlerPacketSyncRejectionData;
 import com.moremod.client.gui.EventHUDOverlay;
+import com.moremod.client.gui.StoryOverlayRenderer;
 import com.moremod.client.render.*;
 import com.moremod.client.render.debug.*;
 import com.moremod.client.render.fx.RenderLaserBeam;
@@ -112,7 +113,7 @@ public class ClientProxy extends CommonProxy {
         //RenderDebugKeys.register();
         MinecraftForge.EVENT_BUS.register(RenderDebugKeys.class);
         MinecraftForge.EVENT_BUS.register(new RenderDebugKeyHandler());
-
+        MinecraftForge.EVENT_BUS.register(new StoryOverlayRenderer());
         // =========================
         // 给锯刃剑绑定 Debug TEISR
         // =========================

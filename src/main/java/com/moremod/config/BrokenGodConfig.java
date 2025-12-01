@@ -31,17 +31,18 @@ public class BrokenGodConfig {
             "Minimum installed modules required for ascension"
     })
     @Config.Name("模块数量要求 | Required Module Count")
-    @Config.RangeInt(min = 1, max = 50)
-    public static int requiredModuleCount = 20;
+    @Config.RangeInt(min = 1, max = 60)
+    public static int requiredModuleCount = 40;
 
     @Config.Comment({
             "升格所需的低人性值累计时间（秒）",
             "Cumulative time at low humanity required for ascension (seconds)",
-            "当人性值低于阈值时，每秒累计1秒"
+            "当人性值低于阈值时，每秒累计1秒",
+            "默认3天 = 259200秒"
     })
     @Config.Name("低人性累计时间 | Low Humanity Time")
-    @Config.RangeInt(min = 60, max = 36000)
-    public static int requiredLowHumanitySeconds = 1800; // 默认30分钟
+    @Config.RangeInt(min = 60, max = 604800)
+    public static int requiredLowHumanitySeconds = 259200; // 3天
 
     @Config.Comment({
             "低人性值阈值（低于此值时开始累计时间）",
@@ -377,6 +378,18 @@ public class BrokenGodConfig {
     @Config.Name("终结:击杀吸收 | Terminus: Kill Absorption")
     @Config.RangeDouble(min = 0, max = 20)
     public static double terminusKillAbsorption = 10.0;
+
+    // ============================================================
+    // 视觉效果设置
+    // ============================================================
+
+    @Config.Comment({
+            "启用破碎之神视觉覆盖效果（数字噪点、扫描线、撕裂效果）",
+            "Enable Broken God visual overlay effects (digital noise, scanlines, glitch)",
+            "关闭后破碎之神状态下不会显示特殊视觉效果"
+    })
+    @Config.Name("启用视觉效果 | Enable Visual Overlay")
+    public static boolean enableVisualOverlay = true;
 
     // ============================================================
     // 配置变更监听

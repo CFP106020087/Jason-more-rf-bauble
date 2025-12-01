@@ -83,22 +83,9 @@ public class ItemBrokenProjection extends ItemBrokenBaubleBase {
     @Override
     @SideOnly(Side.CLIENT)
     public void addInformation(ItemStack stack, @Nullable World worldIn, List<String> tooltip, ITooltipFlag flagIn) {
-        tooltip.add(TextFormatting.DARK_RED + "═══════════════════════════");
         tooltip.add(TextFormatting.RED + "" + TextFormatting.BOLD + "破碎_投影");
-        tooltip.add(TextFormatting.DARK_GRAY + "Broken Projection");
-        tooltip.add("");
-        tooltip.add(TextFormatting.LIGHT_PURPLE + "◆ 幻影打击");
-        tooltip.add(TextFormatting.GRAY + "  每次攻击额外造成");
-        tooltip.add(TextFormatting.YELLOW + "  +" + (int)(BrokenGodConfig.projectionTrueDamageRatio * 100) + "% 真伤");
-        tooltip.add(TextFormatting.GRAY + "  无视无敌帧");
-        tooltip.add("");
-        tooltip.add(TextFormatting.DARK_RED + "◆ 斩杀执行");
-        tooltip.add(TextFormatting.GRAY + "  目标血量 < " + (int)(BrokenGodConfig.projectionExecuteThreshold * 100) + "%");
-        tooltip.add(TextFormatting.RED + "  直接击杀");
-        tooltip.add("");
-        tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"死亡幻影，必杀之击\"");
-        tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"没有目标能承受两次打击\"");
-        tooltip.add(TextFormatting.DARK_RED + "═══════════════════════════");
+        tooltip.add(TextFormatting.LIGHT_PURPLE + "◆ 幻影: " + TextFormatting.YELLOW + "+" + (int)(BrokenGodConfig.projectionTrueDamageRatio * 100) + "%真伤 " + TextFormatting.GRAY + "无视无敌帧");
+        tooltip.add(TextFormatting.DARK_RED + "◆ 斩杀: " + TextFormatting.GRAY + "目标<" + (int)(BrokenGodConfig.projectionExecuteThreshold * 100) + "%HP直接击杀");
         tooltip.add(TextFormatting.DARK_RED + "⚠ 无法卸除");
     }
 

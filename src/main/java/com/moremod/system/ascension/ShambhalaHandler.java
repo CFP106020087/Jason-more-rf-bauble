@@ -10,6 +10,7 @@ import com.moremod.system.humanity.HumanityCapabilityHandler;
 import com.moremod.system.humanity.IHumanityData;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.init.SoundEvents;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.text.TextComponentString;
@@ -125,14 +126,23 @@ public class ShambhalaHandler {
 
     // ========== 能量护盾（核心机制） ==========
 
+    /** 能量护盾最低伤害阈值：低于此值的伤害不会被能量吸收 */
+    private static final float SHIELD_MIN_DAMAGE_THRESHOLD = 20.0f;
+
     /**
      * 尝试用能量吸收伤害
+     * 注意：只吸收 >= 20 的伤害，低伤害会直接穿透
      * @param player 玩家
      * @param damage 原始伤害
      * @return 实际应受伤害（可能为0）
      */
     public static float tryAbsorbDamage(EntityPlayer player, float damage) {
         if (!isShambhala(player)) return damage;
+
+        // 低于阈值的伤害不被能量护盾吸收，直接穿透
+        if (damage < SHIELD_MIN_DAMAGE_THRESHOLD) {
+            return damage;
+        }
 
         // 计算吸收伤害需要的能量
         int energyRequired = (int) (damage * ShambhalaConfig.energyPerDamage);
@@ -180,10 +190,14 @@ public class ShambhalaHandler {
 
     /**
      * 反射伤害给攻击者（带AoE和循环防护）
+     *
+     * 新公式（比例反伤）：
+     * 反伤 = (受到的伤害 / 玩家最大血量) * 攻击者最大血量
+     *
      * @param damageSource 原始伤害源（用于检测循环）
      */
     public static void reflectDamage(EntityPlayer player, net.minecraft.entity.Entity attacker,
-                                      float originalDamage, net.minecraft.util.DamageSource damageSource) {
+                                     float originalDamage, net.minecraft.util.DamageSource damageSource) {
         if (!isShambhala(player)) return;
         if (attacker == null) return;
 
@@ -195,16 +209,25 @@ public class ShambhalaHandler {
         reflectingPlayers.add(player.getUniqueID());
 
         try {
-            float reflectDamage = originalDamage * (float) ShambhalaConfig.thornsReflectMultiplier;
-            double aoeRadius = ShambhalaConfig.thornsAoeRadius;
+            // ========== 新公式：比例反伤 ==========
+            // (受到的伤害 / 玩家最大血量) * 攻击者最大血量
+            float playerMaxHealth = player.getMaxHealth();
+            if (playerMaxHealth <= 0) playerMaxHealth = 20.0F; // 防止除零
 
-            // 计算总能量消耗（主目标 + AoE）
-            int baseCost = (int) (reflectDamage * ShambhalaConfig.energyPerReflect);
+            float damageRatio = originalDamage / playerMaxHealth;
+
+            double aoeRadius = ShambhalaConfig.thornsAoeRadius;
 
             // 主目标反伤
             if (attacker instanceof net.minecraft.entity.EntityLivingBase) {
+                net.minecraft.entity.EntityLivingBase livingAttacker = (net.minecraft.entity.EntityLivingBase) attacker;
+                float reflectDamage = damageRatio * livingAttacker.getMaxHealth();
+                reflectDamage *= (float) ShambhalaConfig.thornsReflectMultiplier;
+
+                int baseCost = (int) (reflectDamage * ShambhalaConfig.energyPerReflect);
+
                 if (consumeEnergy(player, baseCost)) {
-                    applyReflectDamageToTarget(player, (net.minecraft.entity.EntityLivingBase) attacker, reflectDamage);
+                    applyReflectDamageToTarget(player, livingAttacker, reflectDamage);
                 } else {
                     return; // 没能量就不反伤
                 }
@@ -221,10 +244,13 @@ public class ShambhalaHandler {
                         player.world.getEntitiesWithinAABB(net.minecraft.entity.EntityLivingBase.class, aabb,
                                 e -> e != player && e != attacker && !(e instanceof EntityPlayer));
 
-                float aoeDamage = reflectDamage * 0.5f; // AoE伤害减半
-                int aoeCost = (int) (aoeDamage * ShambhalaConfig.energyPerReflect);
-
+                // AoE也使用比例反伤，基于每个mob自己的血量
                 for (net.minecraft.entity.EntityLivingBase mob : nearbyMobs) {
+                    float aoeDamage = damageRatio * mob.getMaxHealth() * 0.5f; // AoE伤害减半
+                    aoeDamage *= (float) ShambhalaConfig.thornsReflectMultiplier;
+
+                    int aoeCost = (int) (aoeDamage * ShambhalaConfig.energyPerReflect);
+
                     if (consumeEnergy(player, aoeCost)) {
                         applyReflectDamageToTarget(player, mob, aoeDamage);
                     } else {
@@ -350,19 +376,19 @@ public class ShambhalaHandler {
         // 发送升格消息
         player.sendMessage(new TextComponentString(
                 TextFormatting.GOLD + "═══════════════════════════════════\n" +
-                TextFormatting.AQUA + "" + TextFormatting.BOLD + "  [ 机巧香巴拉 · 永恒齿轮圣化身 ]\n" +
-                TextFormatting.WHITE + "  Avatar of Eternal Gearwork Shambhala\n\n" +
-                TextFormatting.GRAY + "  你已成为机械与人性的完美容器。\n" +
-                TextFormatting.GRAY + "  只要齿轮仍在转动，你便永不倒下。\n\n" +
-                TextFormatting.YELLOW + "  ◆ 获得：绝对防御、因果反噬、净化之力\n" +
-                TextFormatting.RED + "  ◆ 代价：伤害输出削弱、防御消耗能量\n" +
-                TextFormatting.GOLD + "═══════════════════════════════════"
+                        TextFormatting.AQUA + "" + TextFormatting.BOLD + "  [ 机巧香巴拉 · 永恒齿轮圣化身 ]\n" +
+                        TextFormatting.WHITE + "  Avatar of Eternal Gearwork Shambhala\n\n" +
+                        TextFormatting.GRAY + "  你已成为机械与人性的完美容器。\n" +
+                        TextFormatting.GRAY + "  只要齿轮仍在转动，你便永不倒下。\n\n" +
+                        TextFormatting.YELLOW + "  ◆ 获得：绝对防御、因果反噬、净化之力\n" +
+                        TextFormatting.RED + "  ◆ 代价：伤害输出削弱、防御消耗能量\n" +
+                        TextFormatting.GOLD + "═══════════════════════════════════"
         ));
 
         // 装备替换消息
         player.sendMessage(new TextComponentString(
                 TextFormatting.AQUA + "\n所有饰品已被卸除。\n" +
-                TextFormatting.AQUA + "你的身体被重构为永恒机械的圣像。"
+                        TextFormatting.AQUA + "你的身体被重构为永恒机械的圣像。"
         ));
 
         // 替换饰品
@@ -390,7 +416,7 @@ public class ShambhalaHandler {
 
         // 音效 - 信标激活
         player.world.playSound(null, player.posX, player.posY, player.posZ,
-                net.minecraft.init.SoundEvents.BLOCK_BEACON_ACTIVATE,
+                SoundEvents.BLOCK_PORTAL_TRIGGER,
                 net.minecraft.util.SoundCategory.PLAYERS, 1.0f, 1.0f);
     }
 

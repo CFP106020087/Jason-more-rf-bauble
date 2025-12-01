@@ -147,22 +147,10 @@ public class ItemBrokenHand extends ItemBrokenBaubleBase {
     @Override
     @SideOnly(Side.CLIENT)
     public void addInformation(ItemStack stack, @Nullable World worldIn, List<String> tooltip, ITooltipFlag flagIn) {
-        tooltip.add(TextFormatting.DARK_RED + "═══════════════════════════");
         tooltip.add(TextFormatting.RED + "" + TextFormatting.BOLD + "破碎_手");
-        tooltip.add(TextFormatting.DARK_GRAY + "Broken Hand");
-        tooltip.add("");
-        tooltip.add(TextFormatting.GOLD + "◆ 疯狂攻速");
-        tooltip.add(TextFormatting.YELLOW + "  攻击速度 ×" + (int) BrokenGodConfig.handSpeedMultiplier);
-        tooltip.add("");
-        tooltip.add(TextFormatting.RED + "◆ 近战强化");
-        tooltip.add(TextFormatting.GRAY + "  近战伤害 +" + (int)(BrokenGodConfig.handMeleeDamageBonus * 100) + "%");
-        tooltip.add("");
-        tooltip.add(TextFormatting.LIGHT_PURPLE + "◆ 无冷却");
-        tooltip.add(TextFormatting.GRAY + "  攻击后立即重置冷却");
-        tooltip.add("");
-        tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"无尽之握，速度的极致\"");
-        tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"攻击如同呼吸般自然\"");
-        tooltip.add(TextFormatting.DARK_RED + "═══════════════════════════");
+        tooltip.add(TextFormatting.GOLD + "◆ 攻速: " + TextFormatting.YELLOW + "×" + (int) BrokenGodConfig.handSpeedMultiplier);
+        tooltip.add(TextFormatting.RED + "◆ 近战: " + TextFormatting.GRAY + "+" + (int)(BrokenGodConfig.handMeleeDamageBonus * 100) + "%");
+        tooltip.add(TextFormatting.LIGHT_PURPLE + "◆ 无冷却: " + TextFormatting.GRAY + "攻击后重置");
         tooltip.add(TextFormatting.DARK_RED + "⚠ 无法卸除");
     }
 
