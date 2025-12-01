@@ -1,5 +1,6 @@
 package com.moremod.item.herosword;
 
+import com.moremod.combat.TrueDamageHelper;
 import com.moremod.item.ItemHeroSword;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
@@ -7,7 +8,6 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.EntityDamageSource;
-import net.minecraft.world.World;
 import net.minecraftforge.event.entity.living.LivingDamageEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
@@ -88,9 +88,12 @@ public class HeroSwordEventHandler {
         event.setAmount(finalDamage);
     }
 
-    // ===== 真伤：宿命裁决（修复版 - 使用额外伤害源而非直接设置血量）=====
+    // ===== 真伤：宿命裁决（将全部伤害转换为真伤）=====
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onEntityDamage(LivingDamageEvent event) {
+        // 避免递归：如果已经在真伤处理中，跳过
+        if (TrueDamageHelper.isInTrueDamageContext()) return;
+
         DamageSource src = event.getSource();
         Entity trueSrc = src.getTrueSource();
         if (!(trueSrc instanceof EntityPlayer)) return;
@@ -107,37 +110,16 @@ public class HeroSwordEventHandler {
         float baseDamage = event.getAmount();
         if (baseDamage <= 0.0F) return;
 
-        // 真伤触发概率
-        float chance = HeroSwordStats.getTrueDamageChance(main);
-        if (player.world.rand.nextFloat() > chance) {
-            return;
-        }
+        // 取消原始伤害，改用 TrueDamageHelper 施加真伤
+        event.setCanceled(true);
 
-        // 真伤比例：按当前生命
-        float percent = HeroSwordStats.getTrueDamageConversion(main);
-        float currentHealth = target.getHealth();
-        float extraTrue = currentHealth * percent;
-        
-        // 防止致死：确保至少留 1 点血
-        float healthAfterBase = currentHealth - baseDamage;
-        if (healthAfterBase <= 1.0F) {
-            return; // 基础伤害已经会致死，不再追加真伤
-        }
-        
-        // 限制真伤量，确保不会致死
-        float maxTrue = healthAfterBase - 1.0F;
-        if (extraTrue > maxTrue) {
-            extraTrue = maxTrue;
-        }
-        
-        if (extraTrue > 0.1F) {
-            // 将真伤添加到总伤害中（而非直接设置血量）
-            event.setAmount(baseDamage + extraTrue);
-            
-            // 可选：添加视觉/音效反馈
-            // player.world.playSound(null, target.posX, target.posY, target.posZ, 
-            //     SoundEvents.ENTITY_PLAYER_HURT_ON_FIRE, SoundCategory.PLAYERS, 0.5F, 1.5F);
-        }
+        // 通过 TrueDamageHelper 施加真伤
+        TrueDamageHelper.applyWrappedTrueDamage(
+                target,
+                player,
+                baseDamage,
+                TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE
+        );
     }
 
     // ===== 玩家Tick：宿命重担渐进式衰减（修复版）=====
