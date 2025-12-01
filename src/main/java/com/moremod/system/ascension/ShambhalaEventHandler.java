@@ -431,7 +431,8 @@ public class ShambhalaEventHandler {
 
     /**
      * 阻止香巴拉饰品物品实体生成（防止死亡掉落）
-     * 只阻止没有拾取延迟的物品（掉落物通常有延迟）
+     * 无条件阻止所有香巴拉饰品掉落物生成
+     * 注意：replacePlayerBaubles 只掉落非香巴拉饰品（被替换的旧饰品）
      */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onItemSpawn(net.minecraftforge.event.entity.EntityJoinWorldEvent event) {
@@ -439,12 +440,10 @@ public class ShambhalaEventHandler {
             EntityItem item = (EntityItem) event.getEntity();
             ItemStack stack = item.getItem();
             if (ShambhalaItems.isShambhalaItem(stack)) {
-                // 阻止掉落物生成（掉落物通常有拾取延迟）
-                // 但不阻止 replacePlayerBaubles 创建的物品（延迟=20）
-                // 死亡掉落通常延迟=40
-                if (item.pickupDelay != 20) {
-                    event.setCanceled(true);
-                }
+                // 无条件阻止所有香巴拉饰品掉落物
+                // 香巴拉饰品是灵魂绑定的，不应该以任何方式掉落
+                event.setCanceled(true);
+                LOGGER.debug("[Shambhala] Blocked Shambhala item drop: {}", stack.getDisplayName());
             }
         }
     }
