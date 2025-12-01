@@ -50,7 +50,18 @@ public class ItemDimensionalKey extends Item {
         setTranslationKey("dimensional_key");
         setCreativeTab(moremodCreativeTab.moremod_TAB);
         setMaxStackSize(1);
-        setMaxDamage(100);
+        // 耐久度设为0表示无限耐久
+        setMaxDamage(0);
+    }
+
+    @Override
+    public boolean isDamageable() {
+        return false; // 永不消耗耐久
+    }
+
+    @Override
+    public void setDamage(ItemStack stack, int damage) {
+        // 不做任何事，防止耐久消耗
     }
 
     @Override
@@ -391,9 +402,7 @@ public class ItemDimensionalKey extends Item {
             tooltip.add(TextFormatting.GREEN + "▸ 效果持续30秒");
             tooltip.add(TextFormatting.RED + "▸ 仅限私人维度使用");
             tooltip.add("");
-            tooltip.add(TextFormatting.AQUA + "⚡ 耐久度: " +
-                    (stack.getMaxDamage() - stack.getItemDamage()) + "/" +
-                    stack.getMaxDamage());
+            tooltip.add(TextFormatting.AQUA + "⚡ 耐久度: 无限");
         } else {
             tooltip.add(TextFormatting.DARK_GRAY + "按住 " +
                     TextFormatting.YELLOW + "Shift" +
