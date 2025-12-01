@@ -18,6 +18,7 @@ import com.moremod.item.ItemMechanicalCoreExtended;
 import com.moremod.event.EnergyPunishmentSystem;
 import com.moremod.system.ascension.BrokenGodHandler;
 import com.moremod.system.ascension.ShambhalaHandler;
+import com.moremod.system.humanity.HumanitySpectrumSystem;
 import com.moremod.util.BaublesSyncUtil;
 
 import java.nio.charset.StandardCharsets;
@@ -418,6 +419,9 @@ public class PacketMechanicalCoreUpdate implements IMessage {
             // 执行升格
             BrokenGodHandler.performAscension(player);
 
+            // 同步人性值数据到客户端（包含升格状态，用于渲染）
+            HumanitySpectrumSystem.forceSync(player);
+
             // 同步饰品变更
             syncDirty(player);
         }
@@ -433,6 +437,9 @@ public class PacketMechanicalCoreUpdate implements IMessage {
 
             // 执行升格
             ShambhalaHandler.performAscension(player);
+
+            // 同步人性值数据到客户端（包含升格状态，用于渲染）
+            HumanitySpectrumSystem.forceSync(player);
 
             // 同步饰品变更
             syncDirty(player);

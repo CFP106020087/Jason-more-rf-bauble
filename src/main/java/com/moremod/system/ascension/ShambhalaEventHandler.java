@@ -172,8 +172,24 @@ public class ShambhalaEventHandler {
             EntityPlayer player = (EntityPlayer) event.getEntityLiving();
 
             if (ShambhalaHandler.isShambhala(player)) {
+                DamageSource source = event.getSource();
                 float originalDamage = event.getAmount();
 
+                // ========== 触发反伤（在吸收前，使用原始伤害） ==========
+                // 跳过真伤（反伤本身使用真伤，不应被再次处理）
+                if (!TrueDamageHelper.isInTrueDamageContext() && !TrueDamageHelper.isTrueDamageSource(source)) {
+                    float rawDamage = getAndClearCapturedRawDamage();
+                    Entity capturedAtt = getAndClearCapturedAttacker();
+
+                    float reflectBaseDamage = rawDamage > 0 ? rawDamage : originalDamage;
+                    Entity realAttacker = capturedAtt != null ? capturedAtt : source.getTrueSource();
+
+                    if (realAttacker != null && realAttacker instanceof EntityLivingBase && reflectBaseDamage > 0) {
+                        ShambhalaDeathHook.triggerTrueDamageReflect(player, (EntityLivingBase) realAttacker, reflectBaseDamage);
+                    }
+                }
+
+                // ========== 能量护盾吸收 ==========
                 // 尝试用能量吸收伤害
                 float remainingDamage = ShambhalaHandler.tryAbsorbDamage(player, originalDamage);
 

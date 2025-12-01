@@ -148,7 +148,7 @@ public class ShambhalaDeathHook {
      * @param attacker 攻击者
      * @param damage   受到的原始伤害
      */
-    private static void triggerTrueDamageReflect(EntityPlayer player, EntityLivingBase attacker, float damage) {
+    public static void triggerTrueDamageReflect(EntityPlayer player, EntityLivingBase attacker, float damage) {
         UUID playerId = player.getUniqueID();
 
         // 循环防护
