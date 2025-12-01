@@ -177,15 +177,25 @@ public class ShambhalaEventHandler {
 
                 // ========== 触发反伤（在吸收前，使用原始伤害） ==========
                 // 跳过真伤（反伤本身使用真伤，不应被再次处理）
-                if (!TrueDamageHelper.isInTrueDamageContext() && !TrueDamageHelper.isTrueDamageSource(source)) {
+                boolean inTrueDmgCtx = TrueDamageHelper.isInTrueDamageContext();
+                boolean isTrueDmgSrc = TrueDamageHelper.isTrueDamageSource(source);
+
+                System.out.println("[Shambhala Reflect] inTrueDmgCtx=" + inTrueDmgCtx + ", isTrueDmgSrc=" + isTrueDmgSrc + ", originalDamage=" + originalDamage);
+
+                if (!inTrueDmgCtx && !isTrueDmgSrc) {
                     float rawDamage = getAndClearCapturedRawDamage();
                     Entity capturedAtt = getAndClearCapturedAttacker();
 
                     float reflectBaseDamage = rawDamage > 0 ? rawDamage : originalDamage;
                     Entity realAttacker = capturedAtt != null ? capturedAtt : source.getTrueSource();
 
+                    System.out.println("[Shambhala Reflect] rawDamage=" + rawDamage + ", reflectBaseDamage=" + reflectBaseDamage + ", attacker=" + (realAttacker != null ? realAttacker.getClass().getSimpleName() : "null"));
+
                     if (realAttacker != null && realAttacker instanceof EntityLivingBase && reflectBaseDamage > 0) {
+                        System.out.println("[Shambhala Reflect] Triggering reflect damage!");
                         ShambhalaDeathHook.triggerTrueDamageReflect(player, (EntityLivingBase) realAttacker, reflectBaseDamage);
+                    } else {
+                        System.out.println("[Shambhala Reflect] Skipped: attacker=" + (realAttacker != null) + ", isLiving=" + (realAttacker instanceof EntityLivingBase));
                     }
                 }
 
