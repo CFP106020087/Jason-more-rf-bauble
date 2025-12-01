@@ -224,6 +224,10 @@ public class RegisterItem {
     public static Item PURSUIT_LV2;
     public static Item PURSUIT_LV3;
 
+    public static Item MAGIC_ABSORB_LV1;
+    public static Item MAGIC_ABSORB_LV2;
+    public static Item MAGIC_ABSORB_LV3;
+
     // 能源类升级
     public static Item KINETIC_GENERATOR_LV1;
     public static Item KINETIC_GENERATOR_LV2;
@@ -459,6 +463,10 @@ public class RegisterItem {
         PURSUIT_LV1 = UpgradeItemsExtended.PURSUIT_LV1;
         PURSUIT_LV2 = UpgradeItemsExtended.PURSUIT_LV2;
         PURSUIT_LV3 = UpgradeItemsExtended.PURSUIT_LV3;
+
+        MAGIC_ABSORB_LV1 = UpgradeItemsExtended.MAGIC_ABSORB_LV1;
+        MAGIC_ABSORB_LV2 = UpgradeItemsExtended.MAGIC_ABSORB_LV2;
+        MAGIC_ABSORB_LV3 = UpgradeItemsExtended.MAGIC_ABSORB_LV3;
 
         // 能源类
         KINETIC_GENERATOR_LV1 = UpgradeItemsExtended.KINETIC_GENERATOR_LV1;
