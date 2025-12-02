@@ -10,9 +10,11 @@ import com.moremod.init.ModBlocks;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
 import net.minecraft.tileentity.TileEntityMobSpawner;
+import net.minecraft.tileentity.TileEntitySign;
 import net.minecraft.tileentity.MobSpawnerBaseLogic;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.text.TextComponentString;
 import net.minecraft.world.World;
 
 import java.util.*;
@@ -251,6 +253,26 @@ public class TreeDungeonPlacer {
         // 樓層標識告示牌
         BlockPos signPos = origin.add(center, 2, center);
         world.setBlockState(signPos, Blocks.STANDING_SIGN.getDefaultState(), 2);
+
+        // 設置告示牌文字
+        TileEntitySign sign = (TileEntitySign) world.getTileEntity(signPos);
+        if (sign != null) {
+            int floor = room.floorIndex + 1; // 從1開始計數
+            sign.signText[0] = new TextComponentString("=== 樓梯間 ===");
+            sign.signText[1] = new TextComponentString("當前: 第 " + floor + " 層");
+
+            if (room.type == RoomType.STAIRCASE_UP) {
+                sign.signText[2] = new TextComponentString("藍色=上樓");
+                sign.signText[3] = new TextComponentString("");
+            } else if (room.type == RoomType.STAIRCASE_DOWN) {
+                sign.signText[2] = new TextComponentString("紅色=下樓");
+                sign.signText[3] = new TextComponentString("");
+            } else { // STAIRCASE_BOTH
+                sign.signText[2] = new TextComponentString("藍色=上 紅色=下");
+                sign.signText[3] = new TextComponentString("");
+            }
+            sign.markDirty();
+        }
     }
 
     private void placeStaircasePillar(BlockPos pos) {
