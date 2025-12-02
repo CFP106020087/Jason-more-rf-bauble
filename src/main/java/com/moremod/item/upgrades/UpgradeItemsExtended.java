@@ -628,14 +628,14 @@ public class UpgradeItemsExtended {
             }, 3, 4
     );
 
-    // 远程伤害增幅（3级）
+    // 远程伤害增幅（3级）- 强化版
     public static final ItemUpgradeComponent RANGED_DAMAGE_BOOST_LV1 = createUpgrade(
             UpgradeType.RANGED_DAMAGE_BOOST, "ranged_damage_boost_lv1",
             new String[]{
                     TextFormatting.GOLD + "远程增幅 I",
                     TextFormatting.GRAY + "将远程伤害增幅升级至 Lv.1",
                     "",
-                    TextFormatting.YELLOW + "▶ 远程伤害: +15%",
+                    TextFormatting.YELLOW + "▶ 远程伤害: +65%",
                     TextFormatting.GRAY + "对弓箭、弩、投掷物有效",
                     TextFormatting.DARK_GRAY + "基础远程增幅"
             }, 1, 16
@@ -647,7 +647,7 @@ public class UpgradeItemsExtended {
                     TextFormatting.GOLD + "远程增幅 II",
                     TextFormatting.GRAY + "将远程伤害增幅升级至 Lv.2",
                     "",
-                    TextFormatting.YELLOW + "▶ 远程伤害: +30%",
+                    TextFormatting.YELLOW + "▶ 远程伤害: +80%",
                     TextFormatting.BLUE + "强化远程增幅"
             }, 2, 8
     );
@@ -658,7 +658,7 @@ public class UpgradeItemsExtended {
                     TextFormatting.GOLD + "✦ 远程增幅 III ✦",
                     TextFormatting.GRAY + "将远程伤害增幅升级至最高等级",
                     "",
-                    TextFormatting.YELLOW + "▶ 远程伤害: +50%",
+                    TextFormatting.YELLOW + "▶ 远程伤害: +100% (双倍)",
                     TextFormatting.LIGHT_PURPLE + "精准打击",
                     TextFormatting.RED + "已达最高等级"
             }, 3, 4

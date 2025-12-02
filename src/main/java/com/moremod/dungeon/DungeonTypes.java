@@ -21,6 +21,7 @@ public class DungeonTypes {
         TRAP("trap", 0.4),
         MONSTER("monster", 0.7),
         PUZZLE("puzzle", 0.5),
+        MINI_BOSS("mini_boss", 0.3),  // 道中Boss房间
         BOSS("boss", 0.2);
 
         public final String name;

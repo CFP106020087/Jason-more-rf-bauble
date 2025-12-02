@@ -43,58 +43,78 @@ public class ChengYueSweep {
         }
     }
     
-    // ==================== 范围攻击参数 ====================
-    
+    // ==================== 范围攻击参数（强化版）====================
+
     /**
-     * 获取范围攻击半径（格）
-     * 公式：2.5 + level×0.15
-     * 
-     * Level 0:  2.5格
-     * Level 10: 4.0格
-     * Level 30: 7.0格
+     * 获取范围攻击半径（格）（强化版）
+     * 公式：4.0 + level×0.25
+     *
+     * Level 0:  4.0格（原2.5格）
+     * Level 10: 6.5格（原4.0格）
+     * Level 30: 11.5格（原7.0格）
+     * Level 50: 16.5格
      */
     public static float getSweepRange(int level) {
-        return 2.5f + level * 0.15f;
+        return 4.0f + level * 0.25f;
     }
-    
+
     /**
-     * 获取伤害削弱乘数
-     * 公式：0.3 + level×0.015
-     * 
-     * Level 0:  30%伤害
-     * Level 10: 45%伤害
-     * Level 20: 60%伤害
-     * Level 30: 75%伤害
+     * 获取伤害削弱乘数（强化版）
+     * 公式：0.45 + level×0.02
+     *
+     * Level 0:  45%伤害（原30%）
+     * Level 10: 65%伤害（原45%）
+     * Level 20: 85%伤害（原60%）
+     * Level 30: 100%伤害（原75%）
      */
     public static float getDamageMultiplier(int level) {
-        float base = 0.3f + level * 0.015f;
-        return Math.min(0.8f, base); // 上限80%
+        float base = 0.45f + level * 0.02f;
+        return Math.min(1.0f, base); // 上限100%（原80%）
     }
-    
+
     /**
-     * 获取击退强度（需要等级阈值）
-     * 
-     * Level 0-9:   无击退
-     * Level 10-19: 0.3击退
-     * Level 20-29: 0.5击退
-     * Level 30+:   0.7击退
+     * 获取击退强度（强化版，更早解锁）
+     *
+     * Level 0-4:   0.2击退（原无）
+     * Level 5-14:  0.4击退（原0.3）
+     * Level 15-24: 0.6击退（原0.5）
+     * Level 25+:   0.9击退（原0.7）
      */
     public static float getKnockbackStrength(int level) {
-        if (level < 10) return 0.0f;
-        if (level < 20) return 0.3f;
-        if (level < 30) return 0.5f;
-        return 0.7f;
+        if (level < 5) return 0.2f;
+        if (level < 15) return 0.4f;
+        if (level < 25) return 0.6f;
+        return 0.9f;
     }
-    
+
     /**
-     * 是否触发减速效果
-     * 15级以上：减速I，持续3秒
-     * 25级以上：减速II，持续3秒
+     * 是否触发减速效果（强化版，更早解锁）
+     * 10级以上：减速I，持续4秒（原15级，3秒）
+     * 20级以上：减速II，持续4秒（原25级，3秒）
+     * 35级以上：减速III，持续5秒（新增）
      */
     public static int getSlownessLevel(int level) {
-        if (level >= 25) return 2;
-        if (level >= 15) return 1;
+        if (level >= 35) return 3;
+        if (level >= 20) return 2;
+        if (level >= 10) return 1;
         return 0;
+    }
+
+    /**
+     * 获取减速持续时间（tick）
+     */
+    public static int getSlownessDuration(int level) {
+        if (level >= 35) return 100; // 5秒
+        return 80; // 4秒
+    }
+
+    /**
+     * 获取最大目标数量（新增）
+     * 限制范围攻击影响的最大目标数
+     */
+    public static int getMaxTargets(int level) {
+        // 基础5个 + 每10级+2个，上限20个
+        return Math.min(20, 5 + (level / 10) * 2);
     }
     
     // ==================== 范围攻击执行 ====================
@@ -133,36 +153,48 @@ public class ChengYueSweep {
         List<EntityLivingBase> targets = player.world.getEntitiesWithinAABB(
             EntityLivingBase.class,
             searchBox,
-            entity -> entity != player && 
-                     entity != mainTarget && 
-                     !entity.isOnSameTeam(player) && 
+            entity -> entity != player &&
+                     entity != mainTarget &&
+                     !entity.isOnSameTeam(player) &&
                      entity.isEntityAlive()
         );
-        
+
+        // 获取最大目标数量
+        int maxTargets = getMaxTargets(level);
+
+        // 按距离排序，优先攻击近的
+        targets.sort((a, b) -> Float.compare(
+            (float) a.getDistanceSq(mainTarget),
+            (float) b.getDistanceSq(mainTarget)
+        ));
+
         // 对每个目标造成伤害
         int hitCount = 0;
         for (EntityLivingBase victim : targets) {
+            if (hitCount >= maxTargets) break;
+
             // 使用自定义伤害源，防止递归
             boolean damaged = victim.attackEntityFrom(
                 new ChengYueSweepDamage(player),
                 sweepDamage
             );
-            
+
             if (damaged) {
                 hitCount++;
-                
+
                 // 应用击退效果
                 float kbStrength = getKnockbackStrength(level);
                 if (kbStrength > 0) {
                     applyKnockback(player, victim, kbStrength);
                 }
-                
+
                 // 应用减速效果
                 int slownessLevel = getSlownessLevel(level);
                 if (slownessLevel > 0) {
+                    int duration = getSlownessDuration(level);
                     victim.addPotionEffect(new PotionEffect(
                         MobEffects.SLOWNESS,
-                        60, // 3秒
+                        duration,
                         slownessLevel - 1 // 药水等级从0开始
                     ));
                 }
@@ -261,30 +293,34 @@ public class ChengYueSweep {
         float damagePercent = getDamageMultiplier(level) * 100;
         float kbStrength = getKnockbackStrength(level);
         int slownessLevel = getSlownessLevel(level);
-        
+        int maxTargets = getMaxTargets(level);
+
         StringBuilder sb = new StringBuilder();
-        sb.append("§6【范围攻击】\n");
+        sb.append("§6【范围攻击·强化版】\n");
         sb.append("§7范围: §f").append(String.format("%.1f", range)).append("格\n");
         sb.append("§7伤害: §c").append(String.format("%.0f%%", damagePercent)).append(" 主伤害\n");
-        
+        sb.append("§7目标上限: §f").append(maxTargets).append("个\n");
+
         if (kbStrength > 0) {
             sb.append("§7击退: §e").append(String.format("%.1f", kbStrength)).append("\n");
         }
-        
+
         if (slownessLevel > 0) {
-            sb.append("§7减速: §b").append("Lv.").append(slownessLevel).append(" (3秒)\n");
+            int duration = getSlownessDuration(level) / 20;
+            sb.append("§7减速: §b").append("Lv.").append(slownessLevel).append(" (").append(duration).append("秒)\n");
         }
-        
+
         return sb.toString();
     }
-    
+
     /**
      * 获取简短描述（用于Tooltip）
      */
     public static String getSweepTooltip(int level) {
         float range = getSweepRange(level);
         float damagePercent = getDamageMultiplier(level) * 100;
-        
-        return String.format("§6范围攻击: §f%.1f格 / §c%.0f%%伤害", range, damagePercent);
+        int maxTargets = getMaxTargets(level);
+
+        return String.format("§6范围攻击: §f%.1f格 / §c%.0f%%伤害 / §e%d目标", range, damagePercent, maxTargets);
     }
 }

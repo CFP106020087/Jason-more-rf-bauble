@@ -293,7 +293,8 @@ public class HumanitySpectrumSystem {
             }
         }
 
-        markForceSync(player);
+        // 立即同步到客户端（确保HUD及时显示）
+        syncNow(player);
     }
 
     /**
@@ -340,8 +341,8 @@ public class HumanitySpectrumSystem {
             }
         }
 
-        // 强制同步到客户端
-        markForceSync(player);
+        // 立即同步到客户端（避免延迟导致HUD不及时隐藏）
+        syncNow(player);
     }
 
     // ========== 崩解机制 ==========

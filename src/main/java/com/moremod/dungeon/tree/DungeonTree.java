@@ -69,6 +69,7 @@ public class DungeonTree {
         NORMAL(0.5f),
         TREASURE(0.15f),
         TRAP(0.2f),
+        MINI_BOSS(0.1f),  // 道中Boss
         BOSS(0.05f),
         HUB(0.1f);
 

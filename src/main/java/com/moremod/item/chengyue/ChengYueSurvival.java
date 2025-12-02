@@ -31,10 +31,11 @@ public class ChengYueSurvival {
     private static final String KEY_AEGIS_DAMAGE_TYPE = "AegisDamageType";
     private static final String KEY_AEGIS_LAST_USE = "AegisLastUse";
     
-    // 月之庇护参数
-    private static final long AEGIS_DURATION_TICKS = 6000L; // 5分钟
-    private static final long AEGIS_COOLDOWN_TICKS = 6000L; // 5分钟
-    private static final float AEGIS_REDUCTION = 0.8f; // 80%减伤
+    // 月之庇护参数（强化版）
+    private static final long AEGIS_DURATION_TICKS = 7200L; // 6分钟（原5分钟）
+    private static final long AEGIS_COOLDOWN_TICKS = 4800L; // 4分钟（原5分钟）
+    private static final float AEGIS_REDUCTION = 0.85f; // 85%减伤（原80%）
+    private static final float AEGIS_MEMORY_REDUCTION = 0.92f; // 记忆类型减伤 92%（原80%）
     
     // ==================== 月之庇护（强化版）====================
     
@@ -68,8 +69,8 @@ public class ChengYueSurvival {
             return false; // 还在冷却中
         }
         
-        // 激活条件：伤害 >= 玩家当前生命的25%（降低阈值，更容易触发）
-        float threshold = player.getHealth() * 0.25f;
+        // 激活条件：伤害 >= 玩家当前生命的15%（更容易触发）
+        float threshold = player.getHealth() * 0.15f;
         
         if (damage >= threshold) {
             // 激活月之庇护！
@@ -85,7 +86,7 @@ public class ChengYueSurvival {
             player.sendMessage(new TextComponentString(
                 TextFormatting.AQUA + "【月之庇护】" +
                 TextFormatting.GOLD + " 激活！" +
-                TextFormatting.GRAY + " (持续5分钟)"
+                TextFormatting.GRAY + " (持续6分钟)"
             ));
             
             player.sendMessage(new TextComponentString(
@@ -152,7 +153,7 @@ public class ChengYueSurvival {
         
         // 如果是记忆的伤害类型，额外减伤
         boolean isMemorizedType = rememberedType.equals(currentType);
-        float reduction = isMemorizedType ? AEGIS_REDUCTION : (AEGIS_REDUCTION * 0.5f); // 记忆类型80%，其他类型40%
+        float reduction = isMemorizedType ? AEGIS_MEMORY_REDUCTION : AEGIS_REDUCTION; // 记忆类型92%，其他类型85%
         
         float reducedDamage = damage * (1.0f - reduction);
         
@@ -321,11 +322,71 @@ public class ChengYueSurvival {
         }
     }
     
+    // ==================== 受伤回复机制（新增）====================
+
+    /**
+     * 尝试受伤时回复生命
+     *
+     * @param player 玩家
+     * @param stack 澄月物品
+     * @param damage 实际受到的伤害
+     * @return 回复的生命值
+     */
+    public static float tryHurtHeal(EntityPlayer player, ItemStack stack, float damage) {
+        if (stack.isEmpty() || player.world.isRemote) {
+            return 0.0f;
+        }
+
+        ChengYueNBT.init(stack);
+
+        // 获取触发概率
+        float chance = ChengYueStats.getHurtHealChance(stack);
+        if (chance <= 0) return 0.0f;
+
+        // 概率判定
+        if (player.world.rand.nextFloat() >= chance) {
+            return 0.0f;
+        }
+
+        // 计算回复量
+        float healPercent = ChengYueStats.getHurtHealPercent(stack);
+        float healing = damage * healPercent;
+
+        if (healing > 0.5f) {
+            player.heal(healing);
+
+            // 显示提示
+            player.sendStatusMessage(new TextComponentString(
+                TextFormatting.LIGHT_PURPLE + "【月华反哺】" +
+                TextFormatting.GREEN + " +" + String.format("%.1f", healing) + " ♥"
+            ), true);
+
+            // 粒子效果
+            if (!player.world.isRemote) {
+                for (int i = 0; i < 8; i++) {
+                    double offsetX = (player.world.rand.nextDouble() - 0.5) * 1.0;
+                    double offsetY = player.world.rand.nextDouble() * 2.0;
+                    double offsetZ = (player.world.rand.nextDouble() - 0.5) * 1.0;
+
+                    player.world.spawnParticle(
+                        net.minecraft.util.EnumParticleTypes.HEART,
+                        player.posX + offsetX,
+                        player.posY + offsetY,
+                        player.posZ + offsetZ,
+                        0, 0.1, 0
+                    );
+                }
+            }
+        }
+
+        return healing;
+    }
+
     // ==================== 闪避机制 ====================
-    
+
     /**
      * 尝试闪避攻击
-     * 
+     *
      * @param player 玩家
      * @param stack 澄月物品
      * @param source 伤害来源
@@ -512,9 +573,9 @@ public class ChengYueSurvival {
         long currentTime = world.getTotalWorldTime();
         
         sb.append("\n§b【月之庇护】\n");
-        sb.append(String.format("§7减伤: §f%.0f%%\n", AEGIS_REDUCTION * 100));
-        sb.append("§7持续: §f5分钟\n");
-        sb.append("§7冷却: §f5分钟\n");
+        sb.append(String.format("§7减伤: §f%.0f%% §7(记忆类型: §6%.0f%%§7)\n", AEGIS_REDUCTION * 100, AEGIS_MEMORY_REDUCTION * 100));
+        sb.append("§7持续: §f6分钟\n");
+        sb.append("§7冷却: §f4分钟\n");
         
         if (isAegisActive(stack, currentTime)) {
             int remaining = getAegisRemainingTime(stack, world);

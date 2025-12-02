@@ -249,10 +249,31 @@ public class DungeonLayoutGenerator {
         }
         if (boss != null) boss.type = RoomType.BOSS;
 
+        // MINI_BOSS = 在入口到Boss/出口路径中间的房间（度>=2）
+        // 选择路径长度在 40%-60% 范围内的房间
+        int maxPathLen = Math.max(pathLen(parent, entrance, exit), bestLen);
+        RoomNode miniBoss = null;
+        int targetLen = maxPathLen / 2;
+        int minDiff = Integer.MAX_VALUE;
+        for (RoomNode r : order) {
+            if (r == entrance || r == exit || r == boss) continue;
+            int len = pathLen(parent, entrance, r);
+            int diff = Math.abs(len - targetLen);
+            // 选择路径中间、度>=2的房间作为道中Boss
+            if (diff < minDiff && g.get(r).size() >= 2 && len >= 2) {
+                minDiff = diff;
+                miniBoss = r;
+            }
+        }
+        if (miniBoss != null && maxPathLen >= 5) {
+            miniBoss.type = RoomType.MINI_BOSS;
+        }
+
         // 其它按度分：度=1 → TREASURE/TRAP；度>=4 → HUB；否则 NORMAL/MONSTER/PUZZLE
         Random rnd = new Random(rooms.hashCode() ^ tree.hashCode());
         for (RoomNode r : rooms) {
-            if (r.type == RoomType.ENTRANCE || r.type == RoomType.EXIT || r.type == RoomType.BOSS) continue;
+            if (r.type == RoomType.ENTRANCE || r.type == RoomType.EXIT ||
+                r.type == RoomType.BOSS || r.type == RoomType.MINI_BOSS) continue;
             int deg = g.get(r).size();
             if (deg == 1) r.type = rnd.nextDouble() < 0.65 ? RoomType.TREASURE : RoomType.TRAP;
             else if (deg >= 4) r.type = RoomType.HUB;
