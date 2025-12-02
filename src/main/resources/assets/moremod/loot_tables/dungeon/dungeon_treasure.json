@@ -60,14 +60,14 @@
       "entries": [
         {
           "type": "item",
-          "name": "moremod:spectral_dust",
-          "weight": 120,
+          "name": "moremod:void_echo",
+          "weight": 100,
           "functions": [
             {
               "function": "set_count",
               "count": {
-                "min": 3,
-                "max": 6
+                "min": 2,
+                "max": 4
               }
             }
           ]
