@@ -87,6 +87,9 @@ public class ShambhalaEventHandler {
 
     // ========== 玩家Tick处理 ==========
 
+    // 饰品检测计数器（每秒检测一次 = 20 ticks）
+    private static final int BAUBLE_CHECK_INTERVAL = 20;
+
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
@@ -112,8 +115,42 @@ public class ShambhalaEventHandler {
             data.setHumanity(100);
         }
 
+        // ✅ 低性能Fallback：每秒检测并补回缺失的香巴拉饰品
+        if (player.ticksExisted % BAUBLE_CHECK_INTERVAL == 0) {
+            checkAndRestoreShambhalaBaubles(player);
+        }
+
         // 血量锁定由 First Aid 兼容层处理 (ShambhalaFirstAidCompat)
         // 原版 MC 的死亡由 onLivingDeath 处理
+    }
+
+    /**
+     * 检测并补回缺失的香巴拉饰品
+     * 作为死亡保护机制的fallback，确保饰品不会因为任何原因丢失
+     */
+    private static void checkAndRestoreShambhalaBaubles(EntityPlayer player) {
+        try {
+            IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(player);
+            if (baubles == null) return;
+
+            // 检查是否有任何香巴拉饰品缺失
+            boolean hasMissing = false;
+            for (int i = 0; i < Math.min(7, baubles.getSlots()); i++) {
+                ItemStack stack = baubles.getStackInSlot(i);
+                if (stack.isEmpty() || !ShambhalaItems.isShambhalaItem(stack)) {
+                    hasMissing = true;
+                    break;
+                }
+            }
+
+            // 如果有缺失，重新装备所有饰品
+            if (hasMissing) {
+                ShambhalaItems.replacePlayerBaubles(player);
+                LOGGER.debug("[Shambhala] Restored missing baubles for player {}", player.getName());
+            }
+        } catch (Exception e) {
+            LOGGER.error("[Shambhala] Error checking/restoring baubles", e);
+        }
     }
 
     // ========== 原始伤害捕获（用于比例反伤） ==========
