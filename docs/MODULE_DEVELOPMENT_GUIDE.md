@@ -377,11 +377,194 @@ AutoEffectHandler.onBlockBreak()
 
 ## 旧系统开发流程
 
-旧系统使用独立的 `@Mod.EventBusSubscriber` 事件处理器，不经过 `AutoEffectHandler`。
+旧系统使用手动注册方式，需要在多个位置添加代码。
 
-**文件位置**: `src/main/java/com/moremod/event/`
+### 完整注册链路 (6 步)
 
-### 完整示例: 远程伤害增幅
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                          旧系统模块注册流程                                    │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  步骤1: ItemMechanicalCoreExtended.registerUpgrades()                        │
+│         └─ 注册模块元数据 (ID, 显示名, 颜色, 最大等级, 类别)                    │
+│                                                                              │
+│  步骤2: UpgradeType 枚举                                                     │
+│         └─ 添加枚举值 (用于物品创建和类型识别)                                  │
+│                                                                              │
+│  步骤3: ItemMechanicalCore.BASE_EXTENDED_UPGRADE_IDS                         │
+│         └─ 添加模块ID字符串 (用于tooltip计数和模块识别)                         │
+│                                                                              │
+│  步骤4: UpgradeItemsExtended (两个位置!)                                     │
+│         ├─ 定义物品实例 (static final 字段)                                   │
+│         └─ 添加到 getAllExtendedUpgrades() 返回数组                           │
+│                                                                              │
+│  步骤5: 语言文件                                                              │
+│         └─ 添加 item.registryName.name=显示名称                               │
+│                                                                              │
+│  步骤6: 实现独立事件处理器                                                     │
+│         └─ @Mod.EventBusSubscriber 类                                        │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 步骤1: ItemMechanicalCoreExtended.registerUpgrades()
+
+**文件**: `src/main/java/com/moremod/item/ItemMechanicalCoreExtended.java`
+
+在 `registerUpgrades()` 方法中添加：
+
+```java
+private static void registerUpgrades() {
+    // ... 其他模块 ...
+
+    // ===== 战斗类 =====
+    register("RANGED_DAMAGE_BOOST", "远程伤害增幅", TextFormatting.GOLD, 3, UpgradeCategory.COMBAT);
+
+    // ... 其他模块 ...
+}
+```
+
+**参数说明**:
+- 参数1: 模块ID (大写下划线格式)
+- 参数2: 显示名称
+- 参数3: 颜色
+- 参数4: 最大等级
+- 参数5: 类别 (`SURVIVAL`/`AUXILIARY`/`COMBAT`/`ENERGY`)
+
+---
+
+### 步骤2: UpgradeType 枚举
+
+**文件**: `src/main/java/com/moremod/item/UpgradeType.java`
+
+```java
+public enum UpgradeType {
+    // ... 其他枚举值 ...
+
+    // ===== 战斗類升級 =====
+    RANGED_DAMAGE_BOOST("远程伤害增幅", TextFormatting.GOLD, UpgradeCategory.COMBAT),
+
+    // ... 其他枚举值 ...
+}
+```
+
+**注意**: 枚举名称必须与步骤1中的模块ID完全一致！
+
+---
+
+### 步骤3: ItemMechanicalCore.BASE_EXTENDED_UPGRADE_IDS
+
+**文件**: `src/main/java/com/moremod/item/ItemMechanicalCore.java`
+
+在 `BASE_EXTENDED_UPGRADE_IDS` 数组中添加：
+
+```java
+private static final String[] BASE_EXTENDED_UPGRADE_IDS = {
+    "YELLOW_SHIELD","HEALTH_REGEN","HUNGER_THIRST","THORNS","FIRE_EXTINGUISH",
+    // ... 其他模块 ...
+    "RANGED_DAMAGE_BOOST"  // <-- 添加到这里
+};
+```
+
+**作用**: 用于核心tooltip的模块计数和模块系统识别。
+
+---
+
+### 步骤4: UpgradeItemsExtended (两个位置!)
+
+**文件**: `src/main/java/com/moremod/item/upgrades/UpgradeItemsExtended.java`
+
+#### 位置 A: 定义物品实例 (static final 字段)
+
+```java
+public class UpgradeItemsExtended {
+
+    // ... 其他模块 ...
+
+    // ===== 远程伤害增幅（3级） =====
+    public static final ItemUpgradeComponent RANGED_DAMAGE_BOOST_LV1 = createUpgrade(
+            UpgradeType.RANGED_DAMAGE_BOOST, "ranged_damage_boost_lv1",
+            new String[]{
+                    TextFormatting.GOLD + "远程伤害增幅 I",
+                    TextFormatting.GRAY + "将远程伤害增幅升级至 Lv.1",
+                    "",
+                    TextFormatting.YELLOW + "▶ 远程伤害: +15%",
+                    TextFormatting.DARK_GRAY + "基础增幅"
+            }, 1, 16
+    );
+
+    public static final ItemUpgradeComponent RANGED_DAMAGE_BOOST_LV2 = createUpgrade(
+            UpgradeType.RANGED_DAMAGE_BOOST, "ranged_damage_boost_lv2",
+            new String[]{
+                    TextFormatting.GOLD + "远程伤害增幅 II",
+                    TextFormatting.GRAY + "将远程伤害增幅升级至 Lv.2",
+                    "",
+                    TextFormatting.YELLOW + "▶ 远程伤害: +30%",
+                    TextFormatting.BLUE + "强化增幅"
+            }, 2, 8
+    );
+
+    public static final ItemUpgradeComponent RANGED_DAMAGE_BOOST_LV3 = createUpgrade(
+            UpgradeType.RANGED_DAMAGE_BOOST, "ranged_damage_boost_lv3",
+            new String[]{
+                    TextFormatting.GOLD + "✦ 远程伤害增幅 III ✦",
+                    TextFormatting.GRAY + "将远程伤害增幅升级至最高等级",
+                    "",
+                    TextFormatting.YELLOW + "▶ 远程伤害: +50%",
+                    TextFormatting.LIGHT_PURPLE + "极限增幅",
+                    TextFormatting.RED + "已达最高等级"
+            }, 3, 4
+    );
+
+    // ... 其他模块 ...
+}
+```
+
+#### 位置 B: getAllExtendedUpgrades() 返回数组
+
+在同一文件的 `getAllExtendedUpgrades()` 方法中添加：
+
+```java
+public static ItemUpgradeComponent[] getAllExtendedUpgrades() {
+    return new ItemUpgradeComponent[]{
+            // 生存类
+            YELLOW_SHIELD_LV1, YELLOW_SHIELD_LV2, YELLOW_SHIELD_LV3,
+            // ... 其他模块 ...
+
+            // 战斗类
+            DAMAGE_BOOST_LV1, DAMAGE_BOOST_LV2, DAMAGE_BOOST_LV3, DAMAGE_BOOST_LV4, DAMAGE_BOOST_LV5,
+            // ... 其他模块 ...
+            RANGED_DAMAGE_BOOST_LV1, RANGED_DAMAGE_BOOST_LV2, RANGED_DAMAGE_BOOST_LV3,  // <-- 添加到这里
+
+            // ... 其他模块 ...
+    };
+}
+```
+
+**重要**: 必须添加到两个位置！物品定义 + 返回数组。
+
+---
+
+### 步骤5: 语言文件
+
+**文件**: `src/main/resources/assets/moremod/lang/zh_cn.lang`
+
+```properties
+item.ranged_damage_boost_lv1.name=远程伤害增幅 Lv.1 升级组件
+item.ranged_damage_boost_lv2.name=远程伤害增幅 Lv.2 升级组件
+item.ranged_damage_boost_lv3.name=远程伤害增幅 Lv.3 升级组件
+```
+
+---
+
+### 步骤6: 实现独立事件处理器
+
+**文件**: `src/main/java/com/moremod/event/RangedDamageHandler.java`
+
+创建新的事件处理器类：
 
 ```java
 package com.moremod.event;
