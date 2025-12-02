@@ -51,6 +51,9 @@ public class ModuleAutoRegistry {
     // 生成的物品实例 (ID -> Level -> Item)
     private static final Map<String, Map<Integer, ItemUpgradeComponent>> ITEMS = new LinkedHashMap<>();
 
+    // 【优化】有 handler 的模块缓存 (避免每次遍历时检查 hasHandler)
+    private static List<ModuleDefinition> HANDLER_MODULES_CACHE = null;
+
     // 是否已初始化
     private static boolean initialized = false;
 
@@ -59,6 +62,8 @@ public class ModuleAutoRegistry {
      */
     public static void register(ModuleDefinition definition) {
         DEFINITIONS.put(definition.id, definition);
+        // 清除缓存以便重新生成
+        HANDLER_MODULES_CACHE = null;
         System.out.println("[ModuleAutoRegistry] 注册模块定义: " + definition.id);
     }
 
@@ -295,6 +300,22 @@ public class ModuleAutoRegistry {
      */
     public static Collection<ModuleDefinition> getAllDefinitions() {
         return Collections.unmodifiableCollection(DEFINITIONS.values());
+    }
+
+    /**
+     * 【优化】获取所有有 handler 的模块定义
+     * 使用缓存避免每次遍历时检查 hasHandler()
+     */
+    public static List<ModuleDefinition> getHandlerModules() {
+        if (HANDLER_MODULES_CACHE == null) {
+            HANDLER_MODULES_CACHE = new ArrayList<>();
+            for (ModuleDefinition def : DEFINITIONS.values()) {
+                if (def.hasHandler()) {
+                    HANDLER_MODULES_CACHE.add(def);
+                }
+            }
+        }
+        return HANDLER_MODULES_CACHE;
     }
 
     /**
