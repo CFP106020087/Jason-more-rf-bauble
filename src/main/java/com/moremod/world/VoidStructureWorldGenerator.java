@@ -351,8 +351,9 @@ public class VoidStructureWorldGenerator implements IWorldGenerator {
             System.out.println("[地牢生成] 开始生成地牢于 " + pos + ", seed=" + seed);
             DungeonLayoutGenerator gen = new DungeonLayoutGenerator();
             int size = 512;
-            DungeonLayout layout = gen.generateLayout(pos, size, seed);
-            System.out.println("[地牢生成] 布局生成完成，房间数: " + layout.getRooms().size());
+            int floorCount = 3; // 三层地牢
+            DungeonLayout layout = gen.generateMultiFloorLayout(pos, size, seed, floorCount);
+            System.out.println("[地牢生成] 布局生成完成，房间数: " + layout.getRooms().size() + "，楼层: " + floorCount);
             new TreeDungeonPlacer(world).placeDungeon(layout);
             System.out.println("[地牢生成] 地牢放置完成");
         } catch (Exception e) {
