@@ -10,15 +10,18 @@ import org.lwjgl.input.Keyboard;
 
 public class JetpackKeyHandler {
 
+    // 使用装备功能分类
+    private static final String CATEGORY = KeyBindHandler.CATEGORY_EQUIPMENT;
+
     public static final KeyBinding keyToggleJetpack =
-            new KeyBinding("key.moremod.jetpack_toggle", Keyboard.KEY_V, "key.categories.moremod");
+            new KeyBinding("key.moremod.jetpack_toggle", Keyboard.KEY_NONE, CATEGORY);
 
     public static final KeyBinding keyToggleHover =
-            new KeyBinding("key.moremod.hover_toggle", Keyboard.KEY_H, "key.categories.moremod");
+            new KeyBinding("key.moremod.hover_toggle", Keyboard.KEY_NONE, CATEGORY);
 
-    // 新增：速度模式切换按键
+    // 速度模式切换按键
     public static final KeyBinding keyToggleSpeedMode =
-            new KeyBinding("key.moremod.speed_toggle", Keyboard.KEY_G, "key.categories.moremod");
+            new KeyBinding("key.moremod.speed_toggle", Keyboard.KEY_NONE, CATEGORY);
 
     public static void registerKeys() {
         ClientRegistry.registerKeyBinding(keyToggleJetpack);

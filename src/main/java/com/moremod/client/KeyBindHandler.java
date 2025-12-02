@@ -66,71 +66,67 @@ public class KeyBindHandler {
     private static boolean peaceAuraKeyPressed = false;  // ☀ 香巴拉宁静光环按键状态
     private static int scrollOffset = 0;
 
+    // ===== 按键分类常量 =====
+    public static final String CATEGORY_MECHANICAL_CORE = "key.categories.moremod.mechanical_core";
+    public static final String CATEGORY_EQUIPMENT = "key.categories.moremod.equipment";
+    public static final String CATEGORY_SHAMBHALA = "key.categories.moremod.shambhala";
+
     public static void init() {
         System.out.println("[moremod] 初始化按键绑定...");
 
-        // HUD控制
-        toggleHudKey = new KeyBinding("切换机械核心HUD显示",
-                KeyConflictContext.IN_GAME, Keyboard.KEY_H, "机械核心HUD");
+        // ========== 机械核心 (Mechanical Core) ==========
+        toggleHudKey = new KeyBinding("key.moremod.toggle_hud",
+                KeyConflictContext.IN_GAME, Keyboard.KEY_H, CATEGORY_MECHANICAL_CORE);
         ClientRegistry.registerKeyBinding(toggleHudKey);
-        // 系统引导界面按键
-        rejectionStatusKey = new KeyBinding("系统引导界面",
-                KeyConflictContext.IN_GAME,
-                Keyboard.KEY_K,
-                "机械核心HUD");
-        ClientRegistry.registerKeyBinding(rejectionStatusKey);
 
-// 在 onKeyInput 方法中添加
-
-
-        // 机械核心
-        openCoreGui = new KeyBinding("打开机械核心面板",
-                KeyConflictContext.IN_GAME, Keyboard.KEY_P, "机械核心");
+        openCoreGui = new KeyBinding("key.moremod.open_core_gui",
+                KeyConflictContext.IN_GAME, Keyboard.KEY_P, CATEGORY_MECHANICAL_CORE);
         ClientRegistry.registerKeyBinding(openCoreGui);
 
-        oreVisionKey = new KeyBinding("切换矿物透视",
-                KeyConflictContext.IN_GAME, Keyboard.KEY_V, "机械核心");
+        oreVisionKey = new KeyBinding("key.moremod.ore_vision",
+                KeyConflictContext.IN_GAME, Keyboard.KEY_V, CATEGORY_MECHANICAL_CORE);
         ClientRegistry.registerKeyBinding(oreVisionKey);
 
-        oreFilterKey = new KeyBinding("切换矿物过滤",
-                KeyConflictContext.IN_GAME, Keyboard.KEY_B, "机械核心");
+        oreFilterKey = new KeyBinding("key.moremod.ore_filter",
+                KeyConflictContext.IN_GAME, Keyboard.KEY_B, CATEGORY_MECHANICAL_CORE);
         ClientRegistry.registerKeyBinding(oreFilterKey);
 
-        stealthKey = new KeyBinding("切换隐身模式",
-                KeyConflictContext.IN_GAME, Keyboard.KEY_X, "机械核心");
+        stealthKey = new KeyBinding("key.moremod.stealth",
+                KeyConflictContext.IN_GAME, Keyboard.KEY_X, CATEGORY_MECHANICAL_CORE);
         ClientRegistry.registerKeyBinding(stealthKey);
 
-        // 维度工具
-        dimensionalRipperKey = new KeyBinding("维度撕裂者操作",
-                KeyConflictContext.IN_GAME, Keyboard.KEY_Y, "维度工具");
-        ClientRegistry.registerKeyBinding(dimensionalRipperKey);
-
-        personalDimensionKey = new KeyBinding("进入/离开私人维度",
-                KeyConflictContext.IN_GAME, Keyboard.KEY_U, "维度工具");
-        ClientRegistry.registerKeyBinding(personalDimensionKey);
-
-        // 附魔系统
-        activateEnchantBoost = new KeyBinding("激活附魔增强饰品",
-                KeyConflictContext.IN_GAME, Keyboard.KEY_G, "附魔系统");
-        ClientRegistry.registerKeyBinding(activateEnchantBoost);
-
-        // HUD详细控制
-        detailInfoKey = new KeyBinding("显示详细信息（按住）",
-                KeyConflictContext.IN_GAME, Keyboard.KEY_LSHIFT, "机械核心HUD");
+        detailInfoKey = new KeyBinding("key.moremod.detail_info",
+                KeyConflictContext.IN_GAME, Keyboard.KEY_LSHIFT, CATEGORY_MECHANICAL_CORE);
         ClientRegistry.registerKeyBinding(detailInfoKey);
 
-        scrollUpgradesKey = new KeyBinding("滚动升级列表",
-                KeyConflictContext.IN_GAME, Keyboard.KEY_TAB, "机械核心HUD");
+        scrollUpgradesKey = new KeyBinding("key.moremod.scroll_upgrades",
+                KeyConflictContext.IN_GAME, Keyboard.KEY_TAB, CATEGORY_MECHANICAL_CORE);
         ClientRegistry.registerKeyBinding(scrollUpgradesKey);
 
-        // 🌌 虚空背包链接
-        openVoidBackpackKey = new KeyBinding("打开虚空背包",
-                KeyConflictContext.IN_GAME, Keyboard.KEY_K, "饰品系统");
+        rejectionStatusKey = new KeyBinding("key.moremod.rejection_status",
+                KeyConflictContext.IN_GAME, Keyboard.KEY_K, CATEGORY_MECHANICAL_CORE);
+        ClientRegistry.registerKeyBinding(rejectionStatusKey);
+
+        // ========== 装备功能 (Equipment) ==========
+        dimensionalRipperKey = new KeyBinding("key.moremod.dimensional_ripper",
+                KeyConflictContext.IN_GAME, Keyboard.KEY_Y, CATEGORY_EQUIPMENT);
+        ClientRegistry.registerKeyBinding(dimensionalRipperKey);
+
+        personalDimensionKey = new KeyBinding("key.moremod.personal_dimension",
+                KeyConflictContext.IN_GAME, Keyboard.KEY_U, CATEGORY_EQUIPMENT);
+        ClientRegistry.registerKeyBinding(personalDimensionKey);
+
+        activateEnchantBoost = new KeyBinding("key.moremod.enchant_boost",
+                KeyConflictContext.IN_GAME, Keyboard.KEY_G, CATEGORY_EQUIPMENT);
+        ClientRegistry.registerKeyBinding(activateEnchantBoost);
+
+        openVoidBackpackKey = new KeyBinding("key.moremod.void_backpack",
+                KeyConflictContext.IN_GAME, Keyboard.KEY_J, CATEGORY_EQUIPMENT);
         ClientRegistry.registerKeyBinding(openVoidBackpackKey);
 
-        // ☀ 香巴拉宁静光环
-        shambhalaPeaceAuraKey = new KeyBinding("香巴拉宁静光环",
-                KeyConflictContext.IN_GAME, Keyboard.KEY_R, "香巴拉");
+        // ========== 升格: 香巴拉 (Shambhala) ==========
+        shambhalaPeaceAuraKey = new KeyBinding("key.moremod.shambhala_peace_aura",
+                KeyConflictContext.IN_GAME, Keyboard.KEY_R, CATEGORY_SHAMBHALA);
         ClientRegistry.registerKeyBinding(shambhalaPeaceAuraKey);
 
         System.out.println("[moremod] 按键绑定完成");
