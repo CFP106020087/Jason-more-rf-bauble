@@ -2240,7 +2240,16 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
                         if (te instanceof net.minecraft.tileentity.TileEntityMobSpawner) {
                             net.minecraft.tileentity.TileEntityMobSpawner spawner =
                                     (net.minecraft.tileentity.TileEntityMobSpawner) te;
-                            String entityId = spawner.getSpawnerBaseLogic().getEntityId().toString();
+                            // 使用NBT获取实体ID（getEntityId是私有方法）
+                            NBTTagCompound spawnerNBT = new NBTTagCompound();
+                            spawner.getSpawnerBaseLogic().writeToNBT(spawnerNBT);
+                            String entityId = "";
+                            if (spawnerNBT.hasKey("SpawnData", 10)) {
+                                NBTTagCompound spawnData = spawnerNBT.getCompoundTag("SpawnData");
+                                if (spawnData.hasKey("id")) {
+                                    entityId = spawnData.getString("id");
+                                }
+                            }
 
                             if (entityId.contains("void_ripper")) {
                                 // 销毁刷怪砖，替换为空气
