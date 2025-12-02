@@ -4,6 +4,7 @@ import com.moremod.combat.TrueDamageHelper;
 import com.moremod.config.ShambhalaConfig;
 import com.moremod.system.ascension.ShambhalaEventHandler;
 import com.moremod.system.ascension.ShambhalaHandler;
+import com.moremod.system.ascension.ShambhalaItems;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
@@ -171,8 +172,9 @@ public class ShambhalaDeathHook {
             float damageRatio = damage / playerMaxHealth;
             float reflectDamage = damageRatio * attacker.getMaxHealth();
 
-            // 应用配置的倍率修正（可选，默认1.0则无效果）
-            reflectDamage *= (float) ShambhalaConfig.thornsReflectMultiplier;
+            // 仅当装备棘刺饰品时才应用倍率加成，否则为1.0
+            float thornsMultiplier = ShambhalaItems.hasThorns(player) ? (float) ShambhalaConfig.thornsReflectMultiplier : 1.0f;
+            reflectDamage *= thornsMultiplier;
 
             double aoeRadius = ShambhalaConfig.thornsAoeRadius;
 
@@ -208,7 +210,7 @@ public class ShambhalaDeathHook {
 
                 for (EntityLivingBase mob : nearbyMobs) {
                     float aoeReflectDamage = damageRatio * mob.getMaxHealth() * 0.5f; // AoE伤害减半
-                    aoeReflectDamage *= (float) ShambhalaConfig.thornsReflectMultiplier;
+                    aoeReflectDamage *= thornsMultiplier;
 
                     if (ShambhalaHandler.consumeEnergy(player, aoeCost)) {
                         applyTrueDamageReflect(player, mob, aoeReflectDamage);

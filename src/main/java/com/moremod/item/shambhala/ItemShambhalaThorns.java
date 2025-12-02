@@ -17,11 +17,11 @@ import javax.annotation.Nullable;
 import java.util.List;
 
 /**
- * 香巴拉_棘刺 (Shambhala Thorns) - 因果反噬
+ * 香巴拉_业刺 (Shambhala Karma Thorns) - 业力放大
  *
  * 能力：
- * - 高倍率反伤
- * - 反伤为真实伤害（使用包装的setHealth）
+ * - 装备时提供反伤倍率加成（默认×5）
+ * - 未装备时反伤倍率为×1.0
  */
 public class ItemShambhalaThorns extends ItemShambhalaBaubleBase {
 
@@ -61,16 +61,14 @@ public class ItemShambhalaThorns extends ItemShambhalaBaubleBase {
     @SideOnly(Side.CLIENT)
     public void addInformation(ItemStack stack, @Nullable World worldIn, List<String> tooltip, ITooltipFlag flagIn) {
         tooltip.add(TextFormatting.GOLD + "═══════════════════════════");
-        tooltip.add(TextFormatting.AQUA + "" + TextFormatting.BOLD + "香巴拉_棘刺");
-        tooltip.add(TextFormatting.DARK_GRAY + "Shambhala Thorns - Karmic Retribution");
+        tooltip.add(TextFormatting.AQUA + "" + TextFormatting.BOLD + "香巴拉_业刺");
+        tooltip.add(TextFormatting.DARK_GRAY + "Shambhala Karma Thorns");
         tooltip.add("");
-        tooltip.add(TextFormatting.RED + "◆ 因果反噬（比例反伤）");
-        tooltip.add(TextFormatting.GRAY + "  公式: (原始伤害/你的血量) × 敌人血量");
-        tooltip.add(TextFormatting.DARK_GRAY + "  基于护甲前的原始伤害计算");
-        tooltip.add(TextFormatting.DARK_RED + "  反伤为真实伤害");
-        tooltip.add(TextFormatting.YELLOW + "  消耗能量: " + ShambhalaConfig.energyPerReflect + " RF/反伤");
+        tooltip.add(TextFormatting.RED + "◆ 业力放大");
+        tooltip.add(TextFormatting.GRAY + "  反伤倍率: ×" + String.format("%.1f", ShambhalaConfig.thornsReflectMultiplier));
+        tooltip.add(TextFormatting.DARK_GRAY + "  （未装备时反伤倍率为×1.0）");
         tooltip.add("");
-        tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"伤我者，必承其痛\"");
+        tooltip.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"承受的痛苦，终将返还\"");
         tooltip.add(TextFormatting.GOLD + "═══════════════════════════");
         tooltip.add(TextFormatting.RED + "⚠ 无法卸除");
     }

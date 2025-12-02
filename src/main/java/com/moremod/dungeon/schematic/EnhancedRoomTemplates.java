@@ -648,39 +648,104 @@ public class EnhancedRoomTemplates {
     // ==================== 入口房间 ====================
 
     /**
-     * 入口房间 - 基础版
+     * 入口房间 - 带醒目标志的引导版
      */
     public static Schematic entranceRoom() {
         Schematic s = new Schematic((short) STANDARD_SIZE, (short) STANDARD_HEIGHT, (short) STANDARD_SIZE);
 
         IBlockState floor = Blocks.STONE.getDefaultState();
         IBlockState pillar = Blocks.STONEBRICK.getDefaultState();
+        IBlockState goldFloor = Blocks.GOLD_BLOCK.getDefaultState();
+        IBlockState lapisFloor = Blocks.LAPIS_BLOCK.getDefaultState();
 
-        // 地板
+        // 地板 - 带指引图案
         for (int x = 0; x < STANDARD_SIZE; x++) {
             for (int z = 0; z < STANDARD_SIZE; z++) {
                 s.setBlockState(x, 0, z, floor);
             }
         }
 
-        // 四角柱
-        for (int y = 1; y <= 4; y++) {
-            s.setBlockState(5, y, 5, pillar);
-            s.setBlockState(20, y, 5, pillar);
-            s.setBlockState(5, y, 20, pillar);
-            s.setBlockState(20, y, 20, pillar);
+        // 中央金色標誌 - "START" 圖案
+        int center = STANDARD_SIZE / 2;
+        // 圓形金色區域
+        for (int dx = -3; dx <= 3; dx++) {
+            for (int dz = -3; dz <= 3; dz++) {
+                if (dx * dx + dz * dz <= 9) {
+                    s.setBlockState(center + dx, 0, center + dz, goldFloor);
+                }
+            }
+        }
+        // 十字青金石指引
+        for (int i = 4; i <= 8; i++) {
+            s.setBlockState(center + i, 0, center, lapisFloor); // 東
+            s.setBlockState(center - i, 0, center, lapisFloor); // 西
+            s.setBlockState(center, 0, center + i, lapisFloor); // 南
+            s.setBlockState(center, 0, center - i, lapisFloor); // 北
         }
 
-        // 火把照明
-        s.setBlockState(13, 2, 2, Blocks.TORCH.getDefaultState());
-        s.setBlockState(13, 2, 23, Blocks.TORCH.getDefaultState());
-        s.setBlockState(2, 2, 13, Blocks.TORCH.getDefaultState());
-        s.setBlockState(23, 2, 13, Blocks.TORCH.getDefaultState());
+        // 中央入口標誌塔
+        createEntranceBeacon(s, center, 1, center);
+
+        // 四角柱 - 更華麗
+        createEntrancePillar(s, 5, 5);
+        createEntrancePillar(s, 20, 5);
+        createEntrancePillar(s, 5, 20);
+        createEntrancePillar(s, 20, 20);
+
+        // 明亮照明
+        s.setBlockState(center, 2, 2, Blocks.TORCH.getDefaultState());
+        s.setBlockState(center, 2, 23, Blocks.TORCH.getDefaultState());
+        s.setBlockState(2, 2, center, Blocks.TORCH.getDefaultState());
+        s.setBlockState(23, 2, center, Blocks.TORCH.getDefaultState());
+
+        // 角落海晶燈
+        s.setBlockState(3, 1, 3, Blocks.SEA_LANTERN.getDefaultState());
+        s.setBlockState(22, 1, 3, Blocks.SEA_LANTERN.getDefaultState());
+        s.setBlockState(3, 1, 22, Blocks.SEA_LANTERN.getDefaultState());
+        s.setBlockState(22, 1, 22, Blocks.SEA_LANTERN.getDefaultState());
 
         // 初始补给箱
-        placeLootChest(s, 13, 1, 13, "moremod:dungeon/dungeon_entrance");
+        placeLootChest(s, center - 3, 1, center, "moremod:dungeon/dungeon_entrance");
+        placeLootChest(s, center + 3, 1, center, "moremod:dungeon/dungeon_entrance");
 
         return s;
+    }
+
+    /**
+     * 創建入口標誌燈塔
+     */
+    private static void createEntranceBeacon(Schematic s, int x, int y, int z) {
+        // 底座
+        s.setBlockState(x, y, z, Blocks.BEACON.getDefaultState());
+
+        // 玻璃罩
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                if (dx != 0 || dz != 0) {
+                    s.setBlockState(x + dx, y, z + dz, Blocks.STAINED_GLASS.getStateFromMeta(4)); // 黃色
+                    s.setBlockState(x + dx, y + 1, z + dz, Blocks.STAINED_GLASS.getStateFromMeta(4));
+                }
+            }
+        }
+        s.setBlockState(x, y + 1, z, Blocks.GLOWSTONE.getDefaultState());
+
+        // 頂部裝飾
+        s.setBlockState(x, y + 2, z, Blocks.GOLD_BLOCK.getDefaultState());
+        s.setBlockState(x, y + 3, z, Blocks.TORCH.getDefaultState());
+    }
+
+    /**
+     * 創建入口房間華麗柱子
+     */
+    private static void createEntrancePillar(Schematic s, int x, int z) {
+        for (int y = 1; y <= 5; y++) {
+            if (y == 1 || y == 5) {
+                s.setBlockState(x, y, z, Blocks.STONEBRICK.getStateFromMeta(3)); // 錾制石磚
+            } else {
+                s.setBlockState(x, y, z, Blocks.STONEBRICK.getDefaultState());
+            }
+        }
+        s.setBlockState(x, 6, z, Blocks.TORCH.getDefaultState());
     }
 
     /**
@@ -1425,5 +1490,338 @@ public class EnhancedRoomTemplates {
             }
         }
         placeRandomSpawner(s, x + 1, 1, z + 1, 2);
+    }
+
+    // ==================== 楼梯房间 (三维地牢) ====================
+
+    /**
+     * 楼梯房间 - 向上传送
+     */
+    public static Schematic staircaseRoomUp() {
+        Schematic s = new Schematic((short) STANDARD_SIZE, (short) STANDARD_HEIGHT, (short) STANDARD_SIZE);
+
+        IBlockState floor = Blocks.QUARTZ_BLOCK.getDefaultState();
+        IBlockState accent = Blocks.LAPIS_BLOCK.getDefaultState(); // 蓝色=向上
+
+        // 石英地板
+        for (int x = 0; x < STANDARD_SIZE; x++) {
+            for (int z = 0; z < STANDARD_SIZE; z++) {
+                s.setBlockState(x, 0, z, floor);
+            }
+        }
+
+        int center = STANDARD_SIZE / 2;
+
+        // 中央传送平台 - 向上箭头图案
+        createUpArrowPattern(s, center, accent);
+
+        // 传送台阶 (向上方向)
+        for (int step = 0; step < 4; step++) {
+            int y = step;
+            int startZ = center - 2 - step;
+            for (int dx = -2; dx <= 2; dx++) {
+                s.setBlockState(center + dx, y, startZ, Blocks.QUARTZ_STAIRS.getDefaultState());
+            }
+        }
+
+        // 四角海晶燈柱
+        createSeaLanternPillar(s, 5, 5);
+        createSeaLanternPillar(s, 20, 5);
+        createSeaLanternPillar(s, 5, 20);
+        createSeaLanternPillar(s, 20, 20);
+
+        // 发光指引
+        s.setBlockState(center, 1, center + 5, Blocks.SEA_LANTERN.getDefaultState());
+        s.setBlockState(center, 1, center - 5, Blocks.SEA_LANTERN.getDefaultState());
+
+        return s;
+    }
+
+    /**
+     * 楼梯房间 - 向下传送
+     */
+    public static Schematic staircaseRoomDown() {
+        Schematic s = new Schematic((short) STANDARD_SIZE, (short) STANDARD_HEIGHT, (short) STANDARD_SIZE);
+
+        IBlockState floor = Blocks.NETHER_BRICK.getDefaultState();
+        IBlockState accent = Blocks.REDSTONE_BLOCK.getDefaultState(); // 红色=向下
+
+        // 地狱砖地板
+        for (int x = 0; x < STANDARD_SIZE; x++) {
+            for (int z = 0; z < STANDARD_SIZE; z++) {
+                s.setBlockState(x, 0, z, floor);
+            }
+        }
+
+        int center = STANDARD_SIZE / 2;
+
+        // 中央传送平台 - 向下箭头图案
+        createDownArrowPattern(s, center, accent);
+
+        // 下沉平台 (向下方向)
+        for (int dx = -3; dx <= 3; dx++) {
+            for (int dz = -3; dz <= 3; dz++) {
+                if (Math.abs(dx) + Math.abs(dz) <= 4) {
+                    s.setBlockState(center + dx, 0, center + dz, Blocks.AIR.getDefaultState());
+                }
+            }
+        }
+        // 底部平台
+        for (int dx = -2; dx <= 2; dx++) {
+            for (int dz = -2; dz <= 2; dz++) {
+                s.setBlockState(center + dx, -1, center + dz, Blocks.OBSIDIAN.getDefaultState());
+            }
+        }
+
+        // 四角火焰柱
+        createNetherPillar(s, 5, 5, STANDARD_HEIGHT);
+        createNetherPillar(s, 20, 5, STANDARD_HEIGHT);
+        createNetherPillar(s, 5, 20, STANDARD_HEIGHT);
+        createNetherPillar(s, 20, 20, STANDARD_HEIGHT);
+
+        // 红石灯照明
+        s.setBlockState(center - 5, 1, center, Blocks.REDSTONE_LAMP.getDefaultState());
+        s.setBlockState(center + 5, 1, center, Blocks.REDSTONE_LAMP.getDefaultState());
+
+        return s;
+    }
+
+    /**
+     * 楼梯房间 - 双向传送
+     */
+    public static Schematic staircaseRoomBoth() {
+        Schematic s = new Schematic((short) STANDARD_SIZE, (short) STANDARD_HEIGHT, (short) STANDARD_SIZE);
+
+        IBlockState floor = Blocks.END_BRICKS.getDefaultState();
+        IBlockState upAccent = Blocks.LAPIS_BLOCK.getDefaultState();
+        IBlockState downAccent = Blocks.REDSTONE_BLOCK.getDefaultState();
+
+        // 末地砖地板
+        for (int x = 0; x < STANDARD_SIZE; x++) {
+            for (int z = 0; z < STANDARD_SIZE; z++) {
+                s.setBlockState(x, 0, z, floor);
+            }
+        }
+
+        int center = STANDARD_SIZE / 2;
+
+        // 左半区 - 向上 (蓝色)
+        for (int x = 3; x < center - 1; x++) {
+            for (int z = 3; z < STANDARD_SIZE - 3; z++) {
+                s.setBlockState(x, 0, z, Blocks.QUARTZ_BLOCK.getDefaultState());
+            }
+        }
+        createUpArrowPattern(s, 8, upAccent);
+
+        // 右半区 - 向下 (红色)
+        for (int x = center + 1; x < STANDARD_SIZE - 3; x++) {
+            for (int z = 3; z < STANDARD_SIZE - 3; z++) {
+                s.setBlockState(x, 0, z, Blocks.NETHER_BRICK.getDefaultState());
+            }
+        }
+        createDownArrowPattern(s, 17, downAccent);
+
+        // 中央分隔带
+        for (int z = 0; z < STANDARD_SIZE; z++) {
+            s.setBlockState(center, 0, z, Blocks.PURPUR_BLOCK.getDefaultState());
+            s.setBlockState(center, 1, z, Blocks.PURPUR_PILLAR.getDefaultState());
+        }
+
+        // 四角装饰柱
+        createEndPillar(s, 5, 5);
+        createEndPillar(s, 20, 5);
+        createEndPillar(s, 5, 20);
+        createEndPillar(s, 20, 20);
+
+        // 照明
+        s.setBlockState(8, 1, center, Blocks.SEA_LANTERN.getDefaultState());
+        s.setBlockState(17, 1, center, Blocks.REDSTONE_LAMP.getDefaultState());
+
+        return s;
+    }
+
+    // ===== 楼梯房间辅助方法 =====
+
+    private static void createUpArrowPattern(Schematic s, int centerX, IBlockState accent) {
+        int center = STANDARD_SIZE / 2;
+        // 向上箭头 ↑
+        s.setBlockState(centerX, 0, center, accent);
+        s.setBlockState(centerX, 0, center + 1, accent);
+        s.setBlockState(centerX, 0, center + 2, accent);
+        s.setBlockState(centerX - 1, 0, center - 1, accent);
+        s.setBlockState(centerX + 1, 0, center - 1, accent);
+        s.setBlockState(centerX - 2, 0, center, accent);
+        s.setBlockState(centerX + 2, 0, center, accent);
+    }
+
+    private static void createDownArrowPattern(Schematic s, int centerX, IBlockState accent) {
+        int center = STANDARD_SIZE / 2;
+        // 向下箭头 ↓
+        s.setBlockState(centerX, 0, center, accent);
+        s.setBlockState(centerX, 0, center - 1, accent);
+        s.setBlockState(centerX, 0, center - 2, accent);
+        s.setBlockState(centerX - 1, 0, center + 1, accent);
+        s.setBlockState(centerX + 1, 0, center + 1, accent);
+        s.setBlockState(centerX - 2, 0, center, accent);
+        s.setBlockState(centerX + 2, 0, center, accent);
+    }
+
+    private static void createSeaLanternPillar(Schematic s, int x, int z) {
+        for (int y = 1; y <= 4; y++) {
+            s.setBlockState(x, y, z, Blocks.QUARTZ_BLOCK.getStateFromMeta(2)); // 柱状石英
+        }
+        s.setBlockState(x, 5, z, Blocks.SEA_LANTERN.getDefaultState());
+    }
+
+    private static void createEndPillar(Schematic s, int x, int z) {
+        for (int y = 1; y <= 4; y++) {
+            s.setBlockState(x, y, z, Blocks.PURPUR_PILLAR.getDefaultState());
+        }
+        s.setBlockState(x, 5, z, Blocks.END_ROD.getDefaultState());
+    }
+
+    // ==================== 更多房间变种 ====================
+
+    /**
+     * 战斗房间变种 - 地下竞技场
+     */
+    public static Schematic combatRoomArena() {
+        Schematic s = new Schematic((short) STANDARD_SIZE, (short) STANDARD_HEIGHT, (short) STANDARD_SIZE);
+
+        IBlockState floor = Blocks.COBBLESTONE.getDefaultState();
+        IBlockState accent = Blocks.STONEBRICK.getStateFromMeta(2); // 裂石砖
+
+        // 圆形竞技场
+        int center = STANDARD_SIZE / 2;
+        for (int x = 0; x < STANDARD_SIZE; x++) {
+            for (int z = 0; z < STANDARD_SIZE; z++) {
+                double dist = Math.sqrt(Math.pow(x - center, 2) + Math.pow(z - center, 2));
+                if (dist <= 11) {
+                    s.setBlockState(x, 0, z, dist <= 8 ? floor : accent);
+                } else {
+                    // 阶梯看台
+                    int height = (int) (dist - 10);
+                    for (int y = 0; y <= Math.min(height, 3); y++) {
+                        s.setBlockState(x, y, z, Blocks.STONEBRICK.getDefaultState());
+                    }
+                }
+            }
+        }
+
+        // 中央武器架
+        s.setBlockState(center, 1, center, Blocks.ARMOR_STAND.getDefaultState());
+
+        // 四个刷怪笼入口
+        placeRandomSpawner(s, center, 0, 3, 2);
+        placeRandomSpawner(s, center, 0, 22, 2);
+        placeRandomSpawner(s, 3, 0, center, 2);
+        placeRandomSpawner(s, 22, 0, center, 2);
+
+        placeLootChest(s, center - 3, 1, center - 3, "moremod:dungeon/dungeon_normal");
+        placeLootChest(s, center + 3, 1, center + 3, "moremod:dungeon/dungeon_normal");
+
+        return s;
+    }
+
+    /**
+     * 谜题房间 - 迷宫挑战
+     */
+    public static Schematic puzzleRoomMaze() {
+        Schematic s = new Schematic((short) STANDARD_SIZE, (short) STANDARD_HEIGHT, (short) STANDARD_SIZE);
+
+        // 地板
+        for (int x = 0; x < STANDARD_SIZE; x++) {
+            for (int z = 0; z < STANDARD_SIZE; z++) {
+                s.setBlockState(x, 0, z, Blocks.STONEBRICK.getDefaultState());
+            }
+        }
+
+        // 简化迷宫墙壁
+        IBlockState wall = Blocks.STONEBRICK.getStateFromMeta(1); // 苔石砖
+        // 外墙
+        for (int i = 0; i < STANDARD_SIZE; i++) {
+            for (int y = 1; y <= 3; y++) {
+                s.setBlockState(i, y, 0, wall);
+                s.setBlockState(i, y, 25, wall);
+                s.setBlockState(0, y, i, wall);
+                s.setBlockState(25, y, i, wall);
+            }
+        }
+
+        // 内部墙壁（十字形）
+        for (int i = 5; i < 21; i++) {
+            if (i < 10 || i > 16) {
+                for (int y = 1; y <= 2; y++) {
+                    s.setBlockState(i, y, 13, wall);
+                    s.setBlockState(13, y, i, wall);
+                }
+            }
+        }
+
+        // 角落刷怪笼
+        placeRandomSpawner(s, 4, 1, 4, 1);
+        placeRandomSpawner(s, 21, 1, 21, 1);
+
+        // 中央宝箱
+        placeLootChest(s, 13, 1, 13, "moremod:dungeon/dungeon_puzzle");
+
+        // 火把照明
+        s.setBlockState(6, 2, 6, Blocks.TORCH.getDefaultState());
+        s.setBlockState(19, 2, 6, Blocks.TORCH.getDefaultState());
+        s.setBlockState(6, 2, 19, Blocks.TORCH.getDefaultState());
+        s.setBlockState(19, 2, 19, Blocks.TORCH.getDefaultState());
+
+        return s;
+    }
+
+    /**
+     * 隐藏宝藏房间 - 海底神殿风格
+     */
+    public static Schematic treasureRoomOcean() {
+        Schematic s = new Schematic((short) STANDARD_SIZE, (short) STANDARD_HEIGHT, (short) STANDARD_SIZE);
+
+        IBlockState floor = Blocks.PRISMARINE.getDefaultState();
+        IBlockState darkFloor = Blocks.PRISMARINE.getStateFromMeta(1); // 暗海晶石
+
+        // 海晶石地板
+        for (int x = 0; x < STANDARD_SIZE; x++) {
+            for (int z = 0; z < STANDARD_SIZE; z++) {
+                boolean dark = (x + z) % 3 == 0;
+                s.setBlockState(x, 0, z, dark ? darkFloor : floor);
+            }
+        }
+
+        int center = STANDARD_SIZE / 2;
+
+        // 中央水池
+        for (int dx = -4; dx <= 4; dx++) {
+            for (int dz = -4; dz <= 4; dz++) {
+                if (dx * dx + dz * dz <= 16) {
+                    s.setBlockState(center + dx, 0, center + dz, Blocks.WATER.getDefaultState());
+                }
+            }
+        }
+
+        // 海晶灯柱
+        for (int corner = 0; corner < 4; corner++) {
+            int px = corner < 2 ? 5 : 20;
+            int pz = corner % 2 == 0 ? 5 : 20;
+            for (int y = 1; y <= 4; y++) {
+                s.setBlockState(px, y, pz, Blocks.PRISMARINE.getStateFromMeta(2)); // 海晶石砖
+            }
+            s.setBlockState(px, 5, pz, Blocks.SEA_LANTERN.getDefaultState());
+        }
+
+        // 宝箱在水池周围
+        placeLootChest(s, center - 6, 1, center, "moremod:dungeon/dungeon_treasure");
+        placeLootChest(s, center + 6, 1, center, "moremod:dungeon/dungeon_treasure");
+        placeLootChest(s, center, 1, center - 6, "moremod:dungeon/dungeon_treasure");
+        placeLootChest(s, center, 1, center + 6, "moremod:dungeon/dungeon_treasure");
+
+        // 守卫
+        placeRandomSpawner(s, 3, 1, 13, 2);
+        placeRandomSpawner(s, 22, 1, 13, 2);
+
+        return s;
     }
 }

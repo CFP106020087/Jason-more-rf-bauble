@@ -190,8 +190,8 @@ public class SmartRejectionGuide extends Gui {
         showGuide(new GuideInfo(
                 "§5◈ 你已成为破碎之神 ◈", 400, 10,
                 "§7你的人性已完全消散...",
-                "§6基础: §f关机模式、畸变脉冲",
-                "§d遗物: §f攻速×3、生命偷取、处决、时停",
+                "§6升格: §f停机模式、扭曲脉冲",
+                "§d遗物: §f6件破碎遗物(查看饰品界面)",
                 "§c代价: §7药水无效、NPC无视、链结站禁用",
                 "§b按 [" + keyName + "] 查看完整能力列表"
         ), true);
@@ -202,9 +202,8 @@ public class SmartRejectionGuide extends Gui {
         showGuide(new GuideInfo(
                 "§b◈ 你已成为机巧香巴拉 ◈", 400, 10,
                 "§7你是最美丽的人造之物...",
-                "§6核心: §f能量护盾、不灭之心",
-                "§b套装: §f绝对防御、因果反噬、被动免疫",
-                "§a永恒: §f人性锁定100%、完美圆满",
+                "§6升格: §f能量护盾、不灭之心、反伤",
+                "§b套装: §f6件香巴拉套装(查看饰品界面)",
                 "§c代价: §7伤害削弱50%、防御消耗能量",
                 "§b按 [" + keyName + "] 查看完整能力列表"
         ), true);
@@ -829,72 +828,31 @@ public class SmartRejectionGuide extends Gui {
                 0xFFFFFF | (alphaInt << 24));
         y += 14;
 
-        // ========== 基础能力 ==========
+        // ========== 升格能力 ==========
         y = renderBrokenGodSection(centerX, y, fr, alphaInt, bgAlpha,
-                "§6【基础能力】", 0xFFAA00, new String[] {
-            "§6• §f关机模式: §7濒死时进入20秒无敌",
-            "§6• §f畸变脉冲: §7受重击自动反击"
+                "§6【升格能力】", 0xFFAA00, new String[] {
+            "§6• §f停机模式: §7濒死时20秒无敌(无法移动)",
+            "§6• §f扭曲脉冲: §7受重击AOE反击+致盲",
+            "§6• §f存在干扰: §7怪物侦测距离减少",
+            "§6• §f药水免疫: §7正负面皆完全无效",
+            "§6• §fNPC无视: §7完全无法交互",
+            "§6• §f链结站: §7无法使用"
         });
 
-        // ========== 破碎_手 ==========
+        // ========== 低人性效果(0%锁定) ==========
         y = renderBrokenGodSection(centerX, y, fr, alphaInt, bgAlpha,
-                "§d【破碎_手】", 0xDD88FF, new String[] {
-            "§d• §f攻击速度×3",
-            "§d• §f近战伤害+100%",
-            "§d• §f攻击后冷却重置"
+                "§5【低人性效果】", 0xAA00AA, new String[] {
+            "§5• §f异常协议: §7+60%伤害加成",
+            "§5• §f豁免易殇: §7免受头/身易殇惩罚",
+            "§5• §f豁免波及: §7攻击不会误伤周围"
         });
 
-        // ========== 破碎_心核 ==========
+        // ========== 破碎遗物(饰品) ==========
         y = renderBrokenGodSection(centerX, y, fr, alphaInt, bgAlpha,
-                "§c【破碎_心核】", 0xFF5555, new String[] {
-            "§c• §f最大生命压缩至10HP",
-            "§c• §f100%生命偷取",
-            "§c• §f溢出治疗→吸收之心(最多20)",
-            "§c• §f狂战士: 1HP时伤害×5",
-            "§c• §f免疫凋零/中毒/流血"
-        });
-
-        // ========== 破碎_臂 ==========
-        y = renderBrokenGodSection(centerX, y, fr, alphaInt, bgAlpha,
-                "§b【破碎_臂】", 0x55FFFF, new String[] {
-            "§b• §f伤害×2",
-            "§b• §f100%暴击率 + 暴击伤害×3",
-            "§b• §f攻击距离+3格",
-            "§b• §f护甲粉碎场: 10格内敌人护甲归零"
-        });
-
-        // ========== 破碎_枷锁 ==========
-        y = renderBrokenGodSection(centerX, y, fr, alphaInt, bgAlpha,
-                "§e【破碎_枷锁】", 0xFFFF55, new String[] {
-            "§e• §f时停领域: 10格内敌人无法移动",
-            "§e• §f受到伤害-50%",
-            "§e• §c自身移速-30%"
-        });
-
-        // ========== 破碎_投影 ==========
-        y = renderBrokenGodSection(centerX, y, fr, alphaInt, bgAlpha,
-                "§5【破碎_投影】", 0xAA00AA, new String[] {
-            "§5• §f幻影打击: +100%真实伤害",
-            "§5• §f攻击无视敌人无敌帧",
-            "§5• §f处决: <50%血量直接击杀"
-        });
-
-        // ========== 破碎_终结 ==========
-        y = renderBrokenGodSection(centerX, y, fr, alphaInt, bgAlpha,
-                "§4【破碎_终结】", 0xAA0000, new String[] {
-            "§4• §f所有伤害×5",
-            "§4• §f击杀回复5HP",
-            "§4• §f击杀获得10吸收之心"
-        });
-
-        // ========== 失去的能力 ==========
-        y += 4;
-        y = renderBrokenGodSection(centerX, y, fr, alphaInt, bgAlpha,
-                "§8【代价】", 0x888888, new String[] {
-            "§8• §7药水完全无效",
-            "§8• §7无法使用链结站",
-            "§8• §7狩猎协议失效",
-            "§8• §7NPC完全无视你"
+                "§d【破碎遗物】", 0xDD88FF, new String[] {
+            "§d你拥有 §f6件§d 破碎遗物饰品",
+            "§7打开饰品界面查看各遗物详细能力",
+            "§8(手、心核、臂、枷锁、投影、终结)"
         });
 
         return y;
@@ -931,56 +889,28 @@ public class SmartRejectionGuide extends Gui {
                 0xFFFFFF | (alphaInt << 24));
         y += 14;
 
-        // ========== 核心机制 ==========
+        // ========== 升格能力 ==========
         y = renderShambhalaSection(centerX, y, fr, alphaInt, bgAlpha,
-                "§6【核心机制】", 0xFFAA00, new String[] {
+                "§6【升格能力】", 0xFFAA00, new String[] {
             "§6• §f能量护盾: §7所有伤害消耗能量抵消",
-            "§6• §f不灭之心: §7有能量时无法死亡"
+            "§6• §f不灭之心: §7有能量时无法死亡",
+            "§6• §f反伤机制: §7受伤时反射伤害给攻击者"
         });
 
-        // ========== 香巴拉_核心 ==========
+        // ========== 高人性效果(100%) ==========
         y = renderShambhalaSection(centerX, y, fr, alphaInt, bgAlpha,
-                "§b【香巴拉_核心】", 0x55FFFF, new String[] {
-            "§b• §f永恒之心: 能量=生命",
-            "§b• §f有能量时完全无法死亡",
-            "§b• §f永恒驱动: 血量越低回血越快",
-            "§b• §f磐石之躯: 免疫击退"
+                "§a【高人性效果】", 0x55FF55, new String[] {
+            "§a• §f生物档案: §7最大10个槽位",
+            "§a• §fNPC信任: §7交易价格-30%",
+            "§a• §f链结站: §7可以正常使用"
         });
 
-        // ========== 香巴拉_壁垒 ==========
+        // ========== 香巴拉套装(饰品) ==========
         y = renderShambhalaSection(centerX, y, fr, alphaInt, bgAlpha,
-                "§e【香巴拉_壁垒】", 0xFFFF55, new String[] {
-            "§e• §f绝对防御: 伤害100%转换为能量消耗",
-            "§e• §f1点伤害=500RF (上限50000RF)"
-        });
-
-        // ========== 香巴拉_棘刺 ==========
-        y = renderShambhalaSection(centerX, y, fr, alphaInt, bgAlpha,
-                "§c【香巴拉_棘刺】", 0xFF5555, new String[] {
-            "§c• §f因果反噬: 按比例反射伤害",
-            "§c• §f每点受伤消耗200RF (上限25000RF)"
-        });
-
-        // ========== 香巴拉_净化 ==========
-        y = renderShambhalaSection(centerX, y, fr, alphaInt, bgAlpha,
-                "§a【香巴拉_净化】", 0x55FF55, new String[] {
-            "§a• §f绝对净化: 被动免疫所有负面效果",
-            "§a• §f包括模组负面效果",
-            "§a• §f每秒消耗500RF"
-        });
-
-        // ========== 香巴拉_宁静 ==========
-        y = renderShambhalaSection(centerX, y, fr, alphaInt, bgAlpha,
-                "§d【香巴拉_宁静】", 0xDD88FF, new String[] {
-            "§d• §f宁静光环: 按R消除周围仇恨",
-            "§d• §f范围16格、冷却60秒"
-        });
-
-        // ========== 香巴拉_圣域 ==========
-        y = renderShambhalaSection(centerX, y, fr, alphaInt, bgAlpha,
-                "§9【香巴拉_圣域】", 0x5555FF, new String[] {
-            "§9• §f终极防线: First Aid兼容",
-            "§9• §f部位伤害也用能量抵消"
+                "§b【香巴拉套装】", 0x55FFFF, new String[] {
+            "§b你拥有 §f6件§b 香巴拉套装饰品",
+            "§7打开饰品界面查看各套件详细能力",
+            "§8(核心、壁垒、棘刺、净化、宁静、圣域)"
         });
 
         // ========== 代价 ==========
