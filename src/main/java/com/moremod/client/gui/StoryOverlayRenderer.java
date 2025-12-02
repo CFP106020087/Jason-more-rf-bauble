@@ -3,7 +3,7 @@ package com.moremod.client.gui;
 import com.moremod.config.BrokenGodConfig;
 import com.moremod.config.HumanityConfig;
 import com.moremod.config.ShambhalaConfig;
-import com.moremod.logic.NarrativeLogicHandler;
+import com.moremod.system.logic.NarrativeLogicHandler;
 import com.moremod.system.humanity.HumanityCapabilityHandler;
 import com.moremod.system.humanity.IHumanityData;
 import net.minecraft.client.Minecraft;

@@ -4,7 +4,6 @@ import com.moremod.config.ShambhalaConfig;
 import com.moremod.item.ItemMechanicalCore;
 import com.moremod.network.PacketAscensionAnimation;
 import com.moremod.network.PacketHandler;
-import com.moremod.network.PacketSyncHumanityData;
 import com.moremod.system.humanity.AscensionRoute;
 import com.moremod.system.humanity.HumanityCapabilityHandler;
 import com.moremod.system.humanity.HumanityEffectsManager;
@@ -273,9 +272,9 @@ public class ShambhalaHandler {
     private static void applyReflectDamageToTarget(EntityPlayer player, net.minecraft.entity.EntityLivingBase target, float damage) {
         if (ShambhalaConfig.thornsTrueDamage) {
             // 使用包装的真实伤害
-            com.moremod.combat.TrueDamageHelper.applyWrappedTrueDamage(
+            com.moremod.util.combat.TrueDamageHelper.applyWrappedTrueDamage(
                     target, player, damage,
-                    com.moremod.combat.TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE
+                    com.moremod.util.combat.TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE
             );
         } else {
             // 使用自定义的反伤伤害源

@@ -1,21 +1,18 @@
 package com.moremod.synergy.synergies;
 
-import com.moremod.combat.TrueDamageHelper;
+import com.moremod.util.combat.TrueDamageHelper;
 import com.moremod.synergy.api.ISynergyEffect;
 import com.moremod.synergy.bridge.ExistingModuleBridge;
 import com.moremod.synergy.condition.*;
 import com.moremod.synergy.core.*;
-import com.moremod.synergy.effect.*;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.MobEffects;
 import net.minecraft.init.SoundEvents;
 import net.minecraft.potion.PotionEffect;
-import net.minecraft.util.DamageSource;
 import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.SoundCategory;
 import net.minecraft.util.math.AxisAlignedBB;
-import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
 
 import java.util.List;

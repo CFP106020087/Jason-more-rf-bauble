@@ -1,7 +1,7 @@
 package com.moremod.entity.boss;
 
 import com.github.alexthe666.iceandfire.api.ChainLightningUtils;
-import com.moremod.combat.TrueDamageHelper;
+import com.moremod.util.combat.TrueDamageHelper;
 import com.moremod.entity.EntityCursedKnight;
 import com.moremod.entity.fx.EntityLaserBeam;
 import com.moremod.entity.fx.EntityLightningArc;
@@ -12,7 +12,6 @@ import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.MoverType;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.*;
 import net.minecraft.entity.monster.EntityMob;
@@ -27,7 +26,6 @@ import net.minecraft.network.datasync.DataSerializers;
 import net.minecraft.network.datasync.EntityDataManager;
 import net.minecraft.network.play.server.SPacketAnimation;
 import net.minecraft.pathfinding.PathNavigateGround;
-import net.minecraft.potion.Potion;
 import net.minecraft.potion.PotionEffect;
 import net.minecraft.util.*;
 import net.minecraft.util.math.AxisAlignedBB;

@@ -1,6 +1,6 @@
 package com.moremod.mixin.lycanites;
 
-import com.moremod.eventHandler.EnergySwordAttackHandler;
+import com.moremod.event.eventHandler.EnergySwordAttackHandler;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.DamageSource;

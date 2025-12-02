@@ -2,7 +2,7 @@ package com.moremod.event;
 
 import baubles.api.BaublesApi;
 import baubles.api.cap.IBaublesItemHandler;
-import com.moremod.combat.TrueDamageHelper;
+import com.moremod.util.combat.TrueDamageHelper;
 import com.moremod.item.broken.*;
 import com.moremod.moremod;
 import com.moremod.system.ascension.BrokenGodHandler;

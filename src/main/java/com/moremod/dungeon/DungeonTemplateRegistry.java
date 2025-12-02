@@ -115,6 +115,9 @@ public class DungeonTemplateRegistry {
                 list.add(EnhancedRoomTemplates.treasureRoomVault());
                 list.add(EnhancedRoomTemplates.treasureRoomRoyal());
                 list.add(EnhancedRoomTemplates.treasureRoomOcean());
+                list.add(EnhancedRoomTemplates.treasureRoomRitualChamber()); // 黑暗祭祀场
+                list.add(EnhancedRoomTemplates.voidObservatory()); // 虚空观测室
+                list.add(EnhancedRoomTemplates.normalRoomCrystalCave()); // 水晶洞穴 (稀有)
                 break;
             case TRAP:
                 list.add(EnhancedRoomTemplates.trapRoom());
@@ -122,6 +125,7 @@ public class DungeonTemplateRegistry {
                 list.add(EnhancedRoomTemplates.trapRoomPitfall());
                 list.add(EnhancedRoomTemplates.mazeRoom());
                 list.add(EnhancedRoomTemplates.mazeRoomGarden());
+                list.add(EnhancedRoomTemplates.treasureRoomRitualChamber()); // 黑暗祭祀场 (陷阱变种)
                 break;
             case BOSS:
                 list.add(EnhancedRoomTemplates.bossArena());
@@ -135,6 +139,9 @@ public class DungeonTemplateRegistry {
                 list.add(EnhancedRoomTemplates.fountainRoom());
                 list.add(EnhancedRoomTemplates.hubRoomCamp());
                 list.add(EnhancedRoomTemplates.hubRoomLibrary());
+                list.add(EnhancedRoomTemplates.netherBreach()); // 地狱裂隙
+                list.add(EnhancedRoomTemplates.hubRoomGrandFoyer()); // 宏伟门厅
+                list.add(EnhancedRoomTemplates.voidObservatory()); // 虚空观测室 (枢纽变种)
                 break;
             case NORMAL:
             default:
@@ -147,6 +154,9 @@ public class DungeonTemplateRegistry {
                 list.add(EnhancedRoomTemplates.combatRoomColosseum());
                 list.add(EnhancedRoomTemplates.combatRoomArena());
                 list.add(EnhancedRoomTemplates.puzzleRoomMaze());
+                list.add(EnhancedRoomTemplates.normalRoomCrystalCave()); // 水晶洞穴
+                list.add(EnhancedRoomTemplates.clockworkWorkshop()); // 齿轮工坊
+                list.add(EnhancedRoomTemplates.netherBreach()); // 地狱裂隙
                 break;
 
             // 三维地牢楼梯房间

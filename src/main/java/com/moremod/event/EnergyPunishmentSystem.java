@@ -1,6 +1,6 @@
 package com.moremod.event;
 
-import com.moremod.combat.TrueDamageHelper;
+import com.moremod.util.combat.TrueDamageHelper;
 import baubles.api.BaublesApi;
 import baubles.api.cap.IBaublesItemHandler;
 import com.moremod.item.ItemMechanicalCore;
@@ -12,7 +12,6 @@ import com.moremod.system.ascension.ShambhalaHandler;
 import com.moremod.system.ascension.BrokenGodHandler;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.init.SoundEvents;
 import net.minecraft.inventory.EntityEquipmentSlot;
 import net.minecraft.item.ItemStack;

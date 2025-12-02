@@ -1,6 +1,6 @@
 package com.moremod.core;
 
-import com.moremod.combat.TrueDamageHelper;
+import com.moremod.util.combat.TrueDamageHelper;
 import com.moremod.config.ShambhalaConfig;
 import com.moremod.system.ascension.ShambhalaEventHandler;
 import com.moremod.system.ascension.ShambhalaHandler;

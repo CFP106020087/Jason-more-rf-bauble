@@ -1,6 +1,6 @@
 package com.moremod.entity;
 
-import com.moremod.curse.CurseManager;
+import com.moremod.entity.curse.CurseManager;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.*;

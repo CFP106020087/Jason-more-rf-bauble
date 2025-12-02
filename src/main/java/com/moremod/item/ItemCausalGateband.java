@@ -2,8 +2,8 @@ package com.moremod.item;
 
 import baubles.api.*;
 import baubles.api.cap.IBaublesItemHandler;
-import com.moremod.causal.CausalFieldManager;
-import com.moremod.causal.EnergyHelper;
+import com.moremod.item.causal.CausalFieldManager;
+import com.moremod.item.causal.EnergyHelper;
 import com.moremod.creativetab.moremodCreativeTab;
 import atomicstryker.infernalmobs.common.InfernalMobsCore;
 import c4.champions.common.capability.CapabilityChampionship;

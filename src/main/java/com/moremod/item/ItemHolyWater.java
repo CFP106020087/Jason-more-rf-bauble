@@ -1,9 +1,8 @@
 package com.moremod.item;
 
 import com.moremod.creativetab.moremodCreativeTab;
-import com.moremod.curse.CurseManager;
+import com.moremod.entity.curse.CurseManager;
 import net.minecraft.advancements.CriteriaTriggers;
-import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;

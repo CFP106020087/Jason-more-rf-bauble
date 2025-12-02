@@ -1,6 +1,6 @@
 package com.moremod.item.herosword;
 
-import com.moremod.combat.TrueDamageHelper;
+import com.moremod.util.combat.TrueDamageHelper;
 import com.moremod.item.ItemHeroSword;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
