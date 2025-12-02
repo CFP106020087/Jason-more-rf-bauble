@@ -32,7 +32,7 @@ import java.util.Map;
 @Mod.EventBusSubscriber(modid = "moremod")
 public class ElementalDamageHandler {
     
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
     
     /**
      * ✅ 核心修复：方法必须是 static
