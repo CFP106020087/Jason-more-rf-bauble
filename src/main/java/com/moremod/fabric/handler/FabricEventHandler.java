@@ -62,8 +62,8 @@ public class FabricEventHandler {
 
     // 时停系统常量
     private static final int TIME_STOP_COOLDOWN = 30000;
-    private static final float TIME_STOP_CHANCE_PER_PIECE = 0.04f;
-    private static final float TIME_RIFT_CHANCE_PER_PIECE = 0.02f;
+    private static final float TIME_STOP_CHANCE_PER_PIECE = 0.08f;  // 每件8%触发率
+    private static final int TIME_STOP_DURATION_PER_PIECE = 100;    // 每件+5秒(100tick)
 
     // 伤害黑名单 - 防止循环增伤
     private static final Set<String> DAMAGE_AMPLIFICATION_BLACKLIST = new HashSet<>(Arrays.asList(
@@ -354,9 +354,12 @@ public class FabricEventHandler {
         public long chronoEndTime = 0;
         public float temporalEnergy = 100f;
 
+        // 时序回溯保护状态 (ASM Hook 用)
+        public boolean inTemporalRewind = false;
+        public long rewindProtectionEndTime = 0;
+
         // 延迟任务字段（替代 Thread.sleep）
         public long protectiveInvulEndTime = 0;  // 保护性时停无敌结束时间
-        public long riftNoClipEndTime = 0;       // 时空裂隙穿墙结束时间
 
         // 时空布料
         public int spatialCount = 0;
@@ -538,6 +541,81 @@ public class FabricEventHandler {
         return PLAYER_DATA.computeIfAbsent(player.getUniqueID(), k -> new PlayerFabricData());
     }
 
+    // ========== 时序回溯 API (供 ASM Hook 调用) ==========
+
+    /**
+     * 检查玩家是否穿戴时序织印
+     */
+    public static boolean hasTemporalFabric(EntityPlayer player) {
+        PlayerFabricData data = getPlayerData(player);
+        data.updateEquippedFabrics(player);
+        return data.hasTemporalFabric();
+    }
+
+    /**
+     * 检查玩家是否处于时序回溯保护状态
+     */
+    public static boolean isInTemporalRewind(EntityPlayer player) {
+        PlayerFabricData data = getPlayerData(player);
+        return data.inTemporalRewind;
+    }
+
+    /**
+     * 触发时序回溯
+     * @return true 如果成功触发回溯
+     */
+    public static boolean triggerTemporalRewind(EntityPlayer player) {
+        PlayerFabricData data = getPlayerData(player);
+
+        if (!data.hasTemporalFabric()) {
+            return false;
+        }
+
+        // 计算回溯概率
+        float baseChance = Math.min(data.temporalCount * 0.25f, 0.75f);
+        float actualChance = baseChance * (float) Math.pow(0.7, data.rewindCount);
+
+        if (RANDOM.nextFloat() < actualChance) {
+            performTemporalRewindProtection(player, data);
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * 执行时序回溯保护
+     */
+    private static void performTemporalRewindProtection(EntityPlayer player, PlayerFabricData data) {
+        data.inTemporalRewind = true;
+        data.rewindCount++;
+
+        // 回满血
+        player.setHealth(player.getMaxHealth());
+        player.getFoodStats().setFoodLevel(20);
+        player.getFoodStats().setFoodSaturationLevel(20.0F);
+
+        // 短暂无敌
+        player.hurtResistantTime = 60;
+
+        // 触发时停保护
+        createProtectiveTimeStop(player, data);
+
+        // 消耗时间能量
+        data.temporalEnergy = Math.max(0, data.temporalEnergy - 30);
+
+        // 3秒后解除回溯保护状态
+        data.rewindProtectionEndTime = System.currentTimeMillis() + 3000;
+
+        // 播放特效
+        spawnRewindEffects(player);
+
+        player.sendStatusMessage(new TextComponentString(
+                String.format("§b⏮ 时序回溯！完全恢复！(第%d次)", data.rewindCount)), false);
+
+        syncAllFabricDataToArmor(player, data);
+    }
+
     public static void syncAllFabricDataToArmor(EntityPlayer player, PlayerFabricData data) {
         for (ItemStack armor : player.getArmorInventoryList()) {
             if (!FabricWeavingSystem.hasFabric(armor)) continue;
@@ -688,16 +766,15 @@ public class FabricEventHandler {
             player.setEntityInvulnerable(false);
         }
 
-        // 时空裂隙穿墙结束
-        if (data.riftNoClipEndTime > 0 && now >= data.riftNoClipEndTime) {
-            data.riftNoClipEndTime = 0;
-            player.noClip = false;
-            player.setEntityInvulnerable(false);
-        }
-
         // 时间加速结束
         if (data.chronoAccelerated && data.chronoEndTime > 0 && now >= data.chronoEndTime) {
             removeChronoAttributes(player, data);
+        }
+
+        // 时序回溯保护结束
+        if (data.inTemporalRewind && data.rewindProtectionEndTime > 0 && now >= data.rewindProtectionEndTime) {
+            data.inTemporalRewind = false;
+            data.rewindProtectionEndTime = 0;
         }
 
         if (player.ticksExisted % 10 == 0) {
@@ -1090,29 +1167,7 @@ public class FabricEventHandler {
     }
 
     // ========== 时序布料事件 ==========
-    @SubscribeEvent
-    public static void onTemporalDeath(LivingDeathEvent event) {
-        if (!(event.getEntityLiving() instanceof EntityPlayer)) return;
-
-        EntityPlayer player = (EntityPlayer) event.getEntityLiving();
-        PlayerFabricData data = getPlayerData(player);
-
-        if (!data.hasTemporalFabric() || data.temporalSnapshots.isEmpty()) return;
-
-        float baseChance = Math.min(data.temporalCount * 0.25f, 0.75f);
-        float actualChance = baseChance * (float)Math.pow(0.7, data.rewindCount);
-
-        if (RANDOM.nextFloat() < actualChance) {
-            event.setCanceled(true);
-            performEnhancedTemporalRewind(player, data);
-            createProtectiveTimeStop(player, data);
-            data.rewindCount++;
-
-            data.temporalEnergy = Math.max(0, data.temporalEnergy - 30);
-
-            syncAllFabricDataToArmor(player, data);
-        }
-    }
+    // 注：死亡回溯现由 ASM Hook (TemporalDeathHook) 处理
 
     @SubscribeEvent(priority = EventPriority.HIGH)
     public static void onTemporalHurt(LivingHurtEvent event) {
@@ -1123,15 +1178,11 @@ public class FabricEventHandler {
 
         if (!data.hasTemporalFabric()) return;
 
-        float reduction = data.temporalCount * 0.15f;
-        event.setAmount(event.getAmount() * (1 - reduction));
-
+        // 时停触发检测
         if (shouldTriggerTimeStop(player, data)) {
             TimeStopZone zone = activateImprovedTimeStop(player, data);
             if (zone != null) {
-                event.setAmount(event.getAmount() * 0.3f);
                 data.lastTimeStopTime = System.currentTimeMillis();
-
                 data.temporalEnergy = Math.max(0, data.temporalEnergy - 20);
 
                 player.sendStatusMessage(new TextComponentString(
@@ -1140,18 +1191,6 @@ public class FabricEventHandler {
 
                 syncAllFabricDataToArmor(player, data);
             }
-        }
-
-        if (shouldTriggerTimeRift(data)) {
-            createAdvancedTemporalRift(player, event.getSource());
-            event.setCanceled(true);
-
-            data.temporalEnergy = Math.max(0, data.temporalEnergy - 10);
-
-            player.sendStatusMessage(new TextComponentString(
-                    "§b✦ 时间断层激活！伤害无效化"), true);
-
-            syncAllFabricDataToArmor(player, data);
         }
     }
 
@@ -1405,32 +1444,6 @@ public class FabricEventHandler {
         }
     }
 
-    private static void performEnhancedTemporalRewind(EntityPlayer player, PlayerFabricData data) {
-        if (data.temporalSnapshots.isEmpty()) return;
-
-        PlayerFabricData.TemporalSnapshot snapshot = data.temporalSnapshots.getFirst();
-
-        player.setPositionAndUpdate(snapshot.x, snapshot.y, snapshot.z);
-
-        // 修改：直接回滿血
-        player.setHealth(player.getMaxHealth());
-        player.getFoodStats().setFoodLevel(20);  // 滿飢餓值
-        player.getFoodStats().setFoodSaturationLevel(20.0F);  // 滿飽食度
-
-        player.hurtResistantTime = 60;
-
-
-        // 新增：再生效果，提供第二次恢復
-        player.addPotionEffect(new PotionEffect(MobEffects.INSTANT_HEALTH, 10, 10, false, false));
-        // 立即額外恢復一次
-        player.heal(player.getMaxHealth());
-
-        spawnRewindEffects(player);
-
-        player.sendStatusMessage(new TextComponentString(
-                String.format("§b⏮ 時序回溯成功！完全恢復！(第%d次)", data.rewindCount + 1)), false);
-    }
-
     private static void createProtectiveTimeStop(EntityPlayer player, PlayerFabricData data) {
         createTimeStopZone(player.world, player.getPosition(), 10.0, player, 60);
 
@@ -1440,53 +1453,19 @@ public class FabricEventHandler {
         data.protectiveInvulEndTime = System.currentTimeMillis() + 3000;
     }
 
-    private static void createAdvancedTemporalRift(EntityPlayer player, DamageSource source) {
-        PlayerFabricData data = getPlayerData(player);
-        player.noClip = true;
-        player.setEntityInvulnerable(true);
-
-        // 使用基于Tick的延迟任务替代 Thread.sleep
-        data.riftNoClipEndTime = System.currentTimeMillis() + 2000;
-
-        if (source.getTrueSource() instanceof EntityLivingBase) {
-            EntityLivingBase attacker = (EntityLivingBase) source.getTrueSource();
-            freezeEntity(attacker, 60);
-            attacker.attackEntityFrom(DamageSource.MAGIC, 10.0f);
-        }
-
-        spawnRiftEffects(player);
-    }
-
     private static TimeStopZone activateImprovedTimeStop(EntityPlayer player, PlayerFabricData data) {
         World world = player.world;
 
-        double range;
-        int duration;
+        if (data.temporalCount <= 0) return null;
 
-        switch (data.temporalCount) {
-            case 1:
-                range = 8.0;
-                duration = 60;
-                break;
-            case 2:
-                range = 12.0;
-                duration = 100;
-                break;
-            case 3:
-                range = 16.0;
-                duration = 140;
-                break;
-            case 4:
-                range = 20.0;
-                duration = 200;
-                break;
-            default:
-                return null;
-        }
+        // 线性计算：每件+5秒，范围保持阶梯式
+        int duration = data.temporalCount * TIME_STOP_DURATION_PER_PIECE;  // 每件100tick(5秒)
+        double range = 8.0 + (data.temporalCount - 1) * 4.0;  // 8/12/16/20格
 
         TimeStopZone zone = createTimeStopZone(world, player.getPosition(), range, player, duration);
 
-        if (data.temporalCount >= 4 && zone != null) {
+        if (zone != null) {
+            // 所有件数都触发时间加速
             applyChronoAcceleration(player, data, duration);
         }
 
@@ -1529,7 +1508,7 @@ public class FabricEventHandler {
                     TEMPORAL_ATTACK_UUID, "Chrono Attack Speed", 1.0, 2));
         }
 
-        player.addPotionEffect(new PotionEffect(MobEffects.HASTE, duration, 4, false, false));
+        player.addPotionEffect(new PotionEffect(MobEffects.HASTE, duration, 10, false, false));  // 急迫XI
 
         // chronoEndTime 已在上面设置，延迟任务在 onPlayerTick 中处理
 
@@ -1641,16 +1620,6 @@ public class FabricEventHandler {
 
         if (data.temporalCount >= 4) {
             chance += 0.1f;
-        }
-
-        return RANDOM.nextFloat() < chance;
-    }
-
-    private static boolean shouldTriggerTimeRift(PlayerFabricData data) {
-        float chance = data.temporalCount * TIME_RIFT_CHANCE_PER_PIECE;
-
-        if (data.temporalCount >= 4) {
-            chance += 0.05f;
         }
 
         return RANDOM.nextFloat() < chance;
@@ -1982,25 +1951,6 @@ public class FabricEventHandler {
             world.spawnParticle(EnumParticleTypes.PORTAL,
                     x, player.posY + height, z,
                     2, 0, 0, 0.0, 0);
-        }
-    }
-
-    private static void spawnRiftEffects(EntityPlayer player) {
-        if (!(player.world instanceof WorldServer)) return;
-        WorldServer world = (WorldServer) player.world;
-
-        for (int i = 0; i < 30; i++) {
-            Vec3d random = new Vec3d(
-                    (RANDOM.nextDouble() - 0.5) * 3,
-                    (RANDOM.nextDouble() - 0.5) * 3,
-                    (RANDOM.nextDouble() - 0.5) * 3
-            );
-
-            world.spawnParticle(EnumParticleTypes.DRAGON_BREATH,
-                    player.posX + random.x,
-                    player.posY + 1 + random.y,
-                    player.posZ + random.z,
-                    1, 0, 0, 0, 0.05);
         }
     }
 

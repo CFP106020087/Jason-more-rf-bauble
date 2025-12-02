@@ -24,6 +24,7 @@ public class moremodTransformer implements IClassTransformer {
     private static final boolean ENABLE_SWORD_UPGRADE       = true;
     private static final boolean ENABLE_BROKEN_GOD_DEATH    = true;
     private static final boolean ENABLE_SHAMBHALA_DEATH     = true;
+    private static final boolean ENABLE_TEMPORAL_DEATH      = true;  // 时序织印死亡回溯
 
     public static Side side;
 
@@ -1037,6 +1038,24 @@ public class moremodTransformer implements IClassTransformer {
                     System.out.println("[moremodTransformer]     + Injected Shambhala damage absorption at damageEntity HEAD");
                 }
 
+                if (ENABLE_TEMPORAL_DEATH) {
+                    LabelNode temporalContinue = new LabelNode();
+                    inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                    inject.add(new VarInsnNode(Opcodes.ALOAD, 1));
+                    inject.add(new VarInsnNode(Opcodes.FLOAD, 2));
+                    inject.add(new MethodInsnNode(
+                            Opcodes.INVOKESTATIC,
+                            "com/moremod/core/TemporalDeathHook",
+                            "checkAndTriggerRewind",
+                            "(Lnet/minecraft/entity/EntityLivingBase;Lnet/minecraft/util/DamageSource;F)Z",
+                            false
+                    ));
+                    inject.add(new JumpInsnNode(Opcodes.IFEQ, temporalContinue));
+                    inject.add(new InsnNode(Opcodes.RETURN));
+                    inject.add(temporalContinue);
+                    System.out.println("[moremodTransformer]     + Injected Temporal rewind check at damageEntity HEAD");
+                }
+
                 mn.instructions.insert(inject);
                 modified = true;
                 System.out.println("[moremodTransformer]     + Injected shutdown trigger check at damageEntity HEAD");
@@ -1081,6 +1100,23 @@ public class moremodTransformer implements IClassTransformer {
                     inject.add(new InsnNode(Opcodes.RETURN));
                     inject.add(shambhalaContinue);
                     System.out.println("[moremodTransformer]     + Injected Shambhala death prevention at onDeath HEAD");
+                }
+
+                if (ENABLE_TEMPORAL_DEATH) {
+                    LabelNode temporalContinue = new LabelNode();
+                    inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                    inject.add(new VarInsnNode(Opcodes.ALOAD, 1));
+                    inject.add(new MethodInsnNode(
+                            Opcodes.INVOKESTATIC,
+                            "com/moremod/core/TemporalDeathHook",
+                            "shouldPreventDeath",
+                            "(Lnet/minecraft/entity/EntityLivingBase;Lnet/minecraft/util/DamageSource;)Z",
+                            false
+                    ));
+                    inject.add(new JumpInsnNode(Opcodes.IFEQ, temporalContinue));
+                    inject.add(new InsnNode(Opcodes.RETURN));
+                    inject.add(temporalContinue);
+                    System.out.println("[moremodTransformer]     + Injected Temporal death prevention at onDeath HEAD");
                 }
 
                 mn.instructions.insert(inject);

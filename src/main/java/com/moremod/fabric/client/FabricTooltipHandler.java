@@ -147,19 +147,19 @@ public class FabricTooltipHandler {
         tooltip.add("§b当前效果:");
         if (player != null) {
             int count = FabricWeavingSystem.countPlayerFabric(player, UpdatedFabricPlayerData.FabricType.TEMPORAL);
-            tooltip.add("  §7• 伤害减免 §b" + (count * 15) + "%");
-            tooltip.add("  §7• 时停触发率 §b" + (count * 4) + "%");
-            tooltip.add("  §7• 时间断层 §b" + (count * 2) + "%");
+            tooltip.add("  §7• 时停触发率 §b" + (count * 8) + "%");
+            tooltip.add("  §7• 时停持续 §b" + (count * 5) + "秒");
+            tooltip.add("  §7• 时间加速 §b+100%移速/攻速 急迫XI");
 
             // 回溯概率
             float baseChance = Math.min(count * 0.25f, 0.75f);
             float actualChance = baseChance * (float)Math.pow(0.7, rewinds);
-            tooltip.add("  §7• 死亡回溯 §b" + String.format("%.1f%%", actualChance * 100));
+            tooltip.add("  §7• 致命回溯 §b" + String.format("%.1f%%", actualChance * 100));
         }
 
         if (rewinds > 2) {
             tooltip.add("");
-            tooltip.add("§c§l⚠ 时间线紊乱！");
+            tooltip.add("§c§l⚠ 时间线紊乱！回溯概率大幅下降");
         }
     }
 
@@ -340,10 +340,11 @@ public class FabricTooltipHandler {
                 break;
 
             case TEMPORAL:
-                if (count >= 1) tooltip.add("  §61件: §715%减伤 时停4%");
-                if (count >= 2) tooltip.add("  §62件: §730%减伤 时停8%");
-                if (count >= 3) tooltip.add("  §63件: §745%减伤 时停12%");
-                if (count >= 4) tooltip.add("  §64件: §b时间主宰 20格范围");
+                if (count >= 1) tooltip.add("  §61件: §7时停8% 5秒 时间加速");
+                if (count >= 2) tooltip.add("  §62件: §7时停16% 10秒");
+                if (count >= 3) tooltip.add("  §63件: §7时停24% 15秒");
+                if (count >= 4) tooltip.add("  §64件: §b时停32% 20秒 20格范围");
+                tooltip.add("  §7致命伤害触发时序回溯");
                 break;
 
             case SPATIAL:
