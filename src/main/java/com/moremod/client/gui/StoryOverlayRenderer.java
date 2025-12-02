@@ -290,9 +290,16 @@ public class StoryOverlayRenderer {
     // ==================================================
     //  香巴拉渲染 - 全屏淡金光 + 黑色空心齿轮
     // ==================================================
+    // ==================================================
+    //  【Erica 最终设计】香巴拉渲染 - 圣金背景 + 青色全息齿轮
+    // ==================================================
     private void renderShambhalaEffects(int w, int h, float time) {
-        // --- 1. 背景：全屏淡淡金光 ---
+        // --- 1. 背景：全屏淡淡金光 (保持不变) ---
         GlStateManager.disableTexture2D();
+
+        // 关闭 Alpha 测试以支持微弱透明度
+        GlStateManager.disableAlpha();
+
         GlStateManager.enableBlend();
         GlStateManager.tryBlendFuncSeparate(
                 GlStateManager.SourceFactor.SRC_ALPHA,
@@ -300,77 +307,98 @@ public class StoryOverlayRenderer {
                 GlStateManager.SourceFactor.ONE,
                 GlStateManager.DestFactor.ZERO);
 
-        // 呼吸效果：Alpha 0.08 ~ 0.15 (非常淡)
+        // 呼吸效果：Alpha 0.01 ~ 0.15
         float breath = 0.08f + 0.07f * (float) Math.sin(time * 0.5f);
 
-        // 设置颜色：暖金色
+        // 背景色：温暖的圣金色
         GlStateManager.color(1.0f, 0.9f, 0.6f, breath);
 
-        // 绘制全屏纯色矩形
         drawFullScreenQuad(w, h, false);
 
-        // --- 2. 前景：黑色空心线框齿轮 ---
+        GlStateManager.enableAlpha(); // 恢复
+
+        // --- 2. 前景：因果青 (Causal Cyan) 全息齿轮 ---
         GlStateManager.disableTexture2D();
         GlStateManager.disableLighting();
         GlStateManager.disableCull();
         GlStateManager.bindTexture(0);
 
-        // 线条宽度
-        GL11.glLineWidth(2.5F);
+        // 开启混合模式：这里用 Additive 混合 (Src=ONE, Dst=ONE) 会让光效更亮更科幻！
+        // 如果觉得太亮，可以改回普通的 (SRC_ALPHA, ONE_MINUS_SRC_ALPHA)
+        GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
 
         updateGears(w, h, time);
 
         for (int i = 0; i < MAX_GEARS; i++) {
             if (gearActive[i] && gearAlpha[i] > 0.01f) {
-                drawBlackHollowGear(gearX[i], gearY[i], gearSize[i], gearRotation[i], gearAlpha[i]);
+                drawCyanEnergyGear(gearX[i], gearY[i], gearSize[i], gearRotation[i], gearAlpha[i]);
             }
         }
 
         // 恢复状态
+        GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
         GL11.glLineWidth(1.0F);
         GlStateManager.enableTexture2D();
         GlStateManager.enableCull();
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
     }
 
-    // ==================================================
-    //  绘制黑色空心齿轮
-    // ==================================================
-    private void drawBlackHollowGear(float x, float y, float size, float rotation, float alpha) {
+    /**
+     * 绘制【因果青】全息能量齿轮
+     * 技巧：画两次，一次宽线条做光晕，一次细线条做核心
+     */
+    private void drawCyanEnergyGear(float x, float y, float size, float rotation, float alpha) {
         Tessellator tessellator = Tessellator.getInstance();
         BufferBuilder buffer = tessellator.getBuffer();
 
         float radiusOuter = size * 0.6f;
         float radiusInner = radiusOuter * 0.75f;
         float holeRadius = radiusOuter * 0.3f;
-        int teeth = 12;
-        int segments = teeth * 4;
+        int segments = 48; // 齿轮精度
 
         GlStateManager.pushMatrix();
         GlStateManager.translate(x, y, 0);
         GlStateManager.rotate(rotation, 0, 0, 1);
 
-        // 设置颜色为纯黑
-        GlStateManager.color(0.0f, 0.0f, 0.0f, alpha);
+        // === Pass 1: 光晕层 (宽，半透明青色) ===
+        GL11.glLineWidth(4.0F); // 宽线条
+        // 颜色：青色 (Cyan) 0.0, 1.0, 1.0
+        // Alpha 降低一点，作为辉光
+        GlStateManager.color(0.0f, 0.8f, 1.0f, alpha * 0.4f);
 
-        // 1. 绘制外圈齿形 (空心线框)
+        drawGearLines(buffer, segments, radiusOuter, radiusInner, holeRadius);
+
+        // === Pass 2: 核心层 (细，高亮偏白) ===
+        GL11.glLineWidth(1.5F); // 细线条
+        // 颜色：极亮青白 (接近白色)
+        GlStateManager.color(0.8f, 1.0f, 1.0f, alpha * 0.9f);
+
+        drawGearLines(buffer, segments, radiusOuter, radiusInner, holeRadius);
+
+        GlStateManager.popMatrix();
+    }
+
+    // 辅助方法：只负责画线，不负责颜色
+    private void drawGearLines(BufferBuilder buffer, int segments, float rOuter, float rInner, float rHole) {
+        Tessellator tessellator = Tessellator.getInstance();
+
+        // 外圈齿
         buffer.begin(GL11.GL_LINE_LOOP, DefaultVertexFormats.POSITION);
         for (int i = 0; i < segments; i++) {
             double angle = (Math.PI * 2 * i) / segments;
-            float r = (i % 4 < 2) ? radiusOuter : radiusInner;
+            // 齿形逻辑
+            float r = (i % 4 < 2) ? rOuter : rInner;
             buffer.pos(Math.cos(angle) * r, Math.sin(angle) * r, 0).endVertex();
         }
         tessellator.draw();
 
-        // 2. 绘制中心孔 (空心线圈)
+        // 内圈孔
         buffer.begin(GL11.GL_LINE_LOOP, DefaultVertexFormats.POSITION);
         for (int i = 0; i <= 32; i++) {
             double angle = (Math.PI * 2 * i) / 32;
-            buffer.pos(Math.cos(angle) * holeRadius, Math.sin(angle) * holeRadius, 0).endVertex();
+            buffer.pos(Math.cos(angle) * rHole, Math.sin(angle) * rHole, 0).endVertex();
         }
         tessellator.draw();
-
-        GlStateManager.popMatrix();
     }
 
     // ==================================================

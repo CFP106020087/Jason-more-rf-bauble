@@ -107,11 +107,10 @@ public class SoulboundDeathHandler {
         try {
             // 检查破碎之神保护
             if (BrokenGodHandler.isBrokenGod(player)) {
-                int energy = BrokenGodHandler.getCurrentEnergy(player);
-                if (energy > 0) {
+
                     // 破碎之神有能量 = 死亡会被阻止
                     return true;
-                }
+
             }
         } catch (Throwable ignored) {}
 
