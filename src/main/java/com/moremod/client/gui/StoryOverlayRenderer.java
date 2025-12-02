@@ -4,6 +4,8 @@ import com.moremod.config.BrokenGodConfig;
 import com.moremod.config.HumanityConfig;
 import com.moremod.config.ShambhalaConfig;
 import com.moremod.logic.NarrativeLogicHandler;
+import com.moremod.system.humanity.HumanityCapabilityHandler;
+import com.moremod.system.humanity.IHumanityData;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.BufferBuilder;
@@ -13,29 +15,29 @@ import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.math.MathHelper;
 import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.lwjgl.opengl.ARBShaderObjects;
 import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GL20;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Random;
 
 @SideOnly(Side.CLIENT)
 public class StoryOverlayRenderer {
 
-    private static final Map<PlayerNarrativeState, ResourceLocation> OVERLAYS = new HashMap<>();
-    static {
-        OVERLAYS.put(PlayerNarrativeState.HUMAN_LOW, new ResourceLocation("minecraft", "textures/misc/vignette.png"));
-    }
+    // ==================================================
+    //  贴图资源
+    // ==================================================
+    private static final ResourceLocation HUMAN_LOW_TEX = new ResourceLocation("moremod", "textures/gui/black_vignette.png");
+    private static final ResourceLocation VIGNETTE_TEX = new ResourceLocation("minecraft", "textures/misc/vignette.png");
 
     private final Random rand = new Random();
-    private int shaderProgram = -1;
-    private int shambhalaShaderProgram = -1;
+
+    // 着色器程序
+    private int brokenGodShaderProgram = -1;
 
     // 香巴拉齿轮数据
     private static final int MAX_GEARS = 8;
@@ -48,31 +50,7 @@ public class StoryOverlayRenderer {
     private final boolean[] gearActive = new boolean[MAX_GEARS];
 
     // ==================================================
-    //  香巴拉着色器 - 金色边缘渐变
-    // ==================================================
-    private static final String SHAMBHALA_FRAGMENT_SHADER =
-            "#version 120\n" +
-                    "uniform float time;" +
-                    "uniform vec2 resolution;" +
-                    "void main() {" +
-                    "    vec2 uv = gl_TexCoord[0].st;" +
-                    "    vec2 center = vec2(0.5, 0.5);" +
-                    "    float aspect = resolution.x / resolution.y;" +
-                    "    vec2 centeredUV = (uv - center) * vec2(aspect, 1.0);" +
-                    "    float dist = length(centeredUV);" +
-                    // 边缘到中心的渐变 (中心透明，边缘金色)
-                    "    float vignette = smoothstep(0.3, 1.0, dist);" +
-                    // 金色基础色
-                    "    vec3 goldColor = vec3(1.0, 0.85, 0.4);" +
-                    // 微弱的呼吸效果
-                    "    float breath = 0.8 + 0.2 * sin(time * 0.5);" +
-                    // Alpha: 中心完全透明，边缘半透明金色
-                    "    float alpha = vignette * 0.4 * breath;" +
-                    "    gl_FragColor = vec4(goldColor, alpha);" +
-                    "}";
-
-    // ==================================================
-    //  着色器代码 (GLSL) - 全域数字视觉版
+    //  着色器代码 - 破碎神明 (全域数字视觉)
     // ==================================================
     private static final String VERTEX_SHADER =
             "#version 120\n" +
@@ -81,7 +59,7 @@ public class StoryOverlayRenderer {
                     "    gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;" +
                     "}";
 
-    private static final String FRAGMENT_SHADER =
+    private static final String BROKEN_GOD_FRAGMENT_SHADER =
             "#version 120\n" +
                     "uniform float time;" +
                     "uniform float intensity;" +
@@ -89,7 +67,6 @@ public class StoryOverlayRenderer {
                     "uniform vec2 resolution;" +
                     "uniform int isHurt;" +
 
-                    // 随机噪点函数
                     "float random(vec2 st) {" +
                     "    return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);" +
                     "}" +
@@ -100,59 +77,34 @@ public class StoryOverlayRenderer {
                     "    float aspect = resolution.x / resolution.y;" +
                     "    vec2 centeredUV = (uv - center) * vec2(aspect, 1.0);" +
                     "    float dist = length(centeredUV);" +
-
-                    // ========== 1. 基础晕影 (不再完全挖空中心) ==========
-                    // 边缘是 1.0，中心是 0.0，但是曲线更平滑
                     "    float vignette = smoothstep(0.4, 1.2, dist);" +
-
-                    // ========== 2. 全局扫描线 (Global Scanline) ==========
-                    // 贯穿整个屏幕的横条纹，模拟旧显示器或数据流
                     "    float scanline = sin(uv.y * 400.0 + time * 5.0) * 0.03;" +
-
-                    // ========== 3. 动态噪点 (Global Noise) ==========
-                    // 全屏微弱的噪点，让画面变得"粗糙"
                     "    float noise = (random(uv + time) - 0.5) * 0.05;" +
-
-                    // ========== 4. 颜色合成 ==========
-                    // 基础色 (baseColor) 加上一点点噪点和扫描线
-                    // 这里的关键：即使在中心，也有颜色！
                     "    vec3 finalColor = baseColor + vec3(noise);" +
-
-                    // 受伤时：整体变红
                     "    if (isHurt > 0) {" +
                     "        finalColor = mix(finalColor, vec3(1.0, 0.2, 0.2), 0.5);" +
                     "    }" +
-
-                    // ========== 5. Alpha 计算 (关键！) ==========
-                    // 基础透明度：中心 0.15 (淡淡的一层)，边缘 0.9 (深色)
-                    // 这样整个画面都被"统一"在同一种色调下
                     "    float baseAlpha = 0.15 + vignette * 0.75;" +
-
-                    // 加上扫描线带来的透明度波动
                     "    float finalAlpha = baseAlpha + scanline;" +
-
-                    // 整体强度控制
                     "    finalAlpha = clamp(finalAlpha * intensity, 0.0, 0.95);" +
-
                     "    gl_FragColor = vec4(finalColor, finalAlpha);" +
                     "}";
 
     // ==================================================
     //  主渲染逻辑
     // ==================================================
-
     @SubscribeEvent
     public void onRenderOverlay(RenderGameOverlayEvent.Post event) {
         if (event.getType() != RenderGameOverlayEvent.ElementType.ALL) return;
 
         Minecraft mc = Minecraft.getMinecraft();
-        if (mc.player == null) return;
+        EntityPlayer player = mc.player;
+        if (player == null) return;
 
-        PlayerNarrativeState state = NarrativeLogicHandler.determineState(mc.player);
-
+        PlayerNarrativeState state = NarrativeLogicHandler.determineState(player);
         if (state == PlayerNarrativeState.HUMAN_HIGH || state == PlayerNarrativeState.NONE) return;
 
-        // 检查配置：如果对应状态的视觉效果被禁用，直接返回
+        // 检查配置
         if (state == PlayerNarrativeState.HUMAN_LOW && !HumanityConfig.enableVisualDistortion) return;
         if (state == PlayerNarrativeState.BROKEN_GOD && !BrokenGodConfig.enableVisualOverlay) return;
         if (state == PlayerNarrativeState.SHAMBHALA && !ShambhalaConfig.enableVisualOverlay) return;
@@ -160,15 +112,14 @@ public class StoryOverlayRenderer {
         ScaledResolution resolution = event.getResolution();
         int width = resolution.getScaledWidth();
         int height = resolution.getScaledHeight();
-        float time = (mc.player.ticksExisted + event.getPartialTicks()) / 20.0f;
+        float time = (player.ticksExisted + event.getPartialTicks()) / 20.0f;
 
-        if (shaderProgram == -1 && state == PlayerNarrativeState.BROKEN_GOD) {
-            initShader();
-        }
-        if (shambhalaShaderProgram == -1 && state == PlayerNarrativeState.SHAMBHALA) {
-            initShambhalaShader();
+        // 懒加载着色器
+        if (brokenGodShaderProgram == -1 && state == PlayerNarrativeState.BROKEN_GOD) {
+            initBrokenGodShader();
         }
 
+        // 准备 GL 状态
         GlStateManager.disableDepth();
         GlStateManager.depthMask(false);
         GlStateManager.enableBlend();
@@ -177,29 +128,52 @@ public class StoryOverlayRenderer {
                 GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
                 GlStateManager.SourceFactor.ONE,
                 GlStateManager.DestFactor.ZERO);
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
 
-        GlStateManager.pushMatrix();
-
+        // 分发渲染
         switch (state) {
             case HUMAN_LOW:
-                renderLowHumanityEffects(width, height, time);
+                renderLowHumanityEffects(width, height, time, player);
                 break;
-
             case BROKEN_GOD:
-                renderBrokenGodEffects(width, height, time, mc.player);
+                renderBrokenGodEffects(width, height, time, player);
                 break;
-
             case SHAMBHALA:
-                renderShambhalaEffects(width, height, time, mc.player);
+                renderShambhalaEffects(width, height, time);
                 break;
         }
 
-        GlStateManager.popMatrix();
+        // 恢复 GL 状态
         GlStateManager.depthMask(true);
         GlStateManager.enableDepth();
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
     }
 
+    // ==================================================
+    //  低人性渲染 - 黑色晕影 + 数值驱动
+    // ==================================================
+    private void renderLowHumanityEffects(int w, int h, float time, EntityPlayer player) {
+        Minecraft mc = Minecraft.getMinecraft();
+        IHumanityData data = HumanityCapabilityHandler.getData(player);
+        if (data == null) return;
+
+        float currentHumanity = data.getHumanity();
+        float startThreshold = 40.0f;
+        float ratio = MathHelper.clamp((startThreshold - currentHumanity) / startThreshold, 0.0f, 1.0f);
+        float baseAlpha = ratio * 0.95f;
+
+        if (baseAlpha <= 0.01f) return;
+
+        float breath = 0.95f + 0.05f * (float) Math.sin(time * 1.5f);
+
+        mc.getTextureManager().bindTexture(HUMAN_LOW_TEX);
+        GlStateManager.color(1.0f, 1.0f, 1.0f, baseAlpha * breath);
+        drawFullScreenQuad(w, h, true);
+    }
+
+    // ==================================================
+    //  破碎神明渲染 - 着色器 + 撕裂 + 噪点 + BIOS
+    // ==================================================
     private void renderBrokenGodEffects(int w, int h, float time, EntityPlayer player) {
         Minecraft mc = Minecraft.getMinecraft();
         Tessellator tessellator = Tessellator.getInstance();
@@ -209,61 +183,45 @@ public class StoryOverlayRenderer {
         boolean isRandomGlitch = rand.nextFloat() < 0.002f;
         boolean triggerTearing = isHurt || isRandomGlitch;
 
-        // 強度：保持通透
         float intensity = isHurt ? 1.5f : 0.8f;
 
-        // ==========================================
-        // 🎨 配色選擇區 (在這裡切換神性顏色！)
-        // ==========================================
-
-        // 方案 A: 【蒼白聖金 (Pale Electrum)】 -> 神聖、高貴、非電子感 (推薦!)
-        //float r = 1.0f; float g = 0.92f; float b = 0.75f;
-
-        // 方案 B: 【氧化青銅 (Verdigris)】 -> 古老、銅鏽、神秘
-         float r = 0.6f; float g = 1.0f; float b = 0.9f;
-
-        // 方案 C: 【純淨白金 (Platinum)】 -> 極度理性、冷酷、幾乎黑白
-         //float r = 0.95f; float g = 0.95f; float b = 0.98f;
-
-        // ==========================================
+        // 配色：氧化青铜 (Verdigris)
+        float r = 0.6f;
+        float g = 1.0f;
+        float b = 0.9f;
 
         if (isHurt) {
-            // 受傷時：變為警示紅 (保持不變，因為紅色代表危險是通用的)
-            r = 1.0f; g = 0.3f; b = 0.2f;
-
-            // BIOS 觸發
-            BiosLogRenderer.triggerDamageBurst(3); // 瞬間插入 3 條
+            r = 1.0f;
+            g = 0.3f;
+            b = 0.2f;
+            BiosLogRenderer.triggerDamageBurst(3);
         }
         if (rand.nextFloat() < 0.0005f) {
-            BiosLogRenderer.render(time); // 偶發
+            BiosLogRenderer.render(time);
         }
 
         // 1. Shader 渲染
-        if (OpenGlHelper.shadersSupported && shaderProgram != -1) {
-            ARBShaderObjects.glUseProgramObjectARB(shaderProgram);
+        if (OpenGlHelper.shadersSupported && brokenGodShaderProgram != -1) {
+            ARBShaderObjects.glUseProgramObjectARB(brokenGodShaderProgram);
 
-            int timeLoc = ARBShaderObjects.glGetUniformLocationARB(shaderProgram, "time");
+            int timeLoc = ARBShaderObjects.glGetUniformLocationARB(brokenGodShaderProgram, "time");
             ARBShaderObjects.glUniform1fARB(timeLoc, time);
-            int intensityLoc = ARBShaderObjects.glGetUniformLocationARB(shaderProgram, "intensity");
+            int intensityLoc = ARBShaderObjects.glGetUniformLocationARB(brokenGodShaderProgram, "intensity");
             ARBShaderObjects.glUniform1fARB(intensityLoc, intensity);
-
-            int colorLoc = ARBShaderObjects.glGetUniformLocationARB(shaderProgram, "baseColor");
-            // 傳入我們選定的神性顏色
+            int colorLoc = ARBShaderObjects.glGetUniformLocationARB(brokenGodShaderProgram, "baseColor");
             ARBShaderObjects.glUniform3fARB(colorLoc, r, g, b);
-
-            int resLoc = ARBShaderObjects.glGetUniformLocationARB(shaderProgram, "resolution");
+            int resLoc = ARBShaderObjects.glGetUniformLocationARB(brokenGodShaderProgram, "resolution");
             ARBShaderObjects.glUniform2fARB(resLoc, (float) w, (float) h);
-            int hurtLoc = ARBShaderObjects.glGetUniformLocationARB(shaderProgram, "isHurt");
+            int hurtLoc = ARBShaderObjects.glGetUniformLocationARB(brokenGodShaderProgram, "isHurt");
             ARBShaderObjects.glUniform1iARB(hurtLoc, isHurt ? 1 : 0);
 
-            // 綁定暈影貼圖傳遞 UV
-            mc.getTextureManager().bindTexture(OVERLAYS.get(PlayerNarrativeState.HUMAN_LOW));
-            drawFullScreenQuad(w, h, false);
+            mc.getTextureManager().bindTexture(VIGNETTE_TEX);
+            drawFullScreenQuad(w, h, true);
 
             ARBShaderObjects.glUseProgramObjectARB(0);
         }
 
-        // 2. 畫面撕裂 (Glitch Tearing)
+        // 2. 画面撕裂 (Glitch Tearing)
         if (triggerTearing) {
             GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE);
             int glitchCount = isHurt ? 8 : 2;
@@ -276,8 +234,6 @@ public class StoryOverlayRenderer {
                 float yHeight = rand.nextInt(30) + 5;
                 float xOffset = (rand.nextFloat() - 0.5f) * tearIntensity;
 
-                // 撕裂條顏色：跟隨主色調，但更亮一點
-                // 這樣撕裂時就不會突然變藍，而是變成金光/白光閃爍
                 GlStateManager.color(r, g, b, 0.6f);
 
                 buffer.begin(7, DefaultVertexFormats.POSITION);
@@ -287,6 +243,8 @@ public class StoryOverlayRenderer {
                 buffer.pos(0 + xOffset, yStart, -90).endVertex();
                 tessellator.draw();
             }
+
+            GlStateManager.enableTexture2D();
             GlStateManager.tryBlendFuncSeparate(
                     GlStateManager.SourceFactor.SRC_ALPHA,
                     GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
@@ -294,7 +252,7 @@ public class StoryOverlayRenderer {
                     GlStateManager.DestFactor.ZERO);
         }
 
-        // 3. 邊緣噪點 (Digital Noise)
+        // 3. 边缘噪点 (Digital Noise)
         GlStateManager.disableTexture2D();
         GL11.glPointSize(2.0f);
         buffer.begin(GL11.GL_POINTS, DefaultVertexFormats.POSITION_COLOR);
@@ -314,8 +272,6 @@ public class StoryOverlayRenderer {
                 float val = rand.nextFloat();
                 float alpha = (0.2f - edgeFactor) / 0.2f * 0.7f;
 
-                // 噪點顏色：跟隨主色調，稍微提亮
-                // 這樣噪點就是金粉/銀粉，而不是電子雜訊
                 float noiseR = Math.min(1.0f, r + 0.2f);
                 float noiseG = Math.min(1.0f, g + 0.2f);
                 float noiseB = Math.min(1.0f, b + 0.2f);
@@ -327,10 +283,99 @@ public class StoryOverlayRenderer {
         GL11.glPointSize(1.0f);
         GlStateManager.enableTexture2D();
 
-        // 4. BIOS 日誌
+        // 4. BIOS 日志
         BiosLogRenderer.render(time);
     }
 
+    // ==================================================
+    //  香巴拉渲染 - 全屏淡金光 + 黑色空心齿轮
+    // ==================================================
+    private void renderShambhalaEffects(int w, int h, float time) {
+        // --- 1. 背景：全屏淡淡金光 ---
+        GlStateManager.disableTexture2D();
+        GlStateManager.enableBlend();
+        GlStateManager.tryBlendFuncSeparate(
+                GlStateManager.SourceFactor.SRC_ALPHA,
+                GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
+                GlStateManager.SourceFactor.ONE,
+                GlStateManager.DestFactor.ZERO);
+
+        // 呼吸效果：Alpha 0.08 ~ 0.15 (非常淡)
+        float breath = 0.08f + 0.07f * (float) Math.sin(time * 0.5f);
+
+        // 设置颜色：暖金色
+        GlStateManager.color(1.0f, 0.9f, 0.6f, breath);
+
+        // 绘制全屏纯色矩形
+        drawFullScreenQuad(w, h, false);
+
+        // --- 2. 前景：黑色空心线框齿轮 ---
+        GlStateManager.disableTexture2D();
+        GlStateManager.disableLighting();
+        GlStateManager.disableCull();
+        GlStateManager.bindTexture(0);
+
+        // 线条宽度
+        GL11.glLineWidth(2.5F);
+
+        updateGears(w, h, time);
+
+        for (int i = 0; i < MAX_GEARS; i++) {
+            if (gearActive[i] && gearAlpha[i] > 0.01f) {
+                drawBlackHollowGear(gearX[i], gearY[i], gearSize[i], gearRotation[i], gearAlpha[i]);
+            }
+        }
+
+        // 恢复状态
+        GL11.glLineWidth(1.0F);
+        GlStateManager.enableTexture2D();
+        GlStateManager.enableCull();
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+    }
+
+    // ==================================================
+    //  绘制黑色空心齿轮
+    // ==================================================
+    private void drawBlackHollowGear(float x, float y, float size, float rotation, float alpha) {
+        Tessellator tessellator = Tessellator.getInstance();
+        BufferBuilder buffer = tessellator.getBuffer();
+
+        float radiusOuter = size * 0.6f;
+        float radiusInner = radiusOuter * 0.75f;
+        float holeRadius = radiusOuter * 0.3f;
+        int teeth = 12;
+        int segments = teeth * 4;
+
+        GlStateManager.pushMatrix();
+        GlStateManager.translate(x, y, 0);
+        GlStateManager.rotate(rotation, 0, 0, 1);
+
+        // 设置颜色为纯黑
+        GlStateManager.color(0.0f, 0.0f, 0.0f, alpha);
+
+        // 1. 绘制外圈齿形 (空心线框)
+        buffer.begin(GL11.GL_LINE_LOOP, DefaultVertexFormats.POSITION);
+        for (int i = 0; i < segments; i++) {
+            double angle = (Math.PI * 2 * i) / segments;
+            float r = (i % 4 < 2) ? radiusOuter : radiusInner;
+            buffer.pos(Math.cos(angle) * r, Math.sin(angle) * r, 0).endVertex();
+        }
+        tessellator.draw();
+
+        // 2. 绘制中心孔 (空心线圈)
+        buffer.begin(GL11.GL_LINE_LOOP, DefaultVertexFormats.POSITION);
+        for (int i = 0; i <= 32; i++) {
+            double angle = (Math.PI * 2 * i) / 32;
+            buffer.pos(Math.cos(angle) * holeRadius, Math.sin(angle) * holeRadius, 0).endVertex();
+        }
+        tessellator.draw();
+
+        GlStateManager.popMatrix();
+    }
+
+    // ==================================================
+    //  工具方法
+    // ==================================================
     private void drawFullScreenQuad(int width, int height, boolean useTex) {
         Tessellator tessellator = Tessellator.getInstance();
         BufferBuilder buffer = tessellator.getBuffer();
@@ -343,221 +388,82 @@ public class StoryOverlayRenderer {
             buffer.pos(width, 0, z).tex(1, 0).endVertex();
             buffer.pos(0, 0, z).tex(0, 0).endVertex();
         } else {
-            buffer.begin(7, DefaultVertexFormats.POSITION_TEX);
-            buffer.pos(0, height, z).tex(0, 1).endVertex();
-            buffer.pos(width, height, z).tex(1, 1).endVertex();
-            buffer.pos(width, 0, z).tex(1, 0).endVertex();
-            buffer.pos(0, 0, z).tex(0, 0).endVertex();
+            buffer.begin(7, DefaultVertexFormats.POSITION);
+            buffer.pos(0, height, z).endVertex();
+            buffer.pos(width, height, z).endVertex();
+            buffer.pos(width, 0, z).endVertex();
+            buffer.pos(0, 0, z).endVertex();
         }
         tessellator.draw();
     }
 
-    private void initShader() {
-        if (!OpenGlHelper.shadersSupported) {
-            shaderProgram = -1;
-            return;
-        }
-
-        try {
-            int vertexShader = ARBShaderObjects.glCreateShaderObjectARB(OpenGlHelper.GL_VERTEX_SHADER);
-            ARBShaderObjects.glShaderSourceARB(vertexShader, VERTEX_SHADER);
-            ARBShaderObjects.glCompileShaderARB(vertexShader);
-
-            if (ARBShaderObjects.glGetObjectParameteriARB(vertexShader, ARBShaderObjects.GL_OBJECT_COMPILE_STATUS_ARB) == GL11.GL_FALSE) {
-                return;
-            }
-
-            int fragmentShader = ARBShaderObjects.glCreateShaderObjectARB(OpenGlHelper.GL_FRAGMENT_SHADER);
-            ARBShaderObjects.glShaderSourceARB(fragmentShader, FRAGMENT_SHADER);
-            ARBShaderObjects.glCompileShaderARB(fragmentShader);
-
-            if (ARBShaderObjects.glGetObjectParameteriARB(fragmentShader, ARBShaderObjects.GL_OBJECT_COMPILE_STATUS_ARB) == GL11.GL_FALSE) {
-                return;
-            }
-
-            shaderProgram = ARBShaderObjects.glCreateProgramObjectARB();
-            ARBShaderObjects.glAttachObjectARB(shaderProgram, vertexShader);
-            ARBShaderObjects.glAttachObjectARB(shaderProgram, fragmentShader);
-            ARBShaderObjects.glLinkProgramARB(shaderProgram);
-
-            if (ARBShaderObjects.glGetObjectParameteriARB(shaderProgram, ARBShaderObjects.GL_OBJECT_LINK_STATUS_ARB) == GL11.GL_FALSE) {
-                return;
-            }
-
-        } catch (Exception e) {
-            shaderProgram = -1;
-        }
-    }
-
     // ==================================================
-    //  低人性渲染 - 简单的暗角效果
+    //  齿轮逻辑
     // ==================================================
-    private void renderLowHumanityEffects(int w, int h, float time) {
-        Minecraft mc = Minecraft.getMinecraft();
-        ResourceLocation tex = OVERLAYS.get(PlayerNarrativeState.HUMAN_LOW);
-        if (tex != null) {
-            mc.getTextureManager().bindTexture(tex);
-            // 呼吸效果
-            float breath = 0.6f + 0.15f * (float) Math.sin(time * 1.5f);
-            // 暗红色调
-            GlStateManager.color(0.3f, 0.1f, 0.1f, breath);
-            drawFullScreenQuad(w, h, true);
-        }
-    }
-
-    // ==================================================
-    //  香巴拉渲染 - 金色齿轮 + 金色边缘渐变
-    // ==================================================
-    // ==================================================
-    //  Erica 修复版：解决齿轮隐形与闪烁问题
-    // ==================================================
-
-    // ==================================================
-    //  Erica 最终修复版：绝对防御版齿轮渲染
-    // ==================================================
-
-    // ==================================================
-    //  Erica 最终修正：使用 ShambhalaAscensionOverlay 原版齿轮
-    // ==================================================
-
-    private void renderShambhalaEffects(int w, int h, float time, EntityPlayer player) {
-        Minecraft mc = Minecraft.getMinecraft();
-
-        // 1. 画背景光晕 (保持不变)
-        if (OpenGlHelper.shadersSupported && shambhalaShaderProgram != -1) {
-            ARBShaderObjects.glUseProgramObjectARB(shambhalaShaderProgram);
-            ARBShaderObjects.glUniform1fARB(ARBShaderObjects.glGetUniformLocationARB(shambhalaShaderProgram, "time"), time);
-            ARBShaderObjects.glUniform2fARB(ARBShaderObjects.glGetUniformLocationARB(shambhalaShaderProgram, "resolution"), (float) w, (float) h);
-            mc.getTextureManager().bindTexture(OVERLAYS.get(PlayerNarrativeState.HUMAN_LOW));
-            drawFullScreenQuad(w, h, false);
-            ARBShaderObjects.glUseProgramObjectARB(0);
-        } else {
-            ResourceLocation tex = OVERLAYS.get(PlayerNarrativeState.HUMAN_LOW);
-            if (tex != null) {
-                mc.getTextureManager().bindTexture(tex);
-                float breath = 0.7f + 0.1f * (float) Math.sin(time * 0.5f);
-                GlStateManager.color(1.0f, 0.85f, 0.4f, 0.35f * breath);
-                drawFullScreenQuad(w, h, true);
-            }
-        }
-
-        // 2. 状态准备
-        GlStateManager.disableTexture2D();
-        GlStateManager.disableLighting();
-        GlStateManager.disableCull();
-        GlStateManager.enableBlend();
-        GlStateManager.tryBlendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA, GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ZERO);
-        GlStateManager.bindTexture(0);
-
-        // 关键：为了还原动画里的效果，我们需要开启线宽，让线条更清晰
-        GL11.glLineWidth(2.0F);
-
-        // 3. 画齿轮
-        updateGears(w, h, time);
-        renderGears(w, h, time);
-
-        // 4. 恢复状态
-        GL11.glLineWidth(1.0F); // 恢复线宽
-        GlStateManager.enableTexture2D();
-        GlStateManager.enableCull();
-    }
-
-    /**
-     * 绘制单个齿轮 - 完美复刻 ShambhalaAscensionOverlay 的逻辑
-     * (空心线框风格，带有方正的齿牙)
-     */
-    private void drawGear(float x, float y, float size, float rotation, float alpha) {
-        Tessellator tessellator = Tessellator.getInstance();
-        BufferBuilder buffer = tessellator.getBuffer();
-
-        // 这里的 radius 对应动画里的 radius
-        float radius = size * 0.6f;
-        int teeth = 12; // 保持 12 个齿
-        double zLevel = 0.0D;
-
-        GlStateManager.pushMatrix();
-        GlStateManager.translate(x, y, 0);
-        GlStateManager.rotate(rotation, 0, 0, 1);
-
-        // 设置颜色：金色
-        GlStateManager.color(1.0f, 0.84f, 0.39f, alpha);
-
-        // --- 1. 齿轮外圈 (带齿) ---
-        // 使用 GL_LINE_LOOP 画空心线框
-        buffer.begin(GL11.GL_LINE_LOOP, DefaultVertexFormats.POSITION);
-
-        // 逻辑源自 drawGearShape: segments = teeth * 4
-        int segments = teeth * 4;
-        for (int i = 0; i < segments; i++) {
-            double angle = (Math.PI * 2 * i) / segments;
-
-            // 动画里的齿形逻辑：前两个点是齿顶，后两个点是齿根
-            // (i % 4 < 2) ? radius : radius * 0.75f
-            float toothRadius = (i % 4 < 2) ? radius : radius * 0.75f;
-
-            buffer.pos(Math.cos(angle) * toothRadius, Math.sin(angle) * toothRadius, zLevel).endVertex();
-        }
-        tessellator.draw();
-
-        // --- 2. 中心孔 ---
-        // 也是一个空心圆圈
-        buffer.begin(GL11.GL_LINE_LOOP, DefaultVertexFormats.POSITION);
-        float holeRadius = radius * 0.3f;
-        for (int i = 0; i <= 32; i++) {
-            double angle = (Math.PI * 2 * i) / 32;
-            buffer.pos(Math.cos(angle) * holeRadius, Math.sin(angle) * holeRadius, zLevel).endVertex();
-        }
-        tessellator.draw();
-
-        GlStateManager.popMatrix();
-    }
-
-    /**
-     * 绘制单个齿轮 - 纯几何体版 (最稳！)
-     */
-
-
-    /**
-     * 更新齿轮状态 - 提高生成率，拒绝空场
-     */
     private void updateGears(int w, int h, float time) {
-        // 统计活跃齿轮
-        boolean hasActive = false;
-        for(boolean active : gearActive) { if(active) hasActive = true; }
+        float cx = w / 2.0f;
+        float cy = h / 2.0f;
+        float safeZoneRadius = Math.min(w, h) / 2.0f * 0.85f;
 
-        // 关键修复 B：如果是空的，强制提高生成率到 100%，否则保持 5%
-        // 这样你一进状态就能看到齿轮，不用干等
-        float spawnChance = hasActive ? 0.05f : 1.0f;
+        int activeCount = 0;
+        for (boolean b : gearActive) if (b) activeCount++;
+
+        float spawnChance = (activeCount == 0) ? 1.0f : 0.02f;
 
         if (rand.nextFloat() < spawnChance) {
             for (int i = 0; i < MAX_GEARS; i++) {
                 if (!gearActive[i]) {
-                    // 随机位置优化：尽量往屏幕中间靠一点点，防止只露出一半
-                    gearX[i] = rand.nextFloat() * w;
-                    gearY[i] = rand.nextFloat() * h;
+                    boolean positionFound = false;
+                    float newSize = 0, newX = 0, newY = 0;
 
-                    gearSize[i] = 30 + rand.nextFloat() * 60; // 大小适中
-                    gearRotation[i] = rand.nextFloat() * 360;
-                    gearAlpha[i] = 0.0f;
-                    gearLifetime[i] = 3.0f + rand.nextFloat() * 3.0f; // 3-6秒
-                    gearActive[i] = true;
+                    for (int attempt = 0; attempt < 10; attempt++) {
+                        newSize = 40 + rand.nextFloat() * 60;
+                        double angle = rand.nextDouble() * Math.PI * 2;
+                        float dist = safeZoneRadius + (rand.nextFloat() * 50) + (newSize * 0.4f);
+                        newX = cx + (float) (Math.cos(angle) * dist);
+                        newY = cy + (float) (Math.sin(angle) * dist);
+
+                        boolean overlap = false;
+                        for (int j = 0; j < MAX_GEARS; j++) {
+                            if (gearActive[j] && i != j) {
+                                float dx = newX - gearX[j];
+                                float dy = newY - gearY[j];
+                                if ((dx * dx + dy * dy) < Math.pow((newSize + gearSize[j]) * 0.6f, 2)) {
+                                    overlap = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (!overlap) {
+                            positionFound = true;
+                            break;
+                        }
+                    }
+
+                    if (positionFound) {
+                        gearX[i] = newX;
+                        gearY[i] = newY;
+                        gearSize[i] = newSize;
+                        gearRotation[i] = rand.nextFloat() * 360;
+                        gearAlpha[i] = 0.0f;
+                        gearLifetime[i] = 5.0f + rand.nextFloat() * 5.0f;
+                        gearActive[i] = true;
+                    }
                     break;
                 }
             }
         }
 
-        float deltaTime = 0.05f;
+        float dt = 0.05f;
         for (int i = 0; i < MAX_GEARS; i++) {
             if (gearActive[i]) {
-                gearLifetime[i] -= deltaTime;
-                gearRotation[i] += deltaTime * 30; // 转动
+                gearLifetime[i] -= dt;
+                gearRotation[i] += dt * ((i % 2 == 0 ? 1 : -1) * (15 + 100 / gearSize[i]));
 
-                // 淡入淡出逻辑
-                if (gearLifetime[i] > 2.0f) {
-                    // 淡入稍微快一点，最大透明度设为 0.9，更亮！
-                    gearAlpha[i] = Math.min(0.9f, gearAlpha[i] + deltaTime * 0.8f);
-                } else if (gearLifetime[i] < 1.0f) {
-                    gearAlpha[i] = Math.max(0.0f, gearAlpha[i] - deltaTime * 0.5f);
+                if (gearLifetime[i] > 4.0f) {
+                    gearAlpha[i] = Math.min(0.85f, gearAlpha[i] + dt * 0.5f);
+                } else if (gearLifetime[i] < 1.5f) {
+                    gearAlpha[i] = Math.max(0.0f, gearAlpha[i] - dt * 0.5f);
                 }
 
                 if (gearLifetime[i] <= 0) {
@@ -567,40 +473,12 @@ public class StoryOverlayRenderer {
         }
     }
 
-    /**
-     * 绘制单个齿轮 - 关键：Z轴分层
-     */
-
-
-    /**
-     * 更新齿轮状态 - 随机生成新齿轮
-     */
-
-    /**
-     * 渲染金色齿轮
-     */
-    private void renderGears(int w, int h, float time) {
-        GlStateManager.disableTexture2D();
-
-        for (int i = 0; i < MAX_GEARS; i++) {
-            if (gearActive[i] && gearAlpha[i] > 0.01f) {
-                drawGear(gearX[i], gearY[i], gearSize[i], gearRotation[i], gearAlpha[i]);
-            }
-        }
-
-        GlStateManager.enableTexture2D();
-    }
-
-    /**
-     * 绘制单个齿轮
-     */
-
-    /**
-     * 初始化香巴拉着色器
-     */
-    private void initShambhalaShader() {
+    // ==================================================
+    //  着色器初始化
+    // ==================================================
+    private void initBrokenGodShader() {
         if (!OpenGlHelper.shadersSupported) {
-            shambhalaShaderProgram = -1;
+            brokenGodShaderProgram = -1;
             return;
         }
 
@@ -610,31 +488,30 @@ public class StoryOverlayRenderer {
             ARBShaderObjects.glCompileShaderARB(vertexShader);
 
             if (ARBShaderObjects.glGetObjectParameteriARB(vertexShader, ARBShaderObjects.GL_OBJECT_COMPILE_STATUS_ARB) == GL11.GL_FALSE) {
-                shambhalaShaderProgram = -1;
+                brokenGodShaderProgram = -1;
                 return;
             }
 
             int fragmentShader = ARBShaderObjects.glCreateShaderObjectARB(OpenGlHelper.GL_FRAGMENT_SHADER);
-            ARBShaderObjects.glShaderSourceARB(fragmentShader, SHAMBHALA_FRAGMENT_SHADER);
+            ARBShaderObjects.glShaderSourceARB(fragmentShader, BROKEN_GOD_FRAGMENT_SHADER);
             ARBShaderObjects.glCompileShaderARB(fragmentShader);
 
             if (ARBShaderObjects.glGetObjectParameteriARB(fragmentShader, ARBShaderObjects.GL_OBJECT_COMPILE_STATUS_ARB) == GL11.GL_FALSE) {
-                shambhalaShaderProgram = -1;
+                brokenGodShaderProgram = -1;
                 return;
             }
 
-            shambhalaShaderProgram = ARBShaderObjects.glCreateProgramObjectARB();
-            ARBShaderObjects.glAttachObjectARB(shambhalaShaderProgram, vertexShader);
-            ARBShaderObjects.glAttachObjectARB(shambhalaShaderProgram, fragmentShader);
-            ARBShaderObjects.glLinkProgramARB(shambhalaShaderProgram);
+            brokenGodShaderProgram = ARBShaderObjects.glCreateProgramObjectARB();
+            ARBShaderObjects.glAttachObjectARB(brokenGodShaderProgram, vertexShader);
+            ARBShaderObjects.glAttachObjectARB(brokenGodShaderProgram, fragmentShader);
+            ARBShaderObjects.glLinkProgramARB(brokenGodShaderProgram);
 
-            if (ARBShaderObjects.glGetObjectParameteriARB(shambhalaShaderProgram, ARBShaderObjects.GL_OBJECT_LINK_STATUS_ARB) == GL11.GL_FALSE) {
-                shambhalaShaderProgram = -1;
-                return;
+            if (ARBShaderObjects.glGetObjectParameteriARB(brokenGodShaderProgram, ARBShaderObjects.GL_OBJECT_LINK_STATUS_ARB) == GL11.GL_FALSE) {
+                brokenGodShaderProgram = -1;
             }
 
         } catch (Exception e) {
-            shambhalaShaderProgram = -1;
+            brokenGodShaderProgram = -1;
         }
     }
 }
