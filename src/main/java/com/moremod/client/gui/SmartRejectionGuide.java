@@ -203,7 +203,7 @@ public class SmartRejectionGuide extends Gui {
                 "§b◈ 你已成为机巧香巴拉 ◈", 400, 10,
                 "§7你是最美丽的人造之物...",
                 "§6升格: §f能量护盾、不灭之心、反伤",
-                "§b套装: §f6件香巴拉套装(查看饰品界面)",
+                "§b套装: §f6件香巴拉圣物(查看饰品界面)",
                 "§c代价: §7伤害削弱50%、防御消耗能量",
                 "§b按 [" + keyName + "] 查看完整能力列表"
         ), true);
@@ -905,10 +905,10 @@ public class SmartRejectionGuide extends Gui {
             "§a• §f链结站: §7可以正常使用"
         });
 
-        // ========== 香巴拉套装(饰品) ==========
+        // ========== 香巴拉圣物(饰品) ==========
         y = renderShambhalaSection(centerX, y, fr, alphaInt, bgAlpha,
-                "§b【香巴拉套装】", 0x55FFFF, new String[] {
-            "§b你拥有 §f6件§b 香巴拉套装饰品",
+                "§b【香巴拉圣物】", 0x55FFFF, new String[] {
+            "§b你拥有 §f6件§b 香巴拉圣物饰品",
             "§7打开饰品界面查看各套件详细能力",
             "§8(核心、壁垒、棘刺、净化、宁静、圣域)"
         });

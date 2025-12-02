@@ -40,7 +40,7 @@ public class FleshRejectionConfig {
 
     @Config.Comment({
             "每个模块等级提供的适应度",
-            "建议值: 12 (需要10个模块等级达到120适应度)",
+            "当前值: 10 (需要12个激活模块等级达到120适应度)",
             "Adaptation points per module level"
     })
     @Config.Name("模块适应度系数 | Adaptation Per Module")

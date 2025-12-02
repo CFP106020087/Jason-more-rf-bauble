@@ -1,6 +1,5 @@
 package com.moremod.system.humanity.intel;
 
-import com.moremod.moremodCreativeTab;
 import com.moremod.system.humanity.BiologicalProfile;
 import com.moremod.system.humanity.HumanityCapabilityHandler;
 import com.moremod.system.humanity.IHumanityData;
@@ -34,7 +33,6 @@ public class ItemIntelStatisticsBook extends Item {
     public ItemIntelStatisticsBook() {
         setRegistryName("intel_statistics_book");
         setTranslationKey("intel_statistics_book");
-        setCreativeTab(moremodCreativeTab.moremod_TAB);
         setMaxStackSize(1);
     }
 
@@ -44,7 +42,7 @@ public class ItemIntelStatisticsBook extends Item {
 
         // 播放书本打开音效
         world.playSound(null, player.posX, player.posY, player.posZ,
-                SoundEvents.ITEM_BOOK_PAGE_TURN, SoundCategory.PLAYERS, 1.0F, 1.0F);
+                SoundEvents.ENTITY_ITEMFRAME_PLACE, SoundCategory.PLAYERS, 1.0F, 1.0F);
 
         if (world.isRemote) {
             // 客户端打开GUI

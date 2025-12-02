@@ -7,6 +7,7 @@ import com.moremod.network.PacketHandler;
 import com.moremod.network.PacketSyncHumanityData;
 import com.moremod.system.humanity.AscensionRoute;
 import com.moremod.system.humanity.HumanityCapabilityHandler;
+import com.moremod.system.humanity.HumanityEffectsManager;
 import com.moremod.system.humanity.IHumanityData;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -353,9 +354,9 @@ public class BrokenGodHandler {
         ItemStack core = ItemMechanicalCore.getCoreFromPlayer(player);
         if (core.isEmpty()) return false;
 
-        // 条件4: 安装模块数量
-        int installedCount = ItemMechanicalCore.getTotalInstalledUpgrades(core);
-        if (installedCount < BrokenGodConfig.requiredModuleCount) return false;
+        // 条件4: 激活模块数量（考虑暂停和能量状态）
+        int activeModules = ItemMechanicalCore.getTotalActiveUpgradeLevel(core);
+        if (activeModules < BrokenGodConfig.requiredModuleCount) return false;
 
         return true;
     }

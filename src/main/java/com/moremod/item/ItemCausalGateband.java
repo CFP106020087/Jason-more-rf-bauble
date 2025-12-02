@@ -111,7 +111,7 @@ public class ItemCausalGateband extends Item implements IBauble {
         return false;
     }
 
-    // === 核心判定（與你的 Wishbone 風格一致、簡化） ===
+    // === 核心判定（使用 ItemMechanicalCore 的標準方法避免雙重計數） ===
     private static class CoreInfo { boolean hasCore; int activeModules; int qualifiedModules; }
     private CoreInfo analyzeCore(EntityPlayer player){
         CoreInfo info = new CoreInfo();
@@ -120,26 +120,9 @@ public class ItemCausalGateband extends Item implements IBauble {
         ItemStack core = ItemStack.EMPTY;
         for (int i=0;i<b.getSlots();i++){ ItemStack s=b.getStackInSlot(i); if(!s.isEmpty() && isMechanicalCore(s)){ core=s; info.hasCore=true; break; } }
         if (core.isEmpty()) return info;
-        NBTTagCompound n = core.getTagCompound(); if (n==null) return info;
-        if (n.hasKey("Upgrades", 10)) {
-            NBTTagCompound ups = n.getCompoundTag("Upgrades");
-            for (String k: ups.getKeySet()){
-                NBTTagCompound m = ups.getCompoundTag(k);
-                int lvl = m.getInteger("level");
-                boolean en = m.getBoolean("enabled")||m.getBoolean("active")||"ON".equals(m.getString("state"));
-                if (en && lvl>0){ info.activeModules++; if (lvl>=MIN_LEVEL_FOR_COUNT) info.qualifiedModules++; }
-            }
-        }
-        for (String k: n.getKeySet()){
-            if (k.startsWith("upgrade_")){
-                int lvl = n.getInteger(k);
-                if (lvl>0){
-                    String name=k.substring(8);
-                    boolean dis = n.getBoolean("Disabled_"+name)||n.getBoolean("IsPaused_"+name);
-                    if (!dis){ info.activeModules++; if (lvl>=MIN_LEVEL_FOR_COUNT) info.qualifiedModules++; }
-                }
-            }
-        }
+        // 使用 ItemMechanicalCore 的標準方法，避免雙重計數
+        info.activeModules = ItemMechanicalCore.getTotalActiveUpgradeLevel(core);
+        info.qualifiedModules = info.activeModules; // 使用相同值，因為 getTotalActiveUpgradeLevel 已過濾
         return info;
     }
     private boolean isMechanicalCore(ItemStack s){

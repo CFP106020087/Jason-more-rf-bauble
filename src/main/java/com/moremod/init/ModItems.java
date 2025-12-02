@@ -100,6 +100,9 @@ public final class ModItems {
     public static Item NEURAL_SYNCHRONIZER;     // 神经同步器
     public static Item BIO_STABILIZER;          // 生物稳定剂
     public static Item TOWEL;                   // 毛巾
+    //新模块(屎山包装)
+
+
 
     @SubscribeEvent
     public static void onRegisterItems(RegistryEvent.Register<Item> e) {
@@ -192,6 +195,7 @@ public final class ModItems {
 
         TOWEL = reg(e, new ItemTowel());
         System.out.println("[MoreMod] 🧴 毛巾已注册");
+        //新模块系统
     }
 
     private static Item reg(RegistryEvent.Register<Item> e, Item item) {
@@ -205,7 +209,6 @@ public final class ModItems {
         // 统一使用 item/generated
         bindModel(UNFORMED_FIBER, "unformed_fiber");
         bindModel(UNFORMED_FABRIC, "unformed_fabric");
-
         bindModel(FRGUARDIAN_STONE,      "frguardian_stone");
         bindModel(ANCIENT_CORE_FRAGMENT, "ancient_core_fragment");
         bindModel(RUNED_VOID_STONE,      "runed_void_stone");

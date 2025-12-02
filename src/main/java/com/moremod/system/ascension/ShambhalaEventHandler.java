@@ -143,7 +143,7 @@ public class ShambhalaEventHandler {
                 }
             }
 
-            // 香巴拉套装有6件饰品
+            // 香巴拉圣物有6件饰品
             if (count < 6) {
                 ShambhalaItems.replacePlayerBaubles(player);
                 LOGGER.debug("[Shambhala] Restored missing baubles for player {} ({}/6)", player.getName(), count);

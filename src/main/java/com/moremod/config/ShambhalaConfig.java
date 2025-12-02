@@ -30,12 +30,12 @@ public class ShambhalaConfig {
     public static double ascensionHumanityThreshold = 90.0;
 
     @Config.Comment({
-            "升格所需的最少模块数量",
-            "Minimum installed modules required for ascension"
+            "升格所需的激活模块数量（模块等级总和）",
+            "Minimum active module count required for ascension (sum of all module levels)"
     })
-    @Config.Name("模块数量要求 | Required Module Count")
-    @Config.RangeInt(min = 1, max = 60)
-    public static int requiredModuleCount = 40;
+    @Config.Name("激活模块要求 | Required Active Modules")
+    @Config.RangeInt(min = 1, max = 100)
+    public static int requiredModuleCount = 50;
 
     @Config.Comment({
             "升格所需的高人性值累计时间（秒）",

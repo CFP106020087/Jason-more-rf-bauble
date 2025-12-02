@@ -11,6 +11,22 @@ item.bio_stabilizer.desc=抑制血肉对机械核心的排异反应
 item.towel.name=毛巾
 item.neural_synchronizer.name=神经同步模块
 item.curse_spread.name=扩散诅咒的烙印
+
+# ===== 破碎之神圣物 (Broken God Relics) =====
+item.broken_hand.name=破碎之手
+item.broken_heart.name=破碎之心
+item.broken_arm.name=破碎之臂
+item.broken_shackles.name=破碎枷锁
+item.broken_projection.name=破碎投影
+item.broken_terminus.name=破碎终结
+
+# ===== 香巴拉圣物 (Shambhala Relics) =====
+item.shambhala_core.name=不灭之心
+item.shambhala_bastion.name=绝对防御
+item.shambhala_thorns.name=因果反噬
+item.shambhala_purify.name=净化之力
+item.shambhala_veil.name=反侦察
+item.shambhala_sanctuary.name=圣域护盾
 # tooltip.enigmaticlegacy.curse_spread
 # 剑升级工作站材料 - 中文本地化
 
@@ -108,10 +124,32 @@ item.jetpack_t1.name=喷气背包
 item.jetpack_t2.name=龙皮喷气背包
 item.jetpack_t3.name=觉知喷气背包
 item.creative_jetpack.name=创造模式喷气背包
-key.moremod.hover_toggle=悬浮模式
-key.categories.moremod= 飞行道具
+# ===== 按键分类 =====
+key.categories.moremod.mechanical_core=MoreMod - 机械核心
+key.categories.moremod.equipment=MoreMod - 装备功能
+key.categories.moremod.shambhala=MoreMod - 升格: 香巴拉
+
+# ===== 机械核心按键 =====
+key.moremod.toggle_hud=切换HUD显示
+key.moremod.open_core_gui=打开机械核心面板
+key.moremod.ore_vision=切换矿物透视
+key.moremod.ore_filter=切换矿物过滤
+key.moremod.stealth=切换隐身模式
+key.moremod.detail_info=显示详细信息（按住）
+key.moremod.scroll_upgrades=滚动升级列表
+key.moremod.rejection_status=系统引导界面
+
+# ===== 装备功能按键 =====
+key.moremod.dimensional_ripper=维度撕裂者操作
+key.moremod.personal_dimension=进入/离开私人维度
+key.moremod.enchant_boost=激活附魔增强饰品
+key.moremod.void_backpack=打开虚空背包
 key.moremod.jetpack_toggle=喷气背包开关
+key.moremod.hover_toggle=悬浮模式
 key.moremod.speed_toggle=速度档位
+
+# ===== 香巴拉按键 =====
+key.moremod.shambhala_peace_aura=宁静光环
 item.moremod.antikythera_gear.name=安迪基西拉的齿轮
 item.upgrade_selector.name=升级选择器
 item.battery_basic.name=基础电池

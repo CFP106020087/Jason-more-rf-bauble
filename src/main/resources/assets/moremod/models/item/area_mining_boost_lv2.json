@@ -1,0 +1,6 @@
+{
+    "parent": "item/generated",
+    "textures": {
+        "layer0": "moremod:items/area_mining_boost_lv2"
+    }
+}

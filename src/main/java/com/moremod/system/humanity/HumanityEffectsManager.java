@@ -366,7 +366,7 @@ public class HumanityEffectsManager {
         ItemStack core = com.moremod.item.ItemMechanicalCore.findEquippedMechanicalCore(player);
         if (!com.moremod.item.ItemMechanicalCore.isMechanicalCore(core)) return false;
 
-        int activeModules = countActiveModulesForAscension(player, core);
+        int activeModules = com.moremod.item.ItemMechanicalCore.getTotalActiveUpgradeLevel(core);
         if (activeModules < BrokenGodConfig.requiredModuleCount) return false;
 
         return true;
@@ -375,8 +375,9 @@ public class HumanityEffectsManager {
     /**
      * 计算激活模块数（用于升格检查）
      * 参考 ItemMechanicalExoskeleton.countActiveModules()
+     * 统计所有模块的等级总和，而非安装种类数
      */
-    private static int countActiveModulesForAscension(EntityPlayer player, ItemStack core) {
+    public static int countActiveModulesForAscension(EntityPlayer player, ItemStack core) {
         int total = 0;
 
         // 基础模块
