@@ -16,8 +16,8 @@ import com.moremod.container.ContainerTradingStation;
 import com.moremod.tile.TileTradingStation;
 
 // 🌌 虚空背包链接GUI导入
-import com.moremod.inventory.ContainerVoidBackpack;
-import com.moremod.inventory.InventoryVoidBackpack;
+import com.moremod.item.inventory.ContainerVoidBackpack;
+import com.moremod.item.inventory.InventoryVoidBackpack;
 
 // 🗡️ 劍升級台（material 版）GUI導入
 import com.moremod.container.ContainerSwordUpgradeStationMaterial;

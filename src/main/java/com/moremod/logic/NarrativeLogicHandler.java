@@ -1,4 +1,4 @@
-package com.moremod.logic;
+package com.moremod.system.logic;
 
 import com.moremod.client.gui.PlayerNarrativeState;
 import com.moremod.system.humanity.AscensionRoute;

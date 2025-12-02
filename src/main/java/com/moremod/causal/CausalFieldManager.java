@@ -1,4 +1,4 @@
-package com.moremod.causal;
+package com.moremod.item.causal;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.world.World;

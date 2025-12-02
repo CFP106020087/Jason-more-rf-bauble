@@ -35,7 +35,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 
-import static com.moremod.eventHandler.EnergyBarrierEventHandler.getDamageTypeName;
+import static com.moremod.event.eventHandler.EnergyBarrierEventHandler.getDamageTypeName;
 
 /**
  * 完整的护盾系统集成 - Minecraft 1.12.2 版本

@@ -1,6 +1,6 @@
 package com.moremod.mixin;
 
-import com.moremod.causal.CausalFieldManager;
+import com.moremod.item.causal.CausalFieldManager;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraftforge.event.entity.living.*;
 import org.spongepowered.asm.mixin.Mixin;

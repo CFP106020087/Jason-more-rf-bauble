@@ -1,4 +1,4 @@
-package com.moremod.causal;
+package com.moremod.item.causal;
 
 import atomicstryker.infernalmobs.common.InfernalMobsCore;
 import atomicstryker.infernalmobs.common.MobModifier;

@@ -1,6 +1,6 @@
 package com.moremod.event;
 
-import com.moremod.combat.TrueDamageHelper;
+import com.moremod.util.combat.TrueDamageHelper;
 import com.moremod.fabric.data.UpdatedFabricPlayerData;
 import com.moremod.fabric.system.FabricWeavingSystem;
 import net.minecraft.entity.EntityLivingBase;

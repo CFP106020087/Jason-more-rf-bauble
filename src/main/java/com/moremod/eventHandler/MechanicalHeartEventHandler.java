@@ -1,4 +1,4 @@
-package com.moremod.eventHandler;
+package com.moremod.event.eventHandler;
 
 import com.moremod.item.ItemMechanicalHeart;
 import net.minecraft.entity.player.EntityPlayer;

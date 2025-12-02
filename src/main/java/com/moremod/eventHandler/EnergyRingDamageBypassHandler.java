@@ -1,4 +1,4 @@
-package com.moremod.eventHandler;
+package com.moremod.event.eventHandler;
 
 import baubles.api.BaublesApi;
 import com.moremod.item.ItemSpearBauble;

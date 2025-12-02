@@ -1,4 +1,4 @@
-package com.moremod.causal;
+package com.moremod.item.causal;
 
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraftforge.fml.common.Mod;

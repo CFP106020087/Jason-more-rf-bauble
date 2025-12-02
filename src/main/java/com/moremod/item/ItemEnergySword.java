@@ -3,7 +3,7 @@ package com.moremod.item;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import com.moremod.creativetab.moremodCreativeTab;
-import com.moremod.mixinhelper.CapBypassFlag;
+import com.moremod.mixin.mixinhelper.CapBypassFlag;
 import net.minecraft.enchantment.EnchantmentDurability;
 import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.*;

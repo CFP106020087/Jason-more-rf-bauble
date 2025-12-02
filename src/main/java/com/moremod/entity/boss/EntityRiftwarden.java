@@ -1,7 +1,7 @@
 package com.moremod.entity.boss;
 
 import com.github.alexthe666.iceandfire.api.ChainLightningUtils;
-import com.moremod.combat.TrueDamageHelper;
+import com.moremod.util.combat.TrueDamageHelper;
 import com.moremod.entity.EntityCursedKnight;
 import com.moremod.entity.fx.EntityLaserBeam;
 import com.moremod.entity.fx.EntityLightningArc;

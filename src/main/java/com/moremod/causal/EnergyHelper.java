@@ -1,4 +1,4 @@
-package com.moremod.causal;
+package com.moremod.item.causal;
 
 import baubles.api.BaublesApi;
 import baubles.api.cap.IBaublesItemHandler;

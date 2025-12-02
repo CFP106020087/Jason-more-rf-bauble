@@ -1,4 +1,4 @@
-package com.moremod.combat;
+package com.moremod.util.combat;
 
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;

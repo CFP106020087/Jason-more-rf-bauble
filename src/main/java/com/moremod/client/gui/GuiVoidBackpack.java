@@ -1,6 +1,6 @@
 package com.moremod.client.gui;
 
-import com.moremod.inventory.ContainerVoidBackpack;
+import com.moremod.item.inventory.ContainerVoidBackpack;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.entity.player.InventoryPlayer;

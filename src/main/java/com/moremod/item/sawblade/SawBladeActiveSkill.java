@@ -1,6 +1,6 @@
 package com.moremod.item.sawblade;
 
-import com.moremod.combat.TrueDamageHelper;
+import com.moremod.util.combat.TrueDamageHelper;
 import com.moremod.item.sawblade.potion.PotionBloodEuphoria;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.monster.IMob;

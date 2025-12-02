@@ -30,7 +30,7 @@ import com.moremod.entity.EntitySwordBeam;
 import com.moremod.client.render.RenderSwordBeam;
 // ========================================
 import com.moremod.event.*;
-import com.moremod.eventHandler.*;
+import com.moremod.event.eventHandler.*;
 import com.moremod.client.gui.GuiHandler;
 import com.moremod.fabric.handler.SpatialFabricFirstAidHandler;
 import com.moremod.fabric.sanity.CompleteSanitySystem;
@@ -50,9 +50,9 @@ import com.moremod.proxy.CommonProxy;
 import com.moremod.recipe.DimensionLoomRecipeLoader;
 import com.moremod.ritual.RitualRecipeLoader;
 import com.moremod.ritual.fabric.UniversalFabricRituals;
-import com.moremod.eventHandler.SimpleCoreHandler;
-import com.moremod.eventHandler.CoreDropProtection;
-import com.moremod.eventHandler.SmartUpgradeHandler;
+import com.moremod.event.eventHandler.SimpleCoreHandler;
+import com.moremod.event.eventHandler.CoreDropProtection;
+import com.moremod.event.eventHandler.SmartUpgradeHandler;
 import com.moremod.handler.DimensionalRipperEventHandler;
 
 // 配置系统导入

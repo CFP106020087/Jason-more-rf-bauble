@@ -2,7 +2,7 @@ package com.moremod.system.ascension;
 
 import baubles.api.BaublesApi;
 import baubles.api.cap.IBaublesItemHandler;
-import com.moremod.combat.TrueDamageHelper;
+import com.moremod.util.combat.TrueDamageHelper;
 import com.moremod.config.ShambhalaConfig;
 import com.moremod.core.ShambhalaDeathHook;
 import com.moremod.item.shambhala.ItemShambhalaVeil;

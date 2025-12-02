@@ -1,4 +1,4 @@
-package com.moremod.inventory;
+package com.moremod.item.inventory;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.IInventory;

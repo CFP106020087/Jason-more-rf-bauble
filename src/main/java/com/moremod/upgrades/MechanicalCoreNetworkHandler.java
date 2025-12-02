@@ -5,7 +5,7 @@ import com.moremod.network.MessageJetpackJumping;
 import com.moremod.network.MessageJetpackSneaking;
 import com.moremod.network.MessageToggleJetpackMode;
 import com.moremod.network.PacketHandler;
-import com.moremod.eventHandler.EventHandlerJetpack;
+import com.moremod.event.eventHandler.EventHandlerJetpack;
 import com.moremod.client.JetpackKeyHandler;
 
 import baubles.api.BaublesApi;

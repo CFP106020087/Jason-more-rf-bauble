@@ -3,7 +3,7 @@
 // 位置: src/main/java/com/moremod/eventHandler/ServerTickHandler.java
 // ============================================
 
-package com.moremod.eventHandler;
+package com.moremod.event.eventHandler;
 
 import com.moremod.capability.IPlayerTimeData;
 import com.moremod.capability.PlayerTimeDataCapability;

@@ -1,6 +1,6 @@
 package com.moremod.network;
 
-import com.moremod.eventHandler.EventHandlerJetpack;
+import com.moremod.event.eventHandler.EventHandlerJetpack;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;

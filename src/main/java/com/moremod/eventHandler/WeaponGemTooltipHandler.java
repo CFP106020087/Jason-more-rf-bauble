@@ -1,4 +1,4 @@
-package com.moremod.eventHandler;
+package com.moremod.event.eventHandler;
 
 import com.moremod.compat.crafttweaker.*;
 import net.minecraft.item.ItemStack;

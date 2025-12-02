@@ -1,6 +1,6 @@
 package com.moremod.synergy.synergies;
 
-import com.moremod.combat.TrueDamageHelper;
+import com.moremod.util.combat.TrueDamageHelper;
 import com.moremod.synergy.api.ISynergyEffect;
 import com.moremod.synergy.bridge.ExistingModuleBridge;
 import com.moremod.synergy.condition.*;

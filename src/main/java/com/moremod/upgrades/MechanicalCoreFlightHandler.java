@@ -1,7 +1,7 @@
 package com.moremod.upgrades;
 
 import com.moremod.item.ItemMechanicalCore;
-import com.moremod.eventHandler.EventHandlerJetpack;
+import com.moremod.event.eventHandler.EventHandlerJetpack;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;

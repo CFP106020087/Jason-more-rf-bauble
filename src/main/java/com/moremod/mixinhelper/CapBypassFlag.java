@@ -1,4 +1,4 @@
-package com.moremod.mixinhelper;
+package com.moremod.mixin.mixinhelper;
 
 public class CapBypassFlag {
   // 阿斯摩太护盾穿透标记

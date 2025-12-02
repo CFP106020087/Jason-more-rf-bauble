@@ -1,4 +1,4 @@
-package com.moremod.eventHandler;
+package com.moremod.event.eventHandler;
 
 import com.moremod.tile.TileEntityWisdomFountain;
 import com.moremod.util.WisdomFountainHelper;

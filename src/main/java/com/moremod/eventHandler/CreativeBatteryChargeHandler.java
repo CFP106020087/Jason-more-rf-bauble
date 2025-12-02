@@ -2,7 +2,7 @@
 // 文件位置: src/main/java/com/moremod/eventHandler/CreativeBatteryChargeHandler.java
 // 描述: 以未知的科技，从虚空场中抽取能量
 
-package com.moremod.eventHandler;
+package com.moremod.event.eventHandler;
 
 import com.moremod.item.ItemCreativeBatteryBauble;
 import baubles.api.BaublesApi;

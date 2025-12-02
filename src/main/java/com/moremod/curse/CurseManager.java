@@ -1,4 +1,4 @@
-package com.moremod.curse;
+package com.moremod.entity.curse;
 
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.attributes.AttributeModifier;

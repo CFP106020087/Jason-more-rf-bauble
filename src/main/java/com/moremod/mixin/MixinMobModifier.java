@@ -1,7 +1,7 @@
 package com.moremod.mixin;
 
 import atomicstryker.infernalmobs.common.MobModifier;
-import com.moremod.causal.CausalFieldManager;
+import com.moremod.item.causal.CausalFieldManager;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.util.DamageSource;
