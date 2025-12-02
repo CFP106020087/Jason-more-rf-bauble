@@ -78,7 +78,7 @@ public class AutoEffectHandler {
         if (event.player.world.isRemote) return;
 
         EntityPlayer player = event.player;
-        ItemStack coreStack = ItemMechanicalCore.findEquippedCore(player);
+        ItemStack coreStack = ItemMechanicalCore.findEquippedMechanicalCore(player);
 
         if (coreStack.isEmpty()) {
             handleCoreRemoved(player);
@@ -236,7 +236,7 @@ public class AutoEffectHandler {
         // 玩家攻击
         if (sourceEntity instanceof EntityPlayer) {
             EntityPlayer player = (EntityPlayer) sourceEntity;
-            ItemStack coreStack = ItemMechanicalCore.findEquippedCore(player);
+            ItemStack coreStack = ItemMechanicalCore.findEquippedMechanicalCore(player);
             if (!coreStack.isEmpty() && event.getEntityLiving() != null) {
                 float damage = event.getAmount();
                 damage = processPlayerAttack(player, coreStack, event.getEntityLiving(), damage, event);
@@ -247,7 +247,7 @@ public class AutoEffectHandler {
         // 玩家受伤
         if (event.getEntityLiving() instanceof EntityPlayer) {
             EntityPlayer player = (EntityPlayer) event.getEntityLiving();
-            ItemStack coreStack = ItemMechanicalCore.findEquippedCore(player);
+            ItemStack coreStack = ItemMechanicalCore.findEquippedMechanicalCore(player);
             if (!coreStack.isEmpty()) {
                 float damage = event.getAmount();
                 damage = processPlayerHurt(player, coreStack, damage, event);
@@ -359,7 +359,7 @@ public class AutoEffectHandler {
         if (!(event.getEntityLiving() instanceof EntityPlayer)) return;
 
         EntityPlayer player = (EntityPlayer) event.getEntityLiving();
-        ItemStack coreStack = ItemMechanicalCore.findEquippedCore(player);
+        ItemStack coreStack = ItemMechanicalCore.findEquippedMechanicalCore(player);
         if (coreStack.isEmpty()) return;
 
         for (ModuleDefinition def : ModuleAutoRegistry.getAllDefinitions()) {
@@ -386,7 +386,7 @@ public class AutoEffectHandler {
         if (!(killer instanceof EntityPlayer)) return;
 
         EntityPlayer player = (EntityPlayer) killer;
-        ItemStack coreStack = ItemMechanicalCore.findEquippedCore(player);
+        ItemStack coreStack = ItemMechanicalCore.findEquippedMechanicalCore(player);
         if (coreStack.isEmpty()) return;
 
         EntityLivingBase target = event.getEntityLiving();
@@ -434,7 +434,7 @@ public class AutoEffectHandler {
         EntityPlayer player = event.getPlayer();
         if (player == null || player.world.isRemote) return;
 
-        ItemStack coreStack = ItemMechanicalCore.findEquippedCore(player);
+        ItemStack coreStack = ItemMechanicalCore.findEquippedMechanicalCore(player);
         if (coreStack.isEmpty()) return;
 
         for (ModuleDefinition def : ModuleAutoRegistry.getAllDefinitions()) {
@@ -455,7 +455,7 @@ public class AutoEffectHandler {
     }
 
     private static void processInteractEvent(EntityPlayer player, InteractCallback callback) {
-        ItemStack coreStack = ItemMechanicalCore.findEquippedCore(player);
+        ItemStack coreStack = ItemMechanicalCore.findEquippedMechanicalCore(player);
         if (coreStack.isEmpty()) return;
 
         for (ModuleDefinition def : ModuleAutoRegistry.getAllDefinitions()) {
