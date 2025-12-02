@@ -15,17 +15,17 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
  *
  * 独立事件处理器，不使用自动注册系统
  *
- * Lv1: +15% 远程伤害
- * Lv2: +30% 远程伤害
- * Lv3: +50% 远程伤害
+ * Lv1: +65% 远程伤害
+ * Lv2: +80% 远程伤害
+ * Lv3: +100% 远程伤害 (双倍)
  */
 @Mod.EventBusSubscriber(modid = "moremod")
 public class RangedDamageHandler {
 
     private static final String MODULE_ID = "RANGED_DAMAGE_BOOST";
 
-    // 每级伤害加成
-    private static final float[] DAMAGE_MULTIPLIERS = {0f, 0.15f, 0.30f, 0.50f};
+    // 每级伤害加成 (强化版: 全部 +50%)
+    private static final float[] DAMAGE_MULTIPLIERS = {0f, 0.65f, 0.80f, 1.00f};
 
     @SubscribeEvent(priority = EventPriority.NORMAL)
     public static void onLivingHurt(LivingHurtEvent event) {

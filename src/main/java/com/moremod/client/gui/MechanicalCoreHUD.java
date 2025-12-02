@@ -299,7 +299,7 @@ public class MechanicalCoreHUD extends Gui {
                 statusColor = TextFormatting.DARK_PURPLE;
             } else if (humanityData != null && humanityData.getAscensionRoute() == AscensionRoute.SHAMBHALA) {
                 statusText = "☀ 机巧香巴拉";
-                statusColor = TextFormatting.AQUA;
+                statusColor = TextFormatting.GOLD;
             }
         }
         drawSeparator(contentX, currentY - 2, contentWidth);
@@ -352,7 +352,7 @@ public class MechanicalCoreHUD extends Gui {
                 titleColor = TextFormatting.DARK_PURPLE;
             } else if (route == AscensionRoute.SHAMBHALA) {
                 hTitle = "☀ 圆满";
-                titleColor = TextFormatting.AQUA;
+                titleColor = TextFormatting.GOLD;
             } else {
                 hTitle = "⚛ 人性";
                 titleColor = TextFormatting.LIGHT_PURPLE;
@@ -574,7 +574,7 @@ public class MechanicalCoreHUD extends Gui {
 
     private int getHumanityBarColor(float h, AscensionRoute r) {
         if (r == AscensionRoute.BROKEN_GOD) return 0xFF5500AA; // 破碎之神暗紫
-        if (r == AscensionRoute.SHAMBHALA) return 0xFF00DDFF;  // 机巧香巴拉青金
+        if (r == AscensionRoute.SHAMBHALA) return 0xFFFFAA00;  // 机巧香巴拉金色
         if (h < 25) return 0xFFAA0000;
         if (h < 50) return 0xFFAA00AA;
         return 0xFF00AAFF;

@@ -96,7 +96,6 @@ public class ItemTransporter extends Block implements ITileEntityProvider {
                         com.moremod.client.gui.GuiHandler.ITEM_TRANSPORTER_GUI,
                         worldIn, pos.getX(), pos.getY(), pos.getZ()
                 );
-                System.out.println("[MoreMod] 玩家打开物品传输器GUI");
             }
         }
         return true;

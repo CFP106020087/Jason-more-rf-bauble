@@ -102,15 +102,12 @@
         },
         {
           "type": "item",
-          "name": "moremod:spectral_dust",
-          "weight": 100,
+          "name": "moremod:void_echo",
+          "weight": 25,
           "functions": [
             {
               "function": "set_count",
-              "count": {
-                "min": 2,
-                "max": 4
-              }
+              "count": 1
             }
           ]
         },
@@ -139,17 +136,6 @@
                 "min": 1,
                 "max": 2
               }
-            }
-          ]
-        },
-        {
-          "type": "item",
-          "name": "moremod:void_echo",
-          "weight": 25,
-          "functions": [
-            {
-              "function": "set_count",
-              "count": 1
             }
           ]
         }

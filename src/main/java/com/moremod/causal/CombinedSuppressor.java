@@ -54,7 +54,6 @@ public final class CombinedSuppressor {
                 if (modNames != null && !modNames.isEmpty()) {
                     tag.setString(NBT_INF_BACK, modNames);
                 }
-                System.out.println("[Infernal] 压制: " + e.getName() + " (Mods: " + modNames + ")");
             }
 
             InfernalMobsCore.removeEntFromElites(e);
@@ -65,12 +64,10 @@ public final class CombinedSuppressor {
             if (chain != null) {
                 raresMap.put(e, chain);
                 chain.onSpawningComplete(e);
-                System.out.println("[Infernal] 恢复: " + e.getName());
             } else {
                 String modNames = tag.getString(NBT_INF_BACK);
                 if (!modNames.isEmpty()) {
                     InfernalMobsCore.instance().addEntityModifiersByString(e, modNames);
-                    System.out.println("[Infernal] 从NBT恢复: " + e.getName());
                 }
             }
 
@@ -107,8 +104,6 @@ public final class CombinedSuppressor {
             tag.setTag(NBT_CH_BACK, back);
             tag.setBoolean(NBT_CH_SUPP, true);
 
-            System.out.println("[Champions] 压制: " + e.getName() + " (Tier " + tier + ", " + affixes.getKeySet().size() + " 词条)");
-
             // 【关键修复1】正确清空所有数据
             chp.setRank(RankManager.getEmptyRank());
             chp.setName("");
@@ -140,8 +135,6 @@ public final class CombinedSuppressor {
 
                 chp.setAffixes(affixIds);                  // 设置词条ID集合
                 chp.setAffixData(affixDataMap);            // ← 关键：设置词条数据Map！
-
-                System.out.println("[Champions] 恢复: " + e.getName() + " (Tier " + oldTier + ", " + affixIds.size() + " 词条)");
 
                 // 强制同步到客户端
                 syncChampionToClients(e, oldTier, affixDataMap, oldName);
@@ -176,16 +169,10 @@ public final class CombinedSuppressor {
                     );
 
                     NetworkHandler.INSTANCE.sendTo(packet, (EntityPlayerMP) player);
-
-                    System.out.println(String.format(
-                            "[Champions] 同步到客户端: %s (Tier=%d, Affixes=%d)",
-                            player.getName(), tier, affixData.size()
-                    ));
                 }
             }
         } catch (Exception ex) {
-            System.out.println("[Champions] 同步失败: " + ex.getMessage());
-            ex.printStackTrace();
+            // Sync failed silently
         }
     }
 }

@@ -119,7 +119,7 @@ public class HumanityHUD extends Gui {
         if (isBrokenGod) {
             color = 0xFF5500AA;  // 破碎之神: 深紫色
         } else if (isShambhala) {
-            color = 0xFF00AAFF;  // 机巧香巴拉: 青金色
+            color = 0xFFFFAA00;  // 机巧香巴拉: 金色
         } else {
             color = getHumanityColor(humanity);
         }
@@ -214,7 +214,7 @@ public class HumanityHUD extends Gui {
 
         // 机巧香巴拉显示特殊标签
         if (data.getAscensionRoute() == AscensionRoute.SHAMBHALA) {
-            return "\u00a7b\u00a7l机巧香巴拉";
+            return "\u00a76\u00a7l机巧香巴拉";
         }
 
         if (data.isDissolutionActive()) {
@@ -247,7 +247,7 @@ public class HumanityHUD extends Gui {
 
         // 机巧香巴拉使用特殊颜色
         if (data.getAscensionRoute() == AscensionRoute.SHAMBHALA) {
-            return 0xFF55DDFF;  // 稳定的青金色
+            return 0xFFFFAA00;  // 稳定的金色
         }
 
         float humanity = data.getHumanity();

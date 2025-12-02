@@ -196,6 +196,5 @@ public class ContainerTradingStation extends Container {
     @Override
     public void onContainerClosed(EntityPlayer playerIn) {
         super.onContainerClosed(playerIn);
-        System.out.println("[ContainerTradingStation] 玩家 " + playerIn.getName() + " 關閉了交易機GUI");
     }
 }

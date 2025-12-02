@@ -1,7 +1,7 @@
 package com.moremod.dungeon.boss;
 
+import com.moremod.init.ModBlocks;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.BlockPos;
@@ -22,8 +22,8 @@ public class BossAltarInteractionHandler {
         BlockPos pos = event.getPos();
         EntityPlayer player = event.getEntityPlayer();
 
-        // 检查是否是信标方块
-        if (world.getBlockState(pos).getBlock() != Blocks.BEACON) {
+        // 检查是否是量子锁定方块（Boss祭坛）
+        if (world.getBlockState(pos).getBlock() != ModBlocks.UNBREAKABLE_BARRIER_QUANTUM) {
             return;
         }
 
@@ -37,7 +37,7 @@ public class BossAltarInteractionHandler {
 
         // 检查玩家是否持有下界之星
         if (heldItem.isEmpty() || heldItem.getItem() != Items.NETHER_STAR) {
-            player.sendMessage(new TextComponentString("§c需要下界之星才能激活虚空祭坛！"));
+            player.sendMessage(new TextComponentString("§c需要下界之星才能激活量子祭坛！"));
             event.setCanceled(true);
             return;
         }
@@ -49,7 +49,7 @@ public class BossAltarInteractionHandler {
                 heldItem.shrink(1);
             }
 
-            player.sendMessage(new TextComponentString("§5虚空祭坛开始共鸣..."));
+            player.sendMessage(new TextComponentString("§5量子祭坛开始共鸣..."));
         }
 
         event.setCanceled(true);

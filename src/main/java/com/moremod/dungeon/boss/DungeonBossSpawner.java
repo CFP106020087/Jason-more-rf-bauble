@@ -3,6 +3,7 @@ package com.moremod.dungeon.boss;
 import com.moremod.entity.boss.EntityRiftwarden;
 import com.moremod.entity.boss.EntityStoneSentinel;
 import com.moremod.entity.EntityCursedKnight;
+import com.moremod.init.ModBlocks;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
@@ -43,7 +44,7 @@ public class DungeonBossSpawner {
     public static boolean trySpawnBoss(World world, BlockPos altarPos, EntityPlayer player) {
         if (world.isRemote) return false;
 
-        if (world.getBlockState(altarPos).getBlock() != Blocks.BEACON) {
+        if (world.getBlockState(altarPos).getBlock() != ModBlocks.UNBREAKABLE_BARRIER_QUANTUM) {
             return false;
         }
 
