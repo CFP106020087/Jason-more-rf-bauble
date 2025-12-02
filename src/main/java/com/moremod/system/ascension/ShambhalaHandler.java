@@ -7,6 +7,7 @@ import com.moremod.network.PacketHandler;
 import com.moremod.network.PacketSyncHumanityData;
 import com.moremod.system.humanity.AscensionRoute;
 import com.moremod.system.humanity.HumanityCapabilityHandler;
+import com.moremod.system.humanity.HumanitySpectrumSystem;
 import com.moremod.system.humanity.IHumanityData;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -418,6 +419,9 @@ public class ShambhalaHandler {
         player.world.playSound(null, player.posX, player.posY, player.posZ,
                 SoundEvents.BLOCK_PORTAL_TRIGGER,
                 net.minecraft.util.SoundCategory.PLAYERS, 1.0f, 1.0f);
+
+        // 立即同步到客户端（确保HUD及时更新）
+        HumanitySpectrumSystem.syncNow(player);
     }
 
     // ========== 粒子效果 ==========
