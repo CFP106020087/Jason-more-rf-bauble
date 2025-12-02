@@ -2506,11 +2506,11 @@ public class EnhancedRoomTemplates {
         // 中央武器架
         s.setBlockState(center, 1, center, Blocks.STANDING_BANNER.getDefaultState());
 
-        // 四个刷怪笼入口
-        placeRandomSpawner(s, center, 0, 3, 2);
-        placeRandomSpawner(s, center, 0, 22, 2);
-        placeRandomSpawner(s, 3, 0, center, 2);
-        placeRandomSpawner(s, 22, 0, center, 2);
+        // 四个刷怪笼入口 (Y=1 放置在地板上方)
+        placeRandomSpawner(s, center, 1, 3, 2);
+        placeRandomSpawner(s, center, 1, 22, 2);
+        placeRandomSpawner(s, 3, 1, center, 2);
+        placeRandomSpawner(s, 22, 1, center, 2);
 
         placeLootChest(s, center - 3, 1, center - 3, "moremod:dungeon/dungeon_normal");
         placeLootChest(s, center + 3, 1, center + 3, "moremod:dungeon/dungeon_normal");
