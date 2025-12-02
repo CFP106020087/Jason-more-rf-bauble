@@ -88,6 +88,9 @@ public class ChengYueEventHandler {
         ChengYueSurvival.tryActivateAegis(player, mainHand, damage, source);
         damage = ChengYueSurvival.applyAegisReduction(player, mainHand, damage, source);
 
+        // 尝试月华反哺（受伤回复）
+        ChengYueSurvival.tryHurtHeal(player, mainHand, damage);
+
         event.setAmount(damage);
     }
 
