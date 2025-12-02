@@ -15,6 +15,7 @@ import com.moremod.system.ascension.BrokenGodHandler;
 import com.moremod.system.ascension.ShambhalaHandler;
 import com.moremod.system.humanity.AscensionRoute;
 import com.moremod.system.humanity.HumanityCapabilityHandler;
+import com.moremod.system.humanity.HumanityEffectsManager;
 import com.moremod.system.humanity.IHumanityData;
 import com.moremod.upgrades.energy.EnergyDepletionManager;
 
@@ -794,14 +795,15 @@ public class MechanicalCoreGui extends GuiScreen {
         // 获取通用数据
         float humanity = data.getHumanity();
         ItemStack core = getCurrentCoreStack();
-        int installedCount = ItemMechanicalCore.getTotalInstalledUpgrades(core);
+        EntityPlayer player = mc.player;
+        int activeModules = HumanityEffectsManager.countActiveModulesForAscension(player, core);
 
         // ========== 破碎之神条件 ==========
         long lowHumanityTicks = data.getLowHumanityTicks();
         long lowHumanitySeconds = lowHumanityTicks / 20;
         boolean brokenHumanityMet = humanity <= BrokenGodConfig.ascensionHumanityThreshold;
         boolean brokenTimeMet = lowHumanitySeconds >= BrokenGodConfig.requiredLowHumanitySeconds;
-        boolean brokenModulesMet = installedCount >= BrokenGodConfig.requiredModuleCount;
+        boolean brokenModulesMet = activeModules >= BrokenGodConfig.requiredModuleCount;
         boolean canAscendBroken = brokenHumanityMet && brokenTimeMet && brokenModulesMet;
 
         // ========== 机巧香巴拉条件 ==========
@@ -809,7 +811,7 @@ public class MechanicalCoreGui extends GuiScreen {
         long requiredHighTicks = ShambhalaConfig.requiredHighHumanitySeconds * 20L;
         boolean shambhalaHumanityMet = humanity >= ShambhalaConfig.ascensionHumanityThreshold;
         boolean shambhalaTimeMet = highHumanityTicks >= requiredHighTicks;
-        boolean shambhalaModulesMet = installedCount >= ShambhalaConfig.requiredModuleCount;
+        boolean shambhalaModulesMet = activeModules >= ShambhalaConfig.requiredModuleCount;
         boolean canAscendShambhala = shambhalaHumanityMet && shambhalaTimeMet && shambhalaModulesMet;
 
         // 触发区位置（主GUI右侧的小标签）
@@ -855,7 +857,7 @@ public class MechanicalCoreGui extends GuiScreen {
 
         // ========== 破碎之神侧边栏 ==========
         if (showBrokenPanel) {
-            drawBrokenGodPanel(panelX, triggerY1, humanity, lowHumanitySeconds, installedCount,
+            drawBrokenGodPanel(panelX, triggerY1, humanity, lowHumanitySeconds, activeModules,
                     brokenHumanityMet, brokenTimeMet, brokenModulesMet, canAscendBroken);
             hideShambhalaButton();
         } else {
@@ -864,7 +866,7 @@ public class MechanicalCoreGui extends GuiScreen {
 
         // ========== 香巴拉侧边栏 ==========
         if (showShambhalaPanel) {
-            drawShambhalaPanel(panelX, triggerY2, humanity, highHumanityTicks, requiredHighTicks, installedCount,
+            drawShambhalaPanel(panelX, triggerY2, humanity, highHumanityTicks, requiredHighTicks, activeModules,
                     shambhalaHumanityMet, shambhalaTimeMet, shambhalaModulesMet, canAscendShambhala);
             hideBrokenGodButton();
         } else {
@@ -878,7 +880,7 @@ public class MechanicalCoreGui extends GuiScreen {
     }
 
     private void drawBrokenGodPanel(int panelX, int panelY, float humanity, long lowHumanitySeconds,
-                                     int installedCount, boolean humanityMet, boolean timeMet, boolean modulesMet, boolean canAscend) {
+                                     int activeModules, boolean humanityMet, boolean timeMet, boolean modulesMet, boolean canAscend) {
         // 绘制侧边栏背景
         drawRect(panelX, panelY, panelX + SIDE_PANEL_WIDTH, panelY + SIDE_PANEL_HEIGHT, 0xC0101010);
         drawRect(panelX + 1, panelY + 1, panelX + SIDE_PANEL_WIDTH - 1, panelY + SIDE_PANEL_HEIGHT - 1, 0xC0383838);
@@ -922,17 +924,17 @@ public class MechanicalCoreGui extends GuiScreen {
             this.fontRenderer.drawString(TextFormatting.RED + "✗" + TextFormatting.GRAY + timeStr, lineX, lineY, 0xFFFFFF);
         }
 
-        // 模块数量条件
+        // 激活模块条件
         lineY += 12;
         if (modulesMet) {
-            this.fontRenderer.drawString(TextFormatting.GREEN + "✓" + TextFormatting.GRAY + "模块≥" + BrokenGodConfig.requiredModuleCount, lineX, lineY, 0xFFFFFF);
+            this.fontRenderer.drawString(TextFormatting.GREEN + "✓" + TextFormatting.GRAY + "激活≥" + BrokenGodConfig.requiredModuleCount, lineX, lineY, 0xFFFFFF);
         } else {
-            this.fontRenderer.drawString(TextFormatting.RED + "✗" + TextFormatting.GRAY + installedCount + "/" + BrokenGodConfig.requiredModuleCount + "模块", lineX, lineY, 0xFFFFFF);
+            this.fontRenderer.drawString(TextFormatting.RED + "✗" + TextFormatting.GRAY + activeModules + "/" + BrokenGodConfig.requiredModuleCount + "激活", lineX, lineY, 0xFFFFFF);
         }
     }
 
     private void drawShambhalaPanel(int panelX, int panelY, float humanity, long highHumanityTicks,
-                                     long requiredTicks, int installedCount, boolean humanityMet, boolean timeMet, boolean modulesMet, boolean canAscend) {
+                                     long requiredTicks, int activeModules, boolean humanityMet, boolean timeMet, boolean modulesMet, boolean canAscend) {
         // 绘制侧边栏背景
         drawRect(panelX, panelY, panelX + SIDE_PANEL_WIDTH, panelY + SIDE_PANEL_HEIGHT, 0xC0101010);
         drawRect(panelX + 1, panelY + 1, panelX + SIDE_PANEL_WIDTH - 1, panelY + SIDE_PANEL_HEIGHT - 1, 0xC0383838);
@@ -977,12 +979,12 @@ public class MechanicalCoreGui extends GuiScreen {
             this.fontRenderer.drawString(TextFormatting.RED + "✗" + TextFormatting.GRAY + timeStr, lineX, lineY, 0xFFFFFF);
         }
 
-        // 模块数量条件
+        // 激活模块条件
         lineY += 12;
         if (modulesMet) {
-            this.fontRenderer.drawString(TextFormatting.GREEN + "✓" + TextFormatting.GRAY + "模块≥" + ShambhalaConfig.requiredModuleCount, lineX, lineY, 0xFFFFFF);
+            this.fontRenderer.drawString(TextFormatting.GREEN + "✓" + TextFormatting.GRAY + "激活≥" + ShambhalaConfig.requiredModuleCount, lineX, lineY, 0xFFFFFF);
         } else {
-            this.fontRenderer.drawString(TextFormatting.RED + "✗" + TextFormatting.GRAY + installedCount + "/" + ShambhalaConfig.requiredModuleCount + "模块", lineX, lineY, 0xFFFFFF);
+            this.fontRenderer.drawString(TextFormatting.RED + "✗" + TextFormatting.GRAY + activeModules + "/" + ShambhalaConfig.requiredModuleCount + "激活", lineX, lineY, 0xFFFFFF);
         }
     }
 

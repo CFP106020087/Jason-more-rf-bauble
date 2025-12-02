@@ -7,6 +7,7 @@ import com.moremod.network.PacketHandler;
 import com.moremod.network.PacketSyncHumanityData;
 import com.moremod.system.humanity.AscensionRoute;
 import com.moremod.system.humanity.HumanityCapabilityHandler;
+import com.moremod.system.humanity.HumanityEffectsManager;
 import com.moremod.system.humanity.HumanitySpectrumSystem;
 import com.moremod.system.humanity.IHumanityData;
 import net.minecraft.entity.player.EntityPlayer;
@@ -324,9 +325,9 @@ public class ShambhalaHandler {
         ItemStack core = ItemMechanicalCore.getCoreFromPlayer(player);
         if (core.isEmpty()) return false;
 
-        // 条件4: 安装模块数量
-        int installedCount = ItemMechanicalCore.getTotalInstalledUpgrades(core);
-        if (installedCount < ShambhalaConfig.requiredModuleCount) return false;
+        // 条件4: 激活模块数量（统计所有模块等级总和）
+        int activeModules = HumanityEffectsManager.countActiveModulesForAscension(player, core);
+        if (activeModules < ShambhalaConfig.requiredModuleCount) return false;
 
         return true;
     }
@@ -344,12 +345,12 @@ public class ShambhalaHandler {
         long secondsProgress = highHumanityTicks / 20;
 
         ItemStack core = ItemMechanicalCore.getCoreFromPlayer(player);
-        int modules = core.isEmpty() ? 0 : ItemMechanicalCore.getTotalInstalledUpgrades(core);
+        int modules = core.isEmpty() ? 0 : HumanityEffectsManager.countActiveModulesForAscension(player, core);
 
         return new String[]{
                 String.format("人性值: %.1f%% / %.1f%%", humanity, ShambhalaConfig.ascensionHumanityThreshold),
                 String.format("高人性时间: %d / %d 秒", secondsProgress, ShambhalaConfig.requiredHighHumanitySeconds),
-                String.format("模块数量: %d / %d", modules, ShambhalaConfig.requiredModuleCount)
+                String.format("激活模块: %d / %d", modules, ShambhalaConfig.requiredModuleCount)
         };
     }
 

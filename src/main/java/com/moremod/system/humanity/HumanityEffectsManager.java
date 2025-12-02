@@ -375,8 +375,9 @@ public class HumanityEffectsManager {
     /**
      * 计算激活模块数（用于升格检查）
      * 参考 ItemMechanicalExoskeleton.countActiveModules()
+     * 统计所有模块的等级总和，而非安装种类数
      */
-    private static int countActiveModulesForAscension(EntityPlayer player, ItemStack core) {
+    public static int countActiveModulesForAscension(EntityPlayer player, ItemStack core) {
         int total = 0;
 
         // 基础模块
