@@ -98,31 +98,26 @@ public class BrokenGodEventHandler {
     /**
      * 检测并补回缺失的破碎之神饰品
      * 作为死亡保护机制的fallback，确保饰品不会因为任何原因丢失
+     * 复杂度: O(7) - 遍历饰品槽位
      */
     private static void checkAndRestoreBrokenGodBaubles(EntityPlayer player) {
         try {
             IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(player);
             if (baubles == null) return;
 
-            // 检查是否有任何破碎之神饰品缺失
-            boolean hasMissing = false;
-            int brokenItemCount = 0;
+            // 统计破碎之神饰品数量
+            int count = 0;
             for (int i = 0; i < baubles.getSlots(); i++) {
                 ItemStack stack = baubles.getStackInSlot(i);
                 if (!stack.isEmpty() && BrokenGodItems.isBrokenItem(stack)) {
-                    brokenItemCount++;
+                    count++;
                 }
             }
 
             // 破碎之神套装有6件饰品
-            if (brokenItemCount < 6) {
-                hasMissing = true;
-            }
-
-            // 如果有缺失，重新装备所有饰品
-            if (hasMissing) {
+            if (count < 6) {
                 BrokenGodItems.replacePlayerBaubles(player);
-                LOGGER.debug("[BrokenGod] Restored missing baubles for player {}", player.getName());
+                LOGGER.debug("[BrokenGod] Restored missing baubles for player {} ({}/6)", player.getName(), count);
             }
         } catch (Exception e) {
             LOGGER.error("[BrokenGod] Error checking/restoring baubles", e);

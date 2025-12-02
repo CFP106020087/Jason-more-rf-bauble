@@ -127,26 +127,26 @@ public class ShambhalaEventHandler {
     /**
      * 检测并补回缺失的香巴拉饰品
      * 作为死亡保护机制的fallback，确保饰品不会因为任何原因丢失
+     * 复杂度: O(7) - 遍历饰品槽位
      */
     private static void checkAndRestoreShambhalaBaubles(EntityPlayer player) {
         try {
             IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(player);
             if (baubles == null) return;
 
-            // 检查是否有任何香巴拉饰品缺失
-            boolean hasMissing = false;
-            for (int i = 0; i < Math.min(7, baubles.getSlots()); i++) {
+            // 统计香巴拉饰品数量
+            int count = 0;
+            for (int i = 0; i < baubles.getSlots(); i++) {
                 ItemStack stack = baubles.getStackInSlot(i);
-                if (stack.isEmpty() || !ShambhalaItems.isShambhalaItem(stack)) {
-                    hasMissing = true;
-                    break;
+                if (!stack.isEmpty() && ShambhalaItems.isShambhalaItem(stack)) {
+                    count++;
                 }
             }
 
-            // 如果有缺失，重新装备所有饰品
-            if (hasMissing) {
+            // 香巴拉套装有6件饰品
+            if (count < 6) {
                 ShambhalaItems.replacePlayerBaubles(player);
-                LOGGER.debug("[Shambhala] Restored missing baubles for player {}", player.getName());
+                LOGGER.debug("[Shambhala] Restored missing baubles for player {} ({}/6)", player.getName(), count);
             }
         } catch (Exception e) {
             LOGGER.error("[Shambhala] Error checking/restoring baubles", e);
