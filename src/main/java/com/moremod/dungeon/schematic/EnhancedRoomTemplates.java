@@ -6,6 +6,7 @@ import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
+import net.minecraft.util.EnumFacing;
 
 import javax.swing.text.html.parser.Entity;
 import java.util.Random;
@@ -21,7 +22,7 @@ public class EnhancedRoomTemplates {
     // 标准房间尺寸
     private static final int STANDARD_SIZE = 26;
     private static final int STANDARD_HEIGHT = 8;
-
+    private static final int STAIRCASE_ROOM_HEIGHT = 10;
     // Boss房间尺寸
     private static final int BOSS_ROOM_SIZE = 36;
     private static final int BOSS_ROOM_HEIGHT = 16;
@@ -1498,149 +1499,941 @@ public class EnhancedRoomTemplates {
     /**
      * 楼梯房间 - 向上传送
      */
-    public static Schematic staircaseRoomUp() {
-        Schematic s = new Schematic((short) STANDARD_SIZE, (short) STANDARD_HEIGHT, (short) STANDARD_SIZE);
 
-        IBlockState floor = Blocks.QUARTZ_BLOCK.getDefaultState();
-        IBlockState accent = Blocks.LAPIS_BLOCK.getDefaultState(); // 蓝色=向上
-
-        // 石英地板
-        for (int x = 0; x < STANDARD_SIZE; x++) {
-            for (int z = 0; z < STANDARD_SIZE; z++) {
-                s.setBlockState(x, 0, z, floor);
-            }
-        }
-
-        int center = STANDARD_SIZE / 2;
-
-        // 中央传送平台 - 向上箭头图案
-        createUpArrowPattern(s, center, accent);
-
-        // 传送台阶 (向上方向)
-        for (int step = 0; step < 4; step++) {
-            int y = step;
-            int startZ = center - 2 - step;
-            for (int dx = -2; dx <= 2; dx++) {
-                s.setBlockState(center + dx, y, startZ, Blocks.QUARTZ_STAIRS.getDefaultState());
-            }
-        }
-
-        // 四角海晶燈柱
-        createSeaLanternPillar(s, 5, 5);
-        createSeaLanternPillar(s, 20, 5);
-        createSeaLanternPillar(s, 5, 20);
-        createSeaLanternPillar(s, 20, 20);
-
-        // 发光指引
-        s.setBlockState(center, 1, center + 5, Blocks.SEA_LANTERN.getDefaultState());
-        s.setBlockState(center, 1, center - 5, Blocks.SEA_LANTERN.getDefaultState());
-
-        return s;
-    }
 
     /**
      * 楼梯房间 - 向下传送
      */
-    public static Schematic staircaseRoomDown() {
-        Schematic s = new Schematic((short) STANDARD_SIZE, (short) STANDARD_HEIGHT, (short) STANDARD_SIZE);
+    public static Schematic staircaseRoomUp() {
+        Schematic s = new Schematic((short) STANDARD_SIZE, (short) STAIRCASE_ROOM_HEIGHT, (short) STANDARD_SIZE);
 
-        IBlockState floor = Blocks.NETHER_BRICK.getDefaultState();
-        IBlockState accent = Blocks.REDSTONE_BLOCK.getDefaultState(); // 红色=向下
+        IBlockState floor = Blocks.QUARTZ_BLOCK.getDefaultState();
+        IBlockState accent = Blocks.LAPIS_BLOCK.getDefaultState(); // 蓝色=向上
+        IBlockState pillarMat = Blocks.QUARTZ_BLOCK.getStateFromMeta(2); // 柱状石英
+        // 使用完整方块作为阶梯，以保证生成稳定性和可行走性
+        IBlockState stairMat = Blocks.QUARTZ_BLOCK.getDefaultState();
 
-        // 地狱砖地板
+        // 基础地板和天花板
         for (int x = 0; x < STANDARD_SIZE; x++) {
             for (int z = 0; z < STANDARD_SIZE; z++) {
                 s.setBlockState(x, 0, z, floor);
+                s.setBlockState(x, STAIRCASE_ROOM_HEIGHT - 1, z, floor);
             }
         }
 
         int center = STANDARD_SIZE / 2;
+        int platformHeight = 4;
 
-        // 中央传送平台 - 向下箭头图案
-        createDownArrowPattern(s, center, accent);
-
-        // 下沉平台 (向下方向) - 使用不同材质标记，不能用负Y
-        for (int dx = -3; dx <= 3; dx++) {
-            for (int dz = -3; dz <= 3; dz++) {
-                if (Math.abs(dx) + Math.abs(dz) <= 4) {
-                    // 使用黑曜石作为下沉区域标记
-                    s.setBlockState(center + dx, 0, center + dz, Blocks.OBSIDIAN.getDefaultState());
-                }
-            }
-        }
-        // 中央下沉一格的视觉效果
-        for (int dx = -2; dx <= 2; dx++) {
-            for (int dz = -2; dz <= 2; dz++) {
-                s.setBlockState(center + dx, 0, center + dz, Blocks.MAGMA.getDefaultState());
+        // 1. 中央高架传送平台 (9x9)
+        for (int dx = -4; dx <= 4; dx++) {
+            for (int dz = -4; dz <= 4; dz++) {
+                // 使用青金石标记核心传送区域 (3x3)
+                boolean isCore = Math.abs(dx) <= 1 && Math.abs(dz) <= 1;
+                s.setBlockState(center + dx, platformHeight, center + dz, isCore ? accent : floor);
             }
         }
 
-        // 四角火焰柱
-        createNetherPillar(s, 5, 5, STANDARD_HEIGHT);
-        createNetherPillar(s, 20, 5, STANDARD_HEIGHT);
-        createNetherPillar(s, 5, 20, STANDARD_HEIGHT);
-        createNetherPillar(s, 20, 20, STANDARD_HEIGHT);
+        // 2. 四方宏伟阶梯 (宽度 5)
+        int stairWidth = 2; // 半径 (2*2+1 = 5格宽)
+        createGrandStairs(s, center, center, platformHeight, EnumFacing.NORTH, stairWidth, stairMat);
+        createGrandStairs(s, center, center, platformHeight, EnumFacing.SOUTH, stairWidth, stairMat);
+        createGrandStairs(s, center, center, platformHeight, EnumFacing.EAST, stairWidth, stairMat);
+        createGrandStairs(s, center, center, platformHeight, EnumFacing.WEST, stairWidth, stairMat);
 
-        // 红石灯照明
-        s.setBlockState(center - 5, 1, center, Blocks.REDSTONE_LAMP.getDefaultState());
-        s.setBlockState(center + 5, 1, center, Blocks.REDSTONE_LAMP.getDefaultState());
+
+        // 3. 支撑柱和装饰
+        int[][] pillarPos = {{center-6, center-6}, {center+6, center-6}, {center-6, center+6}, {center+6, center+6}};
+        for (int[] pos : pillarPos) {
+            for (int y = 1; y < platformHeight; y++) {
+                s.setBlockState(pos[0], y, pos[1], pillarMat);
+            }
+            // 柱顶照明
+            s.setBlockState(pos[0], platformHeight, pos[1], Blocks.SEA_LANTERN.getDefaultState());
+        }
+
+        // 4. 中央光束 (视觉效果)
+        for (int y = platformHeight + 1; y < STAIRCASE_ROOM_HEIGHT - 1; y++) {
+            // 使用末地烛模拟光束
+            s.setBlockState(center, y, center, Blocks.END_ROD.getDefaultState());
+        }
+        s.setBlockState(center, STAIRCASE_ROOM_HEIGHT - 1, center, Blocks.SEA_LANTERN.getDefaultState());
 
         return s;
     }
 
     /**
-     * 楼梯房间 - 双向传送
+     * 楼梯房间 - 向下：深渊螺旋 (The Descent)
+     * 主题：深入、黑暗。结构：环绕中央深坑的螺旋楼梯，通向底部。
+     */
+    public static Schematic staircaseRoomDown() {
+        Schematic s = new Schematic((short) STANDARD_SIZE, (short) STAIRCASE_ROOM_HEIGHT, (short) STANDARD_SIZE);
+
+        IBlockState floor = Blocks.NETHER_BRICK.getDefaultState();
+        IBlockState accent = Blocks.REDSTONE_BLOCK.getDefaultState(); // 红色=向下
+        IBlockState wall = Blocks.OBSIDIAN.getDefaultState();
+        IBlockState stairMat = Blocks.NETHER_BRICK.getDefaultState();
+
+        int center = STANDARD_SIZE / 2;
+        int upperLevelHeight = 6;
+
+        // 1. 搭建整体结构
+        for (int x = 0; x < STANDARD_SIZE; x++) {
+            for (int z = 0; z < STANDARD_SIZE; z++) {
+                // 天花板
+                s.setBlockState(x, STAIRCASE_ROOM_HEIGHT - 1, z, wall);
+                // 底部保护层 Y=0
+                s.setBlockState(x, 0, z, wall);
+            }
+        }
+
+        // 2. 创建上层平台 (Y=6)
+        for (int x = 1; x < STANDARD_SIZE - 1; x++) {
+            for (int z = 1; z < STANDARD_SIZE - 1; z++) {
+                s.setBlockState(x, upperLevelHeight, z, floor);
+            }
+        }
+
+        // 3. 中央深坑 (9x9)
+        int pitSize = 4; // 半径
+        for (int dx = -pitSize; dx <= pitSize; dx++) {
+            for (int dz = -pitSize; dz <= pitSize; dz++) {
+                // 清空上层平台中央
+                s.setBlockState(center + dx, upperLevelHeight, center + dz, Blocks.AIR.getDefaultState());
+
+                // 底部传送核心 (Y=1)
+                boolean isCore = Math.abs(dx) <= 1 && Math.abs(dz) <= 1;
+                // 底部岩浆和红石块
+                s.setBlockState(center + dx, 1, center + dz, isCore ? accent : Blocks.MAGMA.getDefaultState());
+            }
+        }
+
+        // 4. 螺旋下降楼梯 (从 Y=6 到 Y=2)
+        createSpiralDescent(s, center, upperLevelHeight, stairMat);
+
+        // 5. 装饰和氛围
+        // 悬挂锁链 (铁栅栏)
+        for (int dx = -6; dx <= 6; dx+=12) {
+            for (int dz = -6; dz <= 6; dz+=12) {
+                for (int y = upperLevelHeight + 1; y < STAIRCASE_ROOM_HEIGHT - 1; y++) {
+                    s.setBlockState(center + dx, y, center + dz, Blocks.IRON_BARS.getDefaultState());
+                }
+                s.setBlockState(center + dx, upperLevelHeight, center + dz, Blocks.REDSTONE_LAMP.getDefaultState());
+            }
+        }
+
+        // 6. 深坑边缘栏杆 (注意避开楼梯起点)
+        IBlockState railing = Blocks.NETHER_BRICK_FENCE.getDefaultState();
+        for (int i = -pitSize; i <= pitSize; i++) {
+            // 东西两侧
+            s.setBlockState(center - pitSize - 1, upperLevelHeight + 1, center + i, railing);
+            s.setBlockState(center + pitSize + 1, upperLevelHeight + 1, center + i, railing);
+
+            // 南北两侧 (避开北侧 Z- 的楼梯起点 -1, 0, 1)
+            if (i < -1 || i > 1) {
+                s.setBlockState(center + i, upperLevelHeight + 1, center - pitSize - 1, railing);
+            }
+            s.setBlockState(center + i, upperLevelHeight + 1, center + pitSize + 1, railing);
+        }
+
+        return s;
+    }
+
+    /**
+     * 楼梯房间 - 双向：时空枢纽 (Dimensional Nexus)
+     * 主题：平衡、能量。结构：分离的上升平台和下降平台。
      */
     public static Schematic staircaseRoomBoth() {
-        Schematic s = new Schematic((short) STANDARD_SIZE, (short) STANDARD_HEIGHT, (short) STANDARD_SIZE);
+        Schematic s = new Schematic((short) STANDARD_SIZE, (short) STAIRCASE_ROOM_HEIGHT, (short) STANDARD_SIZE);
 
         IBlockState floor = Blocks.END_BRICKS.getDefaultState();
         IBlockState upAccent = Blocks.LAPIS_BLOCK.getDefaultState();
         IBlockState downAccent = Blocks.REDSTONE_BLOCK.getDefaultState();
+        IBlockState core = Blocks.BEACON.getDefaultState();
+        IBlockState stairs = Blocks.PURPUR_BLOCK.getDefaultState(); // 使用完整方块
 
-        // 末地砖地板
+        // 基础地板和天花板
         for (int x = 0; x < STANDARD_SIZE; x++) {
             for (int z = 0; z < STANDARD_SIZE; z++) {
                 s.setBlockState(x, 0, z, floor);
+                s.setBlockState(x, STAIRCASE_ROOM_HEIGHT - 1, z, floor);
             }
         }
 
         int center = STANDARD_SIZE / 2;
 
-        // 左半区 - 向上 (蓝色)
-        for (int x = 3; x < center - 1; x++) {
-            for (int z = 3; z < STANDARD_SIZE - 3; z++) {
-                s.setBlockState(x, 0, z, Blocks.QUARTZ_BLOCK.getDefaultState());
+        // 1. 中央能量核心
+        s.setBlockState(center, 1, center, core);
+        for (int y = 2; y < STAIRCASE_ROOM_HEIGHT - 1; y++) {
+            // 使用紫色玻璃模拟能量光束
+            s.setBlockState(center, y, center, Blocks.STAINED_GLASS.getStateFromMeta(10));
+        }
+
+        // 2. 上升平台 (北侧 Z-, Y=4)
+        int upHeight = 4;
+        for (int x = center - 5; x <= center + 5; x++) {
+            for (int z = 3; z <= center - 3; z++) {
+                s.setBlockState(x, upHeight, z, floor);
             }
         }
-        createUpArrowPattern(s, 8, upAccent);
+        // 上升核心标记
+        s.setBlockState(center, upHeight, 6, upAccent);
+        s.setBlockState(center, upHeight+1, 6, Blocks.SEA_LANTERN.getDefaultState());
 
-        // 右半区 - 向下 (红色)
-        for (int x = center + 1; x < STANDARD_SIZE - 3; x++) {
-            for (int z = 3; z < STANDARD_SIZE - 3; z++) {
-                s.setBlockState(x, 0, z, Blocks.NETHER_BRICK.getDefaultState());
+
+        // 通往上升平台的楼梯 (宽度 3)
+        for (int dx = -1; dx <= 1; dx++) {
+            // Step 1 (Y=1)
+            s.setBlockState(center + dx, 1, center - 2, stairs);
+            // Step 2 (Y=2)
+            s.setBlockState(center + dx, 2, center - 3, stairs);
+            s.setBlockState(center + dx, 1, center - 3, stairs); // 填充
+            // Step 3 (Y=3)
+            s.setBlockState(center + dx, 3, center - 4, stairs);
+            s.setBlockState(center + dx, 1, center - 4, stairs); // 填充
+            s.setBlockState(center + dx, 2, center - 4, stairs); // 填充
+        }
+
+
+        // 3. 下降平台 (南侧 Z+, Y=0)
+        // 下降平台保持在 Y=0，但使用不同材质区分
+        for (int x = center - 5; x <= center + 5; x++) {
+            for (int z = center + 3; z <= STANDARD_SIZE - 4; z++) {
+                s.setBlockState(x, 0, z, Blocks.OBSIDIAN.getDefaultState());
             }
         }
-        createDownArrowPattern(s, 17, downAccent);
+        // 下降核心标记
+        s.setBlockState(center, 0, STANDARD_SIZE - 7, downAccent);
+        s.setBlockState(center, 1, STANDARD_SIZE - 7, Blocks.MAGMA.getDefaultState());
 
-        // 中央分隔带
-        for (int z = 0; z < STANDARD_SIZE; z++) {
-            s.setBlockState(center, 0, z, Blocks.PURPUR_BLOCK.getDefaultState());
-            s.setBlockState(center, 1, z, Blocks.PURPUR_PILLAR.getDefaultState());
-        }
 
-        // 四角装饰柱
+        // 4. 装饰柱 (使用原有的辅助函数)
         createEndPillar(s, 5, 5);
         createEndPillar(s, 20, 5);
         createEndPillar(s, 5, 20);
         createEndPillar(s, 20, 20);
 
-        // 照明
-        s.setBlockState(8, 1, center, Blocks.SEA_LANTERN.getDefaultState());
-        s.setBlockState(17, 1, center, Blocks.REDSTONE_LAMP.getDefaultState());
+        return s;
+    }
+
+    // ===== 楼梯房间新增辅助方法 (必须添加) =====
+
+    /**
+     * 【新增辅助函数】创建宏伟阶梯 (使用完整方块)
+     */
+    private static void createGrandStairs(Schematic s, int centerX, int centerZ, int platformHeight, EnumFacing facing, int width, IBlockState material) {
+        int platformDepth = 4; // 平台边缘距离中心的距离 (对应 9x9 平台)
+
+        for (int h = 1; h <= platformHeight; h++) {
+            // 每一级台阶向外延伸一格
+            int offset = platformHeight + 1 - h;
+
+            for (int w = -width; w <= width; w++) {
+                int x = centerX;
+                int z = centerZ;
+
+                // 根据方向确定坐标
+                switch (facing) {
+                    case NORTH: // Z-
+                        x += w;
+                        z -= (platformDepth + offset);
+                        break;
+                    case SOUTH: // Z+
+                        x += w;
+                        z += (platformDepth + offset);
+                        break;
+                    case EAST: // X+
+                        x += (platformDepth + offset);
+                        z += w;
+                        break;
+                    case WEST: // X-
+                        x -= (platformDepth + offset);
+                        z += w;
+                        break;
+                }
+
+                // 边界检查
+                if (x >= 0 && x < STANDARD_SIZE && z >= 0 && z < STANDARD_SIZE && h < STAIRCASE_ROOM_HEIGHT) {
+                    s.setBlockState(x, h, z, material);
+                    // 填充楼梯下方的空间
+                    for (int y = 1; y < h; y++) {
+                        // 检查是否为空，避免覆盖其他方向的楼梯
+                        if (s.getBlockState(x, y, z).getBlock() == Blocks.AIR) {
+                            s.setBlockState(x, y, z, material);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * 【新增辅助函数】创建螺旋下降楼梯 (使用预定义路径确保平滑)
+     */
+    private static void createSpiralDescent(Schematic s, int center, int startY, IBlockState material) {
+        // 螺旋路径坐标 (围绕 9x9 的坑，位于半径 5 的区域内)
+        // 路径定义了楼梯的形状，顺时针下降
+        int[][] path = {
+                // 从北侧 (Z-) 开始
+                {-1, -5}, {0, -5}, {1, -5},
+                // 向东移动 (X+)
+                {2, -5}, {3, -4}, {4, -3}, {5, -2},
+                {5, -1}, {5, 0}, {5, 1},
+                // 向南移动 (Z+)
+                {5, 2}, {4, 3}, {3, 4}, {2, 5},
+                {1, 5}, {0, 5}, {-1, 5},
+                // 向西移动 (X-)
+                {-2, 5}, {-3, 4}, {-4, 3}, {-5, 2},
+                {-5, 1}, {-5, 0}, {-5, -1},
+                // 向北移动 (Z-)
+                {-5, -2}, {-4, -3}, {-3, -4}, {-2, -5}
+                // 回到起点附近
+        };
+
+        int currentY = startY;
+        int stepCounter = 0;
+
+        // 沿着路径放置楼梯
+        for (int[] coords : path) {
+            int x = center + coords[0];
+            int z = center + coords[1];
+
+            // 每走 6 步下降 1 格 (更平缓)
+            if (stepCounter > 0 && stepCounter % 6 == 0 && currentY > 1) {
+                currentY--;
+            }
+
+            // 放置楼梯方块
+            if (currentY < STAIRCASE_ROOM_HEIGHT) {
+                s.setBlockState(x, currentY, z, material);
+
+                // 清空楼梯上方的空间
+                for (int y = currentY + 1; y <= startY + 3; y++) {
+                    if (y < STAIRCASE_ROOM_HEIGHT) {
+                        // 只有当方块不是空气时才清除（避免清除栏杆或装饰）
+                        if (s.getBlockState(x, y, z) != Blocks.AIR.getDefaultState()) {
+                            s.setBlockState(x, y, z, Blocks.AIR.getDefaultState());
+                        }
+                    }
+                }
+            }
+
+            stepCounter++;
+        }
+    }
+// 在 EnhancedRoomTemplates.java 中添加以下新方法和辅助函数：
+
+    // ==================== 新增精致房间模板 ====================
+
+    // -------------------- 1. 虚空观测室 (Void Observatory) --------------------
+
+    /**
+     * 宝藏/枢纽房间 - 虚空观测室 (Void Observatory)
+     * 特色：算法生成的星空穹顶，中央望远镜，虚空主题。
+     */
+    public static Schematic voidObservatory() {
+        // 观测室需要更高的高度来容纳穹顶
+        int height = 14;
+        Schematic s = new Schematic((short) STANDARD_SIZE, (short) height, (short) STANDARD_SIZE);
+
+        IBlockState floorMain = Blocks.PURPUR_BLOCK.getDefaultState();
+        IBlockState floorAccent = Blocks.END_BRICKS.getDefaultState();
+        IBlockState domeMaterial = Blocks.OBSIDIAN.getDefaultState();
+        IBlockState domeGlass = Blocks.STAINED_GLASS.getStateFromMeta(15); // 黑色玻璃
+
+        int center = STANDARD_SIZE / 2;
+
+        // 地板 - 紫珀块和末地砖同心圆
+        for (int x = 0; x < STANDARD_SIZE; x++) {
+            for (int z = 0; z < STANDARD_SIZE; z++) {
+                // 使用中心偏移 0.5 来确保图案完美居中
+                double dist = Math.sqrt(Math.pow(x - center + 0.5, 2) + Math.pow(z - center + 0.5, 2));
+                s.setBlockState(x, 0, z, ((int)dist) % 4 == 0 ? floorAccent : floorMain);
+            }
+        }
+
+        // 创建星空穹顶 (从 Y=3 开始，半径 12)
+        createObservatoryDome(s, center, 3, center, 12, domeMaterial, domeGlass, height);
+
+        // 中央望远镜结构
+        createTelescope(s, center, 1, center);
+
+        // 宝箱
+        placeLootChest(s, center - 3, 1, center, "moremod:dungeon/dungeon_treasure_rare");
+        placeLootChest(s, center + 3, 1, center, "moremod:dungeon/dungeon_treasure_rare");
+
+        // 虚空主题守卫 (使用末影人或自定义虚空怪)
+        placeSpawner(s, 4, 1, 4, "minecraft:enderman", 1);
+        placeSpawner(s, 21, 1, 21, "minecraft:enderman", 1);
 
         return s;
     }
+
+    // -------------------- 2. 水晶洞穴 (Crystal Cave) --------------------
+
+    /**
+     * 普通/宝藏房间 - 水晶洞穴 (Crystal Cave)
+     * 特色：使用噪声函数生成有机地形，打破方正结构。
+     */
+    public static Schematic normalRoomCrystalCave() {
+        Schematic s = new Schematic((short) STANDARD_SIZE, (short) STANDARD_HEIGHT, (short) STANDARD_SIZE);
+
+        IBlockState stone = Blocks.STONE.getDefaultState();
+        IBlockState gravel = Blocks.GRAVEL.getDefaultState();
+        IBlockState water = Blocks.WATER.getDefaultState();
+        IBlockState crystal = Blocks.SEA_LANTERN.getDefaultState(); // 使用海晶灯模拟水晶
+
+        // 1. 噪声生成起伏地形
+        for (int x = 0; x < STANDARD_SIZE; x++) {
+            for (int z = 0; z < STANDARD_SIZE; z++) {
+                // 使用简单的三角函数叠加模拟地形高度 (0-3)
+                double noise = (Math.sin(x * 0.4) + Math.cos(z * 0.4)) * 0.8 + 1.5;
+                int height = Math.max(0, Math.min(3, (int) noise));
+
+                for (int y = 0; y <= height; y++) {
+                    if (y == height) {
+                        // 地表材质变化
+                        if (rand.nextFloat() < 0.1) {
+                            s.setBlockState(x, y, z, gravel);
+                        } else if (height <= 1 && rand.nextFloat() < 0.15) {
+                            // 低洼处积水
+                            s.setBlockState(x, y, z, water);
+                        } else {
+                            s.setBlockState(x, y, z, stone);
+                        }
+                    } else {
+                        s.setBlockState(x, y, z, stone);
+                    }
+                }
+            }
+        }
+
+        // 2. 点缀水晶簇
+        for (int i = 0; i < 6; i++) {
+            int cx = 4 + rand.nextInt(18);
+            int cz = 4 + rand.nextInt(18);
+            // 找到地形高度并放置在上方
+            int cy = getSurfaceHeight(s, cx, cz) + 1;
+            createCrystalCluster(s, cx, cy, cz, crystal);
+        }
+
+        // 3. 钟乳石 (从天花板垂下)
+        for (int x = 0; x < STANDARD_SIZE; x++) {
+            for (int z = 0; z < STANDARD_SIZE; z++) {
+                s.setBlockState(x, STANDARD_HEIGHT - 1, z, stone); // 确保天花板是石头
+                if (rand.nextFloat() < 0.05) {
+                    int length = 1 + rand.nextInt(3);
+                    for (int y = 0; y < length; y++) {
+                        // 使用圆石墙模拟钟乳石
+                        s.setBlockState(x, STANDARD_HEIGHT - 2 - y, z, Blocks.COBBLESTONE_WALL.getDefaultState());
+                    }
+                }
+            }
+        }
+
+        // 4. 放置刷怪笼和宝箱 (根据地形高度调整，放置在地表上方)
+        int spawnerX = 6, spawnerZ = 6;
+        placeRandomSpawner(s, spawnerX, getSurfaceHeight(s, spawnerX, spawnerZ) + 1, spawnerZ, 1);
+        spawnerX = 19; spawnerZ = 19;
+        placeRandomSpawner(s, spawnerX, getSurfaceHeight(s, spawnerX, spawnerZ) + 1, spawnerZ, 1);
+
+        int chestX = 13, chestZ = 13;
+        placeLootChest(s, chestX, getSurfaceHeight(s, chestX, chestZ) + 1, chestZ, "moremod:dungeon/dungeon_treasure_rare");
+
+        return s;
+    }
+
+    // -------------------- 3. 地狱裂隙 (Nether Breach) --------------------
+
+    /**
+     * 枢纽/普通房间 - 地狱裂隙 (Nether Breach)
+     * 特色：使用距离衰减算法实现材质渐变混合，展现下界入侵效果。
+     */
+    public static Schematic netherBreach() {
+        Schematic s = new Schematic((short) STANDARD_SIZE, (short) STANDARD_HEIGHT, (short) STANDARD_SIZE);
+
+        int center = STANDARD_SIZE / 2;
+
+        // 根据距离计算腐化程度
+        for (int x = 0; x < STANDARD_SIZE; x++) {
+            for (int z = 0; z < STANDARD_SIZE; z++) {
+                double dist = Math.sqrt(Math.pow(x - center + 0.5, 2) + Math.pow(z - center + 0.5, 2));
+                // 腐化率随距离衰减 (最大半径 12)
+                float corruption = (float) Math.max(0, 1.0 - dist / 12.0);
+
+                // 地板材质过渡
+                s.setBlockState(x, 0, z, getCorruptedBlock(corruption, rand.nextFloat()));
+
+                // 天花板材质过渡
+                s.setBlockState(x, STANDARD_HEIGHT - 1, z, getCorruptedBlock(corruption, rand.nextFloat()));
+
+                // 随机火焰和岩浆 (靠近中心)
+                if (corruption > 0.7 && rand.nextFloat() < 0.1) {
+                    if (rand.nextFloat() < 0.3) {
+                        s.setBlockState(x, 0, z, Blocks.LAVA.getDefaultState());
+                    }
+                    // 确保上方是空气再放置火焰
+                    if (s.getBlockState(x, 1, z).getBlock() == Blocks.AIR) {
+                        s.setBlockState(x, 1, z, Blocks.FIRE.getDefaultState());
+                    }
+                }
+            }
+        }
+
+        // 中央损毁的传送门
+        createRuinedPortal(s, center, 1, center);
+
+        // 刷怪笼 (使用下界生物)
+        placeSpawner(s, 4, 1, 4, "minecraft:zombie_pigman", 1);
+        placeSpawner(s, 21, 1, 21, "minecraft:zombie_pigman", 1);
+        placeSpawner(s, center - 3, 1, center, "minecraft:blaze", 1);
+        placeSpawner(s, center + 3, 1, center, "minecraft:blaze", 1);
+
+        placeLootChest(s, center, 1, center + 5, "moremod:dungeon/dungeon_hub");
+
+        return s;
+    }
+
+    // -------------------- 4. 齿轮工坊 (Clockwork Workshop) --------------------
+
+    /**
+     * 普通/谜题房间 - 齿轮工坊 (Clockwork Workshop)
+     * 特色：蒸汽朋克主题，使用几何算法生成齿轮图案。
+     */
+    public static Schematic clockworkWorkshop() {
+        Schematic s = new Schematic((short) STANDARD_SIZE, (short) STANDARD_HEIGHT, (short) STANDARD_SIZE);
+
+        IBlockState floorBase = Blocks.STONE.getStateFromMeta(5); // 磨制安山岩
+        IBlockState gearStone = Blocks.COBBLESTONE.getDefaultState();
+        IBlockState gearMetal = Blocks.IRON_BLOCK.getDefaultState();
+
+        // 基础地板
+        for (int x = 0; x < STANDARD_SIZE; x++) {
+            for (int z = 0; z < STANDARD_SIZE; z++) {
+                s.setBlockState(x, 0, z, floorBase);
+            }
+        }
+
+        // 地板上的巨型齿轮
+        createGear(s, 8, 0, 8, 5, gearStone);
+        createGear(s, 18, 0, 18, 5, gearStone);
+        createGear(s, 13, 0, 13, 3, gearMetal); // 中央金属齿轮
+
+        // 墙壁上的装饰齿轮 (模拟垂直放置)
+        // 检查边界，确保齿轮在房间内
+        if (STANDARD_HEIGHT > 6) {
+            createGear(s, 1, 4, 8, 2, gearMetal);
+            createGear(s, 24, 4, 18, 2, gearMetal);
+        }
+
+        // 机械工作站
+        s.setBlockState(6, 1, 20, Blocks.ANVIL.getDefaultState());
+        s.setBlockState(7, 1, 20, Blocks.CRAFTING_TABLE.getDefaultState());
+        s.setBlockState(8, 1, 20, Blocks.FURNACE.getDefaultState());
+
+        // 活塞装饰
+        s.setBlockState(20, 1, 6, Blocks.PISTON.getDefaultState());
+        s.setBlockState(20, 2, 6, Blocks.PISTON.getDefaultState());
+        s.setBlockState(20, 3, 6, Blocks.REDSTONE_BLOCK.getDefaultState());
+
+        // 刷怪笼
+        placeRandomSpawner(s, 13, 1, 5, 1);
+        placeRandomSpawner(s, 13, 1, 20, 1);
+
+        placeLootChest(s, 20, 1, 8, "moremod:dungeon/dungeon_normal");
+
+        // 红石火把照明 (工业感)
+        s.setBlockState(4, 3, 4, Blocks.REDSTONE_TORCH.getDefaultState());
+        s.setBlockState(21, 3, 4, Blocks.REDSTONE_TORCH.getDefaultState());
+        s.setBlockState(4, 3, 21, Blocks.REDSTONE_TORCH.getDefaultState());
+        s.setBlockState(21, 3, 21, Blocks.REDSTONE_TORCH.getDefaultState());
+
+        return s;
+    }
+
+    // -------------------- 5. 黑暗祭祀场 (Dark Ritual Chamber) --------------------
+
+    /**
+     * 宝藏/陷阱房间 - 黑暗祭祀场 (Dark Ritual Chamber)
+     * 特色：使用算法在地板上精确绘制红石符号，邪恶氛围。
+     */
+    public static Schematic treasureRoomRitualChamber() {
+        Schematic s = new Schematic((short) STANDARD_SIZE, (short) STANDARD_HEIGHT, (short) STANDARD_SIZE);
+
+        IBlockState floorMain = Blocks.OBSIDIAN.getDefaultState();
+        IBlockState floorAccent = Blocks.NETHER_BRICK.getDefaultState();
+        IBlockState ritualMarking = Blocks.REDSTONE_WIRE.getDefaultState(); // 红石粉末作为符号
+
+        int center = STANDARD_SIZE / 2;
+
+        // 地板和天花板
+        for (int x = 0; x < STANDARD_SIZE; x++) {
+            for (int z = 0; z < STANDARD_SIZE; z++) {
+                // 交错材质
+                s.setBlockState(x, 0, z, ((x/2) + (z/2)) % 3 == 0 ? floorAccent : floorMain);
+                s.setBlockState(x, STANDARD_HEIGHT - 1, z, floorMain);
+            }
+        }
+
+        // 地板上的祭祀符号 (五角星)
+        // 计算半径为 8 的五角星顶点坐标 (使用三角函数确保完美对称)
+        int radius = 8;
+        int[][] starPoints = new int[5][2];
+        for (int i = 0; i < 5; i++) {
+            // 角度计算，确保图案正对 (从正上方开始)
+            double angle = Math.PI / 2 + (2 * Math.PI * i / 5);
+            starPoints[i][0] = center + (int)(radius * Math.cos(angle));
+            starPoints[i][1] = center + (int)(radius * Math.sin(angle));
+        }
+
+        // 绘制五角星的连线
+        for (int i = 0; i < 5; i++) {
+            int[] p1 = starPoints[i];
+            // 五角星连线是连接 i 和 (i+2) % 5
+            int[] p2 = starPoints[(i + 2) % 5];
+            // 使用辅助函数绘制直线 (Bresenham's algorithm)
+            drawLine(s, p1[0], p1[1], p2[0], p2[1], ritualMarking);
+        }
+
+        // 中央祭坛
+        createDarkAltar(s, center, 1, center);
+
+        // 祭坛上的宝藏 (高价值)
+        placeLootChest(s, center, 3, center, "moremod:dungeon/dungeon_treasure_rare");
+
+        // 四角火焰柱 (使用已有的辅助方法)
+        createNetherPillar(s, 5, 5, STANDARD_HEIGHT);
+        createNetherPillar(s, 20, 5, STANDARD_HEIGHT);
+        createNetherPillar(s, 5, 20, STANDARD_HEIGHT);
+        createNetherPillar(s, 20, 20, STANDARD_HEIGHT);
+
+        // 隐藏的强力守卫
+        placeRandomSpawner(s, center-6, 1, center, 3);
+        placeRandomSpawner(s, center+6, 1, center, 3);
+
+        // 氛围照明
+        s.setBlockState(4, 3, center, Blocks.REDSTONE_TORCH.getDefaultState());
+        s.setBlockState(21, 3, center, Blocks.REDSTONE_TORCH.getDefaultState());
+
+        return s;
+    }
+
+    // -------------------- 6. 宏伟门厅 (Grand Foyer) --------------------
+
+    /**
+     * 枢纽房间 - 宏伟门厅 (Grand Foyer)
+     * 特色：华丽的双层结构，带有环绕阳台和大型吊灯。
+     */
+    public static Schematic hubRoomGrandFoyer() {
+        // 门厅需要更高的高度
+        int height = 12;
+        Schematic s = new Schematic((short) STANDARD_SIZE, (short) height, (short) STANDARD_SIZE);
+
+        IBlockState floorMain = Blocks.QUARTZ_BLOCK.getDefaultState();
+        IBlockState floorPattern = Blocks.QUARTZ_BLOCK.getStateFromMeta(1); // 錾制石英
+        IBlockState pillar = Blocks.QUARTZ_BLOCK.getStateFromMeta(2); // 柱状石英
+        IBlockState railing = Blocks.STAINED_GLASS_PANE.getStateFromMeta(11); // 蓝色玻璃板
+
+        int center = STANDARD_SIZE / 2;
+
+        // 华丽地板 (Y=0) 和 天花板 (Y=height-1)
+        for (int x = 0; x < STANDARD_SIZE; x++) {
+            for (int z = 0; z < STANDARD_SIZE; z++) {
+                // 使用距离函数创建菱形图案
+                boolean isPattern = (Math.abs(x - center + 0.5) + Math.abs(z - center + 0.5)) % 5 == 0;
+                s.setBlockState(x, 0, z, isPattern ? floorPattern : floorMain);
+                s.setBlockState(x, height - 1, z, floorMain);
+            }
+        }
+
+        // 二层阳台 (Y=5)
+        int balconyHeight = 5;
+        int balconyInnerEdge = 6;
+        for (int x = 0; x < STANDARD_SIZE; x++) {
+            for (int z = 0; z < STANDARD_SIZE; z++) {
+                boolean isBalconyArea = (x < balconyInnerEdge || x >= STANDARD_SIZE - balconyInnerEdge ||
+                        z < balconyInnerEdge || z >= STANDARD_SIZE - balconyInnerEdge);
+
+                if (isBalconyArea) {
+                    s.setBlockState(x, balconyHeight, z, floorMain);
+
+                    // 阳台栏杆 (Y=6)
+                    boolean isEdge = (x == balconyInnerEdge - 1 || x == STANDARD_SIZE - balconyInnerEdge ||
+                            z == balconyInnerEdge - 1 || z == STANDARD_SIZE - balconyInnerEdge);
+
+                    if (isEdge && x > 0 && x < STANDARD_SIZE -1 && z > 0 && z < STANDARD_SIZE -1) {
+                        // 留出潜在连接点空隙
+                        if (Math.abs(x-center+0.5) > 2 && Math.abs(z-center+0.5) > 2) {
+                            s.setBlockState(x, balconyHeight + 1, z, railing);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 支撑柱
+        int[][] pillarPos = {{balconyInnerEdge-2, balconyInnerEdge-2},
+                {STANDARD_SIZE-balconyInnerEdge+1, balconyInnerEdge-2},
+                {balconyInnerEdge-2, STANDARD_SIZE-balconyInnerEdge+1},
+                {STANDARD_SIZE-balconyInnerEdge+1, STANDARD_SIZE-balconyInnerEdge+1}};
+        for (int[] pos : pillarPos) {
+            for (int y = 1; y < balconyHeight; y++) {
+                s.setBlockState(pos[0], y, pos[1], pillar);
+            }
+        }
+
+        // 大型吊灯
+        createChandelier(s, center, height - 2, center);
+
+        // 补给
+        placeLootChest(s, center - 5, 1, center, "moremod:dungeon/dungeon_hub");
+        placeLootChest(s, center + 5, 1, center, "moremod:dungeon/dungeon_hub");
+
+        return s;
+    }
+
+
+    // ==================== 新增辅助函数 (必须添加) ====================
+
+    /**
+     * 辅助方法：Bresenham 直线绘制算法 (用于祭祀符号)
+     * 在 Y=1 绘制。
+     */
+    private static void drawLine(Schematic s, int x1, int z1, int x2, int z2, IBlockState state) {
+        int dx = Math.abs(x2 - x1);
+        int dz = Math.abs(z2 - z1);
+        int sx = x1 < x2 ? 1 : -1;
+        int sz = z1 < z2 ? 1 : -1;
+        int err = dx - dz;
+
+        // 确保起始坐标在范围内
+        x1 = Math.max(0, Math.min(STANDARD_SIZE - 1, x1));
+        z1 = Math.max(0, Math.min(STANDARD_SIZE - 1, z1));
+
+        while (true) {
+            // 检查 Y=1 是否是空气，防止覆盖其他方块
+            if (s.getBlockState(x1, 1, z1).getBlock() == Blocks.AIR) {
+                s.setBlockState(x1, 1, z1, state);
+            }
+
+            if (x1 == x2 && z1 == z2) break;
+            int e2 = 2 * err;
+            if (e2 > -dz) {
+                err -= dz;
+                x1 += sx;
+            }
+            if (e2 < dx) {
+                err += dx;
+                z1 += sz;
+            }
+
+            // 边界检查
+            if (x1 < 0 || x1 >= STANDARD_SIZE || z1 < 0 || z1 >= STANDARD_SIZE) break;
+        }
+    }
+
+    /**
+     * 辅助方法：创建黑暗祭坛
+     */
+    private static void createDarkAltar(Schematic s, int x, int y, int z) {
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                s.setBlockState(x+dx, y, z+dz, Blocks.NETHER_BRICK.getDefaultState());
+            }
+        }
+        s.setBlockState(x, y+1, z, Blocks.NETHER_BRICK_FENCE.getDefaultState());
+        s.setBlockState(x, y+2, z, Blocks.NETHER_BRICK_FENCE.getDefaultState());
+    }
+
+    /**
+     * 辅助方法：创建观测室穹顶 (球体生成算法)
+     */
+    private static void createObservatoryDome(Schematic s, int cx, int cy, int cz, int radius, IBlockState material, IBlockState glass, int maxHeight) {
+        for (int x = cx - radius; x <= cx + radius; x++) {
+            for (int z = cz - radius; z <= cz + radius; z++) {
+                // 只生成上半球
+                for (int y = cy; y <= cy + radius; y++) {
+                    // 检查坐标是否在 Schematic 范围内
+                    if (x >= 0 && x < s.width && z >= 0 && z < s.length && y >= 0 && y < maxHeight) {
+                        double distSq = Math.pow(x - cx, 2) + Math.pow(y - cy, 2) + Math.pow(z - cz, 2);
+
+                        // 形成球壳 (距离在 radius-1.5 和 radius 之间)
+                        if (distSq >= Math.pow(radius - 1.5, 2) && distSq <= Math.pow(radius, 2)) {
+                            // 随机使用玻璃和实体方块，模拟星空纹理
+                            if (rand.nextFloat() < 0.4) {
+                                s.setBlockState(x, y, z, glass);
+                            } else {
+                                s.setBlockState(x, y, z, material);
+                            }
+
+                            // 随机放置“星星” (末地烛)
+                            if (rand.nextFloat() < 0.08 && y > cy + 2) {
+                                if (y > 0 && s.getBlockState(x, y-1, z).getBlock() == Blocks.AIR) {
+                                    // 末地烛会自动朝下放置
+                                    s.setBlockState(x, y-1, z, Blocks.END_ROD.getDefaultState());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * 辅助方法：创建望远镜结构
+     */
+    private static void createTelescope(Schematic s, int x, int y, int z) {
+        // 底座 (3x3 石英)
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                s.setBlockState(x + dx, y, z + dz, Blocks.QUARTZ_BLOCK.getDefaultState());
+            }
+        }
+        // 支架
+        s.setBlockState(x, y + 1, z, Blocks.QUARTZ_BLOCK.getStateFromMeta(2));
+        s.setBlockState(x, y + 2, z, Blocks.QUARTZ_BLOCK.getStateFromMeta(2));
+
+        // 镜筒 (铁块，倾斜放置)
+        for (int i = 0; i <= 4; i++) {
+            // 向上倾斜，朝向 Z+ 方向
+            s.setBlockState(x, y + 3 + (i/2), z + i, Blocks.IRON_BLOCK.getDefaultState());
+        }
+        s.setBlockState(x, y + 2, z - 1, Blocks.GLASS_PANE.getDefaultState()); // 目镜
+        s.setBlockState(x, y + 5, z + 5, Blocks.GLASS.getDefaultState()); // 物镜
+    }
+
+    // 辅助方法：获取地表高度 (Y坐标)
+    private static int getSurfaceHeight(Schematic s, int x, int z) {
+        // 检查边界
+        if (x < 0 || x >= s.width || z < 0 || z >= s.length) return 0;
+
+        for (int y = STANDARD_HEIGHT - 1; y >= 0; y--) {
+            IBlockState state = s.getBlockState(x, y, z);
+            // 检查方块材质是否是固体或液体
+            if (state.getMaterial().isSolid() || state.getMaterial().isLiquid()) {
+                return y;
+            }
+        }
+        return 0;
+    }
+
+    // 辅助方法：创建水晶簇
+    private static void createCrystalCluster(Schematic s, int x, int y, int z, IBlockState crystal) {
+        if (y < STANDARD_HEIGHT) s.setBlockState(x, y, z, crystal);
+        if (rand.nextBoolean() && y + 1 < STANDARD_HEIGHT) s.setBlockState(x, y + 1, z, crystal);
+        if (rand.nextBoolean() && x + 1 < STANDARD_SIZE) s.setBlockState(x + 1, y, z, crystal);
+        if (rand.nextBoolean() && z + 1 < STANDARD_SIZE) s.setBlockState(x, y, z + 1, crystal);
+    }
+
+    /**
+     * 辅助方法：根据腐化程度获取方块 (材质渐变混合)
+     */
+    private static IBlockState getCorruptedBlock(float corruption, float randomFactor) {
+        if (randomFactor < corruption) {
+            // 高度腐化区域
+            if (corruption > 0.8) {
+                return rand.nextFloat() < 0.2 ? Blocks.SOUL_SAND.getDefaultState() : Blocks.NETHERRACK.getDefaultState();
+            } else if (corruption > 0.5) {
+                return rand.nextFloat() < 0.5 ? Blocks.NETHER_BRICK.getDefaultState() : Blocks.NETHERRACK.getDefaultState();
+            } else {
+                return Blocks.NETHERRACK.getDefaultState();
+            }
+        } else {
+            // 未腐化或轻微腐化区域
+            if (randomFactor < corruption + 0.2) {
+                return Blocks.STONEBRICK.getStateFromMeta(2); // 裂石砖
+            } else if (randomFactor < corruption + 0.4) {
+                return Blocks.COBBLESTONE.getDefaultState();
+            } else {
+                return Blocks.STONEBRICK.getDefaultState();
+            }
+        }
+    }
+
+    /**
+     * 辅助方法：创建损毁的传送门
+     */
+    private static void createRuinedPortal(Schematic s, int x, int y, int z) {
+        // 6x5 的大型传送门框架
+        for (int dx = -3; dx <= 3; dx++) {
+            for (int dy = 0; dy <= 5; dy++) {
+                boolean isFrame = (Math.abs(dx) == 3 || dy == 0 || dy == 5);
+                if (isFrame) {
+                    // 随机移除一些黑曜石，模拟损毁 (不移除底座)
+                    if (rand.nextFloat() > 0.7 && (dy != 0)) continue;
+                    s.setBlockState(x + dx, y + dy, z, Blocks.OBSIDIAN.getDefaultState());
+                }
+            }
+        }
+        // 哭泣的黑曜石 (如果模组中有的话可以添加，这里用普通黑曜石代替)
+        s.setBlockState(x, y+1, z, Blocks.OBSIDIAN.getDefaultState());
+    }
+
+    /**
+     * 辅助方法：创建齿轮图案 (2D 几何生成)
+     */
+    private static void createGear(Schematic s, int cx, int y, int cz, int radius, IBlockState material) {
+        for (int x = cx - radius; x <= cx + radius; x++) {
+            for (int z = cz - radius; z <= cz + radius; z++) {
+                // 检查边界
+                if (x >= 0 && x < s.width && z >= 0 && z < s.length && y >= 0 && y < s.height) {
+                    double dist = Math.sqrt(Math.pow(x - cx, 2) + Math.pow(z - cz, 2));
+
+                    // 内圈
+                    if (dist <= radius - 2) {
+                        s.setBlockState(x, y, z, material);
+                    }
+                    // 外圈和齿
+                    else if (dist <= radius) {
+                        // 计算角度 (使用 atan2)，用于生成齿
+                        double angle = Math.atan2(z - cz, x - cx);
+                        int numTeeth = radius * 2;
+                        // 使用模运算判断当前角度是否在齿的范围内
+                        boolean isTooth = (int)(angle * numTeeth / Math.PI) % 2 == 0;
+
+                        if (isTooth || dist <= radius - 1) {
+                            s.setBlockState(x, y, z, material);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * 辅助方法：创建大型吊灯
+     */
+    private static void createChandelier(Schematic s, int x, int y, int z) {
+        IBlockState chain = Blocks.OAK_FENCE.getDefaultState(); // 栅栏作为锁链
+        IBlockState light = Blocks.GLOWSTONE.getDefaultState();
+
+        // 中央吊挂
+        s.setBlockState(x, y, z, chain);
+        s.setBlockState(x, y-1, z, chain);
+        s.setBlockState(x, y-2, z, light);
+
+        // 第一层分支 (十字形)
+        for (int i = 0; i < 4; i++) {
+            int dx = (i % 2 == 0) ? (i == 0 ? 1 : -1) : 0;
+            int dz = (i % 2 != 0) ? (i == 1 ? 1 : -1) : 0;
+
+            s.setBlockState(x + dx, y-2, z + dz, chain);
+            s.setBlockState(x + 2*dx, y-2, z + 2*dz, chain);
+            s.setBlockState(x + 2*dx, y-3, z + 2*dz, light);
+        }
+
+        // 第二层分支 (对角线)
+        for (int dx = -1; dx <= 1; dx+=2) {
+            for (int dz = -1; dz <= 1; dz+=2) {
+                s.setBlockState(x + dx, y-3, z + dz, chain);
+                s.setBlockState(x + 2*dx, y-4, z + 2*dz, light);
+            }
+        }
+    }
+    /**
+     * 楼梯房间 - 双向传送
+     */
+
 
     // ===== 楼梯房间辅助方法 =====
 
@@ -1713,11 +2506,11 @@ public class EnhancedRoomTemplates {
         // 中央武器架
         s.setBlockState(center, 1, center, Blocks.STANDING_BANNER.getDefaultState());
 
-        // 四个刷怪笼入口
-        placeRandomSpawner(s, center, 0, 3, 2);
-        placeRandomSpawner(s, center, 0, 22, 2);
-        placeRandomSpawner(s, 3, 0, center, 2);
-        placeRandomSpawner(s, 22, 0, center, 2);
+        // 四个刷怪笼入口 (Y=1 放置在地板上方)
+        placeRandomSpawner(s, center, 1, 3, 2);
+        placeRandomSpawner(s, center, 1, 22, 2);
+        placeRandomSpawner(s, 3, 1, center, 2);
+        placeRandomSpawner(s, 22, 1, center, 2);
 
         placeLootChest(s, center - 3, 1, center - 3, "moremod:dungeon/dungeon_normal");
         placeLootChest(s, center + 3, 1, center + 3, "moremod:dungeon/dungeon_normal");

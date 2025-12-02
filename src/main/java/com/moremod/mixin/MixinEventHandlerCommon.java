@@ -1,10 +1,10 @@
 package com.moremod.mixin;
 
-import com.moremod.item.causal.CausalFieldManager;
+import c4.champions.common.EventHandlerCommon;
+import com.moremod.causal.CausalFieldManager;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraftforge.event.entity.living.*;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -13,8 +13,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * 攔截 Champions 的事件處理器
  * 在沉默場內直接取消處理，防止任何效果觸發
  */
-@Pseudo
-@Mixin(targets = "c4.champions.common.EventHandlerCommon", remap = false)
+@Mixin(value = EventHandlerCommon.class, remap = false)
 public class MixinEventHandlerCommon {
 
     @Inject(method = "livingDamage", at = @At("HEAD"), cancellable = true, remap = false)

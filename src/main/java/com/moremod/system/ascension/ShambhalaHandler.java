@@ -4,7 +4,6 @@ import com.moremod.config.ShambhalaConfig;
 import com.moremod.item.ItemMechanicalCore;
 import com.moremod.network.PacketAscensionAnimation;
 import com.moremod.network.PacketHandler;
-import com.moremod.network.PacketSyncHumanityData;
 import com.moremod.system.humanity.AscensionRoute;
 import com.moremod.system.humanity.HumanityCapabilityHandler;
 import com.moremod.system.humanity.HumanityEffectsManager;

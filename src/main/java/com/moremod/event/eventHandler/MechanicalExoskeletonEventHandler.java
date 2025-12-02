@@ -6,7 +6,6 @@ import com.moremod.item.ItemMechanicalCore;
 import com.moremod.item.ItemMechanicalCore.UpgradeType;
 import com.moremod.item.ItemMechanicalCoreExtended;
 import com.moremod.item.ItemMechanicalCoreExtended.UpgradeInfo;
-import com.moremod.item.ItemMechanicalExoskeleton;
 import com.moremod.upgrades.energy.EnergyDepletionManager;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.SoundEvents;

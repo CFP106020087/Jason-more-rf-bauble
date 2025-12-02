@@ -1,17 +1,13 @@
 package com.moremod.upgrades;
 
 import com.moremod.item.ItemMechanicalCore;
-import com.moremod.event.eventHandler.EventHandlerJetpack;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.MobEffects;
 import net.minecraft.item.ItemStack;
-import net.minecraft.potion.Potion;
 import net.minecraft.potion.PotionEffect;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
-
-import java.util.UUID;
 
 /**
  * 升级效果应用系统

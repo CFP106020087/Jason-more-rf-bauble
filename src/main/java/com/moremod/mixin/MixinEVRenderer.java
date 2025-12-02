@@ -1,6 +1,6 @@
 package com.moremod.mixin;
 
-import com.moremod.logic.NarrativeLogicHandler;
+import com.moremod.system.logic.NarrativeLogicHandler;
 import com.moremod.client.gui.PlayerNarrativeState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.player.EntityPlayer;
