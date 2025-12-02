@@ -372,10 +372,20 @@ public class Schematic {
     }
 
     public IBlockState getBlockState(int x, int y, int z) {
+        // 边界检查，防止越界导致整个房间生成失败
+        if (x < 0 || x >= width || y < 0 || y >= height || z < 0 || z >= length) {
+            return Blocks.AIR.getDefaultState();
+        }
         return palette.get(blockData[x][y][z]);
     }
 
     public void setBlockState(int x, int y, int z, IBlockState state) {
+        // 边界检查，防止越界导致整个房间生成失败
+        if (x < 0 || x >= width || y < 0 || y >= height || z < 0 || z >= length) {
+            // 静默忽略越界的方块放置，但记录警告（可选）
+            // System.err.println("[Schematic] 警告: 方块越界 (" + x + ", " + y + ", " + z + ") 范围: (" + width + ", " + height + ", " + length + ")");
+            return;
+        }
         if (palette.contains(state)) {
             blockData[x][y][z] = (short) palette.indexOf(state);
         } else {
