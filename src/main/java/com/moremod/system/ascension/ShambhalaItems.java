@@ -55,7 +55,7 @@ public class ShambhalaItems {
                 if (stack.getItem() instanceof ItemMechanicalCore) {
                     continue;
                 }
-                // 检查是否已经是香巴拉套装 - 保留
+                // 检查是否已经是香巴拉圣物 - 保留
                 if (isShambhalaItem(stack)) {
                     continue;
                 }
@@ -228,7 +228,7 @@ public class ShambhalaItems {
     }
 
     /**
-     * 检查玩家是否装备了完整香巴拉套装
+     * 检查玩家是否装备了完整香巴拉圣物
      */
     public static boolean hasFullShambhalaSet(EntityPlayer player) {
         IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(player);
