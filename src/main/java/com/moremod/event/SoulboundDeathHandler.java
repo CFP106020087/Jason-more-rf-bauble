@@ -21,11 +21,15 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
+import com.moremod.system.ascension.ShambhalaHandler;
+import com.moremod.system.ascension.BrokenGodHandler;
+
 import java.util.*;
 
 /**
  * 灵魂绑定版死亡处理器（修复版）
  * ✅ 修复：确保在降级前记录 OriginalMax
+ * ✅ 修复：香巴拉/破碎之神死亡保护时跳过惩罚
  */
 @Mod.EventBusSubscriber(modid = "moremod")
 public class SoulboundDeathHandler {
@@ -70,12 +74,48 @@ public class SoulboundDeathHandler {
         EntityPlayer player = (EntityPlayer) event.getEntityLiving();
         if (player.world.isRemote || player.isCreative() || player.isSpectator()) return;
 
+        // ✅ 检查香巴拉/破碎之神死亡保护
+        // 如果死亡会被ASM阻止，则跳过惩罚
+        if (isDeathProtected(player)) {
+            return;
+        }
+
         recordCoreLocation(player);
 
         ItemStack core = findCore(player);
         if (!ItemMechanicalCore.isMechanicalCore(core)) return;
 
         applyDeathPunishment(core, player);
+    }
+
+    /**
+     * 检查玩家是否受到死亡保护（香巴拉或破碎之神）
+     * 如果有保护且有能量，死亡会被ASM阻止，此时不应触发惩罚
+     */
+    private static boolean isDeathProtected(EntityPlayer player) {
+        try {
+            // 检查香巴拉保护
+            if (ShambhalaHandler.isShambhala(player)) {
+                int energy = ShambhalaHandler.getCurrentEnergy(player);
+                if (energy > 0) {
+                    // 香巴拉有能量 = 死亡会被阻止
+                    return true;
+                }
+            }
+        } catch (Throwable ignored) {}
+
+        try {
+            // 检查破碎之神保护
+            if (BrokenGodHandler.isBrokenGod(player)) {
+                int energy = BrokenGodHandler.getCurrentEnergy(player);
+                if (energy > 0) {
+                    // 破碎之神有能量 = 死亡会被阻止
+                    return true;
+                }
+            }
+        } catch (Throwable ignored) {}
+
+        return false;
     }
 
     private static void recordCoreLocation(EntityPlayer p){

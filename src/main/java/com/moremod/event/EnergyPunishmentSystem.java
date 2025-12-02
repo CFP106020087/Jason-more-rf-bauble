@@ -8,6 +8,8 @@ import com.moremod.item.ItemMechanicalCoreExtended;
 import com.moremod.item.upgrades.ItemUpgradeComponent;
 import com.moremod.upgrades.energy.EnergyDepletionManager;
 import com.moremod.util.UpgradeKeys;
+import com.moremod.system.ascension.ShambhalaHandler;
+import com.moremod.system.ascension.BrokenGodHandler;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -209,8 +211,14 @@ public class EnergyPunishmentSystem {
 
     /**
      * ✅ 完整修复：降级模块 - 支持修复系统
+     * ✅ 香巴拉/破碎之神玩家免疫模块降级
      */
     public static void degradeRandomModules(ItemStack core, EntityPlayer player) {
+        // ✅ 香巴拉/破碎之神玩家免疫模块降级
+        if (isAscensionProtected(player)) {
+            return;
+        }
+
         List<String> installed = getInstalledUpgrades(core);
         NBTTagCompound nbt = UpgradeKeys.getOrCreate(core);
 
@@ -420,6 +428,13 @@ public class EnergyPunishmentSystem {
     }
 
     private static void selfDestructSafe(ItemStack core, EntityPlayer player) {
+        // ✅ 香巴拉/破碎之神玩家免疫自毁
+        if (isAscensionProtected(player)) {
+            player.sendMessage(new TextComponentString(
+                    TextFormatting.GOLD + "✦ 飞升力量保护了机械核心免于自毁"));
+            return;
+        }
+
         player.sendMessage(new TextComponentString(
                 TextFormatting.DARK_RED + "☠☠☠ 机械核心自毁序列启动 ☠☠☠"));
 
@@ -572,6 +587,26 @@ public class EnergyPunishmentSystem {
 
     private static boolean checkCooldown(NBTTagCompound nbt, String key, long now, long cooldown) {
         return !nbt.hasKey(key) || now - nbt.getLong(key) >= cooldown;
+    }
+
+    /**
+     * 检查玩家是否为香巴拉或破碎之神（飞升状态）
+     * 飞升玩家免疫模块降级和自毁
+     */
+    private static boolean isAscensionProtected(EntityPlayer player) {
+        try {
+            if (ShambhalaHandler.isShambhala(player)) {
+                return true;
+            }
+        } catch (Throwable ignored) {}
+
+        try {
+            if (BrokenGodHandler.isBrokenGod(player)) {
+                return true;
+            }
+        } catch (Throwable ignored) {}
+
+        return false;
     }
 
     private static boolean isGeneratorModule(String id) {

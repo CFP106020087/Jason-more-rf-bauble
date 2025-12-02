@@ -1061,7 +1061,7 @@ public class EnhancedRoomTemplates {
 
     /**
      * 放置 VoidRipper 自毁刷怪砖
-     * 生成2只血量较少的VoidRipper后自毁
+     * 生成2只血量较少的VoidRipper，VoidRipper生成后会自动销毁刷怪砖
      */
     private static void placeVoidRipperSpawner(Schematic s, int x, int y, int z) {
         s.setBlockState(x, y, z, Blocks.MOB_SPAWNER.getDefaultState());
@@ -1072,16 +1072,16 @@ public class EnhancedRoomTemplates {
         te.setInteger("y", y);
         te.setInteger("z", z);
 
-        // 关键：设置为只生成一次后自毁 (MaxNearbyEntities=2, SpawnCount=2)
+        // 设置生成参数
         te.setShort("Delay", (short) 20);           // 1秒后生成
         te.setShort("MinSpawnDelay", (short) 20);
         te.setShort("MaxSpawnDelay", (short) 40);
         te.setShort("SpawnCount", (short) 2);       // 每次生成2只
-        te.setShort("MaxNearbyEntities", (short) 2);// 最大数量2 (达到后停止)
+        te.setShort("MaxNearbyEntities", (short) 6);// 允许较多实体（VoidRipper会自己销毁spawner）
         te.setShort("RequiredPlayerRange", (short) 16);
         te.setShort("SpawnRange", (short) 3);
 
-        // 设置生成的实体 - VoidRipper (带自定义NBT降低血量)
+        // 设置生成的实体 - VoidRipper (带自定义NBT)
         NBTTagCompound spawnData = new NBTTagCompound();
         spawnData.setString("id", "moremod:void_ripper");
 
@@ -1094,6 +1094,9 @@ public class EnhancedRoomTemplates {
         spawnData.setTag("Attributes", attributes);
         spawnData.setFloat("Health", 60.0f);
 
+        // 关键标记：让VoidRipper知道这是Mini-Boss刷怪砖生成的，需要销毁spawner
+        spawnData.setBoolean("MiniBossSpawn", true);
+
         te.setTag("SpawnData", spawnData);
 
         // SpawnPotentials
@@ -1104,6 +1107,7 @@ public class EnhancedRoomTemplates {
         entity.setString("id", "moremod:void_ripper");
         entity.setTag("Attributes", attributes.copy());
         entity.setFloat("Health", 60.0f);
+        entity.setBoolean("MiniBossSpawn", true);  // 也在SpawnPotentials中设置
         entry.setTag("Entity", entity);
         potentials.appendTag(entry);
         te.setTag("SpawnPotentials", potentials);
@@ -1242,7 +1246,8 @@ public class EnhancedRoomTemplates {
                 }
             }
         }
-        s.setBlockState(x, y + 1, z, ModBlocks.UNBREAKABLE_BARRIER_QUANTUM.getDefaultState());
+        // 使用时间锁定方块作为祭坛核心（更美观）
+        s.setBlockState(x, y + 1, z, ModBlocks.UNBREAKABLE_BARRIER_TEMPORAL.getDefaultState());
     }
 
     private static void createMiniBossPlatform(Schematic s, int x, int z) {
