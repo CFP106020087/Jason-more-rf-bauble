@@ -11,25 +11,36 @@ import net.minecraft.entity.ai.attributes.IAttributeInstance;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.potion.PotionEffect;
+import net.minecraftforge.event.entity.living.LivingAttackEvent;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
-import net.minecraftforge.event.entity.living.LivingEvent;
+import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.gameevent.PlayerEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 自动效果处理器 - 处理所有通过 ModuleDefinition 定义的效果
- *
- * 自动处理：
- * - 属性修改器的应用和移除
- * - 药水效果的持续应用
- * - 周期性恢复效果
- * - 伤害加成/减免/反弹
- * - 自定义回调
+ * ╔══════════════════════════════════════════════════════════════════════════════╗
+ * ║                      自动效果处理器 (AutoEffectHandler)                        ║
+ * ╠══════════════════════════════════════════════════════════════════════════════╣
+ * ║                                                                              ║
+ * ║  处理所有通过 ModuleDefinition 定义的效果:                                      ║
+ * ║  1. 简单效果 (.effects) - 属性修改器、药水、恢复、伤害等                          ║
+ * ║  2. 事件处理器 (.handler) - 完整自定义逻辑                                      ║
+ * ║                                                                              ║
+ * ║  自动触发的事件:                                                               ║
+ * ║  - PlayerTickEvent      → onTick / onSecondTick                              ║
+ * ║  - LivingHurtEvent      → onPlayerHurt / onPlayerAttack                      ║
+ * ║  - LivingDeathEvent     → onPlayerKillEntity                                 ║
+ * ║  - LivingAttackEvent    → onPlayerAttacked                                   ║
+ * ║  - PlayerInteractEvent  → onRightClick / onLeftClick                         ║
+ * ║                                                                              ║
+ * ╚══════════════════════════════════════════════════════════════════════════════╝
  */
 @Mod.EventBusSubscriber(modid = "moremod")
 public class AutoEffectHandler {
@@ -37,25 +48,27 @@ public class AutoEffectHandler {
     // 玩家效果状态追踪
     private static final Map<UUID, PlayerEffectState> playerStates = new ConcurrentHashMap<>();
 
-    // NBT键前缀
-    private static final String NBT_PREFIX = "AutoEffect_";
+    // 模块激活状态追踪 (用于触发 onModuleActivated/Deactivated)
+    private static final Map<UUID, Set<String>> activeModules = new ConcurrentHashMap<>();
 
     /**
      * 玩家效果状态
      */
     private static class PlayerEffectState {
         Map<String, Long> lastTickTimes = new HashMap<>();
+        Map<String, Long> lastSecondTicks = new HashMap<>();
         Map<String, Set<UUID>> activeModifiers = new HashMap<>();
     }
 
-    /**
-     * 获取或创建玩家状态
-     */
     private static PlayerEffectState getState(EntityPlayer player) {
         return playerStates.computeIfAbsent(player.getUniqueID(), k -> new PlayerEffectState());
     }
 
-    // ========== Tick 事件处理 ==========
+    private static Set<String> getActiveModules(EntityPlayer player) {
+        return activeModules.computeIfAbsent(player.getUniqueID(), k -> new HashSet<>());
+    }
+
+    // ==================== Tick 事件处理 ====================
 
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
@@ -64,20 +77,19 @@ public class AutoEffectHandler {
 
         EntityPlayer player = event.player;
         ItemStack coreStack = ItemMechanicalCore.findEquippedCore(player);
+
         if (coreStack.isEmpty()) {
-            // 清理玩家的所有效果
-            cleanupAllEffects(player);
+            handleCoreRemoved(player);
             return;
         }
 
         long currentTime = player.world.getTotalWorldTime();
         PlayerEffectState state = getState(player);
+        Set<String> currentActive = getActiveModules(player);
+        Set<String> nowActive = new HashSet<>();
 
         // 遍历所有自动注册的模块
         for (ModuleDefinition def : ModuleAutoRegistry.getAllDefinitions()) {
-            if (def.effects == null || def.effects.isEmpty()) continue;
-
-            // 检查模块是否激活
             boolean isActive = ItemMechanicalCore.isUpgradeActive(coreStack, def.id);
             int level = 0;
             try {
@@ -85,24 +97,90 @@ public class AutoEffectHandler {
             } catch (Throwable ignored) {}
 
             if (!isActive || level <= 0) {
-                // 模块未激活，清理该模块的效果
+                // 模块未激活
+                if (currentActive.contains(def.id)) {
+                    // 触发 onModuleDeactivated
+                    handleModuleDeactivated(player, coreStack, def, state);
+                }
                 cleanupModuleEffects(player, def.id, state);
                 continue;
             }
 
-            // 处理该模块的所有效果
-            for (ModuleEffect effect : def.effects) {
-                processTickEffect(player, coreStack, def.id, level, effect, currentTime, state);
+            nowActive.add(def.id);
+
+            // 检查是否新激活
+            if (!currentActive.contains(def.id)) {
+                handleModuleActivated(player, coreStack, def, level);
             }
+
+            // 创建上下文
+            EventContext ctx = new EventContext(player, coreStack, def.id, level);
+
+            // 处理被动能耗
+            if (def.hasHandler()) {
+                int energyCost = def.handler.getPassiveEnergyCost();
+                if (energyCost > 0) {
+                    if (!ItemMechanicalCore.consumeEnergy(coreStack, energyCost)) {
+                        // 能量不足，跳过此模块
+                        continue;
+                    }
+                }
+            }
+
+            // 处理事件处理器的 tick
+            if (def.hasHandler()) {
+                processHandlerTick(def, ctx, currentTime, state);
+            }
+
+            // 处理简单效果
+            if (def.hasEffects()) {
+                for (ModuleEffect effect : def.effects) {
+                    processSimpleEffect(player, coreStack, def.id, level, effect, currentTime, state);
+                }
+            }
+        }
+
+        // 更新激活状态
+        currentActive.clear();
+        currentActive.addAll(nowActive);
+    }
+
+    /**
+     * 处理 Handler 的 tick 事件
+     */
+    private static void processHandlerTick(ModuleDefinition def, EventContext ctx,
+                                           long currentTime, PlayerEffectState state) {
+        IModuleEventHandler handler = def.handler;
+        String tickKey = def.id + "_tick";
+        String secondKey = def.id + "_second";
+
+        // 自定义间隔 tick
+        int interval = handler.getTickInterval();
+        if (interval <= 0) {
+            // 每tick调用
+            handler.onTick(ctx);
+        } else {
+            Long lastTick = state.lastTickTimes.get(tickKey);
+            if (lastTick == null || currentTime - lastTick >= interval) {
+                state.lastTickTimes.put(tickKey, currentTime);
+                handler.onTick(ctx);
+            }
+        }
+
+        // 每秒调用
+        Long lastSecond = state.lastSecondTicks.get(secondKey);
+        if (lastSecond == null || currentTime - lastSecond >= 20) {
+            state.lastSecondTicks.put(secondKey, currentTime);
+            handler.onSecondTick(ctx);
         }
     }
 
     /**
-     * 处理单个tick效果
+     * 处理简单效果
      */
-    private static void processTickEffect(EntityPlayer player, ItemStack coreStack, String moduleId,
-                                          int level, ModuleEffect effect, long currentTime,
-                                          PlayerEffectState state) {
+    private static void processSimpleEffect(EntityPlayer player, ItemStack coreStack, String moduleId,
+                                            int level, ModuleEffect effect, long currentTime,
+                                            PlayerEffectState state) {
         String effectKey = moduleId + "_" + effect.effectId;
 
         switch (effect.type) {
@@ -116,7 +194,7 @@ public class AutoEffectHandler {
 
             case HEALING:
                 if (shouldTrigger(effectKey, currentTime, effect.tickInterval, state)) {
-                    if (checkEnergy(player, coreStack, moduleId, effect)) {
+                    if (checkEnergy(coreStack, effect)) {
                         float amount = effect.getHealAmountForLevel(level);
                         player.heal(amount);
                     }
@@ -125,7 +203,7 @@ public class AutoEffectHandler {
 
             case FOOD_RESTORE:
                 if (shouldTrigger(effectKey, currentTime, effect.tickInterval, state)) {
-                    if (checkEnergy(player, coreStack, moduleId, effect)) {
+                    if (checkEnergy(coreStack, effect)) {
                         int amount = effect.foodAmount + (effect.foodPerLevel * (level - 1));
                         player.getFoodStats().addStats(amount, effect.saturation);
                     }
@@ -135,7 +213,7 @@ public class AutoEffectHandler {
             case TICK_CALLBACK:
                 if (effect.tickCallback != null) {
                     if (shouldTrigger(effectKey, currentTime, effect.tickInterval, state)) {
-                        if (checkEnergy(player, coreStack, moduleId, effect)) {
+                        if (checkEnergy(coreStack, effect)) {
                             effect.tickCallback.execute(player, coreStack, moduleId, level, null);
                         }
                     }
@@ -143,143 +221,71 @@ public class AutoEffectHandler {
                 break;
 
             default:
-                // 其他类型在事件处理器中处理
                 break;
         }
     }
 
-    /**
-     * 检查是否应该触发（基于间隔）
-     */
-    private static boolean shouldTrigger(String key, long currentTime, int interval, PlayerEffectState state) {
-        Long lastTime = state.lastTickTimes.get(key);
-        if (lastTime == null || currentTime - lastTime >= interval) {
-            state.lastTickTimes.put(key, currentTime);
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * 检查并消耗能量
-     */
-    private static boolean checkEnergy(EntityPlayer player, ItemStack coreStack, String moduleId, ModuleEffect effect) {
-        if (!effect.requiresEnergy) return true;
-
-        int cost = effect.energyCost > 0 ? effect.energyCost : effect.energyPerTick;
-        if (cost <= 0) return true;
-
-        return ItemMechanicalCore.consumeEnergy(coreStack, cost);
-    }
-
-    /**
-     * 应用属性修改器
-     */
-    private static void applyAttributeModifier(EntityPlayer player, String moduleId, int level,
-                                               ModuleEffect effect, PlayerEffectState state) {
-        if (effect.attribute == null) return;
-
-        IAttributeInstance attr = player.getAttributeMap().getAttributeInstance(effect.attribute);
-        if (attr == null) return;
-
-        String modifierKey = moduleId + "_" + effect.effectId;
-        UUID modUUID = effect.modifierUUID;
-
-        // 移除旧的修改器
-        AttributeModifier existing = attr.getModifier(modUUID);
-        if (existing != null) {
-            attr.removeModifier(existing);
-        }
-
-        // 计算新值并应用
-        double value = effect.getValueForLevel(level);
-        AttributeModifier modifier = new AttributeModifier(
-                modUUID,
-                "MechanicalCore_" + moduleId,
-                value,
-                effect.operation.mcValue
-        );
-        attr.applyModifier(modifier);
-
-        // 记录活动的修改器
-        state.activeModifiers
-                .computeIfAbsent(moduleId, k -> new HashSet<>())
-                .add(modUUID);
-    }
-
-    /**
-     * 应用药水效果
-     */
-    private static void applyPotionEffect(EntityPlayer player, int level, ModuleEffect effect) {
-        if (effect.potion == null) return;
-
-        int amplifier = effect.getAmplifierForLevel(level);
-        PotionEffect potionEffect = new PotionEffect(
-                effect.potion,
-                effect.baseDuration,
-                amplifier,
-                effect.ambient,
-                effect.showParticles
-        );
-        player.addPotionEffect(potionEffect);
-    }
-
-    // ========== 伤害事件处理 ==========
+    // ==================== 伤害事件处理 ====================
 
     @SubscribeEvent(priority = EventPriority.LOW)
     public static void onLivingHurt(LivingHurtEvent event) {
-        // 处理伤害加成（玩家攻击）
-        Entity source = event.getSource().getTrueSource();
-        if (source instanceof EntityPlayer) {
-            EntityPlayer player = (EntityPlayer) source;
+        Entity sourceEntity = event.getSource().getTrueSource();
+
+        // 玩家攻击
+        if (sourceEntity instanceof EntityPlayer) {
+            EntityPlayer player = (EntityPlayer) sourceEntity;
             ItemStack coreStack = ItemMechanicalCore.findEquippedCore(player);
-            if (!coreStack.isEmpty()) {
+            if (!coreStack.isEmpty() && event.getEntityLiving() != null) {
                 float damage = event.getAmount();
-                damage = applyDamageBoost(player, coreStack, damage, event);
+                damage = processPlayerAttack(player, coreStack, event.getEntityLiving(), damage, event);
                 event.setAmount(damage);
             }
         }
 
-        // 处理伤害减免和反弹（玩家受伤）
+        // 玩家受伤
         if (event.getEntityLiving() instanceof EntityPlayer) {
             EntityPlayer player = (EntityPlayer) event.getEntityLiving();
             ItemStack coreStack = ItemMechanicalCore.findEquippedCore(player);
             if (!coreStack.isEmpty()) {
                 float damage = event.getAmount();
-                damage = applyDamageReduction(player, coreStack, damage, event);
+                damage = processPlayerHurt(player, coreStack, damage, event);
                 event.setAmount(damage);
-
-                // 处理伤害反弹
-                applyDamageReflection(player, coreStack, event);
             }
         }
     }
 
     /**
-     * 应用伤害加成
+     * 处理玩家攻击
      */
-    private static float applyDamageBoost(EntityPlayer player, ItemStack coreStack, float damage, LivingHurtEvent event) {
+    private static float processPlayerAttack(EntityPlayer player, ItemStack coreStack,
+                                             EntityLivingBase target, float damage, LivingHurtEvent event) {
         float totalMultiplier = 1.0f;
 
         for (ModuleDefinition def : ModuleAutoRegistry.getAllDefinitions()) {
-            if (def.effects == null) continue;
             if (!ItemMechanicalCore.isUpgradeActive(coreStack, def.id)) continue;
 
             int level = 0;
-            try {
-                level = ItemMechanicalCoreExtended.getUpgradeLevel(coreStack, def.id);
-            } catch (Throwable ignored) {}
+            try { level = ItemMechanicalCoreExtended.getUpgradeLevel(coreStack, def.id); } catch (Throwable ignored) {}
             if (level <= 0) continue;
 
-            for (ModuleEffect effect : def.effects) {
-                if (effect.type == ModuleEffect.EffectType.DAMAGE_BOOST) {
-                    totalMultiplier += effect.getDamageMultiplierForLevel(level) - 1.0f;
-                }
+            // 处理 Handler
+            if (def.hasHandler()) {
+                EventContext ctx = new EventContext(player, coreStack, def.id, level);
+                float newDamage = def.handler.onPlayerAttack(ctx, target, damage * totalMultiplier);
+                totalMultiplier = newDamage / damage;
+                def.handler.onPlayerHitEntity(ctx, target, event);
+            }
 
-                // 处理自定义攻击回调
-                if (effect.type == ModuleEffect.EffectType.ON_HIT && effect.hitCallback != null) {
-                    if (checkEnergy(player, coreStack, def.id, effect)) {
-                        effect.hitCallback.execute(player, coreStack, def.id, level, event);
+            // 处理简单效果
+            if (def.hasEffects()) {
+                for (ModuleEffect effect : def.effects) {
+                    if (effect.type == ModuleEffect.EffectType.DAMAGE_BOOST) {
+                        totalMultiplier += effect.getDamageMultiplierForLevel(level) - 1.0f;
+                    }
+                    if (effect.type == ModuleEffect.EffectType.ON_HIT && effect.hitCallback != null) {
+                        if (checkEnergy(coreStack, effect)) {
+                            effect.hitCallback.execute(player, coreStack, def.id, level, event);
+                        }
                     }
                 }
             }
@@ -289,90 +295,247 @@ public class AutoEffectHandler {
     }
 
     /**
-     * 应用伤害减免
+     * 处理玩家受伤
      */
-    private static float applyDamageReduction(EntityPlayer player, ItemStack coreStack, float damage, LivingHurtEvent event) {
+    private static float processPlayerHurt(EntityPlayer player, ItemStack coreStack,
+                                           float damage, LivingHurtEvent event) {
         float totalReduction = 0.0f;
-        String damageType = event.getSource().getDamageType();
-
-        for (ModuleDefinition def : ModuleAutoRegistry.getAllDefinitions()) {
-            if (def.effects == null) continue;
-            if (!ItemMechanicalCore.isUpgradeActive(coreStack, def.id)) continue;
-
-            int level = 0;
-            try {
-                level = ItemMechanicalCoreExtended.getUpgradeLevel(coreStack, def.id);
-            } catch (Throwable ignored) {}
-            if (level <= 0) continue;
-
-            for (ModuleEffect effect : def.effects) {
-                if (effect.type == ModuleEffect.EffectType.DAMAGE_REDUCTION) {
-                    // 检查伤害类型过滤
-                    if (!effect.damageTypes.isEmpty() && !effect.damageTypes.contains(damageType)) {
-                        continue;
-                    }
-                    totalReduction += effect.getReductionForLevel(level);
-                }
-
-                // 处理自定义受伤回调
-                if (effect.type == ModuleEffect.EffectType.ON_HURT && effect.hurtCallback != null) {
-                    if (checkEnergy(player, coreStack, def.id, effect)) {
-                        effect.hurtCallback.execute(player, coreStack, def.id, level, event);
-                    }
-                }
-            }
-        }
-
-        // 限制最大减免为 90%
-        totalReduction = Math.min(totalReduction, 0.9f);
-        return damage * (1.0f - totalReduction);
-    }
-
-    /**
-     * 应用伤害反弹
-     */
-    private static void applyDamageReflection(EntityPlayer player, ItemStack coreStack, LivingHurtEvent event) {
-        Entity attacker = event.getSource().getTrueSource();
-        if (!(attacker instanceof EntityLivingBase)) return;
-
         float totalReflection = 0.0f;
 
         for (ModuleDefinition def : ModuleAutoRegistry.getAllDefinitions()) {
-            if (def.effects == null) continue;
             if (!ItemMechanicalCore.isUpgradeActive(coreStack, def.id)) continue;
 
             int level = 0;
-            try {
-                level = ItemMechanicalCoreExtended.getUpgradeLevel(coreStack, def.id);
-            } catch (Throwable ignored) {}
+            try { level = ItemMechanicalCoreExtended.getUpgradeLevel(coreStack, def.id); } catch (Throwable ignored) {}
             if (level <= 0) continue;
 
-            for (ModuleEffect effect : def.effects) {
-                if (effect.type == ModuleEffect.EffectType.DAMAGE_REFLECTION) {
-                    totalReflection += effect.getReflectionForLevel(level);
+            // 处理 Handler
+            if (def.hasHandler()) {
+                EventContext ctx = new EventContext(player, coreStack, def.id, level);
+                damage = def.handler.onPlayerHurt(ctx, event.getSource(), damage);
+            }
+
+            // 处理简单效果
+            if (def.hasEffects()) {
+                String damageType = event.getSource().getDamageType();
+                for (ModuleEffect effect : def.effects) {
+                    if (effect.type == ModuleEffect.EffectType.DAMAGE_REDUCTION) {
+                        if (effect.damageTypes.isEmpty() || effect.damageTypes.contains(damageType)) {
+                            totalReduction += effect.getReductionForLevel(level);
+                        }
+                    }
+                    if (effect.type == ModuleEffect.EffectType.DAMAGE_REFLECTION) {
+                        totalReflection += effect.getReflectionForLevel(level);
+                    }
+                    if (effect.type == ModuleEffect.EffectType.ON_HURT && effect.hurtCallback != null) {
+                        if (checkEnergy(coreStack, effect)) {
+                            effect.hurtCallback.execute(player, coreStack, def.id, level, event);
+                        }
+                    }
                 }
             }
         }
 
-        if (totalReflection > 0) {
+        // 应用减伤
+        totalReduction = Math.min(totalReduction, 0.9f);
+        damage = damage * (1.0f - totalReduction);
+
+        // 应用反伤
+        if (totalReflection > 0 && event.getSource().getTrueSource() instanceof EntityLivingBase) {
+            EntityLivingBase attacker = (EntityLivingBase) event.getSource().getTrueSource();
             float reflectedDamage = event.getAmount() * totalReflection;
-            ((EntityLivingBase) attacker).attackEntityFrom(
-                    net.minecraft.util.DamageSource.causeThornsDamage(player),
-                    reflectedDamage
-            );
+            attacker.attackEntityFrom(net.minecraft.util.DamageSource.causeThornsDamage(player), reflectedDamage);
+        }
+
+        return damage;
+    }
+
+    // ==================== 攻击事件 (伤害计算前) ====================
+
+    @SubscribeEvent(priority = EventPriority.HIGH)
+    public static void onLivingAttack(LivingAttackEvent event) {
+        if (!(event.getEntityLiving() instanceof EntityPlayer)) return;
+
+        EntityPlayer player = (EntityPlayer) event.getEntityLiving();
+        ItemStack coreStack = ItemMechanicalCore.findEquippedCore(player);
+        if (coreStack.isEmpty()) return;
+
+        for (ModuleDefinition def : ModuleAutoRegistry.getAllDefinitions()) {
+            if (!def.hasHandler()) continue;
+            if (!ItemMechanicalCore.isUpgradeActive(coreStack, def.id)) continue;
+
+            int level = 0;
+            try { level = ItemMechanicalCoreExtended.getUpgradeLevel(coreStack, def.id); } catch (Throwable ignored) {}
+            if (level <= 0) continue;
+
+            EventContext ctx = new EventContext(player, coreStack, def.id, level);
+            if (def.handler.onPlayerAttacked(ctx, event.getSource(), event.getAmount())) {
+                event.setCanceled(true);
+                return;
+            }
         }
     }
 
-    // ========== 清理方法 ==========
+    // ==================== 击杀事件 ====================
 
-    /**
-     * 清理玩家的所有自动效果
-     */
+    @SubscribeEvent
+    public static void onLivingDeath(LivingDeathEvent event) {
+        Entity killer = event.getSource().getTrueSource();
+        if (!(killer instanceof EntityPlayer)) return;
+
+        EntityPlayer player = (EntityPlayer) killer;
+        ItemStack coreStack = ItemMechanicalCore.findEquippedCore(player);
+        if (coreStack.isEmpty()) return;
+
+        EntityLivingBase target = event.getEntityLiving();
+
+        for (ModuleDefinition def : ModuleAutoRegistry.getAllDefinitions()) {
+            if (!def.hasHandler()) continue;
+            if (!ItemMechanicalCore.isUpgradeActive(coreStack, def.id)) continue;
+
+            int level = 0;
+            try { level = ItemMechanicalCoreExtended.getUpgradeLevel(coreStack, def.id); } catch (Throwable ignored) {}
+            if (level <= 0) continue;
+
+            EventContext ctx = new EventContext(player, coreStack, def.id, level);
+            def.handler.onPlayerKillEntity(ctx, target, event);
+        }
+    }
+
+    // ==================== 交互事件 ====================
+
+    @SubscribeEvent
+    public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
+        if (event.getWorld().isRemote) return;
+        processInteractEvent(event.getEntityPlayer(), (player, coreStack, def, ctx) ->
+                def.handler.onRightClickBlock(ctx, event));
+    }
+
+    @SubscribeEvent
+    public static void onRightClickItem(PlayerInteractEvent.RightClickItem event) {
+        if (event.getWorld().isRemote) return;
+        processInteractEvent(event.getEntityPlayer(), (player, coreStack, def, ctx) ->
+                def.handler.onRightClickItem(ctx, event));
+    }
+
+    @SubscribeEvent
+    public static void onLeftClickBlock(PlayerInteractEvent.LeftClickBlock event) {
+        if (event.getWorld().isRemote) return;
+        processInteractEvent(event.getEntityPlayer(), (player, coreStack, def, ctx) ->
+                def.handler.onLeftClickBlock(ctx, event));
+    }
+
+    private interface InteractCallback {
+        void handle(EntityPlayer player, ItemStack coreStack, ModuleDefinition def, EventContext ctx);
+    }
+
+    private static void processInteractEvent(EntityPlayer player, InteractCallback callback) {
+        ItemStack coreStack = ItemMechanicalCore.findEquippedCore(player);
+        if (coreStack.isEmpty()) return;
+
+        for (ModuleDefinition def : ModuleAutoRegistry.getAllDefinitions()) {
+            if (!def.hasHandler()) continue;
+            if (!ItemMechanicalCore.isUpgradeActive(coreStack, def.id)) continue;
+
+            int level = 0;
+            try { level = ItemMechanicalCoreExtended.getUpgradeLevel(coreStack, def.id); } catch (Throwable ignored) {}
+            if (level <= 0) continue;
+
+            EventContext ctx = new EventContext(player, coreStack, def.id, level);
+            callback.handle(player, coreStack, def, ctx);
+        }
+    }
+
+    // ==================== 状态事件 ====================
+
+    private static void handleModuleActivated(EntityPlayer player, ItemStack coreStack,
+                                              ModuleDefinition def, int level) {
+        if (def.hasHandler()) {
+            EventContext ctx = new EventContext(player, coreStack, def.id, level);
+            def.handler.onModuleActivated(ctx);
+        }
+    }
+
+    private static void handleModuleDeactivated(EntityPlayer player, ItemStack coreStack,
+                                                ModuleDefinition def, PlayerEffectState state) {
+        if (def.hasHandler()) {
+            EventContext ctx = new EventContext(player, coreStack, def.id, 0);
+            def.handler.onModuleDeactivated(ctx);
+        }
+    }
+
+    private static void handleCoreRemoved(EntityPlayer player) {
+        Set<String> active = getActiveModules(player);
+        ItemStack emptyStack = ItemStack.EMPTY;
+
+        for (String moduleId : active) {
+            ModuleDefinition def = ModuleAutoRegistry.getDefinition(moduleId);
+            if (def != null && def.hasHandler()) {
+                EventContext ctx = new EventContext(player, emptyStack, moduleId, 0);
+                def.handler.onModuleDeactivated(ctx);
+            }
+        }
+
+        active.clear();
+        cleanupAllEffects(player);
+    }
+
+    // ==================== 辅助方法 ====================
+
+    private static boolean shouldTrigger(String key, long currentTime, int interval, PlayerEffectState state) {
+        Long lastTime = state.lastTickTimes.get(key);
+        if (lastTime == null || currentTime - lastTime >= interval) {
+            state.lastTickTimes.put(key, currentTime);
+            return true;
+        }
+        return false;
+    }
+
+    private static boolean checkEnergy(ItemStack coreStack, ModuleEffect effect) {
+        if (!effect.requiresEnergy) return true;
+        int cost = effect.energyCost > 0 ? effect.energyCost : effect.energyPerTick;
+        if (cost <= 0) return true;
+        return ItemMechanicalCore.consumeEnergy(coreStack, cost);
+    }
+
+    private static void applyAttributeModifier(EntityPlayer player, String moduleId, int level,
+                                               ModuleEffect effect, PlayerEffectState state) {
+        if (effect.attribute == null) return;
+
+        IAttributeInstance attr = player.getAttributeMap().getAttributeInstance(effect.attribute);
+        if (attr == null) return;
+
+        UUID modUUID = effect.modifierUUID;
+
+        AttributeModifier existing = attr.getModifier(modUUID);
+        if (existing != null) {
+            attr.removeModifier(existing);
+        }
+
+        double value = effect.getValueForLevel(level);
+        AttributeModifier modifier = new AttributeModifier(
+                modUUID, "MechanicalCore_" + moduleId, value, effect.operation.mcValue
+        );
+        attr.applyModifier(modifier);
+
+        state.activeModifiers.computeIfAbsent(moduleId, k -> new HashSet<>()).add(modUUID);
+    }
+
+    private static void applyPotionEffect(EntityPlayer player, int level, ModuleEffect effect) {
+        if (effect.potion == null) return;
+        int amplifier = effect.getAmplifierForLevel(level);
+        PotionEffect potionEffect = new PotionEffect(
+                effect.potion, effect.baseDuration, amplifier, effect.ambient, effect.showParticles
+        );
+        player.addPotionEffect(potionEffect);
+    }
+
+    // ==================== 清理方法 ====================
+
     private static void cleanupAllEffects(EntityPlayer player) {
         PlayerEffectState state = playerStates.get(player.getUniqueID());
         if (state == null) return;
 
-        // 移除所有属性修改器
         for (Map.Entry<String, Set<UUID>> entry : state.activeModifiers.entrySet()) {
             for (UUID modUUID : entry.getValue()) {
                 removeModifierByUUID(player, modUUID);
@@ -381,11 +544,9 @@ public class AutoEffectHandler {
 
         state.activeModifiers.clear();
         state.lastTickTimes.clear();
+        state.lastSecondTicks.clear();
     }
 
-    /**
-     * 清理指定模块的效果
-     */
     private static void cleanupModuleEffects(EntityPlayer player, String moduleId, PlayerEffectState state) {
         Set<UUID> modifiers = state.activeModifiers.get(moduleId);
         if (modifiers != null) {
@@ -395,15 +556,11 @@ public class AutoEffectHandler {
             modifiers.clear();
         }
 
-        // 清理该模块的tick计时
         state.lastTickTimes.entrySet().removeIf(e -> e.getKey().startsWith(moduleId + "_"));
+        state.lastSecondTicks.entrySet().removeIf(e -> e.getKey().startsWith(moduleId + "_"));
     }
 
-    /**
-     * 通过UUID移除属性修改器
-     */
     private static void removeModifierByUUID(EntityPlayer player, UUID modUUID) {
-        // 尝试从所有属性中移除
         for (IAttributeInstance attr : player.getAttributeMap().getAllAttributes()) {
             AttributeModifier modifier = attr.getModifier(modUUID);
             if (modifier != null) {
@@ -412,11 +569,11 @@ public class AutoEffectHandler {
         }
     }
 
-    /**
-     * 玩家离开时清理
-     */
     @SubscribeEvent
-    public static void onPlayerLogout(net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerLoggedOutEvent event) {
-        playerStates.remove(event.player.getUniqueID());
+    public static void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+        UUID uuid = event.player.getUniqueID();
+        playerStates.remove(uuid);
+        activeModules.remove(uuid);
+        EventContext.clearPlayerCooldowns(uuid);
     }
 }
