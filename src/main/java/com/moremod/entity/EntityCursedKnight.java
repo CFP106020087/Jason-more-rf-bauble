@@ -365,8 +365,8 @@ public class EntityCursedKnight extends EntityMob implements IAnimatable {
 
         EntityPlayer player = (EntityPlayer) damageSrc.getTrueSource();
 
-        // 固定伤害：每次 20 血
-        float actualDamage = 20.0F;
+        // 固定伤害：每次 50 血（两下必死）
+        float actualDamage = 50.0F;
 
         // 判断是否需要累积大额伤害
         boolean scheduleChunk = damageAmount >= getChunkSize();
