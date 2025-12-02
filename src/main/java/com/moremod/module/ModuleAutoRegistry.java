@@ -5,6 +5,7 @@ import com.moremod.item.ItemMechanicalCore;
 import com.moremod.item.ItemMechanicalCoreExtended;
 import com.moremod.item.UpgradeType;
 import com.moremod.item.upgrades.ItemUpgradeComponent;
+import com.moremod.module.handler.AreaMiningBoostHandler;
 import net.minecraft.item.Item;
 import net.minecraft.util.text.TextFormatting;
 
@@ -141,13 +142,46 @@ public class ModuleAutoRegistry {
         */
 
         // ===== 在这里添加新模块 =====
-        // ModuleDefinition.builder("NEW_MODULE")
-        //     .displayName("新模块")
-        //     .color(TextFormatting.GOLD)
-        //     .category(ModuleDefinition.Category.COMBAT)
-        //     .maxLevel(3)
-        //     .levelDescriptions(lv -> new String[]{"描述..."})
-        //     .register();
+
+        // 周围挖掘增幅模块 - 使用自动注册 + 事件处理器
+        ModuleDefinition.builder("AREA_MINING_BOOST")
+            .displayName("周围挖掘增幅")
+            .color(TextFormatting.YELLOW)
+            .category(ModuleDefinition.Category.AUXILIARY)
+            .maxLevel(3)
+            .levelDescriptions(lv -> {
+                switch (lv) {
+                    case 1: return new String[]{
+                        TextFormatting.YELLOW + "挖掘增幅 I",
+                        TextFormatting.GRAY + "将周围增幅升级至 Lv.1",
+                        "",
+                        TextFormatting.YELLOW + "▶ 范围: 4格",
+                        TextFormatting.AQUA + "▶ 效果: 急迫 I",
+                        TextFormatting.GRAY + "影响周围所有玩家",
+                        TextFormatting.DARK_GRAY + "基础挖掘增幅"
+                    };
+                    case 2: return new String[]{
+                        TextFormatting.YELLOW + "挖掘增幅 II",
+                        TextFormatting.GRAY + "将周围增幅升级至 Lv.2",
+                        "",
+                        TextFormatting.YELLOW + "▶ 范围: 6格",
+                        TextFormatting.AQUA + "▶ 效果: 急迫 II",
+                        TextFormatting.BLUE + "高效挖掘系统"
+                    };
+                    case 3: return new String[]{
+                        TextFormatting.YELLOW + "✦ 挖掘增幅 III ✦",
+                        TextFormatting.GRAY + "将周围增幅升级至最高等级",
+                        "",
+                        TextFormatting.YELLOW + "▶ 范围: 8格",
+                        TextFormatting.AQUA + "▶ 效果: 急迫 III",
+                        TextFormatting.LIGHT_PURPLE + "极速开采",
+                        TextFormatting.RED + "已达最高等级"
+                    };
+                    default: return new String[]{};
+                }
+            })
+            .handler(new AreaMiningBoostHandler())
+            .register();
     }
 
     /**

@@ -58,12 +58,13 @@ public class EnergyBalanceConfig {
         public static int WATERPROOF_MODULE= 10;   // Lv3=30 RF/s
         public static int POISON_IMMUNITY   = 18;   // Lv3=54 RF/s
 
-        // 辅助类（5种）
+        // 辅助类（6种）
         public static int MOVEMENT_SPEED   = 30;   // Lv5=150 RF/s
         public static int STEALTH          = 0;    // 主动消耗
         public static int ORE_VISION       = 0;    // 主动消耗
         public static int NIGHT_VISION     = 10;   // Lv3=30 RF/s
         public static int WATER_BREATHING  = 12;   // Lv3=36 RF/s
+        public static int AREA_MINING_BOOST = 0;   // 主动消耗 (handler中处理)
 
         // 战斗类（6种）
         public static int DAMAGE_BOOST     = 25;   // Lv5=125 RF/s
@@ -352,6 +353,7 @@ public class EnergyBalanceConfig {
             case "ORE_VISION": return ExtendedUpgrades.ORE_VISION * level;
             case "NIGHT_VISION": return ExtendedUpgrades.NIGHT_VISION * level;
             case "WATER_BREATHING": return ExtendedUpgrades.WATER_BREATHING * level;
+            case "AREA_MINING_BOOST": return ExtendedUpgrades.AREA_MINING_BOOST * level;
 
             case "DAMAGE_BOOST": return ExtendedUpgrades.DAMAGE_BOOST * level;
             case "ATTACK_SPEED": return ExtendedUpgrades.ATTACK_SPEED * level;
