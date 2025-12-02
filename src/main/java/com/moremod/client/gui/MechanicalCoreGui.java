@@ -795,8 +795,7 @@ public class MechanicalCoreGui extends GuiScreen {
         // 获取通用数据
         float humanity = data.getHumanity();
         ItemStack core = getCurrentCoreStack();
-        EntityPlayer player = mc.player;
-        int activeModules = HumanityEffectsManager.countActiveModulesForAscension(player, core);
+        int activeModules = ItemMechanicalCore.getTotalActiveUpgradeLevel(core);
 
         // ========== 破碎之神条件 ==========
         long lowHumanityTicks = data.getLowHumanityTicks();

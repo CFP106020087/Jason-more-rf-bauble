@@ -366,7 +366,7 @@ public class HumanityEffectsManager {
         ItemStack core = com.moremod.item.ItemMechanicalCore.findEquippedMechanicalCore(player);
         if (!com.moremod.item.ItemMechanicalCore.isMechanicalCore(core)) return false;
 
-        int activeModules = countActiveModulesForAscension(player, core);
+        int activeModules = com.moremod.item.ItemMechanicalCore.getTotalActiveUpgradeLevel(core);
         if (activeModules < BrokenGodConfig.requiredModuleCount) return false;
 
         return true;

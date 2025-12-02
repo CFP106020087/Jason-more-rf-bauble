@@ -354,8 +354,8 @@ public class BrokenGodHandler {
         ItemStack core = ItemMechanicalCore.getCoreFromPlayer(player);
         if (core.isEmpty()) return false;
 
-        // 条件4: 激活模块数量（统计所有模块等级总和）
-        int activeModules = HumanityEffectsManager.countActiveModulesForAscension(player, core);
+        // 条件4: 激活模块数量（考虑暂停和能量状态）
+        int activeModules = ItemMechanicalCore.getTotalActiveUpgradeLevel(core);
         if (activeModules < BrokenGodConfig.requiredModuleCount) return false;
 
         return true;

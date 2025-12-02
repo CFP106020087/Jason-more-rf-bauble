@@ -325,8 +325,8 @@ public class ShambhalaHandler {
         ItemStack core = ItemMechanicalCore.getCoreFromPlayer(player);
         if (core.isEmpty()) return false;
 
-        // 条件4: 激活模块数量（统计所有模块等级总和）
-        int activeModules = HumanityEffectsManager.countActiveModulesForAscension(player, core);
+        // 条件4: 激活模块数量（考虑暂停和能量状态）
+        int activeModules = ItemMechanicalCore.getTotalActiveUpgradeLevel(core);
         if (activeModules < ShambhalaConfig.requiredModuleCount) return false;
 
         return true;
@@ -345,7 +345,7 @@ public class ShambhalaHandler {
         long secondsProgress = highHumanityTicks / 20;
 
         ItemStack core = ItemMechanicalCore.getCoreFromPlayer(player);
-        int modules = core.isEmpty() ? 0 : HumanityEffectsManager.countActiveModulesForAscension(player, core);
+        int modules = core.isEmpty() ? 0 : ItemMechanicalCore.getTotalActiveUpgradeLevel(core);
 
         return new String[]{
                 String.format("人性值: %.1f%% / %.1f%%", humanity, ShambhalaConfig.ascensionHumanityThreshold),
