@@ -6,6 +6,8 @@ import com.moremod.item.ItemMechanicalCoreExtended;
 import com.moremod.item.UpgradeType;
 import com.moremod.item.upgrades.ItemUpgradeComponent;
 import com.moremod.module.handler.AreaMiningBoostHandler;
+import com.moremod.module.handler.GeologicalResonatorHandler;
+import com.moremod.module.handler.KineticDeflectorHandler;
 import net.minecraft.item.Item;
 import net.minecraft.util.text.TextFormatting;
 
@@ -44,7 +46,7 @@ import java.util.*;
  * ╚══════════════════════════════════════════════════════════════════════════════╝
  */
 public class ModuleAutoRegistry {
-
+    private static final String[] ROMAN_NUMERALS = {"", "I", "II", "III", "IV", "V"};
     // 所有注册的模块定义
     private static final Map<String, ModuleDefinition> DEFINITIONS = new LinkedHashMap<>();
 
@@ -187,6 +189,67 @@ public class ModuleAutoRegistry {
             })
             .handler(new AreaMiningBoostHandler())
             .register();
+
+        ModuleDefinition.builder("KINETIC_DEFLECTOR")
+                .displayName("动能偏导护盾")
+                .color(TextFormatting.LIGHT_PURPLE)
+                .category(ModuleDefinition.Category.COMBAT)
+                .maxLevel(3)
+                .levelDescriptions(lv -> {
+                    // 窗口期: Lv1=6 ticks (0.3s), Lv2=8 ticks (0.4s), Lv3=10 ticks (0.5s)
+                    int ticks = 6 + (lv-1) * 2;
+                    String window = String.format("%.1f 秒 (%d ticks)", ticks * 0.05, ticks);
+                    int cost = 1000;
+                    String roman = ROMAN_NUMERALS[Math.min(lv, ROMAN_NUMERALS.length - 1)];
+
+                    // 使用 List 动态构建描述
+                    List<String> desc = new ArrayList<>();
+
+                    desc.add(TextFormatting.LIGHT_PURPLE + "动能偏导护盾 " + (lv == 3 ? "✦ " + roman + " ✦" : roman));
+                    desc.add(TextFormatting.GRAY + "在受击瞬间格挡 (右键) 触发『完美偏导』。");
+                    desc.add(TextFormatting.DARK_GRAY + "(要求手持装备支持格挡动作，如盾牌/剑)");
+                    desc.add("");
+                    desc.add(TextFormatting.YELLOW + "▶ 偏导判定窗口: " + window);
+                    desc.add(TextFormatting.AQUA + "▶ 效果: 免疫伤害 + 反射/强力击退");
+                    desc.add(TextFormatting.RED + "▶ 成功偏导能耗: " + cost + " RF");
+
+                    if (lv == 3) {
+                        desc.add(TextFormatting.GOLD + "▶ Lv3: 近战偏导施加短暂『虚弱』");
+                    }
+
+                    return desc.toArray(new String[0]);
+                })
+                .handler(new KineticDeflectorHandler())
+                .register();
+
+        // ===== 地质共振仪 (GEOLOGICAL_RESONATOR) =====
+        ModuleDefinition.builder("GEOLOGICAL_RESONATOR")
+                .displayName("地质共振仪")
+                .color(TextFormatting.YELLOW)
+                .category(ModuleDefinition.Category.AUXILIARY)
+                .maxLevel(3)
+                .levelDescriptions(lv -> {
+                    int radius = 8 + lv * 4; // 12, 16, 20 格
+                    String speed = "每 Tick 采样 " + lv + " 次";
+                    int passiveCostPerTick = 50; // 1000 RF/s
+                    int conversionCost = 800;
+                    String roman = ROMAN_NUMERALS[Math.min(lv, ROMAN_NUMERALS.length - 1)];
+
+                    return new String[]{
+                            TextFormatting.YELLOW + "地质共振仪 " + (lv == 3 ? "✦ " + roman + " ✦" : roman),
+                            TextFormatting.GRAY + "激活时共振周围矿物 (基于矿物词典)，",
+                            TextFormatting.GRAY + "将其远程提取并替换为石头。",
+                            TextFormatting.DARK_GRAY + "(优化：优先采样玩家下方区域)",
+                            "",
+                            TextFormatting.AQUA + "▶ 共振半径: " + radius + " 格",
+                            TextFormatting.YELLOW + "▶ 转化速度: " + speed,
+                            TextFormatting.RED + "▶ 维持能耗: " + passiveCostPerTick + " RF/t ("+(passiveCostPerTick*20)+" RF/s)",
+                            TextFormatting.RED + "▶ 转化能耗: " + conversionCost + " RF/矿物",
+                            TextFormatting.DARK_GRAY + "感受大地的脉动……"
+                    };
+                })
+                .handler(new GeologicalResonatorHandler())
+                .register();
     }
 
     /**

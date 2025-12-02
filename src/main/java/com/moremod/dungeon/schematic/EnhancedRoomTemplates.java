@@ -7,6 +7,7 @@ import net.minecraft.init.Blocks;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 
+import javax.swing.text.html.parser.Entity;
 import java.util.Random;
 
 /**
@@ -1710,7 +1711,7 @@ public class EnhancedRoomTemplates {
         }
 
         // 中央武器架
-        s.setBlockState(center, 1, center, Blocks.ARMOR_STAND.getDefaultState());
+        s.setBlockState(center, 1, center, Blocks.STANDING_BANNER.getDefaultState());
 
         // 四个刷怪笼入口
         placeRandomSpawner(s, center, 0, 3, 2);

@@ -137,7 +137,7 @@ public class moremod {
 
     public static final String MODID = "moremod";
     public static final String NAME = "More Mod";
-    public static final String VERSION = "3.2.2";
+    public static final String VERSION = "3.4.0";
 
     @Instance(MODID)
     public static moremod instance;

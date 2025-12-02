@@ -39,8 +39,8 @@ import java.io.IOException;
 import java.util.*;
 
 /**
- * 机械核心控制面板 GUI - 完整修复版
- * ✅ 修复：itemMaxLevel 设为 final，防止被覆盖
+ * 机械核心控制面板 GUI - 动态主题版
+ * 支持三种主题：默认工业风、破碎之神、机巧香巴拉
  */
 @SideOnly(Side.CLIENT)
 public class MechanicalCoreGui extends GuiScreen {
@@ -64,6 +64,82 @@ public class MechanicalCoreGui extends GuiScreen {
 
     private static final int UPGRADES_PER_PAGE = 6;
 
+    // ===== 🎨 动态主题系统 =====
+
+    private static class GuiTheme {
+        int tintRed, tintGreen, tintBlue; // 纹理染色 (255 based)
+        int bgMain;        // 主背景遮罩颜色
+        int bgList;        // 列表区域背景
+        int borderOuter;   // 外框颜色
+        int borderInner;   // 内框/标题栏颜色
+        int textTitle;     // 标题文字颜色
+        int textEnergy;    // 能量状态文字颜色
+        int entryNormal;   // 列表条目默认背景
+        int entryHover;    // 列表条目悬停背景
+        int scrollBar;     // 滚动条颜色
+        int scrollThumb;   // 滚动条滑块颜色
+
+        public GuiTheme(int r, int g, int b, int main, int list, int out, int in,
+                        int title, int energy, int eNorm, int eHov, int scroll, int thumb) {
+            this.tintRed = r; this.tintGreen = g; this.tintBlue = b;
+            this.bgMain = main; this.bgList = list;
+            this.borderOuter = out; this.borderInner = in;
+            this.textTitle = title; this.textEnergy = energy;
+            this.entryNormal = eNorm; this.entryHover = eHov;
+            this.scrollBar = scroll; this.scrollThumb = thumb;
+        }
+    }
+
+    // 1. 默认风格 (工业灰/原版风)
+    private static final GuiTheme THEME_DEFAULT = new GuiTheme(
+            255, 255, 255,      // 无染色
+            0xC0101010,         // 深灰背景
+            0x80000000,         // 黑底列表
+            0xC0383838,         // 灰色边框
+            0xC0505050,         // 浅灰内框
+            0xFFFFFF,           // 白色标题
+            0xCCCCCC,           // 灰色能量文字
+            0x40000000,         // 条目默认
+            0x60000000,         // 条目悬停
+            0x80000000,         // 滚动条背景
+            0xFFAAAAAA          // 滚动条滑块
+    );
+
+    // 2. 破碎之神风格 (苍白金/故障紫/深红)
+    private static final GuiTheme THEME_BROKEN = new GuiTheme(
+            255, 200, 200,      // 纹理泛红
+            0xD0200505,         // 深红黑背景
+            0x90300010,         // 血色列表底
+            0xD0884400,         // 古铜金边框
+            0xD0660022,         // 紫红内框
+            0xFFAA00,           // 金色标题
+            0xFFCC88,           // 暖金能量文字
+            0x50440000,         // 条目深红
+            0x70661100,         // 条目金红悬停
+            0x90400000,         // 滚动条深红
+            0xFFDD8844          // 滚动条金色滑块
+    );
+
+    // 3. 机巧香巴拉风格 (青蓝/白金/洁净)
+    private static final GuiTheme THEME_SHAMBHALA = new GuiTheme(
+            200, 255, 255,      // 纹理泛青
+            0xD0001515,         // 深青黑背景
+            0x90002020,         // 墨绿列表底
+            0xD000AAAA,         // 青色荧光边框
+            0xD0005555,         // 深青内框
+            0x55FFFF,           // 亮青标题
+            0x88FFFF,           // 青色能量文字
+            0x50002222,         // 条目深青
+            0x70004444,         // 条目亮青悬停
+            0x90002222,         // 滚动条深青
+            0xFF44DDDD          // 滚动条青色滑块
+    );
+
+    // 当前使用的主题
+    private GuiTheme currentTheme = THEME_DEFAULT;
+
+    // ===== 玩家和升级数据 =====
+
     private final EntityPlayer player;
     private final Map<String, UpgradeEntry> upgradeEntries = new HashMap<>();
     private final List<String> availableUpgrades = new ArrayList<>();
@@ -77,7 +153,7 @@ public class MechanicalCoreGui extends GuiScreen {
     private int guiTop;
 
     private static final Set<String> WATERPROOF_IDS = new HashSet<>(Arrays.asList(
-            "WATERPROOF_MODULE","WATERPROOF","waterproof_module","waterproof"
+            "WATERPROOF_MODULE", "WATERPROOF", "waterproof_module", "waterproof"
     ));
     private static final Set<String> GENERATOR_MODULES = new HashSet<>(Arrays.asList(
             "SOLAR_GENERATOR", "KINETIC_GENERATOR", "THERMAL_GENERATOR", "VOID_ENERGY", "COMBAT_CHARGER",
@@ -86,8 +162,8 @@ public class MechanicalCoreGui extends GuiScreen {
 
     // ===== 工具方法 =====
 
-    private static String up(String s){ return s==null? "" : s.toUpperCase(); }
-    private static String lo(String s){ return s==null? "" : s.toLowerCase(); }
+    private static String up(String s) { return s == null ? "" : s.toUpperCase(); }
+    private static String lo(String s) { return s == null ? "" : s.toLowerCase(); }
 
     private static boolean isWaterproofUpgrade(String id) {
         if (id == null) return false;
@@ -100,13 +176,9 @@ public class MechanicalCoreGui extends GuiScreen {
         return GENERATOR_MODULES.contains(id) || GENERATOR_MODULES.contains(up(id));
     }
 
-    /**
-     * ✅ 新增：从 NBT 读取 OriginalMax，尝试所有变体
-     */
     private int readOriginalMaxFromNBT(NBTTagCompound nbt, String id) {
         if (nbt == null) return 0;
 
-        // 读取所有变体的最大值
         int originalMax = Math.max(
                 nbt.getInteger("OriginalMax_" + id),
                 Math.max(
@@ -115,7 +187,6 @@ public class MechanicalCoreGui extends GuiScreen {
                 )
         );
 
-        // 防水模块特殊处理
         if (originalMax <= 0 && isWaterproofUpgrade(id)) {
             for (String wid : WATERPROOF_IDS) {
                 originalMax = Math.max(originalMax,
@@ -133,17 +204,12 @@ public class MechanicalCoreGui extends GuiScreen {
         return originalMax;
     }
 
-    /**
-     * ✅ 新增：获取模块的默认最大等级
-     */
     private int getDefaultMaxLevel(String id) {
-        // 基础升级类型
         try {
             ItemMechanicalCore.UpgradeType type = ItemMechanicalCore.UpgradeType.valueOf(up(id));
             return getMaxLevel(type);
         } catch (Exception ignored) {}
 
-        // 扩展升级类型
         try {
             ItemMechanicalCoreExtended.UpgradeInfo info = ItemMechanicalCoreExtended.getUpgradeInfo(id);
             if (info != null && info.maxLevel > 0) {
@@ -151,9 +217,10 @@ public class MechanicalCoreGui extends GuiScreen {
             }
         } catch (Exception ignored) {}
 
-        // 默认值
         return 3;
-    }// ===== 升级状态枚举 =====
+    }
+
+    // ===== 升级状态枚举 =====
 
     public enum UpgradeStatus {
         ACTIVE,
@@ -164,7 +231,7 @@ public class MechanicalCoreGui extends GuiScreen {
         NOT_OWNED
     }
 
-    // ===== ✅ 修复：UpgradeEntry 类 =====
+    // ===== UpgradeEntry 类 =====
 
     public static class UpgradeEntry {
         public final String id;
@@ -172,8 +239,6 @@ public class MechanicalCoreGui extends GuiScreen {
         public final TextFormatting color;
         public final int maxLevel;
         public final ItemMechanicalCoreExtended.UpgradeCategory category;
-
-        // ✅ 关键修改：itemMaxLevel 改为 final（初始化后不可修改）
         public final int itemMaxLevel;
 
         public int currentLevel;
@@ -184,12 +249,11 @@ public class MechanicalCoreGui extends GuiScreen {
         public UpgradeStatus status;
         public boolean wasPunished;
 
-        // ✅ 修改构造函数，添加 itemMaxLevel 参数
         public UpgradeEntry(String id, String displayName, TextFormatting color, int maxLevel,
                             ItemMechanicalCoreExtended.UpgradeCategory category,
                             int currentLevel, int ownedMaxLevel,
                             boolean canRunWithEnergy,
-                            int itemMaxLevel) {  // ← 新增参数
+                            int itemMaxLevel) {
             this.id = id;
             this.displayName = displayName;
             this.color = color;
@@ -198,7 +262,7 @@ public class MechanicalCoreGui extends GuiScreen {
             this.currentLevel = currentLevel;
             this.ownedMaxLevel = ownedMaxLevel;
             this.canRunWithEnergy = canRunWithEnergy;
-            this.itemMaxLevel = itemMaxLevel;  // ← 初始化后不可修改
+            this.itemMaxLevel = itemMaxLevel;
             this.damageCount = 0;
             this.isPaused = (currentLevel == 0 && ownedMaxLevel > 0);
             this.status = UpgradeStatus.ACTIVE;
@@ -221,7 +285,25 @@ public class MechanicalCoreGui extends GuiScreen {
         return ItemMechanicalCore.findEquippedMechanicalCore(player);
     }
 
-    // ===== ✅ 修复：状态判断逻辑 =====
+    // ===== 主题更新逻辑 =====
+
+    private void updateTheme() {
+        IHumanityData data = HumanityCapabilityHandler.getData(player);
+        if (data == null || !data.isSystemActive()) {
+            currentTheme = THEME_DEFAULT;
+            return;
+        }
+        AscensionRoute route = data.getAscensionRoute();
+        if (route == AscensionRoute.BROKEN_GOD) {
+            currentTheme = THEME_BROKEN;
+        } else if (route == AscensionRoute.SHAMBHALA) {
+            currentTheme = THEME_SHAMBHALA;
+        } else {
+            currentTheme = THEME_DEFAULT;
+        }
+    }
+
+    // ===== 状态判断逻辑 =====
 
     private UpgradeStatus getUpgradeStatus(NBTTagCompound nbt, String id) {
         if (nbt == null) return UpgradeStatus.NOT_OWNED;
@@ -229,10 +311,7 @@ public class MechanicalCoreGui extends GuiScreen {
         int currentLevel = getUpgradeLevelAcross(getCurrentCoreStack(), id);
         int ownedMax = getOwnedMaxFromNBT(nbt, id);
 
-        // ✅ 修复：使用正确的方法读取 itemMax
         int itemMax = readOriginalMaxFromNBT(nbt, id);
-
-        // 兜底：如果读取失败，使用 ownedMax
         if (itemMax <= 0) {
             itemMax = ownedMax > 0 ? ownedMax : getDefaultMaxLevel(id);
         }
@@ -242,7 +321,6 @@ public class MechanicalCoreGui extends GuiScreen {
             return UpgradeStatus.PENALIZED;
         }
 
-        // ✅ 优先检查是否被惩罚过（DAMAGED 优先级最高）
         boolean wasPunished = nbt.getBoolean("WasPunished_" + id) ||
                 nbt.getBoolean("WasPunished_" + up(id)) ||
                 nbt.getBoolean("WasPunished_" + lo(id));
@@ -251,7 +329,6 @@ public class MechanicalCoreGui extends GuiScreen {
             return UpgradeStatus.DAMAGED;
         }
 
-        // 然后检查暂停状态
         boolean isPaused = nbt.getBoolean("IsPaused_" + id) ||
                 nbt.getBoolean("IsPaused_" + up(id)) ||
                 nbt.getBoolean("IsPaused_" + lo(id));
@@ -311,7 +388,9 @@ public class MechanicalCoreGui extends GuiScreen {
         } catch (Throwable ignored) {}
 
         return lv;
-    }// ===== ✅ 修复：初始化升级数据 =====
+    }
+
+    // ===== 初始化升级数据 =====
 
     private void initializeUpgradeData() {
         upgradeEntries.clear();
@@ -323,7 +402,7 @@ public class MechanicalCoreGui extends GuiScreen {
 
         NBTTagCompound nbt = coreStack.hasTagCompound() ? coreStack.getTagCompound() : new NBTTagCompound();
 
-        // ===== 加载基础升级 =====
+        // 加载基础升级
         for (ItemMechanicalCore.UpgradeType type : ItemMechanicalCore.UpgradeType.values()) {
             String id = type.getKey();
 
@@ -357,34 +436,21 @@ public class MechanicalCoreGui extends GuiScreen {
                 coreStack.setTagCompound(nbt);
             }
 
-            // ✅ 关键修复：在创建 Entry 前先读取 itemMaxLevel
-// ✅ 关键修复：在创建 Entry 前先读取 itemMaxLevel
             int itemMaxLevel = readOriginalMaxFromNBT(nbt, id);
 
-            if (itemMaxLevel > 0) {
-                System.out.println("[GUI-Init] ✓ 读取 OriginalMax: " + id + " = " + itemMaxLevel);
-            } else {
-                // ✅ 修复：优先使用配置默认值，而不是 ownedMaxLevel
-                itemMaxLevel = getMaxLevel(type);  // ← 先用配置值
-                System.out.println("[GUI-Init] 使用配置默认值: " + id + " = " + itemMaxLevel);
-
-                // ✅ 如果配置值也无效，才用 ownedMaxLevel（最后的兜底）
+            if (itemMaxLevel <= 0) {
+                itemMaxLevel = getMaxLevel(type);
                 if (itemMaxLevel <= 0 && ownedMaxLevel > 0) {
                     itemMaxLevel = ownedMaxLevel;
-                    System.out.println("[GUI-Init] 最终兜底使用 OwnedMax: " + id + " = " + itemMaxLevel);
                 }
-
-                // ✅ 立即写入 OriginalMax
                 if (itemMaxLevel > 0) {
                     nbt.setInteger("OriginalMax_" + id, itemMaxLevel);
                     nbt.setInteger("OriginalMax_" + up(id), itemMaxLevel);
                     nbt.setInteger("OriginalMax_" + lo(id), itemMaxLevel);
                     coreStack.setTagCompound(nbt);
-                    System.out.println("[GUI-Init] 补救记录 OriginalMax: " + id + " = " + itemMaxLevel);
                 }
             }
 
-// ✅ 传入正确的 itemMaxLevel
             UpgradeEntry entry = new UpgradeEntry(id,
                     type.getDisplayName(),
                     type.getColor(),
@@ -392,7 +458,7 @@ public class MechanicalCoreGui extends GuiScreen {
                     ItemMechanicalCoreExtended.UpgradeCategory.BASIC,
                     level, ownedMaxLevel,
                     checkCanRunWithEnergy(id),
-                    itemMaxLevel);  // ← 现在是正确的值了
+                    itemMaxLevel);
 
             entry.damageCount = EnergyPunishmentSystem.getDamageCount(coreStack, id);
             entry.wasPunished = nbt.getBoolean("WasPunished_" + id) ||
@@ -406,7 +472,7 @@ public class MechanicalCoreGui extends GuiScreen {
             processedUpgrades.add(up(id));
         }
 
-        // ===== 加载扩展升级 =====
+        // 加载扩展升级
         try {
             Map<String, ItemMechanicalCoreExtended.UpgradeInfo> all = ItemMechanicalCoreExtended.getAllUpgrades();
             for (Map.Entry<String, ItemMechanicalCoreExtended.UpgradeInfo> en : all.entrySet()) {
@@ -442,34 +508,21 @@ public class MechanicalCoreGui extends GuiScreen {
                     coreStack.setTagCompound(nbt);
                 }
 
-                // ✅ 关键修复：在创建 Entry 前先读取 itemMaxLevel
-// ✅ 关键修复：在创建 Entry 前先读取 itemMaxLevel
                 int itemMaxLevel = readOriginalMaxFromNBT(nbt, id);
 
-                if (itemMaxLevel > 0) {
-                    System.out.println("[GUI-Init] ✓ 读取 OriginalMax: " + id + " = " + itemMaxLevel);
-                } else {
-                    // ✅ 修复：优先使用配置默认值
-                    itemMaxLevel = info.maxLevel;  // ← 先用配置值
-                    System.out.println("[GUI-Init] 使用配置默认值: " + id + " = " + itemMaxLevel);
-
-                    // ✅ 如果配置值也无效，才用 ownedMaxLevel
+                if (itemMaxLevel <= 0) {
+                    itemMaxLevel = info.maxLevel;
                     if (itemMaxLevel <= 0 && ownedMaxLevel > 0) {
                         itemMaxLevel = ownedMaxLevel;
-                        System.out.println("[GUI-Init] 最终兜底使用 OwnedMax: " + id + " = " + itemMaxLevel);
                     }
-
-                    // ✅ 立即写入
                     if (itemMaxLevel > 0) {
                         nbt.setInteger("OriginalMax_" + id, itemMaxLevel);
                         nbt.setInteger("OriginalMax_" + up(id), itemMaxLevel);
                         nbt.setInteger("OriginalMax_" + lo(id), itemMaxLevel);
                         coreStack.setTagCompound(nbt);
-                        System.out.println("[GUI-Init] 补救记录 OriginalMax: " + id + " = " + itemMaxLevel);
                     }
                 }
 
-// ✅ 传入正确的 itemMaxLevel
                 UpgradeEntry entry = new UpgradeEntry(id,
                         info.displayName,
                         info.color,
@@ -477,7 +530,7 @@ public class MechanicalCoreGui extends GuiScreen {
                         info.category,
                         level, ownedMaxLevel,
                         checkCanRunWithEnergy(id),
-                        itemMaxLevel);  // ← 现在是正确的值了
+                        itemMaxLevel);
 
                 entry.damageCount = EnergyPunishmentSystem.getDamageCount(coreStack, id);
                 entry.wasPunished = nbt.getBoolean("WasPunished_" + id) ||
@@ -493,7 +546,7 @@ public class MechanicalCoreGui extends GuiScreen {
         } catch (Throwable ignored) {}
 
         // 排序
-        availableUpgrades.sort((a,b)->{
+        availableUpgrades.sort((a, b) -> {
             UpgradeEntry A = upgradeEntries.get(a), B = upgradeEntries.get(b);
             if (A == null || B == null) return 0;
             int c = A.category.compareTo(B.category);
@@ -513,7 +566,9 @@ public class MechanicalCoreGui extends GuiScreen {
         return Math.max(nbt.getInteger("LastLevel_" + id),
                 Math.max(nbt.getInteger("LastLevel_" + up(id)),
                         nbt.getInteger("LastLevel_" + lo(id))));
-    }// ===== ✅ 修复：更新升级状态（不再修改 itemMaxLevel） =====
+    }
+
+    // ===== 更新升级状态 =====
 
     private void updateUpgradeStates() {
         long now = System.currentTimeMillis();
@@ -545,9 +600,6 @@ public class MechanicalCoreGui extends GuiScreen {
                     coreStack.setTagCompound(nbt);
                 }
 
-                // ✅ 关键修复：完全不修改 e.itemMaxLevel
-                // itemMaxLevel 是 final 的，无法修改，只在初始化时设置
-
                 e.damageCount = EnergyPunishmentSystem.getDamageCount(coreStack, id);
                 e.wasPunished = nbt.getBoolean("WasPunished_" + id) ||
                         nbt.getBoolean("WasPunished_" + up(id));
@@ -570,21 +622,25 @@ public class MechanicalCoreGui extends GuiScreen {
         this.buttonList.add(new GuiButton(BUTTON_PAUSE_ALL, guiLeft + 10, guiTop + 42, 100, 14, "⏸ 暂停非发电模块"));
         this.buttonList.add(new GuiButton(BUTTON_RESUME_ALL, guiLeft + 115, guiTop + 42, 100, 14, "▶ 恢复全部模块"));
 
-        // 添加破碎之神升格按钮（在侧边栏）
+        // 破碎之神升格按钮（侧边栏上方）
         int sidePanelX = guiLeft + GUI_WIDTH + 5;
-        int sidePanelY = guiTop + 20;
-        GuiButton ascendButton = new GuiButton(BUTTON_ASCEND, sidePanelX + 5, sidePanelY + SIDE_PANEL_HEIGHT - 25, SIDE_PANEL_WIDTH - 10, 18, "");
-        ascendButton.visible = false; // 默认隐藏，在drawScreen中控制
+        int triggerY1 = guiTop + 10;  // 上方位置
+        GuiButton ascendButton = new GuiButton(BUTTON_ASCEND, sidePanelX + 5, triggerY1 + SIDE_PANEL_HEIGHT - 25, SIDE_PANEL_WIDTH - 10, 18, "");
+        ascendButton.visible = false;
         this.buttonList.add(ascendButton);
 
-        // 添加香巴拉升格按钮（在侧边栏下方）
-        GuiButton shambhalaButton = new GuiButton(BUTTON_ASCEND_SHAMBHALA, sidePanelX + 5, sidePanelY + SIDE_PANEL_HEIGHT * 2 - 15, SIDE_PANEL_WIDTH - 10, 18, "");
+        // 香巴拉升格按钮（侧边栏下方，增加间距）
+        int triggerY2 = guiTop + 10 + SIDE_PANEL_HEIGHT + 15;  // 增加15像素间距
+        GuiButton shambhalaButton = new GuiButton(BUTTON_ASCEND_SHAMBHALA, sidePanelX + 5, triggerY2 + SIDE_PANEL_HEIGHT - 25, SIDE_PANEL_WIDTH - 10, 18, "");
         shambhalaButton.visible = false;
         this.buttonList.add(shambhalaButton);
     }
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
+        // 每帧更新主题
+        updateTheme();
+
         long now = System.currentTimeMillis();
         if (now - lastUpdateTime > 500) {
             updateUpgradeStates();
@@ -603,17 +659,40 @@ public class MechanicalCoreGui extends GuiScreen {
     }
 
     private void drawGuiBackground() {
-        GlStateManager.color(1,1,1,1);
-        try { this.mc.getTextureManager().bindTexture(GUI_TEXTURE); } catch (Exception ignored) {}
-        drawRect(guiLeft, guiTop, guiLeft + GUI_WIDTH, guiTop + GUI_HEIGHT, 0xC0101010);
-        drawRect(guiLeft + 1, guiTop + 1, guiLeft + GUI_WIDTH - 1, guiTop + GUI_HEIGHT - 1, 0xC0383838);
-        drawRect(guiLeft + 1, guiTop + 1, guiLeft + GUI_WIDTH - 1, guiTop + 20, 0xC0505050);
+        // 应用纹理染色
+        float r = currentTheme.tintRed / 255.0f;
+        float g = currentTheme.tintGreen / 255.0f;
+        float b = currentTheme.tintBlue / 255.0f;
+        GlStateManager.color(r, g, b, 1);
+
+        try {
+            this.mc.getTextureManager().bindTexture(GUI_TEXTURE);
+        } catch (Exception ignored) {}
+
+        // 使用主题色绘制背景
+        drawRect(guiLeft, guiTop, guiLeft + GUI_WIDTH, guiTop + GUI_HEIGHT, currentTheme.bgMain);
+        drawRect(guiLeft + 1, guiTop + 1, guiLeft + GUI_WIDTH - 1, guiTop + GUI_HEIGHT - 1, currentTheme.borderOuter);
+        drawRect(guiLeft + 1, guiTop + 1, guiLeft + GUI_WIDTH - 1, guiTop + 20, currentTheme.borderInner);
+
+        // 重置颜色
+        GlStateManager.color(1, 1, 1, 1);
     }
 
     private void drawTitle() {
+        IHumanityData data = HumanityCapabilityHandler.getData(player);
         String t = "机械核心控制面板";
+
+        // 根据路线改变标题
+        if (data != null) {
+            if (data.getAscensionRoute() == AscensionRoute.BROKEN_GOD) {
+                t = "破碎神性控制台";
+            } else if (data.getAscensionRoute() == AscensionRoute.SHAMBHALA) {
+                t = "香巴拉中枢界面";
+            }
+        }
+
         int x = guiLeft + (GUI_WIDTH - this.fontRenderer.getStringWidth(t)) / 2;
-        this.fontRenderer.drawStringWithShadow(t, x, guiTop + 8, 0xFFFFFF);
+        this.fontRenderer.drawStringWithShadow(t, x, guiTop + 8, currentTheme.textTitle);
     }
 
     private void drawEnergyStatus() {
@@ -634,13 +713,15 @@ public class MechanicalCoreGui extends GuiScreen {
         this.fontRenderer.drawStringWithShadow(st.icon + " " + st.displayName, sx, sy, st.color.getColorIndex());
 
         float p = (float) es.getEnergyStored() / Math.max(1, es.getMaxEnergyStored());
-        String eText = String.format("%.1f%% (%s / %s FE)", p*100, fmt(es.getEnergyStored()), fmt(es.getMaxEnergyStored()));
-        this.fontRenderer.drawString(eText, sx + 80, sy, 0xCCCCCC);
+        String eText = String.format("%.1f%% (%s / %s FE)", p * 100, fmt(es.getEnergyStored()), fmt(es.getMaxEnergyStored()));
+        this.fontRenderer.drawString(eText, sx + 80, sy, currentTheme.textEnergy);
     }
 
     private void drawUpgradeList(int mouseX, int mouseY) {
         int listX = guiLeft + 10, listY = guiTop + 60, listW = GUI_WIDTH - 40, listH = 105;
-        drawRect(listX, listY, listX + listW, listY + listH, 0x80000000);
+
+        // 使用主题列表背景色
+        drawRect(listX, listY, listX + listW, listY + listH, currentTheme.bgList);
 
         if (availableUpgrades.isEmpty()) {
             String s = "未安装任何升级";
@@ -664,16 +745,30 @@ public class MechanicalCoreGui extends GuiScreen {
     }
 
     private void drawUpgradeEntry(UpgradeEntry entry, int x, int y, int w, int mouseX, int mouseY) {
-        int bg = 0x40000000;
-        if (mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY <= y + 15) bg = 0x60000000;
+        // 使用主题定义的条目背景色
+        int bg = currentTheme.entryNormal;
+        if (mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY <= y + 15) {
+            bg = currentTheme.entryHover;
+        }
 
+        // 特殊状态颜色叠加
         switch (entry.status) {
-            case DAMAGED:  bg = 0x60800040; break;
-            case DEGRADED: bg = 0x60404000; break;
-            case PAUSED:   bg = 0x60606000; break;
-            case PENALIZED: bg = 0x60400040; break;
+            case DAMAGED:
+                bg = blendColor(bg, 0x60800040);
+                break;
+            case DEGRADED:
+                bg = blendColor(bg, 0x60404000);
+                break;
+            case PAUSED:
+                bg = blendColor(bg, 0x60606000);
+                break;
+            case PENALIZED:
+                bg = blendColor(bg, 0x60400040);
+                break;
             default:
-                if (!entry.canRunWithEnergy && entry.currentLevel > 0) bg = 0x60800000;
+                if (!entry.canRunWithEnergy && entry.currentLevel > 0) {
+                    bg = blendColor(bg, 0x60800000);
+                }
                 break;
         }
 
@@ -697,7 +792,7 @@ public class MechanicalCoreGui extends GuiScreen {
             nameCol = 0xFFFF00;
         } else if (entry.status == UpgradeStatus.PENALIZED) {
             int left = ItemMechanicalCore.getPenaltySecondsLeft(getCurrentCoreStack(), entry.id);
-            int cap  = Math.max(1, ItemMechanicalCore.getPenaltyCap(getCurrentCoreStack(), entry.id));
+            int cap = Math.max(1, ItemMechanicalCore.getPenaltyCap(getCurrentCoreStack(), entry.id));
             name = entry.displayName + " Lv." + entry.currentLevel + "/" + entry.ownedMaxLevel + " [惩罚: ≤" + cap + " | " + left + "s]";
             nameCol = 0xFFAA88;
         } else if (entry.currentLevel == 0) {
@@ -766,18 +861,44 @@ public class MechanicalCoreGui extends GuiScreen {
         this.fontRenderer.drawString("+", plusX + 4, btnY + 2, canIncrease ? 0xFFFFFF : 0x666666);
     }
 
+    /**
+     * 颜色混合辅助方法
+     */
+    private int blendColor(int base, int overlay) {
+        int ba = (base >> 24) & 0xFF;
+        int br = (base >> 16) & 0xFF;
+        int bg = (base >> 8) & 0xFF;
+        int bb = base & 0xFF;
+
+        int oa = (overlay >> 24) & 0xFF;
+        int or = (overlay >> 16) & 0xFF;
+        int og = (overlay >> 8) & 0xFF;
+        int ob = overlay & 0xFF;
+
+        float alpha = oa / 255.0f;
+        int r = (int) (br * (1 - alpha) + or * alpha);
+        int g = (int) (bg * (1 - alpha) + og * alpha);
+        int b = (int) (bb * (1 - alpha) + ob * alpha);
+        int a = Math.max(ba, oa);
+
+        return (a << 24) | (r << 16) | (g << 8) | b;
+    }
+
     private void drawScrollBar() {
         if (availableUpgrades.size() <= UPGRADES_PER_PAGE) return;
         int x = guiLeft + GUI_WIDTH - 25, y = guiTop + 60, h = 105;
-        drawRect(x, y, x + 10, y + h, 0x80000000);
+
+        // 使用主题滚动条颜色
+        drawRect(x, y, x + 10, y + h, currentTheme.scrollBar);
+
         float ratio = (float) scrollOffset / Math.max(1, availableUpgrades.size() - UPGRADES_PER_PAGE);
         int sliderH = Math.max(10, h * UPGRADES_PER_PAGE / availableUpgrades.size());
-        int sy = y + (int)((h - sliderH) * ratio);
-        drawRect(x + 1, sy, x + 9, sy + sliderH, 0xFFAAAAAA);
+        int sy = y + (int) ((h - sliderH) * ratio);
+
+        drawRect(x + 1, sy, x + 9, sy + sliderH, currentTheme.scrollThumb);
     }
 
-    // ===== 升格区域（悬停显示侧边栏） =====
-    // 支持两条升格路线：破碎之神（低人性）和香巴拉（高人性）
+    // ===== 升格区域 =====
 
     private void drawAscensionSection(int mouseX, int mouseY) {
         IHumanityData data = HumanityCapabilityHandler.getData(player);
@@ -786,13 +907,11 @@ public class MechanicalCoreGui extends GuiScreen {
             return;
         }
 
-        // 已经升格的情况
         if (data.getAscensionRoute() != AscensionRoute.NONE) {
             hideAllAscensionButtons();
             return;
         }
 
-        // 获取通用数据
         float humanity = data.getHumanity();
         ItemStack core = getCurrentCoreStack();
         int activeModules = ItemMechanicalCore.getTotalActiveUpgradeLevel(core);
@@ -813,10 +932,10 @@ public class MechanicalCoreGui extends GuiScreen {
         boolean shambhalaModulesMet = activeModules >= ShambhalaConfig.requiredModuleCount;
         boolean canAscendShambhala = shambhalaHumanityMet && shambhalaTimeMet && shambhalaModulesMet;
 
-        // 触发区位置（主GUI右侧的小标签）
+        // 触发区位置（增加间距）
         int triggerX = guiLeft + GUI_WIDTH;
-        int triggerY1 = guiTop + 20;  // 破碎之神
-        int triggerY2 = guiTop + 75;  // 香巴拉
+        int triggerY1 = guiTop + 10;   // 破碎之神 - 上方
+        int triggerY2 = guiTop + 10 + SIDE_PANEL_HEIGHT + 15;  // 香巴拉 - 下方（增加15像素间距）
         int triggerW = 18;
         int triggerH = 50;
 
@@ -872,7 +991,6 @@ public class MechanicalCoreGui extends GuiScreen {
             hideShambhalaButton();
         }
 
-        // 两个都没悬停时隐藏所有按钮
         if (!showBrokenPanel && !showShambhalaPanel) {
             hideAllAscensionButtons();
         }
@@ -880,17 +998,14 @@ public class MechanicalCoreGui extends GuiScreen {
 
     private void drawBrokenGodPanel(int panelX, int panelY, float humanity, long lowHumanitySeconds,
                                      int activeModules, boolean humanityMet, boolean timeMet, boolean modulesMet, boolean canAscend) {
-        // 绘制侧边栏背景
         drawRect(panelX, panelY, panelX + SIDE_PANEL_WIDTH, panelY + SIDE_PANEL_HEIGHT, 0xC0101010);
         drawRect(panelX + 1, panelY + 1, panelX + SIDE_PANEL_WIDTH - 1, panelY + SIDE_PANEL_HEIGHT - 1, 0xC0383838);
-
-        // 标题栏
         drawRect(panelX + 1, panelY + 1, panelX + SIDE_PANEL_WIDTH - 1, panelY + 14, 0xC0442266);
+
         String title = "破碎之神";
         int titleX = panelX + (SIDE_PANEL_WIDTH - this.fontRenderer.getStringWidth(title)) / 2;
         this.fontRenderer.drawStringWithShadow(title, titleX, panelY + 4, 0xAA88FF);
 
-        // 更新升格按钮状态和位置
         for (GuiButton button : buttonList) {
             if (button.id == BUTTON_ASCEND) {
                 button.x = panelX + 5;
@@ -903,27 +1018,23 @@ public class MechanicalCoreGui extends GuiScreen {
             }
         }
 
-        // 绘制条件列表
         int lineY = panelY + 18;
         int lineX = panelX + 4;
 
-        // 人性值条件
         if (humanityMet) {
-            this.fontRenderer.drawString(TextFormatting.GREEN + "✓" + TextFormatting.GRAY + "人性≤" + (int)BrokenGodConfig.ascensionHumanityThreshold + "%", lineX, lineY, 0xFFFFFF);
+            this.fontRenderer.drawString(TextFormatting.GREEN + "✓" + TextFormatting.GRAY + "人性≤" + (int) BrokenGodConfig.ascensionHumanityThreshold + "%", lineX, lineY, 0xFFFFFF);
         } else {
-            this.fontRenderer.drawString(TextFormatting.RED + "✗" + TextFormatting.GRAY + String.format("%.0f", humanity) + "/" + (int)BrokenGodConfig.ascensionHumanityThreshold + "%", lineX, lineY, 0xFFFFFF);
+            this.fontRenderer.drawString(TextFormatting.RED + "✗" + TextFormatting.GRAY + String.format("%.0f", humanity) + "/" + (int) BrokenGodConfig.ascensionHumanityThreshold + "%", lineX, lineY, 0xFFFFFF);
         }
 
-        // 低人性时间条件
         lineY += 12;
         if (timeMet) {
             this.fontRenderer.drawString(TextFormatting.GREEN + "✓" + TextFormatting.GRAY + "时间OK", lineX, lineY, 0xFFFFFF);
         } else {
-            String timeStr = formatTimeCompact((int)lowHumanitySeconds) + "/" + formatTimeCompact(BrokenGodConfig.requiredLowHumanitySeconds);
+            String timeStr = formatTimeCompact((int) lowHumanitySeconds) + "/" + formatTimeCompact(BrokenGodConfig.requiredLowHumanitySeconds);
             this.fontRenderer.drawString(TextFormatting.RED + "✗" + TextFormatting.GRAY + timeStr, lineX, lineY, 0xFFFFFF);
         }
 
-        // 激活模块条件
         lineY += 12;
         if (modulesMet) {
             this.fontRenderer.drawString(TextFormatting.GREEN + "✓" + TextFormatting.GRAY + "激活≥" + BrokenGodConfig.requiredModuleCount, lineX, lineY, 0xFFFFFF);
@@ -934,17 +1045,14 @@ public class MechanicalCoreGui extends GuiScreen {
 
     private void drawShambhalaPanel(int panelX, int panelY, float humanity, long highHumanityTicks,
                                      long requiredTicks, int activeModules, boolean humanityMet, boolean timeMet, boolean modulesMet, boolean canAscend) {
-        // 绘制侧边栏背景
         drawRect(panelX, panelY, panelX + SIDE_PANEL_WIDTH, panelY + SIDE_PANEL_HEIGHT, 0xC0101010);
         drawRect(panelX + 1, panelY + 1, panelX + SIDE_PANEL_WIDTH - 1, panelY + SIDE_PANEL_HEIGHT - 1, 0xC0383838);
-
-        // 标题栏
         drawRect(panelX + 1, panelY + 1, panelX + SIDE_PANEL_WIDTH - 1, panelY + 14, 0xC0226644);
+
         String title = "机巧香巴拉";
         int titleX = panelX + (SIDE_PANEL_WIDTH - this.fontRenderer.getStringWidth(title)) / 2;
         this.fontRenderer.drawStringWithShadow(title, titleX, panelY + 4, 0xFFDD88);
 
-        // 更新升格按钮状态和位置
         for (GuiButton button : buttonList) {
             if (button.id == BUTTON_ASCEND_SHAMBHALA) {
                 button.x = panelX + 5;
@@ -957,18 +1065,15 @@ public class MechanicalCoreGui extends GuiScreen {
             }
         }
 
-        // 绘制条件列表
         int lineY = panelY + 18;
         int lineX = panelX + 4;
 
-        // 人性值条件（高人性）
         if (humanityMet) {
-            this.fontRenderer.drawString(TextFormatting.GREEN + "✓" + TextFormatting.GRAY + "人性≥" + (int)ShambhalaConfig.ascensionHumanityThreshold + "%", lineX, lineY, 0xFFFFFF);
+            this.fontRenderer.drawString(TextFormatting.GREEN + "✓" + TextFormatting.GRAY + "人性≥" + (int) ShambhalaConfig.ascensionHumanityThreshold + "%", lineX, lineY, 0xFFFFFF);
         } else {
-            this.fontRenderer.drawString(TextFormatting.RED + "✗" + TextFormatting.GRAY + String.format("%.0f", humanity) + "/" + (int)ShambhalaConfig.ascensionHumanityThreshold + "%", lineX, lineY, 0xFFFFFF);
+            this.fontRenderer.drawString(TextFormatting.RED + "✗" + TextFormatting.GRAY + String.format("%.0f", humanity) + "/" + (int) ShambhalaConfig.ascensionHumanityThreshold + "%", lineX, lineY, 0xFFFFFF);
         }
 
-        // 高人性时间条件（秒）
         lineY += 12;
         long secondsProgress = highHumanityTicks / 20;
         if (timeMet) {
@@ -978,7 +1083,6 @@ public class MechanicalCoreGui extends GuiScreen {
             this.fontRenderer.drawString(TextFormatting.RED + "✗" + TextFormatting.GRAY + timeStr, lineX, lineY, 0xFFFFFF);
         }
 
-        // 激活模块条件
         lineY += 12;
         if (modulesMet) {
             this.fontRenderer.drawString(TextFormatting.GREEN + "✓" + TextFormatting.GRAY + "激活≥" + ShambhalaConfig.requiredModuleCount, lineX, lineY, 0xFFFFFF);
@@ -987,9 +1091,6 @@ public class MechanicalCoreGui extends GuiScreen {
         }
     }
 
-    /**
-     * 紧凑版时间格式化
-     */
     private String formatTimeCompact(int totalSeconds) {
         if (totalSeconds < 60) {
             return totalSeconds + "s";
@@ -1026,9 +1127,6 @@ public class MechanicalCoreGui extends GuiScreen {
         }
     }
 
-    /**
-     * 格式化秒数为可读时间格式 (例如: "30:00" 或 "1:30:00")
-     */
     private String formatTime(int totalSeconds) {
         if (totalSeconds < 60) {
             return totalSeconds + "s";
@@ -1047,7 +1145,6 @@ public class MechanicalCoreGui extends GuiScreen {
     // ===== Tooltip 绘制 =====
 
     private void drawTooltips(int mouseX, int mouseY) {
-        // 批量按钮提示
         for (GuiButton button : buttonList) {
             if (button.isMouseOver() && button.visible) {
                 List<String> tooltip = new ArrayList<>();
@@ -1067,7 +1164,6 @@ public class MechanicalCoreGui extends GuiScreen {
             }
         }
 
-        // 模块列表提示
         int listX = guiLeft + 10, listY = guiTop + 60, listW = GUI_WIDTH - 40, listH = 105;
         if (mouseX < listX || mouseX > listX + listW || mouseY < listY || mouseY > listY + listH) return;
 
@@ -1141,7 +1237,7 @@ public class MechanicalCoreGui extends GuiScreen {
 
             case PENALIZED:
                 int left = ItemMechanicalCore.getPenaltySecondsLeft(getCurrentCoreStack(), e.id);
-                int cap  = Math.max(1, ItemMechanicalCore.getPenaltyCap(getCurrentCoreStack(), e.id));
+                int cap = Math.max(1, ItemMechanicalCore.getPenaltyCap(getCurrentCoreStack(), e.id));
                 tip.add(TextFormatting.LIGHT_PURPLE + "🔒 惩罚中：临时上限 Lv." + cap + "，剩余 " + left + " 秒");
                 NBTTagCompound nbt = getCurrentCoreStack().getTagCompound();
                 if (nbt != null) {
@@ -1206,7 +1302,7 @@ public class MechanicalCoreGui extends GuiScreen {
 
         int sz = 13;
         int minusX = entryX + listW - 40;
-        int plusX  = entryX + listW - 25;
+        int plusX = entryX + listW - 25;
 
         if (inBtn(mouseX, mouseY, minusX, entryY + 1, sz)) {
             if (e.currentLevel > 0 && !isGeneratorModule(e.id)) {
@@ -1241,9 +1337,6 @@ public class MechanicalCoreGui extends GuiScreen {
         }
     }
 
-    /**
-     * 尝试升格为破碎之神
-     */
     private void tryAscendToBrokenGod() {
         if (!BrokenGodHandler.canAscend(player)) {
             player.sendStatusMessage(new TextComponentString(
@@ -1252,7 +1345,6 @@ public class MechanicalCoreGui extends GuiScreen {
             return;
         }
 
-        // 发送升格请求到服务器
         try {
             NetworkHandler.INSTANCE.sendToServer(new PacketMechanicalCoreUpdate(
                     PacketMechanicalCoreUpdate.Action.BROKEN_GOD_ASCEND,
@@ -1261,10 +1353,7 @@ public class MechanicalCoreGui extends GuiScreen {
                     true
             ));
 
-            // 播放音效 (服务器会播放升格音效)
             this.mc.player.playSound(SoundEvents.BLOCK_END_PORTAL_FRAME_FILL, 1.0f, 0.8f);
-
-            // 关闭GUI
             this.mc.displayGuiScreen(null);
 
             player.sendStatusMessage(new TextComponentString(
@@ -1278,9 +1367,6 @@ public class MechanicalCoreGui extends GuiScreen {
         }
     }
 
-    /**
-     * 尝试升格为香巴拉
-     */
     private void tryAscendToShambhala() {
         if (!ShambhalaHandler.canAscend(player)) {
             player.sendStatusMessage(new TextComponentString(
@@ -1289,7 +1375,6 @@ public class MechanicalCoreGui extends GuiScreen {
             return;
         }
 
-        // 发送升格请求到服务器
         try {
             NetworkHandler.INSTANCE.sendToServer(new PacketMechanicalCoreUpdate(
                     PacketMechanicalCoreUpdate.Action.SHAMBHALA_ASCEND,
@@ -1298,10 +1383,7 @@ public class MechanicalCoreGui extends GuiScreen {
                     true
             ));
 
-            // 播放音效 (服务器会播放升格音效)
             this.mc.player.playSound(SoundEvents.BLOCK_PORTAL_TRIGGER, 1.0f, 1.2f);
-
-            // 关闭GUI
             this.mc.displayGuiScreen(null);
 
             player.sendStatusMessage(new TextComponentString(
@@ -1425,9 +1507,6 @@ public class MechanicalCoreGui extends GuiScreen {
         updateUpgradeStates();
     }
 
-    /**
-     * ✅ 修复：使用 REPAIR_UPGRADE 动作，所有修改在服务器端
-     */
     private void tryRepair(UpgradeEntry entry) {
         ItemStack core = getCurrentCoreStack();
         if (!ItemMechanicalCore.isMechanicalCore(core)) return;
@@ -1442,7 +1521,6 @@ public class MechanicalCoreGui extends GuiScreen {
         int targetLevel = Math.min(entry.ownedMaxLevel + 1, entry.itemMaxLevel);
         int xpCost = calculateRepairCost(entry, targetLevel);
 
-        // 客户端只验证经验是否足够（提前反馈）
         if (!player.capabilities.isCreativeMode && player.experienceLevel < xpCost) {
             player.sendStatusMessage(new TextComponentString(
                     TextFormatting.RED + "经验不足！需要 " + xpCost + " 级"
@@ -1450,7 +1528,6 @@ public class MechanicalCoreGui extends GuiScreen {
             return;
         }
 
-        // 发送修复请求到服务器
         try {
             NetworkHandler.INSTANCE.sendToServer(new PacketMechanicalCoreUpdate(
                     PacketMechanicalCoreUpdate.Action.REPAIR_UPGRADE,
@@ -1458,19 +1535,15 @@ public class MechanicalCoreGui extends GuiScreen {
                     xpCost,
                     true
             ));
-            System.out.println("[GUI-Repair] 发送修复请求: " + entry.id + ", 成本: " + xpCost);
         } catch (Throwable e) {
-            System.err.println("[GUI-Repair] 发送修复请求失败: " + e.getMessage());
             player.sendStatusMessage(new TextComponentString(
                     TextFormatting.RED + "修复请求发送失败"
             ), true);
             return;
         }
 
-        // 播放音效（乐观更新）
         player.playSound(SoundEvents.BLOCK_ANVIL_USE, 1.0f, 1.0f);
 
-        // 显示等待提示
         if (targetLevel >= entry.itemMaxLevel) {
             player.sendStatusMessage(new TextComponentString(
                     TextFormatting.GREEN + "⚒ 正在修复..." + entry.displayName
@@ -1483,19 +1556,14 @@ public class MechanicalCoreGui extends GuiScreen {
             ), true);
         }
 
-        // 标记为等待更新
         pendingUpdates.put(entry.id, System.currentTimeMillis());
     }
 
-    /**
-     * 修复成本计算（使用 TotalDamageCount）
-     */
     private int calculateRepairCost(UpgradeEntry entry, int targetLevel) {
         ItemStack core = getCurrentCoreStack();
         NBTTagCompound nbt = core.getTagCompound();
         if (nbt == null) return 1;
 
-        // 使用 TotalDamageCount（累计总损坏次数）
         int totalDamageCount = Math.max(
                 nbt.getInteger("TotalDamageCount_" + entry.id),
                 Math.max(
@@ -1504,21 +1572,17 @@ public class MechanicalCoreGui extends GuiScreen {
                 )
         );
 
-        // 如果没有 TotalDamageCount，使用当前的 DamageCount
         if (totalDamageCount <= 0) {
             totalDamageCount = entry.damageCount;
         }
 
-        // 至少为1
         if (totalDamageCount <= 0) {
             totalDamageCount = 1;
         }
 
-        // 成本公式：7.5 * (总损坏次数)^0.42
         double cost = 7.5 * Math.pow(totalDamageCount, 0.42);
         int totalCost = (int) Math.ceil(cost);
 
-        // 限制在1-30级之间
         return Math.max(1, Math.min(30, totalCost));
     }
 
@@ -1532,7 +1596,7 @@ public class MechanicalCoreGui extends GuiScreen {
         if (mouseX >= x && mouseX <= x + 10 && mouseY >= y && mouseY <= y + h) {
             float r = (float) (mouseY - y) / h;
             int maxOffset = Math.max(0, availableUpgrades.size() - UPGRADES_PER_PAGE);
-            scrollOffset = Math.max(0, Math.min((int)(r * maxOffset), maxOffset));
+            scrollOffset = Math.max(0, Math.min((int) (r * maxOffset), maxOffset));
         }
     }
 
@@ -1545,9 +1609,8 @@ public class MechanicalCoreGui extends GuiScreen {
             int maxOffset = Math.max(0, availableUpgrades.size() - UPGRADES_PER_PAGE);
             scrollOffset = Math.max(0, Math.min(scrollOffset + dir, maxOffset));
         }
-    }/**
-     * ✅ 修复：降级逻辑 - 损坏模块降到0时保持DAMAGED状态
-     */
+    }
+
     private void adjustUpgradeLevel(String upgradeId, int delta) {
         UpgradeEntry entry = upgradeEntries.get(upgradeId);
         if (entry == null) return;
@@ -1656,20 +1719,16 @@ public class MechanicalCoreGui extends GuiScreen {
 
             setLevelEverywhere(core, upgradeId, newLevel);
 
-            // ✅ 修复：损坏模块降到0时保持DAMAGED状态
             if (old > 0 && newLevel == 0) {
                 if (entry.status == UpgradeStatus.DAMAGED && entry.wasPunished) {
-                    // 损坏的模块：只更新等级，保持DAMAGED状态
                     entry.currentLevel = 0;
                     entry.status = UpgradeStatus.DAMAGED;
                     entry.isPaused = false;
 
-                    // 记录 LastLevel，方便修复后恢复
                     nbt.setInteger("LastLevel_" + upgradeId, old);
                     nbt.setInteger("LastLevel_" + up(upgradeId), old);
                     nbt.setInteger("LastLevel_" + lo(upgradeId), old);
 
-                    // 确保 OriginalMax 已记录
                     String upperId = up(upgradeId);
                     if (!nbt.hasKey("OriginalMax_" + upperId)) {
                         int originalMax = entry.itemMaxLevel > 0 ? entry.itemMaxLevel : old;
@@ -1677,7 +1736,6 @@ public class MechanicalCoreGui extends GuiScreen {
                         nbt.setInteger("OriginalMax_" + upgradeId, originalMax);
                     }
                 } else {
-                    // 正常模块：设置为暂停状态
                     writePauseMeta(core, upgradeId, old, true);
                     entry.status = UpgradeStatus.PAUSED;
                     entry.isPaused = true;
@@ -1685,7 +1743,6 @@ public class MechanicalCoreGui extends GuiScreen {
             } else {
                 writePauseMeta(core, upgradeId, newLevel, false);
 
-                // 正确判断状态
                 if (ItemMechanicalCore.isPenalized(core, upgradeId)) {
                     entry.status = UpgradeStatus.PENALIZED;
                 } else if (entry.wasPunished && entry.ownedMaxLevel < entry.itemMaxLevel) {
@@ -1852,11 +1909,16 @@ public class MechanicalCoreGui extends GuiScreen {
             ItemStack core = getCurrentCoreStack();
             EnergyDepletionManager.EnergyStatus st = EnergyDepletionManager.getCurrentEnergyStatus(core);
             switch (st) {
-                case NORMAL: return true;
-                case POWER_SAVING: return !isHighConsumptionUpgrade(upgradeId);
-                case EMERGENCY: return isImportantUpgrade(upgradeId);
-                case CRITICAL: return isEssentialUpgrade(upgradeId);
-                default: return true;
+                case NORMAL:
+                    return true;
+                case POWER_SAVING:
+                    return !isHighConsumptionUpgrade(upgradeId);
+                case EMERGENCY:
+                    return isImportantUpgrade(upgradeId);
+                case CRITICAL:
+                    return isEssentialUpgrade(upgradeId);
+                default:
+                    return true;
             }
         } catch (Throwable t) {
             return true;
@@ -1884,34 +1946,47 @@ public class MechanicalCoreGui extends GuiScreen {
                 || isWaterproofUpgrade(u);
     }
 
-    private String fmt(int e){
+    private String fmt(int e) {
         if (e == Integer.MAX_VALUE) return "∞";
-        if (e >= 1_000_000) return String.format("%.1fM", e/1_000_000f);
-        if (e >= 1_000) return String.format("%.1fk", e/1_000f);
+        if (e >= 1_000_000) return String.format("%.1fM", e / 1_000_000f);
+        if (e >= 1_000) return String.format("%.1fk", e / 1_000f);
         return String.valueOf(e);
     }
 
-    private boolean inBtn(int mx, int my, int x, int y, int s){
-        return mx>=x && mx<=x+s && my>=y && my<=y+s;
+    private boolean inBtn(int mx, int my, int x, int y, int s) {
+        return mx >= x && mx <= x + s && my >= y && my <= y + s;
     }
 
     private int getMaxLevel(ItemMechanicalCore.UpgradeType type) {
         switch (type) {
-            case ENERGY_CAPACITY: return 10;
-            case ENERGY_EFFICIENCY: return 5;
-            case ARMOR_ENHANCEMENT: return 5;
-            case SPEED_BOOST: return 3;
-            case REGENERATION: return 3;
-            case FLIGHT_MODULE: return 3;
-            case SHIELD_GENERATOR: return 3;
-            case TEMPERATURE_CONTROL: return 5;
-            default: return 3;
+            case ENERGY_CAPACITY:
+                return 10;
+            case ENERGY_EFFICIENCY:
+                return 5;
+            case ARMOR_ENHANCEMENT:
+                return 5;
+            case SPEED_BOOST:
+                return 3;
+            case REGENERATION:
+                return 3;
+            case FLIGHT_MODULE:
+                return 3;
+            case SHIELD_GENERATOR:
+                return 3;
+            case TEMPERATURE_CONTROL:
+                return 5;
+            default:
+                return 3;
         }
     }
 
     @Override
-    public boolean doesGuiPauseGame(){ return false; }
+    public boolean doesGuiPauseGame() {
+        return false;
+    }
 
     @Override
-    public void onGuiClosed(){ super.onGuiClosed(); }
+    public void onGuiClosed() {
+        super.onGuiClosed();
+    }
 }
