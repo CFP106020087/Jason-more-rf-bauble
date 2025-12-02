@@ -22,7 +22,11 @@ public class DungeonTypes {
         MONSTER("monster", 0.7),
         PUZZLE("puzzle", 0.5),
         MINI_BOSS("mini_boss", 0.3),  // 道中Boss房间
-        BOSS("boss", 0.2);
+        BOSS("boss", 0.2),
+        // 三维地牢楼梯房间
+        STAIRCASE_UP("staircase_up", 0.5),      // 只能往上
+        STAIRCASE_DOWN("staircase_down", 0.5),  // 只能往下
+        STAIRCASE_BOTH("staircase_both", 0.5);  // 可上可下
 
         public final String name;
         public final double weight;
@@ -147,11 +151,13 @@ public class DungeonTypes {
     }
 
     public static class RoomNode {
-        public BlockPos position;   // 这里约定：为“外壳左下角(基点)”相对偏移
+        public BlockPos position;   // 这里约定：为"外壳左下角(基点)"相对偏移
         public int size;            // 用壳体尺寸逻辑，不用于模板尺寸
         public RoomType type;
         public Rotation rotation;
         public double difficulty;
+        public int floorIndex;      // 楼层索引 (0=底层, 1=中层, 2=顶层...)
+        public RoomNode linkedStaircase; // 楼梯连接的房间（上层或下层）
 
         public RoomNode(BlockPos position, int size, RoomType type) {
             this.position = position;
@@ -159,6 +165,14 @@ public class DungeonTypes {
             this.type = type;
             this.rotation = Rotation.NONE;
             this.difficulty = 0.5;
+            this.floorIndex = 0;
+            this.linkedStaircase = null;
+        }
+
+        public boolean isStaircase() {
+            return type == RoomType.STAIRCASE_UP ||
+                   type == RoomType.STAIRCASE_DOWN ||
+                   type == RoomType.STAIRCASE_BOTH;
         }
     }
 
@@ -187,12 +201,18 @@ public class DungeonTypes {
         private final int size;
         private List<RoomNode> rooms;
         private List<RoomConnection> connections;
+        private int floorCount;           // 楼层数
+        private int floorHeight;          // 每层高度间隔
+        private List<List<RoomNode>> floorRooms; // 按楼层分组的房间
 
         public DungeonLayout(BlockPos center, int size) {
             this.center = center;
             this.size = size;
             this.rooms = new ArrayList<>();
             this.connections = new ArrayList<>();
+            this.floorCount = 1;
+            this.floorHeight = 25;
+            this.floorRooms = new ArrayList<>();
         }
 
         public void setRooms(List<RoomNode> rooms) {
@@ -219,6 +239,37 @@ public class DungeonTypes {
             return size;
         }
 
+        public int getFloorCount() {
+            return floorCount;
+        }
+
+        public void setFloorCount(int floorCount) {
+            this.floorCount = floorCount;
+        }
+
+        public int getFloorHeight() {
+            return floorHeight;
+        }
+
+        public void setFloorHeight(int floorHeight) {
+            this.floorHeight = floorHeight;
+        }
+
+        public List<List<RoomNode>> getFloorRooms() {
+            return floorRooms;
+        }
+
+        public void setFloorRooms(List<List<RoomNode>> floorRooms) {
+            this.floorRooms = floorRooms;
+        }
+
+        public List<RoomNode> getRoomsOnFloor(int floor) {
+            if (floor >= 0 && floor < floorRooms.size()) {
+                return floorRooms.get(floor);
+            }
+            return new ArrayList<>();
+        }
+
         public RoomNode getEntranceRoom() {
             return rooms.stream()
                     .filter(r -> r.type == RoomType.ENTRANCE)
@@ -231,6 +282,16 @@ public class DungeonTypes {
                     .filter(r -> r.type == RoomType.EXIT)
                     .findFirst()
                     .orElse(null);
+        }
+
+        public List<RoomNode> getStaircaseRooms() {
+            List<RoomNode> staircases = new ArrayList<>();
+            for (RoomNode room : rooms) {
+                if (room.isStaircase()) {
+                    staircases.add(room);
+                }
+            }
+            return staircases;
         }
     }
 

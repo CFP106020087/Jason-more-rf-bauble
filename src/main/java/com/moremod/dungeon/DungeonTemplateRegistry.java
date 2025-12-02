@@ -106,6 +106,7 @@ public class DungeonTemplateRegistry {
                 list.add(EnhancedRoomTemplates.treasureRoom());
                 list.add(EnhancedRoomTemplates.treasureRoomVault());
                 list.add(EnhancedRoomTemplates.treasureRoomRoyal());
+                list.add(EnhancedRoomTemplates.treasureRoomOcean());
                 break;
             case TRAP:
                 list.add(EnhancedRoomTemplates.trapRoom());
@@ -136,6 +137,19 @@ public class DungeonTemplateRegistry {
                 list.add(EnhancedRoomTemplates.combatRoom());
                 list.add(EnhancedRoomTemplates.combatRoomTrainingGround());
                 list.add(EnhancedRoomTemplates.combatRoomColosseum());
+                list.add(EnhancedRoomTemplates.combatRoomArena());
+                list.add(EnhancedRoomTemplates.puzzleRoomMaze());
+                break;
+
+            // 三维地牢楼梯房间
+            case STAIRCASE_UP:
+                list.add(EnhancedRoomTemplates.staircaseRoomUp());
+                break;
+            case STAIRCASE_DOWN:
+                list.add(EnhancedRoomTemplates.staircaseRoomDown());
+                break;
+            case STAIRCASE_BOTH:
+                list.add(EnhancedRoomTemplates.staircaseRoomBoth());
                 break;
         }
     }

@@ -31,6 +31,10 @@ public class TreeDungeonPlacer {
     private static final int BOSS_SHELL_SIZE   = 40;
     private static final int BOSS_SHELL_HEIGHT = 18;
 
+    // 樓梯房間參數
+    private static final int STAIRCASE_SHELL_SIZE   = 30;
+    private static final int STAIRCASE_SHELL_HEIGHT = 12;
+
     private static final int THICK        = 2;
     private static final int INNER_Y      = 2;
 
@@ -79,6 +83,8 @@ public class TreeDungeonPlacer {
             return new RoomDimensions(BOSS_SHELL_SIZE, BOSS_SHELL_HEIGHT);
         } else if (room.type == RoomType.MINI_BOSS) {
             return new RoomDimensions(MINI_BOSS_SHELL_SIZE, MINI_BOSS_SHELL_HEIGHT);
+        } else if (room.isStaircase()) {
+            return new RoomDimensions(STAIRCASE_SHELL_SIZE, STAIRCASE_SHELL_HEIGHT);
         } else {
             return new RoomDimensions(STANDARD_SHELL_SIZE, STANDARD_SHELL_HEIGHT);
         }
@@ -169,7 +175,75 @@ public class TreeDungeonPlacer {
             case HUB:
                 // 這些房間完全依賴模板
                 break;
+
+            case STAIRCASE_UP:
+            case STAIRCASE_DOWN:
+            case STAIRCASE_BOTH:
+                // 樓梯房間 - 建立垂直傳送連接
+                setupStaircaseRoom(innerBase, innerSize, room);
+                break;
         }
+    }
+
+    /**
+     * 設置樓梯房間的垂直傳送裝置
+     */
+    private void setupStaircaseRoom(BlockPos origin, int innerSize, RoomNode room) {
+        int center = innerSize / 2;
+
+        // 中央樓梯平台
+        for (int dx = -2; dx <= 2; dx++) {
+            for (int dz = -2; dz <= 2; dz++) {
+                world.setBlockState(origin.add(center + dx, 0, center + dz),
+                        Blocks.QUARTZ_BLOCK.getDefaultState(), 2);
+            }
+        }
+
+        // 根據樓梯類型放置傳送水晶
+        if (room.type == RoomType.STAIRCASE_UP || room.type == RoomType.STAIRCASE_BOTH) {
+            // 向上的傳送點 (藍色標記)
+            world.setBlockState(origin.add(center, 1, center - 2),
+                    Blocks.LAPIS_BLOCK.getDefaultState(), 2);
+            world.setBlockState(origin.add(center, 2, center - 2),
+                    Blocks.TORCH.getDefaultState(), 2);
+
+            // 放置連接水晶 - 由 CrystalLinker 處理跨層連接
+            if (room.linkedStaircase != null) {
+                BlockPos crystalPos = origin.add(center, 1, center - 1);
+                crystalLinker.placeStaircaseCrystal(crystalPos, room, true);
+            }
+        }
+
+        if (room.type == RoomType.STAIRCASE_DOWN || room.type == RoomType.STAIRCASE_BOTH) {
+            // 向下的傳送點 (紅色標記)
+            world.setBlockState(origin.add(center, 1, center + 2),
+                    Blocks.REDSTONE_BLOCK.getDefaultState(), 2);
+            world.setBlockState(origin.add(center, 2, center + 2),
+                    Blocks.TORCH.getDefaultState(), 2);
+
+            // 放置連接水晶
+            if (room.linkedStaircase != null) {
+                BlockPos crystalPos = origin.add(center, 1, center + 1);
+                crystalLinker.placeStaircaseCrystal(crystalPos, room, false);
+            }
+        }
+
+        // 四角裝飾柱
+        placeStaircasePillar(origin.add(3, 0, 3));
+        placeStaircasePillar(origin.add(innerSize - 4, 0, 3));
+        placeStaircasePillar(origin.add(3, 0, innerSize - 4));
+        placeStaircasePillar(origin.add(innerSize - 4, 0, innerSize - 4));
+
+        // 樓層標識告示牌
+        BlockPos signPos = origin.add(center, 2, center);
+        world.setBlockState(signPos, Blocks.STANDING_SIGN.getDefaultState(), 2);
+    }
+
+    private void placeStaircasePillar(BlockPos pos) {
+        for (int y = 1; y <= 4; y++) {
+            world.setBlockState(pos.up(y), Blocks.QUARTZ_BLOCK.getStateFromMeta(2), 2); // 柱狀石英
+        }
+        world.setBlockState(pos.up(5), Blocks.SEA_LANTERN.getDefaultState(), 2);
     }
 
     private void setupTreasureGuards(BlockPos origin, int innerSize) {
@@ -328,13 +402,16 @@ public class TreeDungeonPlacer {
 
     private DungeonTree.RoomType convert(RoomType type) {
         switch (type) {
-            case ENTRANCE:  return DungeonTree.RoomType.ENTRANCE;
-            case TREASURE:  return DungeonTree.RoomType.TREASURE;
-            case TRAP:      return DungeonTree.RoomType.TRAP;
-            case BOSS:      return DungeonTree.RoomType.BOSS;
-            case MINI_BOSS: return DungeonTree.RoomType.MINI_BOSS;
-            case HUB:       return DungeonTree.RoomType.HUB;
-            default:        return DungeonTree.RoomType.NORMAL;
+            case ENTRANCE:       return DungeonTree.RoomType.ENTRANCE;
+            case TREASURE:       return DungeonTree.RoomType.TREASURE;
+            case TRAP:           return DungeonTree.RoomType.TRAP;
+            case BOSS:           return DungeonTree.RoomType.BOSS;
+            case MINI_BOSS:      return DungeonTree.RoomType.MINI_BOSS;
+            case HUB:            return DungeonTree.RoomType.HUB;
+            case STAIRCASE_UP:   return DungeonTree.RoomType.STAIRCASE_UP;
+            case STAIRCASE_DOWN: return DungeonTree.RoomType.STAIRCASE_DOWN;
+            case STAIRCASE_BOTH: return DungeonTree.RoomType.STAIRCASE_BOTH;
+            default:             return DungeonTree.RoomType.NORMAL;
         }
     }
 

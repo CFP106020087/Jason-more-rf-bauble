@@ -230,4 +230,63 @@ public class ImprovedCrystalLinker {
         PortalManager.registerLink(world, crystal1, crystal2);
         System.out.println("[水晶链接] 添加特殊连接 (" + label + "): " + crystal1 + " <-> " + crystal2);
     }
+
+    // 记录楼梯水晶位置，用于后续跨层连接
+    private final Map<RoomNode, BlockPos> staircaseUpCrystals = new HashMap<>();
+    private final Map<RoomNode, BlockPos> staircaseDownCrystals = new HashMap<>();
+
+    /**
+     * 放置楼梯房间的传送水晶
+     * @param pos 水晶位置
+     * @param room 楼梯房间节点
+     * @param isUpward true=向上传送, false=向下传送
+     */
+    public void placeStaircaseCrystal(BlockPos pos, RoomNode room, boolean isUpward) {
+        // 放置特殊颜色的水晶
+        IBlockState crystalState = isUpward ?
+                ModBlocks.UNBREAKABLE_BARRIER_VOID.getDefaultState() :  // 向上用默认水晶
+                ModBlocks.UNBREAKABLE_BARRIER_ANCHOR.getDefaultState(); // 向下用锚点水晶
+
+        world.setBlockState(pos, crystalState, 3);
+        world.setBlockState(pos.down(), Blocks.SEA_LANTERN.getDefaultState(), 3);
+
+        // 记录位置
+        if (isUpward) {
+            staircaseUpCrystals.put(room, pos);
+        } else {
+            staircaseDownCrystals.put(room, pos);
+        }
+
+        // 如果链接的楼梯房间已经有水晶，建立连接
+        RoomNode linkedRoom = room.linkedStaircase;
+        if (linkedRoom != null) {
+            BlockPos linkedCrystal = isUpward ?
+                    staircaseDownCrystals.get(linkedRoom) :
+                    staircaseUpCrystals.get(linkedRoom);
+
+            if (linkedCrystal != null) {
+                PortalManager.registerLink(world, pos, linkedCrystal);
+                String direction = isUpward ? "↑上层" : "↓下层";
+                System.out.println("[水晶链接] 楼梯连接 " + direction + ": " + pos + " <-> " + linkedCrystal);
+            }
+        }
+    }
+
+    /**
+     * 完成所有楼梯水晶的连接（在所有房间放置完成后调用）
+     */
+    public void finalizeStaircaseConnections() {
+        for (Map.Entry<RoomNode, BlockPos> entry : staircaseUpCrystals.entrySet()) {
+            RoomNode room = entry.getKey();
+            BlockPos upCrystal = entry.getValue();
+
+            if (room.linkedStaircase != null) {
+                BlockPos downCrystal = staircaseDownCrystals.get(room.linkedStaircase);
+                if (downCrystal != null) {
+                    PortalManager.registerLink(world, upCrystal, downCrystal);
+                    System.out.println("[水晶链接] 最终楼梯连接: " + upCrystal + " <-> " + downCrystal);
+                }
+            }
+        }
+    }
 }
