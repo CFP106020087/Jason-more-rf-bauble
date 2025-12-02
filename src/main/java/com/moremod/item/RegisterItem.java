@@ -11,6 +11,7 @@ import com.moremod.item.broken.ItemBrokenShackles;
 import com.moremod.item.broken.ItemBrokenProjection;
 import com.moremod.item.broken.ItemBrokenTerminus;
 import com.moremod.item.shambhala.*;
+import com.moremod.module.ModuleAutoRegistry;
 import com.moremod.system.ascension.BrokenGodItems;
 import com.moremod.system.ascension.ShambhalaItems;
 
@@ -223,6 +224,10 @@ public class RegisterItem {
     public static Item PURSUIT_LV1;
     public static Item PURSUIT_LV2;
     public static Item PURSUIT_LV3;
+
+    public static Item MAGIC_ABSORB_LV1;
+    public static Item MAGIC_ABSORB_LV2;
+    public static Item MAGIC_ABSORB_LV3;
 
     // 能源类升级
     public static Item KINETIC_GENERATOR_LV1;
@@ -460,6 +465,10 @@ public class RegisterItem {
         PURSUIT_LV2 = UpgradeItemsExtended.PURSUIT_LV2;
         PURSUIT_LV3 = UpgradeItemsExtended.PURSUIT_LV3;
 
+        MAGIC_ABSORB_LV1 = UpgradeItemsExtended.MAGIC_ABSORB_LV1;
+        MAGIC_ABSORB_LV2 = UpgradeItemsExtended.MAGIC_ABSORB_LV2;
+        MAGIC_ABSORB_LV3 = UpgradeItemsExtended.MAGIC_ABSORB_LV3;
+
         // 能源类
         KINETIC_GENERATOR_LV1 = UpgradeItemsExtended.KINETIC_GENERATOR_LV1;
         KINETIC_GENERATOR_LV2 = UpgradeItemsExtended.KINETIC_GENERATOR_LV2;
@@ -535,6 +544,19 @@ public class RegisterItem {
             }
         } catch (Throwable e) {
             System.err.println("[moremod] ❌ 扩展升级组件注册失败: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        // ===== 注册自动注册系统的模块 =====
+        try {
+            ModuleAutoRegistry.init();
+            Item[] autoItems = ModuleAutoRegistry.getAllItems();
+            if (autoItems != null && autoItems.length > 0) {
+                event.getRegistry().registerAll(autoItems);
+                System.out.println("[moremod] ✓ 自动注册 " + autoItems.length + " 个模块物品");
+            }
+        } catch (Throwable e) {
+            System.err.println("[moremod] ❌ 自动注册模块失败: " + e.getMessage());
             e.printStackTrace();
         }
 
