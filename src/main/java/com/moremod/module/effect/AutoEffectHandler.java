@@ -535,41 +535,25 @@ public class AutoEffectHandler {
 
         // 【优化】尝试使用缓存
         ItemStack coreStack = getCachedCoreStack(player);
-        if (coreStack.isEmpty()) {
-            System.out.println("[AutoEffectHandler] onBlockBreak: No core equipped");
-            return;
-        }
+        if (coreStack.isEmpty()) return;
 
         Map<String, Integer> cachedModules = getCachedActiveModules(player);
-        System.out.println("[AutoEffectHandler] onBlockBreak: cachedModules=" + (cachedModules != null ? cachedModules.keySet() : "null"));
-        System.out.println("[AutoEffectHandler] onBlockBreak: handlerModules=" + ModuleAutoRegistry.getHandlerModules().size());
 
         // 【优化】只遍历有 handler 的模块
         for (ModuleDefinition def : ModuleAutoRegistry.getHandlerModules()) {
-            System.out.println("[AutoEffectHandler] Checking handler module: " + def.id);
             Integer level;
             if (cachedModules != null) {
                 // 使用缓存
                 level = cachedModules.get(def.id);
-                if (level == null) {
-                    System.out.println("[AutoEffectHandler] " + def.id + " not in cache, skipping");
-                    continue;
-                }
+                if (level == null) continue;
             } else {
                 // 回退到直接查询
-                if (!ItemMechanicalCore.isUpgradeActive(coreStack, def.id)) {
-                    System.out.println("[AutoEffectHandler] " + def.id + " not active, skipping");
-                    continue;
-                }
+                if (!ItemMechanicalCore.isUpgradeActive(coreStack, def.id)) continue;
                 level = 0;
                 try { level = ItemMechanicalCoreExtended.getUpgradeLevel(coreStack, def.id); } catch (Throwable ignored) {}
-                if (level <= 0) {
-                    System.out.println("[AutoEffectHandler] " + def.id + " level=0, skipping");
-                    continue;
-                }
+                if (level <= 0) continue;
             }
 
-            System.out.println("[AutoEffectHandler] Calling handler for " + def.id + " level=" + level);
             EventContext ctx = new EventContext(player, coreStack, def.id, level);
             def.handler.onBlockBreak(ctx, event);
         }

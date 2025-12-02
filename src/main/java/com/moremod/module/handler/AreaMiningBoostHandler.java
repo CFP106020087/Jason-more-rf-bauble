@@ -35,9 +35,6 @@ public class AreaMiningBoostHandler implements IModuleEventHandler {
 
     @Override
     public void onBlockBreak(EventContext ctx, BlockEvent.BreakEvent event) {
-        // DEBUG
-        System.out.println("[AreaMiningBoost] onBlockBreak called! Level=" + ctx.level);
-
         // 如果事件已被取消，不处理
         if (event.isCanceled()) return;
 
@@ -48,8 +45,6 @@ public class AreaMiningBoostHandler implements IModuleEventHandler {
 
         // 只在服务端执行
         if (event.getWorld().isRemote) return;
-
-        System.out.println("[AreaMiningBoost] Starting vein mine at " + event.getPos());
 
         // 执行连锁挖掘
         performVeinMine(ctx, event.getWorld(), event.getPos(), event.getState());
