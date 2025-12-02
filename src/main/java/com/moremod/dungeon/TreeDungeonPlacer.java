@@ -101,24 +101,36 @@ public class TreeDungeonPlacer {
     }
 
     private void placeRoom(BlockPos base, RoomNode room) {
-        RoomDimensions dims = getRoomDimensions(room);
+        try {
+            RoomDimensions dims = getRoomDimensions(room);
+            System.out.println("[房间放置] 类型=" + room.type + " 位置=" + base + " 尺寸=" + dims.size + "x" + dims.height);
 
-        // 1) 生成房間外殼
-        generateRoomShell(base, dims.size, dims.height);
+            // 1) 生成房間外殼
+            generateRoomShell(base, dims.size, dims.height);
 
-        // 2) 放置房間模板
-        Schematic template = DungeonTemplateRegistry.getInstance().getRandomTemplate(convert(room.type));
-        template.place(world, base.getX() + THICK, base.getY() + INNER_Y, base.getZ() + THICK);
+            // 2) 放置房間模板
+            Schematic template = DungeonTemplateRegistry.getInstance().getRandomTemplate(convert(room.type));
+            if (template == null) {
+                System.err.println("[房间放置] 警告: 模板为null，跳过放置");
+                return;
+            }
+            System.out.println("[房间放置] 模板尺寸=" + template.width + "x" + template.height + "x" + template.length);
+            template.place(world, base.getX() + THICK, base.getY() + INNER_Y, base.getZ() + THICK);
 
-        // 3) 根據房間類型添加特定內容
-        enhanceRoomContent(base, room, dims);
+            // 3) 根據房間類型添加特定內容
+            enhanceRoomContent(base, room, dims);
 
-        // 4) 處理門洞（入口和出口）
-        if (room.type == RoomType.ENTRANCE) {
-            carveDoorway(base, dims.size, EntranceDirection.WEST);
-        }
-        if (room.type == RoomType.EXIT) {
-            carveDoorway(base, dims.size, EntranceDirection.EAST);
+            // 4) 處理門洞（入口和出口）
+            if (room.type == RoomType.ENTRANCE) {
+                carveDoorway(base, dims.size, EntranceDirection.WEST);
+            }
+            if (room.type == RoomType.EXIT) {
+                carveDoorway(base, dims.size, EntranceDirection.EAST);
+            }
+            System.out.println("[房间放置] 完成: " + room.type);
+        } catch (Exception e) {
+            System.err.println("[房间放置] 失败: " + room.type + " - " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
