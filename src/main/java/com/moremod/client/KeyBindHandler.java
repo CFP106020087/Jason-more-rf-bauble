@@ -73,8 +73,8 @@ public class KeyBindHandler {
         toggleHudKey = new KeyBinding("切换机械核心HUD显示",
                 KeyConflictContext.IN_GAME, Keyboard.KEY_H, "机械核心HUD");
         ClientRegistry.registerKeyBinding(toggleHudKey);
-        // 在 registerKeybinds() 方法中添加
-        rejectionStatusKey = new KeyBinding("排异状态显示",
+        // 系统引导界面按键
+        rejectionStatusKey = new KeyBinding("系统引导界面",
                 KeyConflictContext.IN_GAME,
                 Keyboard.KEY_K,
                 "机械核心HUD");

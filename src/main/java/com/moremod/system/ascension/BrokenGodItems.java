@@ -26,6 +26,9 @@ public class BrokenGodItems {
 
     private static final Logger LOGGER = LogManager.getLogger("moremod");
 
+    // 标准饰品栏位数量（0-6），不触碰额外栏位（7+）
+    private static final int STANDARD_BAUBLE_SLOTS = 7;
+
     // 物品实例（在 RegisterItem 中注册）
     public static ItemBrokenHand BROKEN_HAND;
     public static ItemBrokenHeart BROKEN_HEART;
@@ -47,8 +50,10 @@ public class BrokenGodItems {
             return;
         }
 
-        // 第一步：移除所有非核心饰品，掉落到地上
-        for (int i = 0; i < baubles.getSlots(); i++) {
+        // 第一步：移除标准栏位（0-6）的非核心饰品，掉落到地上
+        // 注意：不触碰额外栏位（7+），避免误删其他模组的饰品
+        int maxSlot = Math.min(STANDARD_BAUBLE_SLOTS, baubles.getSlots());
+        for (int i = 0; i < maxSlot; i++) {
             ItemStack stack = baubles.getStackInSlot(i);
             if (!stack.isEmpty()) {
                 // 检查是否是机械核心 - 保留
@@ -138,10 +143,11 @@ public class BrokenGodItems {
     }
 
     /**
-     * 找到指定类型的空槽位
+     * 找到指定类型的空槽位（仅标准栏位0-6）
      */
     private static int findEmptySlotForType(IBaublesItemHandler baubles, BaubleType type) {
-        for (int i = 0; i < baubles.getSlots(); i++) {
+        int maxSlot = Math.min(STANDARD_BAUBLE_SLOTS, baubles.getSlots());
+        for (int i = 0; i < maxSlot; i++) {
             if (baubles.getStackInSlot(i).isEmpty()) {
                 // 检查槽位是否接受该类型
                 // Baubles 的槽位映射: 0=AMULET, 1-2=RING, 3=BELT, 4=HEAD, 5=BODY, 6=CHARM

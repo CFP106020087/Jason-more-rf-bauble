@@ -71,7 +71,11 @@ public class DungeonTree {
         TRAP(0.2f),
         MINI_BOSS(0.1f),  // 道中Boss
         BOSS(0.05f),
-        HUB(0.1f);
+        HUB(0.1f),
+        // 三维地牢楼梯房间
+        STAIRCASE_UP(0.3f),      // 只能往上
+        STAIRCASE_DOWN(0.3f),    // 只能往下
+        STAIRCASE_BOTH(0.3f);    // 可上可下
 
         public final float weight;
         RoomType(float weight) { this.weight = weight; }

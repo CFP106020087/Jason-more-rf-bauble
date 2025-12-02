@@ -7,8 +7,9 @@ import java.util.*;
 
 /**
  * 严格树状布局生成器（无环、不重叠）
- * - 每个房间使用统一 30x12x30 壳体（大小逻辑按“壳中心点”计算间距）
+ * - 每个房间使用统一 30x12x30 壳体（大小逻辑按"壳中心点"计算间距）
  * - 只输出一棵树：connections.size() == rooms.size() - 1
+ * - 支持多层三维地牢结构
  */
 public class DungeonLayoutGenerator {
 
@@ -18,8 +19,17 @@ public class DungeonLayoutGenerator {
     private static final int MIN_ROOMS = 14;
     private static final int MAX_ROOMS = 24;
 
+    // 三维地牢参数
+    private static final int DEFAULT_FLOOR_COUNT = 3;    // 默认楼层数
+    private static final int FLOOR_HEIGHT = 25;          // 楼层间隔高度
+    private static final int MIN_ROOMS_PER_FLOOR = 5;    // 每层最少房间
+    private static final int MAX_ROOMS_PER_FLOOR = 8;    // 每层最多房间
+
     private static final double TRI_MAX_DIST = SHELL_SIZE * 4.0; // 三角化近邻阈值
 
+    /**
+     * 生成传统单层地牢（向下兼容）
+     */
     public DungeonLayout generateLayout(BlockPos center, int dungeonSize, long seed) {
         Random random = new Random(seed);
         DungeonLayout layout = new DungeonLayout(center, dungeonSize);
@@ -304,5 +314,284 @@ public class DungeonLayoutGenerator {
         int len = 0; RoomNode cur = b;
         while (cur != null && cur != a) { cur = parent.get(cur); len++; }
         return len;
+    }
+
+    // ==================== 三维多层地牢生成 ====================
+
+    /**
+     * 生成三维多层地牢
+     * @param center 地牢中心点
+     * @param dungeonSize 地牢水平尺寸
+     * @param seed 随机种子
+     * @param floorCount 楼层数 (建议3层)
+     * @return 多层地牢布局
+     */
+    public DungeonLayout generateMultiFloorLayout(BlockPos center, int dungeonSize, long seed, int floorCount) {
+        Random random = new Random(seed);
+        DungeonLayout layout = new DungeonLayout(center, dungeonSize);
+        layout.setFloorCount(floorCount);
+        layout.setFloorHeight(FLOOR_HEIGHT);
+
+        List<List<RoomNode>> allFloorRooms = new ArrayList<>();
+        List<RoomNode> allRooms = new ArrayList<>();
+        List<RoomConnection> allConnections = new ArrayList<>();
+
+        // 为每层生成房间
+        for (int floor = 0; floor < floorCount; floor++) {
+            List<RoomNode> floorRooms = generateFloorRooms(floor, floorCount, dungeonSize, random);
+            separateRooms(floorRooms, dungeonSize);
+
+            // 设置楼层索引
+            for (RoomNode room : floorRooms) {
+                room.floorIndex = floor;
+            }
+
+            allFloorRooms.add(floorRooms);
+            allRooms.addAll(floorRooms);
+        }
+
+        // 为每层生成MST连接
+        for (int floor = 0; floor < floorCount; floor++) {
+            List<RoomNode> floorRooms = allFloorRooms.get(floor);
+            List<RoomConnection> nearGraph = buildNeighborhood(floorRooms);
+            List<RoomConnection> floorTree = generateMinimumSpanningTree(floorRooms, nearGraph);
+            allConnections.addAll(floorTree);
+        }
+
+        // 分配楼梯房间并建立跨层连接
+        assignStaircaseRooms(allFloorRooms, allConnections, random);
+
+        // 为每层分配房间类型
+        for (int floor = 0; floor < floorCount; floor++) {
+            List<RoomNode> floorRooms = allFloorRooms.get(floor);
+            List<RoomConnection> floorConnections = getConnectionsForFloor(allConnections, floor);
+            assignMultiFloorRoomTypes(floorRooms, floorConnections, floor, floorCount, random);
+        }
+
+        layout.setRooms(allRooms);
+        layout.setConnections(allConnections);
+        layout.setFloorRooms(allFloorRooms);
+
+        System.out.println("[三维地牢] 生成完成: " + floorCount + "层, 共" + allRooms.size() + "个房间");
+
+        return layout;
+    }
+
+    /**
+     * 生成单层房间
+     */
+    private List<RoomNode> generateFloorRooms(int floor, int totalFloors, int dungeonSize, Random random) {
+        List<RoomNode> rooms = new ArrayList<>();
+
+        // 根据楼层调整房间数量
+        int roomCount;
+        if (floor == 0) {
+            // 入口层：较少房间
+            roomCount = MIN_ROOMS_PER_FLOOR + random.nextInt(2);
+        } else if (floor == totalFloors - 1) {
+            // Boss层：较少房间
+            roomCount = MIN_ROOMS_PER_FLOOR + random.nextInt(2);
+        } else {
+            // 中间层：更多房间
+            roomCount = MIN_ROOMS_PER_FLOOR + random.nextInt(MAX_ROOMS_PER_FLOOR - MIN_ROOMS_PER_FLOOR + 1);
+        }
+
+        double radius = dungeonSize * 0.30; // 略小的分布半径
+
+        for (int i = 0; i < roomCount; i++) {
+            double angle = random.nextDouble() * 2 * Math.PI;
+            double r = Math.sqrt(random.nextDouble()) * radius;
+
+            int cx = (int) Math.round(r * Math.cos(angle));
+            int cz = (int) Math.round(r * Math.sin(angle));
+            // Y坐标由楼层决定
+            int cy = floor * FLOOR_HEIGHT;
+
+            BlockPos base = new BlockPos(cx - SHELL_SIZE / 2, cy, cz - SHELL_SIZE / 2);
+            rooms.add(new RoomNode(base, SHELL_SIZE, RoomType.NORMAL));
+        }
+
+        return rooms;
+    }
+
+    /**
+     * 分配楼梯房间
+     */
+    private void assignStaircaseRooms(List<List<RoomNode>> allFloorRooms, List<RoomConnection> connections, Random random) {
+        int floorCount = allFloorRooms.size();
+
+        for (int floor = 0; floor < floorCount - 1; floor++) {
+            List<RoomNode> currentFloor = allFloorRooms.get(floor);
+            List<RoomNode> nextFloor = allFloorRooms.get(floor + 1);
+
+            // 选择当前层的一个房间作为楼梯
+            RoomNode staircaseDown = selectStaircaseRoom(currentFloor, random);
+            // 选择上层最近的房间作为连接点
+            RoomNode staircaseUp = findNearestRoom(staircaseDown, nextFloor);
+
+            // 设置楼梯类型
+            if (floor == 0) {
+                staircaseDown.type = RoomType.STAIRCASE_UP;
+            } else {
+                staircaseDown.type = RoomType.STAIRCASE_BOTH;
+            }
+
+            if (floor == floorCount - 2) {
+                staircaseUp.type = RoomType.STAIRCASE_DOWN;
+            } else {
+                staircaseUp.type = RoomType.STAIRCASE_BOTH;
+            }
+
+            // 建立双向链接
+            staircaseDown.linkedStaircase = staircaseUp;
+            staircaseUp.linkedStaircase = staircaseDown;
+
+            // 添加跨层连接
+            connections.add(new RoomConnection(staircaseDown, staircaseUp, ConnectionType.NORMAL));
+
+            System.out.println("[三维地牢] 楼梯连接: 层" + floor + " -> 层" + (floor + 1));
+        }
+    }
+
+    /**
+     * 选择适合作为楼梯的房间（度较高的房间）
+     */
+    private RoomNode selectStaircaseRoom(List<RoomNode> rooms, Random random) {
+        // 优先选择不是特殊房间的普通房间
+        List<RoomNode> candidates = new ArrayList<>();
+        for (RoomNode room : rooms) {
+            if (room.type == RoomType.NORMAL || room.type == RoomType.HUB) {
+                candidates.add(room);
+            }
+        }
+
+        if (candidates.isEmpty()) {
+            candidates = new ArrayList<>(rooms);
+        }
+
+        // 随机选择一个
+        return candidates.get(random.nextInt(candidates.size()));
+    }
+
+    /**
+     * 找到距离目标房间最近的房间
+     */
+    private RoomNode findNearestRoom(RoomNode target, List<RoomNode> rooms) {
+        RoomNode nearest = null;
+        double minDist = Double.MAX_VALUE;
+
+        BlockPos targetCenter = centerOf(target);
+
+        for (RoomNode room : rooms) {
+            BlockPos roomCenter = centerOf(room);
+            // 只比较XZ平面距离
+            double dx = targetCenter.getX() - roomCenter.getX();
+            double dz = targetCenter.getZ() - roomCenter.getZ();
+            double dist = Math.sqrt(dx * dx + dz * dz);
+
+            if (dist < minDist) {
+                minDist = dist;
+                nearest = room;
+            }
+        }
+
+        return nearest;
+    }
+
+    /**
+     * 获取指定楼层的连接
+     */
+    private List<RoomConnection> getConnectionsForFloor(List<RoomConnection> allConnections, int floor) {
+        List<RoomConnection> floorConnections = new ArrayList<>();
+        for (RoomConnection conn : allConnections) {
+            if (conn.from.floorIndex == floor && conn.to.floorIndex == floor) {
+                floorConnections.add(conn);
+            }
+        }
+        return floorConnections;
+    }
+
+    /**
+     * 为多层地牢分配房间类型
+     */
+    private void assignMultiFloorRoomTypes(List<RoomNode> rooms, List<RoomConnection> connections,
+                                           int floor, int totalFloors, Random random) {
+        if (rooms.isEmpty()) return;
+
+        // 建邻接表
+        Map<RoomNode, List<RoomNode>> g = new HashMap<>();
+        for (RoomNode r : rooms) g.put(r, new ArrayList<>());
+        for (RoomConnection e : connections) {
+            if (g.containsKey(e.from) && g.containsKey(e.to)) {
+                g.get(e.from).add(e.to);
+                g.get(e.to).add(e.from);
+            }
+        }
+
+        // 根据楼层分配特殊房间
+        if (floor == 0) {
+            // 底层：入口 + 楼梯
+            RoomNode entrance = rooms.stream()
+                    .filter(r -> !r.isStaircase())
+                    .min((a, b) -> Double.compare(
+                            dist2D(centerOf(a), new BlockPos(0, 0, 0)),
+                            dist2D(centerOf(b), new BlockPos(0, 0, 0))))
+                    .orElse(rooms.get(0));
+            entrance.type = RoomType.ENTRANCE;
+        }
+
+        if (floor == totalFloors - 1) {
+            // 顶层：Boss + 出口
+            RoomNode boss = rooms.stream()
+                    .filter(r -> !r.isStaircase())
+                    .filter(r -> g.containsKey(r) && g.get(r).size() == 1)
+                    .findFirst()
+                    .orElse(rooms.stream().filter(r -> !r.isStaircase()).findFirst().orElse(null));
+            if (boss != null) {
+                boss.type = RoomType.BOSS;
+            }
+
+            // 出口房间
+            RoomNode exit = rooms.stream()
+                    .filter(r -> !r.isStaircase() && r.type != RoomType.BOSS)
+                    .filter(r -> g.containsKey(r) && g.get(r).size() == 1)
+                    .findFirst()
+                    .orElse(null);
+            if (exit != null) {
+                exit.type = RoomType.EXIT;
+            }
+        }
+
+        if (floor == totalFloors / 2 || (totalFloors > 2 && floor == 1)) {
+            // 中间层：MINI_BOSS
+            RoomNode miniBoss = rooms.stream()
+                    .filter(r -> !r.isStaircase() && r.type == RoomType.NORMAL)
+                    .filter(r -> g.containsKey(r) && g.get(r).size() >= 2)
+                    .findFirst()
+                    .orElse(null);
+            if (miniBoss != null) {
+                miniBoss.type = RoomType.MINI_BOSS;
+            }
+        }
+
+        // 其他房间类型分配
+        for (RoomNode r : rooms) {
+            if (r.type == RoomType.ENTRANCE || r.type == RoomType.EXIT ||
+                r.type == RoomType.BOSS || r.type == RoomType.MINI_BOSS ||
+                r.isStaircase()) continue;
+
+            int deg = g.containsKey(r) ? g.get(r).size() : 0;
+
+            if (deg == 1) {
+                r.type = random.nextDouble() < 0.65 ? RoomType.TREASURE : RoomType.TRAP;
+            } else if (deg >= 3) {
+                r.type = RoomType.HUB;
+            } else {
+                double p = random.nextDouble();
+                if (p < 0.33) r.type = RoomType.MONSTER;
+                else if (p < 0.55) r.type = RoomType.PUZZLE;
+                else r.type = RoomType.NORMAL;
+            }
+        }
     }
 }
