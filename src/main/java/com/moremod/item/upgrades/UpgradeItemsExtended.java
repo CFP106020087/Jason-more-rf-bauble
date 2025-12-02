@@ -628,6 +628,42 @@ public class UpgradeItemsExtended {
             }, 3, 4
     );
 
+    // 远程伤害增幅（3级）
+    public static final ItemUpgradeComponent RANGED_DAMAGE_BOOST_LV1 = createUpgrade(
+            UpgradeType.RANGED_DAMAGE_BOOST, "ranged_damage_boost_lv1",
+            new String[]{
+                    TextFormatting.GOLD + "远程增幅 I",
+                    TextFormatting.GRAY + "将远程伤害增幅升级至 Lv.1",
+                    "",
+                    TextFormatting.YELLOW + "▶ 远程伤害: +15%",
+                    TextFormatting.GRAY + "对弓箭、弩、投掷物有效",
+                    TextFormatting.DARK_GRAY + "基础远程增幅"
+            }, 1, 16
+    );
+
+    public static final ItemUpgradeComponent RANGED_DAMAGE_BOOST_LV2 = createUpgrade(
+            UpgradeType.RANGED_DAMAGE_BOOST, "ranged_damage_boost_lv2",
+            new String[]{
+                    TextFormatting.GOLD + "远程增幅 II",
+                    TextFormatting.GRAY + "将远程伤害增幅升级至 Lv.2",
+                    "",
+                    TextFormatting.YELLOW + "▶ 远程伤害: +30%",
+                    TextFormatting.BLUE + "强化远程增幅"
+            }, 2, 8
+    );
+
+    public static final ItemUpgradeComponent RANGED_DAMAGE_BOOST_LV3 = createUpgrade(
+            UpgradeType.RANGED_DAMAGE_BOOST, "ranged_damage_boost_lv3",
+            new String[]{
+                    TextFormatting.GOLD + "✦ 远程增幅 III ✦",
+                    TextFormatting.GRAY + "将远程伤害增幅升级至最高等级",
+                    "",
+                    TextFormatting.YELLOW + "▶ 远程伤害: +50%",
+                    TextFormatting.LIGHT_PURPLE + "精准打击",
+                    TextFormatting.RED + "已达最高等级"
+            }, 3, 4
+    );
+
     // 魔力吸收（3级）
     public static final ItemUpgradeComponent MAGIC_ABSORB_LV1 = createUpgrade(
             UpgradeType.MAGIC_ABSORB, "magic_absorb_lv1",
@@ -882,6 +918,7 @@ public class UpgradeItemsExtended {
                 ATTACK_SPEED_LV1, ATTACK_SPEED_LV2, ATTACK_SPEED_LV3,
                 RANGE_EXTENSION_LV1, RANGE_EXTENSION_LV2, RANGE_EXTENSION_LV3,
                 PURSUIT_LV1, PURSUIT_LV2, PURSUIT_LV3,
+                RANGED_DAMAGE_BOOST_LV1, RANGED_DAMAGE_BOOST_LV2, RANGED_DAMAGE_BOOST_LV3,
                 MAGIC_ABSORB_LV1, MAGIC_ABSORB_LV2, MAGIC_ABSORB_LV3,
 
                 // 能源类

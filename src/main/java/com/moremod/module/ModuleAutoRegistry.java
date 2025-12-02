@@ -5,6 +5,7 @@ import com.moremod.item.ItemMechanicalCore;
 import com.moremod.item.ItemMechanicalCoreExtended;
 import com.moremod.item.UpgradeType;
 import com.moremod.item.upgrades.ItemUpgradeComponent;
+import com.moremod.module.handler.AreaMiningBoostHandler;
 import net.minecraft.item.Item;
 import net.minecraft.util.text.TextFormatting;
 
@@ -50,6 +51,9 @@ public class ModuleAutoRegistry {
     // 生成的物品实例 (ID -> Level -> Item)
     private static final Map<String, Map<Integer, ItemUpgradeComponent>> ITEMS = new LinkedHashMap<>();
 
+    // 【优化】有 handler 的模块缓存 (避免每次遍历时检查 hasHandler)
+    private static List<ModuleDefinition> HANDLER_MODULES_CACHE = null;
+
     // 是否已初始化
     private static boolean initialized = false;
 
@@ -58,6 +62,8 @@ public class ModuleAutoRegistry {
      */
     public static void register(ModuleDefinition definition) {
         DEFINITIONS.put(definition.id, definition);
+        // 清除缓存以便重新生成
+        HANDLER_MODULES_CACHE = null;
         System.out.println("[ModuleAutoRegistry] 注册模块定义: " + definition.id);
     }
 
@@ -141,13 +147,46 @@ public class ModuleAutoRegistry {
         */
 
         // ===== 在这里添加新模块 =====
-        // ModuleDefinition.builder("NEW_MODULE")
-        //     .displayName("新模块")
-        //     .color(TextFormatting.GOLD)
-        //     .category(ModuleDefinition.Category.COMBAT)
-        //     .maxLevel(3)
-        //     .levelDescriptions(lv -> new String[]{"描述..."})
-        //     .register();
+
+        // 范围挖掘模块 (Vein Mining) - 使用自动注册 + 事件处理器
+        ModuleDefinition.builder("AREA_MINING_BOOST")
+            .displayName("范围挖掘")
+            .color(TextFormatting.YELLOW)
+            .category(ModuleDefinition.Category.AUXILIARY)
+            .maxLevel(3)
+            .levelDescriptions(lv -> {
+                switch (lv) {
+                    case 1: return new String[]{
+                        TextFormatting.YELLOW + "范围挖掘 I",
+                        TextFormatting.GRAY + "将范围挖掘升级至 Lv.1",
+                        "",
+                        TextFormatting.YELLOW + "▶ 连锁数量: 8个方块",
+                        TextFormatting.AQUA + "▶ 能耗: 50 RF/方块",
+                        TextFormatting.GRAY + "自动挖掘相邻同类型方块",
+                        TextFormatting.DARK_GRAY + "基础连锁挖掘"
+                    };
+                    case 2: return new String[]{
+                        TextFormatting.YELLOW + "范围挖掘 II",
+                        TextFormatting.GRAY + "将范围挖掘升级至 Lv.2",
+                        "",
+                        TextFormatting.YELLOW + "▶ 连锁数量: 16个方块",
+                        TextFormatting.AQUA + "▶ 能耗: 50 RF/方块",
+                        TextFormatting.BLUE + "高效连锁系统"
+                    };
+                    case 3: return new String[]{
+                        TextFormatting.YELLOW + "✦ 范围挖掘 III ✦",
+                        TextFormatting.GRAY + "将范围挖掘升级至最高等级",
+                        "",
+                        TextFormatting.YELLOW + "▶ 连锁数量: 32个方块",
+                        TextFormatting.AQUA + "▶ 能耗: 50 RF/方块",
+                        TextFormatting.LIGHT_PURPLE + "矿脉粉碎",
+                        TextFormatting.RED + "已达最高等级"
+                    };
+                    default: return new String[]{};
+                }
+            })
+            .handler(new AreaMiningBoostHandler())
+            .register();
     }
 
     /**
@@ -261,6 +300,22 @@ public class ModuleAutoRegistry {
      */
     public static Collection<ModuleDefinition> getAllDefinitions() {
         return Collections.unmodifiableCollection(DEFINITIONS.values());
+    }
+
+    /**
+     * 【优化】获取所有有 handler 的模块定义
+     * 使用缓存避免每次遍历时检查 hasHandler()
+     */
+    public static List<ModuleDefinition> getHandlerModules() {
+        if (HANDLER_MODULES_CACHE == null) {
+            HANDLER_MODULES_CACHE = new ArrayList<>();
+            for (ModuleDefinition def : DEFINITIONS.values()) {
+                if (def.hasHandler()) {
+                    HANDLER_MODULES_CACHE.add(def);
+                }
+            }
+        }
+        return HANDLER_MODULES_CACHE;
     }
 
     /**
