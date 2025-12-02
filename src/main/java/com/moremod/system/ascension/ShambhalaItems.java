@@ -212,6 +212,22 @@ public class ShambhalaItems {
     }
 
     /**
+     * 检查玩家是否装备了棘刺（Thorns）
+     */
+    public static boolean hasThorns(EntityPlayer player) {
+        IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(player);
+        if (baubles == null) return false;
+
+        for (int i = 0; i < baubles.getSlots(); i++) {
+            ItemStack stack = baubles.getStackInSlot(i);
+            if (!stack.isEmpty() && SHAMBHALA_THORNS != null && stack.getItem() == SHAMBHALA_THORNS) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * 检查玩家是否装备了完整香巴拉套装
      */
     public static boolean hasFullShambhalaSet(EntityPlayer player) {
