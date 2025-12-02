@@ -11,14 +11,14 @@ import net.minecraftforge.fml.common.registry.ForgeRegistries;
 
 /**
  * 澄月 - 等级系统
- * 
- * 等级范围：0-30级（第一阶段）
+ *
+ * 等级范围：无上限
  * 经验来源：
  * - 攻击：10 EXP
  * - 击杀普通怪：50 EXP
  * - 击杀精英怪：100-500 EXP（根据词缀）
  * - 击杀Boss：500-2000 EXP
- * 
+ *
  * 月相加成：
  * - 满月：经验×2
  */
@@ -48,7 +48,7 @@ public class ChengYueLevel {
         
         // 检查升级
         boolean leveled = false;
-        while (currentExp >= expToNext && level < 30) { // 第一阶段上限30级
+        while (currentExp >= expToNext) {
             currentExp -= expToNext;
             level++;
             leveled = true;
@@ -81,16 +81,14 @@ public class ChengYueLevel {
      */
     public static void addExpRaw(ItemStack stack, long exp) {
         ChengYueNBT.init(stack);
-        
+
         int level = ChengYueNBT.getLevel(stack);
-        if (level >= 30) return; // 已达上限
-        
         long currentExp = ChengYueNBT.getExp(stack);
         long expToNext = ChengYueNBT.getExpToNext(stack);
-        
+
         currentExp += exp;
-        
-        while (currentExp >= expToNext && level < 30) {
+
+        while (currentExp >= expToNext) {
             currentExp -= expToNext;
             level++;
             expToNext = calculateExpToNext(level);
@@ -106,11 +104,13 @@ public class ChengYueLevel {
     /**
      * 计算升级所需经验
      * 公式：1000 × (1.08 ^ level)
-     * 
+     *
      * Level 1  -> 2:    1,080 EXP
      * Level 10 -> 11:   2,159 EXP
      * Level 20 -> 21:   4,661 EXP
-     * Level 30 -> 31:  10,063 EXP (但第一阶段到30级封顶)
+     * Level 30 -> 31:  10,063 EXP
+     * Level 50 -> 51:  46,902 EXP
+     * Level 70 -> 71: 218,606 EXP
      */
     public static long calculateExpToNext(int level) {
         return (long)(1000 * Math.pow(1.08, level));
@@ -189,7 +189,23 @@ public class ChengYueLevel {
                 break;
             case 30:
                 player.sendMessage(new TextComponentString(
-                    TextFormatting.GOLD + "★ 【满级】第一阶段完成！★"));
+                    TextFormatting.GOLD + "★ 【里程碑】第一阶段完成！★"));
+                break;
+            case 35:
+                player.sendMessage(new TextComponentString(
+                    TextFormatting.LIGHT_PURPLE + "【里程碑】形态系统解锁！"));
+                break;
+            case 40:
+                player.sendMessage(new TextComponentString(
+                    TextFormatting.LIGHT_PURPLE + "【里程碑】手动切换形态解锁！"));
+                break;
+            case 50:
+                player.sendMessage(new TextComponentString(
+                    TextFormatting.GOLD + "★ 【里程碑】半百之境！★"));
+                break;
+            case 61:
+                player.sendMessage(new TextComponentString(
+                    TextFormatting.DARK_PURPLE + "★ 【里程碑】月殇解锁！★"));
                 break;
         }
     }

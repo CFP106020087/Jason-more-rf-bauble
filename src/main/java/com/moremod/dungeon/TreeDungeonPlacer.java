@@ -257,20 +257,10 @@ public class TreeDungeonPlacer {
         // 設置告示牌文字
         TileEntitySign sign = (TileEntitySign) world.getTileEntity(signPos);
         if (sign != null) {
-            int floor = room.floorIndex + 1; // 從1開始計數
-            sign.signText[0] = new TextComponentString("=== 樓梯間 ===");
-            sign.signText[1] = new TextComponentString("當前: 第 " + floor + " 層");
-
-            if (room.type == RoomType.STAIRCASE_UP) {
-                sign.signText[2] = new TextComponentString("藍色=上樓");
-                sign.signText[3] = new TextComponentString("");
-            } else if (room.type == RoomType.STAIRCASE_DOWN) {
-                sign.signText[2] = new TextComponentString("紅色=下樓");
-                sign.signText[3] = new TextComponentString("");
-            } else { // STAIRCASE_BOTH
-                sign.signText[2] = new TextComponentString("藍色=上 紅色=下");
-                sign.signText[3] = new TextComponentString("");
-            }
+            sign.signText[0] = new TextComponentString("");
+            sign.signText[1] = new TextComponentString("上下层中转站");
+            sign.signText[2] = new TextComponentString("");
+            sign.signText[3] = new TextComponentString("");
             sign.markDirty();
         }
     }
