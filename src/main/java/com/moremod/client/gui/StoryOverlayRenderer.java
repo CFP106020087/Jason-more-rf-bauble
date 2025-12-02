@@ -408,27 +408,30 @@ public class StoryOverlayRenderer {
     // ==================================================
     //  香巴拉渲染 - 金色齿轮 + 金色边缘渐变
     // ==================================================
+    // ==================================================
+    //  Erica 修复版：解决齿轮隐形与闪烁问题
+    // ==================================================
+
+    // ==================================================
+    //  Erica 最终修复版：绝对防御版齿轮渲染
+    // ==================================================
+
+    // ==================================================
+    //  Erica 最终修正：使用 ShambhalaAscensionOverlay 原版齿轮
+    // ==================================================
+
     private void renderShambhalaEffects(int w, int h, float time, EntityPlayer player) {
         Minecraft mc = Minecraft.getMinecraft();
-        Tessellator tessellator = Tessellator.getInstance();
-        BufferBuilder buffer = tessellator.getBuffer();
 
-        // 1. 金色边缘渐变（使用Shader）
+        // 1. 画背景光晕 (保持不变)
         if (OpenGlHelper.shadersSupported && shambhalaShaderProgram != -1) {
             ARBShaderObjects.glUseProgramObjectARB(shambhalaShaderProgram);
-
-            int timeLoc = ARBShaderObjects.glGetUniformLocationARB(shambhalaShaderProgram, "time");
-            ARBShaderObjects.glUniform1fARB(timeLoc, time);
-
-            int resLoc = ARBShaderObjects.glGetUniformLocationARB(shambhalaShaderProgram, "resolution");
-            ARBShaderObjects.glUniform2fARB(resLoc, (float) w, (float) h);
-
+            ARBShaderObjects.glUniform1fARB(ARBShaderObjects.glGetUniformLocationARB(shambhalaShaderProgram, "time"), time);
+            ARBShaderObjects.glUniform2fARB(ARBShaderObjects.glGetUniformLocationARB(shambhalaShaderProgram, "resolution"), (float) w, (float) h);
             mc.getTextureManager().bindTexture(OVERLAYS.get(PlayerNarrativeState.HUMAN_LOW));
             drawFullScreenQuad(w, h, false);
-
             ARBShaderObjects.glUseProgramObjectARB(0);
         } else {
-            // Shader不支持时的备用：简单的金色晕影
             ResourceLocation tex = OVERLAYS.get(PlayerNarrativeState.HUMAN_LOW);
             if (tex != null) {
                 mc.getTextureManager().bindTexture(tex);
@@ -438,72 +441,140 @@ public class StoryOverlayRenderer {
             }
         }
 
-        // 2. 更新并渲染金色齿轮
+        // 2. 状态准备
+        GlStateManager.disableTexture2D();
+        GlStateManager.disableLighting();
+        GlStateManager.disableCull();
+        GlStateManager.enableBlend();
+        GlStateManager.tryBlendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA, GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ZERO);
+        GlStateManager.bindTexture(0);
+
+        // 关键：为了还原动画里的效果，我们需要开启线宽，让线条更清晰
+        GL11.glLineWidth(2.0F);
+
+        // 3. 画齿轮
         updateGears(w, h, time);
         renderGears(w, h, time);
+
+        // 4. 恢复状态
+        GL11.glLineWidth(1.0F); // 恢复线宽
+        GlStateManager.enableTexture2D();
+        GlStateManager.enableCull();
     }
 
     /**
-     * 更新齿轮状态 - 随机生成新齿轮
+     * 绘制单个齿轮 - 完美复刻 ShambhalaAscensionOverlay 的逻辑
+     * (空心线框风格，带有方正的齿牙)
+     */
+    private void drawGear(float x, float y, float size, float rotation, float alpha) {
+        Tessellator tessellator = Tessellator.getInstance();
+        BufferBuilder buffer = tessellator.getBuffer();
+
+        // 这里的 radius 对应动画里的 radius
+        float radius = size * 0.6f;
+        int teeth = 12; // 保持 12 个齿
+        double zLevel = 0.0D;
+
+        GlStateManager.pushMatrix();
+        GlStateManager.translate(x, y, 0);
+        GlStateManager.rotate(rotation, 0, 0, 1);
+
+        // 设置颜色：金色
+        GlStateManager.color(1.0f, 0.84f, 0.39f, alpha);
+
+        // --- 1. 齿轮外圈 (带齿) ---
+        // 使用 GL_LINE_LOOP 画空心线框
+        buffer.begin(GL11.GL_LINE_LOOP, DefaultVertexFormats.POSITION);
+
+        // 逻辑源自 drawGearShape: segments = teeth * 4
+        int segments = teeth * 4;
+        for (int i = 0; i < segments; i++) {
+            double angle = (Math.PI * 2 * i) / segments;
+
+            // 动画里的齿形逻辑：前两个点是齿顶，后两个点是齿根
+            // (i % 4 < 2) ? radius : radius * 0.75f
+            float toothRadius = (i % 4 < 2) ? radius : radius * 0.75f;
+
+            buffer.pos(Math.cos(angle) * toothRadius, Math.sin(angle) * toothRadius, zLevel).endVertex();
+        }
+        tessellator.draw();
+
+        // --- 2. 中心孔 ---
+        // 也是一个空心圆圈
+        buffer.begin(GL11.GL_LINE_LOOP, DefaultVertexFormats.POSITION);
+        float holeRadius = radius * 0.3f;
+        for (int i = 0; i <= 32; i++) {
+            double angle = (Math.PI * 2 * i) / 32;
+            buffer.pos(Math.cos(angle) * holeRadius, Math.sin(angle) * holeRadius, zLevel).endVertex();
+        }
+        tessellator.draw();
+
+        GlStateManager.popMatrix();
+    }
+
+    /**
+     * 绘制单个齿轮 - 纯几何体版 (最稳！)
+     */
+
+
+    /**
+     * 更新齿轮状态 - 提高生成率，拒绝空场
      */
     private void updateGears(int w, int h, float time) {
-        // 统计活跃齿轮数量
-        int activeCount = 0;
-        for (int i = 0; i < MAX_GEARS; i++) {
-            if (gearActive[i]) activeCount++;
-        }
+        // 统计活跃齿轮
+        boolean hasActive = false;
+        for(boolean active : gearActive) { if(active) hasActive = true; }
 
-        // 根据活跃数量动态调整生成概率，保持1-3个齿轮在屏幕上
-        float spawnChance = activeCount < 2 ? 0.03f : (activeCount < 4 ? 0.015f : 0.005f);
+        // 关键修复 B：如果是空的，强制提高生成率到 100%，否则保持 5%
+        // 这样你一进状态就能看到齿轮，不用干等
+        float spawnChance = hasActive ? 0.05f : 1.0f;
 
         if (rand.nextFloat() < spawnChance) {
             for (int i = 0; i < MAX_GEARS; i++) {
                 if (!gearActive[i]) {
-                    // 随机位置（避开屏幕中心）
-                    float rx = rand.nextFloat();
-                    float ry = rand.nextFloat();
-                    // 倾向于出现在边缘区域
-                    if (rand.nextBoolean()) {
-                        rx = rx < 0.5f ? rx * 0.4f : 0.6f + rx * 0.4f;
-                    }
-                    if (rand.nextBoolean()) {
-                        ry = ry < 0.5f ? ry * 0.4f : 0.6f + ry * 0.4f;
-                    }
-                    gearX[i] = rx * w;
-                    gearY[i] = ry * h;
-                    gearSize[i] = 40 + rand.nextFloat() * 80; // 40-120像素
+                    // 随机位置优化：尽量往屏幕中间靠一点点，防止只露出一半
+                    gearX[i] = rand.nextFloat() * w;
+                    gearY[i] = rand.nextFloat() * h;
+
+                    gearSize[i] = 30 + rand.nextFloat() * 60; // 大小适中
                     gearRotation[i] = rand.nextFloat() * 360;
                     gearAlpha[i] = 0.0f;
-                    gearLifetime[i] = 4.0f + rand.nextFloat() * 4.0f; // 4-8秒
+                    gearLifetime[i] = 3.0f + rand.nextFloat() * 3.0f; // 3-6秒
                     gearActive[i] = true;
                     break;
                 }
             }
         }
 
-        // 更新齿轮状态
-        float deltaTime = 0.05f; // 假设约20fps
+        float deltaTime = 0.05f;
         for (int i = 0; i < MAX_GEARS; i++) {
             if (gearActive[i]) {
                 gearLifetime[i] -= deltaTime;
-                gearRotation[i] += deltaTime * 30; // 慢速旋转
+                gearRotation[i] += deltaTime * 30; // 转动
 
-                // 淡入淡出
+                // 淡入淡出逻辑
                 if (gearLifetime[i] > 2.0f) {
-                    // 淡入阶段
-                    gearAlpha[i] = Math.min(0.6f, gearAlpha[i] + deltaTime * 0.5f);
+                    // 淡入稍微快一点，最大透明度设为 0.9，更亮！
+                    gearAlpha[i] = Math.min(0.9f, gearAlpha[i] + deltaTime * 0.8f);
                 } else if (gearLifetime[i] < 1.0f) {
-                    // 淡出阶段
                     gearAlpha[i] = Math.max(0.0f, gearAlpha[i] - deltaTime * 0.5f);
                 }
 
-                // 生命周期结束
                 if (gearLifetime[i] <= 0) {
                     gearActive[i] = false;
                 }
             }
         }
     }
+
+    /**
+     * 绘制单个齿轮 - 关键：Z轴分层
+     */
+
+
+    /**
+     * 更新齿轮状态 - 随机生成新齿轮
+     */
 
     /**
      * 渲染金色齿轮
@@ -523,61 +594,6 @@ public class StoryOverlayRenderer {
     /**
      * 绘制单个齿轮
      */
-    private void drawGear(float x, float y, float size, float rotation, float alpha) {
-        Tessellator tessellator = Tessellator.getInstance();
-        BufferBuilder buffer = tessellator.getBuffer();
-
-        int teeth = 12; // 齿轮齿数
-        float innerRadius = size * 0.5f;
-        float outerRadius = size * 0.7f;
-        float toothHeight = size * 0.15f;
-
-        GlStateManager.pushMatrix();
-        GlStateManager.translate(x, y, 0);
-        GlStateManager.rotate(rotation, 0, 0, 1);
-
-        // 金色: RGB(255, 215, 100) = (1.0, 0.84, 0.39)
-        float r = 1.0f, g = 0.84f, b = 0.39f;
-
-        // 绘制齿轮主体（圆环）
-        buffer.begin(GL11.GL_TRIANGLE_STRIP, DefaultVertexFormats.POSITION_COLOR);
-        for (int t = 0; t <= 72; t++) {
-            float angle = (float) (t * Math.PI * 2 / 72);
-            float cos = (float) Math.cos(angle);
-            float sin = (float) Math.sin(angle);
-
-            buffer.pos(cos * innerRadius * 0.6f, sin * innerRadius * 0.6f, -90).color(r, g, b, alpha * 0.3f).endVertex();
-            buffer.pos(cos * innerRadius, sin * innerRadius, -90).color(r, g, b, alpha).endVertex();
-        }
-        tessellator.draw();
-
-        // 绘制齿轮齿
-        for (int t = 0; t < teeth; t++) {
-            float angle1 = (float) (t * Math.PI * 2 / teeth);
-            float angle2 = (float) ((t + 0.3) * Math.PI * 2 / teeth);
-            float angle3 = (float) ((t + 0.7) * Math.PI * 2 / teeth);
-            float angle4 = (float) ((t + 1) * Math.PI * 2 / teeth);
-
-            buffer.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_COLOR);
-            // 齿的内边
-            buffer.pos(Math.cos(angle1) * outerRadius, Math.sin(angle1) * outerRadius, -90).color(r, g, b, alpha).endVertex();
-            buffer.pos(Math.cos(angle2) * (outerRadius + toothHeight), Math.sin(angle2) * (outerRadius + toothHeight), -90).color(r, g, b, alpha * 0.8f).endVertex();
-            buffer.pos(Math.cos(angle3) * (outerRadius + toothHeight), Math.sin(angle3) * (outerRadius + toothHeight), -90).color(r, g, b, alpha * 0.8f).endVertex();
-            buffer.pos(Math.cos(angle4) * outerRadius, Math.sin(angle4) * outerRadius, -90).color(r, g, b, alpha).endVertex();
-            tessellator.draw();
-        }
-
-        // 中心圆点
-        buffer.begin(GL11.GL_TRIANGLE_FAN, DefaultVertexFormats.POSITION_COLOR);
-        buffer.pos(0, 0, -90).color(r, g, b, alpha).endVertex();
-        for (int t = 0; t <= 24; t++) {
-            float angle = (float) (t * Math.PI * 2 / 24);
-            buffer.pos(Math.cos(angle) * innerRadius * 0.3f, Math.sin(angle) * innerRadius * 0.3f, -90).color(r, g, b, alpha * 0.5f).endVertex();
-        }
-        tessellator.draw();
-
-        GlStateManager.popMatrix();
-    }
 
     /**
      * 初始化香巴拉着色器
