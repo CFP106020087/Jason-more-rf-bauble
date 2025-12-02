@@ -4,6 +4,7 @@ import com.moremod.item.ItemMechanicalCore;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraftforge.energy.IEnergyStorage;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -107,14 +108,16 @@ public class EventContext {
      * 获取当前能量
      */
     public int getEnergy() {
-        return ItemMechanicalCore.getEnergy(coreStack);
+        IEnergyStorage energy = ItemMechanicalCore.getEnergyStorage(coreStack);
+        return energy != null ? energy.getEnergyStored() : 0;
     }
 
     /**
      * 获取最大能量
      */
     public int getMaxEnergy() {
-        return ItemMechanicalCore.getMaxEnergy(coreStack);
+        IEnergyStorage energy = ItemMechanicalCore.getEnergyStorage(coreStack);
+        return energy != null ? energy.getMaxEnergyStored() : 0;
     }
 
     /**

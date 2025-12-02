@@ -35,10 +35,16 @@ public class AreaMiningBoostHandler implements IModuleEventHandler {
 
     @Override
     public void onBlockBreak(EventContext ctx, BlockEvent.BreakEvent event) {
+        // 如果事件已被取消，不处理
+        if (event.isCanceled()) return;
+
         EntityPlayer player = ctx.player;
 
         // 防止递归
         if (currentlyMining.contains(player.getUniqueID())) return;
+
+        // 只在服务端执行
+        if (event.getWorld().isRemote) return;
 
         // 执行连锁挖掘
         performVeinMine(ctx, event.getWorld(), event.getPos(), event.getState());
@@ -105,13 +111,11 @@ public class AreaMiningBoostHandler implements IModuleEventHandler {
             for (int i = 0; i < blocksToMine; i++) {
                 BlockPos pos = toBreak.get(i);
                 IBlockState state = world.getBlockState(pos);
+                if (state.getBlock().isAir(state, world, pos)) continue;
 
-                // 掉落物品
-                state.getBlock().harvestBlock(world, ctx.player, pos, state,
-                        world.getTileEntity(pos), ctx.player.getHeldItemMainhand());
-
-                // 破坏方块
-                world.setBlockToAir(pos);
+                // 使用 destroyBlock 正确处理掉落和移除
+                // 参数 true = 掉落物品
+                world.destroyBlock(pos, true);
             }
         } finally {
             currentlyMining.remove(ctx.player.getUniqueID());
