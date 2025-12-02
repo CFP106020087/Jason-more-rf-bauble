@@ -248,7 +248,7 @@ public class EnhancedRoomTemplates {
                 }
             }
         }
-        s.setBlockState(x, y + 1, z, Blocks.BEACON.getDefaultState());
+        s.setBlockState(x, y + 1, z, ModBlocks.UNBREAKABLE_BARRIER_QUANTUM.getDefaultState());
     }
 
     private static void createCombatObstacles(Schematic s) {
