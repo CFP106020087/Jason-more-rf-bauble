@@ -394,6 +394,8 @@ public class ShambhalaEventHandler {
      * 玩家死亡时，主动从饰品栏移除香巴拉饰品
      * 这样 Baubles 就不会将它们添加到掉落列表
      * （参考 CoreDropProtection.onPlayerDeath）
+     *
+     * ✅ 修复：如果有能量（死亡会被ASM阻止），则不移除饰品
      */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onShambhalaPlayerDeath(LivingDeathEvent event) {
@@ -404,7 +406,14 @@ public class ShambhalaEventHandler {
         // 只为香巴拉玩家处理
         if (!ShambhalaHandler.isShambhala(player)) return;
 
-        // 从饰品栏移除香巴拉饰品（不掉落，重生后会重新装备）
+        // ✅ 关键修复：如果有能量，死亡会被ASM阻止，不要移除饰品！
+        int currentEnergy = ShambhalaHandler.getCurrentEnergy(player);
+        if (currentEnergy > 0) {
+            LOGGER.debug("[Shambhala] Death prevented by energy ({}), keeping baubles", currentEnergy);
+            return;
+        }
+
+        // 真正死亡（无能量）时，从饰品栏移除香巴拉饰品（不掉落，重生后会重新装备）
         try {
             IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(player);
             if (baubles != null) {

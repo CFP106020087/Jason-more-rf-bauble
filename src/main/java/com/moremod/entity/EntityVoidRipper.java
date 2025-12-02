@@ -167,6 +167,11 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
     private int voidAuraTimer = 0;
     private float shadowTrailAlpha = 0;
 
+    // Mini-Boss刷怪砖销毁机制
+    private boolean isMiniBossSpawn = false;
+    private boolean hasDestroyedSpawner = false;
+    private BlockPos spawnerPos = null;
+
     public EntityVoidRipper(World worldIn) {
         super(worldIn);
         this.setSize(1.2F, 3.5F);
@@ -225,6 +230,12 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
     @Override
     public void onLivingUpdate() {
         super.onLivingUpdate();
+
+        // Mini-Boss刷怪砖销毁机制 - 生成后立即销毁spawner
+        if (!world.isRemote && isMiniBossSpawn && !hasDestroyedSpawner) {
+            destroyNearbySpawner();
+            hasDestroyedSpawner = true;
+        }
 
         // 检测是否卡住
         checkIfStuck();
@@ -2163,6 +2174,9 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
         compound.setInteger("LeftHandCombo", leftHandCombo);
         compound.setInteger("StuckTimer", stuckTimer);
         compound.setInteger("NoTargetTimer", noTargetTimer);
+        // Mini-Boss刷怪砖标记
+        compound.setBoolean("MiniBossSpawn", isMiniBossSpawn);
+        compound.setBoolean("HasDestroyedSpawner", hasDestroyedSpawner);
     }
 
     @Override
@@ -2198,8 +2212,54 @@ protected ResourceLocation getLootTable() {return new ResourceLocation(MODID, "e
         stuckTimer = compound.getInteger("StuckTimer");
         noTargetTimer = compound.getInteger("NoTargetTimer");
 
+        // Mini-Boss刷怪砖标记
+        isMiniBossSpawn = compound.getBoolean("MiniBossSpawn");
+        hasDestroyedSpawner = compound.getBoolean("HasDestroyedSpawner");
+
         if (isBerserk) {
             setIsBerserk(true);
+        }
+    }
+
+    /**
+     * 销毁附近的刷怪砖（用于Mini-Boss房间的一次性生成）
+     */
+    private void destroyNearbySpawner() {
+        BlockPos center = getPosition();
+        int searchRadius = 5;
+
+        for (int x = -searchRadius; x <= searchRadius; x++) {
+            for (int y = -2; y <= 2; y++) {
+                for (int z = -searchRadius; z <= searchRadius; z++) {
+                    BlockPos checkPos = center.add(x, y, z);
+                    IBlockState state = world.getBlockState(checkPos);
+
+                    if (state.getBlock() == net.minecraft.init.Blocks.MOB_SPAWNER) {
+                        // 检查是否是VoidRipper刷怪砖
+                        net.minecraft.tileentity.TileEntity te = world.getTileEntity(checkPos);
+                        if (te instanceof net.minecraft.tileentity.TileEntityMobSpawner) {
+                            net.minecraft.tileentity.TileEntityMobSpawner spawner =
+                                    (net.minecraft.tileentity.TileEntityMobSpawner) te;
+                            String entityId = spawner.getSpawnerBaseLogic().getEntityId().toString();
+
+                            if (entityId.contains("void_ripper")) {
+                                // 销毁刷怪砖，替换为空气
+                                world.setBlockToAir(checkPos);
+                                // 播放破碎音效
+                                world.playSound(null, checkPos,
+                                        net.minecraft.init.SoundEvents.BLOCK_GLASS_BREAK,
+                                        net.minecraft.util.SoundCategory.BLOCKS, 1.0f, 0.8f);
+                                // 生成粒子效果
+                                if (world instanceof WorldServer) {
+                                    ((WorldServer) world).spawnParticle(EnumParticleTypes.SMOKE_LARGE,
+                                            checkPos.getX() + 0.5, checkPos.getY() + 0.5, checkPos.getZ() + 0.5,
+                                            10, 0.3, 0.3, 0.3, 0.05);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
