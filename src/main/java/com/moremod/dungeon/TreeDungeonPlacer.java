@@ -23,6 +23,10 @@ public class TreeDungeonPlacer {
     private static final int STANDARD_SHELL_SIZE   = 30;
     private static final int STANDARD_SHELL_HEIGHT = 12;
 
+    // Mini-Boss房間參數（中等大小）
+    private static final int MINI_BOSS_SHELL_SIZE   = 36;
+    private static final int MINI_BOSS_SHELL_HEIGHT = 16;
+
     // Boss房間參數（更大）
     private static final int BOSS_SHELL_SIZE   = 40;
     private static final int BOSS_SHELL_HEIGHT = 18;
@@ -73,6 +77,8 @@ public class TreeDungeonPlacer {
     private RoomDimensions getRoomDimensions(RoomNode room) {
         if (room.type == RoomType.BOSS) {
             return new RoomDimensions(BOSS_SHELL_SIZE, BOSS_SHELL_HEIGHT);
+        } else if (room.type == RoomType.MINI_BOSS) {
+            return new RoomDimensions(MINI_BOSS_SHELL_SIZE, MINI_BOSS_SHELL_HEIGHT);
         } else {
             return new RoomDimensions(STANDARD_SHELL_SIZE, STANDARD_SHELL_HEIGHT);
         }
@@ -135,6 +141,11 @@ public class TreeDungeonPlacer {
             case BOSS:
                 // Boss房間不需要額外處理，模板已經包含箱子
                 System.out.println("[Boss房間] 使用模板預設配置");
+                break;
+
+            case MINI_BOSS:
+                // 道中Boss房間 - 模板已包含VoidRipper刷怪砖，無需額外處理
+                System.out.println("[道中Boss房間] 使用模板預設配置 (VoidRipper刷怪砖)");
                 break;
 
             case TREASURE:
@@ -317,12 +328,13 @@ public class TreeDungeonPlacer {
 
     private DungeonTree.RoomType convert(RoomType type) {
         switch (type) {
-            case ENTRANCE: return DungeonTree.RoomType.ENTRANCE;
-            case TREASURE: return DungeonTree.RoomType.TREASURE;
-            case TRAP:     return DungeonTree.RoomType.TRAP;
-            case BOSS:     return DungeonTree.RoomType.BOSS;
-            case HUB:      return DungeonTree.RoomType.HUB;
-            default:       return DungeonTree.RoomType.NORMAL;
+            case ENTRANCE:  return DungeonTree.RoomType.ENTRANCE;
+            case TREASURE:  return DungeonTree.RoomType.TREASURE;
+            case TRAP:      return DungeonTree.RoomType.TRAP;
+            case BOSS:      return DungeonTree.RoomType.BOSS;
+            case MINI_BOSS: return DungeonTree.RoomType.MINI_BOSS;
+            case HUB:       return DungeonTree.RoomType.HUB;
+            default:        return DungeonTree.RoomType.NORMAL;
         }
     }
 

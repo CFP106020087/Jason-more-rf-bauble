@@ -1,6 +1,7 @@
 package com.moremod.dungeon;
 
 import com.moremod.dungeon.schematic.BoxRoomTemplates;
+import com.moremod.dungeon.schematic.EnhancedRoomTemplates;
 import com.moremod.dungeon.tree.DungeonTree;
 import com.moremod.schematic.Schematic;
 import net.minecraft.nbt.CompressedStreamTools;
@@ -97,27 +98,44 @@ public class DungeonTemplateRegistry {
 
         switch (type) {
             case ENTRANCE:
-                list.add(BoxRoomTemplates.entrance());
+                list.add(EnhancedRoomTemplates.entranceRoom());
+                list.add(EnhancedRoomTemplates.entranceRoomRuins());
+                list.add(EnhancedRoomTemplates.entranceRoomTemple());
                 break;
             case TREASURE:
-                list.add(BoxRoomTemplates.treasure());
+                list.add(EnhancedRoomTemplates.treasureRoom());
+                list.add(EnhancedRoomTemplates.treasureRoomVault());
+                list.add(EnhancedRoomTemplates.treasureRoomRoyal());
                 break;
             case TRAP:
-                list.add(BoxRoomTemplates.miniMaze());
-                list.add(BoxRoomTemplates.trapRoom()); // 新增陷阱房间变体
+                list.add(EnhancedRoomTemplates.trapRoom());
+                list.add(EnhancedRoomTemplates.trapRoomArrowCorridor());
+                list.add(EnhancedRoomTemplates.trapRoomPitfall());
+                list.add(EnhancedRoomTemplates.mazeRoom());
+                list.add(EnhancedRoomTemplates.mazeRoomGarden());
                 break;
             case BOSS:
-                list.add(BoxRoomTemplates.arena());
+                list.add(EnhancedRoomTemplates.bossArena());
+                break;
+            case MINI_BOSS:
+                // 道中Boss房间 - 召唤两只血量较低的VoidRipper
+                list.add(EnhancedRoomTemplates.miniBossArena());
+                list.add(EnhancedRoomTemplates.miniBossArenaDark());
                 break;
             case HUB:
-                list.add(BoxRoomTemplates.fountain());
+                list.add(EnhancedRoomTemplates.fountainRoom());
+                list.add(EnhancedRoomTemplates.hubRoomCamp());
+                list.add(EnhancedRoomTemplates.hubRoomLibrary());
                 break;
             case NORMAL:
             default:
-                list.add(BoxRoomTemplates.library());
-                list.add(BoxRoomTemplates.alchemy());
-                list.add(BoxRoomTemplates.greenhouse());
-                list.add(BoxRoomTemplates.combatRoom()); // 新增战斗房间
+                list.add(EnhancedRoomTemplates.normalRoomAlchemy());
+                list.add(EnhancedRoomTemplates.normalRoomGreenhouse());
+                list.add(EnhancedRoomTemplates.normalRoomMine());
+                list.add(EnhancedRoomTemplates.normalRoomStorage());
+                list.add(EnhancedRoomTemplates.combatRoom());
+                list.add(EnhancedRoomTemplates.combatRoomTrainingGround());
+                list.add(EnhancedRoomTemplates.combatRoomColosseum());
                 break;
         }
     }
