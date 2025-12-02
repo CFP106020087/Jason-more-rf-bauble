@@ -143,38 +143,38 @@ public class ModuleAutoRegistry {
 
         // ===== 在这里添加新模块 =====
 
-        // 周围挖掘增幅模块 - 使用自动注册 + 事件处理器
+        // 范围挖掘模块 (Vein Mining) - 使用自动注册 + 事件处理器
         ModuleDefinition.builder("AREA_MINING_BOOST")
-            .displayName("周围挖掘增幅")
+            .displayName("范围挖掘")
             .color(TextFormatting.YELLOW)
             .category(ModuleDefinition.Category.AUXILIARY)
             .maxLevel(3)
             .levelDescriptions(lv -> {
                 switch (lv) {
                     case 1: return new String[]{
-                        TextFormatting.YELLOW + "挖掘增幅 I",
-                        TextFormatting.GRAY + "将周围增幅升级至 Lv.1",
+                        TextFormatting.YELLOW + "范围挖掘 I",
+                        TextFormatting.GRAY + "将范围挖掘升级至 Lv.1",
                         "",
-                        TextFormatting.YELLOW + "▶ 范围: 4格",
-                        TextFormatting.AQUA + "▶ 效果: 急迫 I",
-                        TextFormatting.GRAY + "影响周围所有玩家",
-                        TextFormatting.DARK_GRAY + "基础挖掘增幅"
+                        TextFormatting.YELLOW + "▶ 连锁数量: 8个方块",
+                        TextFormatting.AQUA + "▶ 能耗: 50 RF/方块",
+                        TextFormatting.GRAY + "自动挖掘相邻同类型方块",
+                        TextFormatting.DARK_GRAY + "基础连锁挖掘"
                     };
                     case 2: return new String[]{
-                        TextFormatting.YELLOW + "挖掘增幅 II",
-                        TextFormatting.GRAY + "将周围增幅升级至 Lv.2",
+                        TextFormatting.YELLOW + "范围挖掘 II",
+                        TextFormatting.GRAY + "将范围挖掘升级至 Lv.2",
                         "",
-                        TextFormatting.YELLOW + "▶ 范围: 6格",
-                        TextFormatting.AQUA + "▶ 效果: 急迫 II",
-                        TextFormatting.BLUE + "高效挖掘系统"
+                        TextFormatting.YELLOW + "▶ 连锁数量: 16个方块",
+                        TextFormatting.AQUA + "▶ 能耗: 50 RF/方块",
+                        TextFormatting.BLUE + "高效连锁系统"
                     };
                     case 3: return new String[]{
-                        TextFormatting.YELLOW + "✦ 挖掘增幅 III ✦",
-                        TextFormatting.GRAY + "将周围增幅升级至最高等级",
+                        TextFormatting.YELLOW + "✦ 范围挖掘 III ✦",
+                        TextFormatting.GRAY + "将范围挖掘升级至最高等级",
                         "",
-                        TextFormatting.YELLOW + "▶ 范围: 8格",
-                        TextFormatting.AQUA + "▶ 效果: 急迫 III",
-                        TextFormatting.LIGHT_PURPLE + "极速开采",
+                        TextFormatting.YELLOW + "▶ 连锁数量: 32个方块",
+                        TextFormatting.AQUA + "▶ 能耗: 50 RF/方块",
+                        TextFormatting.LIGHT_PURPLE + "矿脉粉碎",
                         TextFormatting.RED + "已达最高等级"
                     };
                     default: return new String[]{};

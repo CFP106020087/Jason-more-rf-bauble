@@ -31,7 +31,7 @@ public enum UpgradeType {
     MOVEMENT_SPEED("移动加速", TextFormatting.AQUA, UpgradeCategory.AUXILIARY),
     STEALTH("隐身潜行", TextFormatting.DARK_GRAY, UpgradeCategory.AUXILIARY),
     EXP_AMPLIFIER("经验增幅", TextFormatting.GREEN, UpgradeCategory.AUXILIARY),
-    AREA_MINING_BOOST("周围挖掘增幅", TextFormatting.YELLOW, UpgradeCategory.AUXILIARY),
+    AREA_MINING_BOOST("范围挖掘", TextFormatting.YELLOW, UpgradeCategory.AUXILIARY),
 
     // ===== 战斗類升級 =====
     DAMAGE_BOOST("伤害提升", TextFormatting.DARK_RED, UpgradeCategory.COMBAT),  // 修正：移除"套装"
