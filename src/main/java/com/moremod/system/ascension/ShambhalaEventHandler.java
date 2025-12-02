@@ -87,6 +87,9 @@ public class ShambhalaEventHandler {
 
     // ========== 玩家Tick处理 ==========
 
+    // 饰品检测计数器（每秒检测一次 = 20 ticks）
+    private static final int BAUBLE_CHECK_INTERVAL = 20;
+
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
@@ -112,8 +115,42 @@ public class ShambhalaEventHandler {
             data.setHumanity(100);
         }
 
+        // ✅ 低性能Fallback：每秒检测并补回缺失的香巴拉饰品
+        if (player.ticksExisted % BAUBLE_CHECK_INTERVAL == 0) {
+            checkAndRestoreShambhalaBaubles(player);
+        }
+
         // 血量锁定由 First Aid 兼容层处理 (ShambhalaFirstAidCompat)
         // 原版 MC 的死亡由 onLivingDeath 处理
+    }
+
+    /**
+     * 检测并补回缺失的香巴拉饰品
+     * 作为死亡保护机制的fallback，确保饰品不会因为任何原因丢失
+     * 复杂度: O(7) - 遍历饰品槽位
+     */
+    private static void checkAndRestoreShambhalaBaubles(EntityPlayer player) {
+        try {
+            IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(player);
+            if (baubles == null) return;
+
+            // 统计香巴拉饰品数量
+            int count = 0;
+            for (int i = 0; i < baubles.getSlots(); i++) {
+                ItemStack stack = baubles.getStackInSlot(i);
+                if (!stack.isEmpty() && ShambhalaItems.isShambhalaItem(stack)) {
+                    count++;
+                }
+            }
+
+            // 香巴拉套装有6件饰品
+            if (count < 6) {
+                ShambhalaItems.replacePlayerBaubles(player);
+                LOGGER.debug("[Shambhala] Restored missing baubles for player {} ({}/6)", player.getName(), count);
+            }
+        } catch (Exception e) {
+            LOGGER.error("[Shambhala] Error checking/restoring baubles", e);
+        }
     }
 
     // ========== 原始伤害捕获（用于比例反伤） ==========
@@ -394,6 +431,8 @@ public class ShambhalaEventHandler {
      * 玩家死亡时，主动从饰品栏移除香巴拉饰品
      * 这样 Baubles 就不会将它们添加到掉落列表
      * （参考 CoreDropProtection.onPlayerDeath）
+     *
+     * ✅ 修复：如果有能量（死亡会被ASM阻止），则不移除饰品
      */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onShambhalaPlayerDeath(LivingDeathEvent event) {
@@ -404,7 +443,14 @@ public class ShambhalaEventHandler {
         // 只为香巴拉玩家处理
         if (!ShambhalaHandler.isShambhala(player)) return;
 
-        // 从饰品栏移除香巴拉饰品（不掉落，重生后会重新装备）
+        // ✅ 关键修复：如果有能量，死亡会被ASM阻止，不要移除饰品！
+        int currentEnergy = ShambhalaHandler.getCurrentEnergy(player);
+        if (currentEnergy > 0) {
+            LOGGER.debug("[Shambhala] Death prevented by energy ({}), keeping baubles", currentEnergy);
+            return;
+        }
+
+        // 真正死亡（无能量）时，从饰品栏移除香巴拉饰品（不掉落，重生后会重新装备）
         try {
             IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(player);
             if (baubles != null) {
