@@ -47,10 +47,31 @@ import com.moremod.item.upgrades.ItemUpgradeComponent;
  * ║      .category(Category.COMBAT)                                              ║
  * ║      .maxLevel(3)                                                            ║
  * ║      .levelDescriptions(lv -> new String[]{"描述..."})                        ║
+ * ║      .effects(                          // 可选：自动效果                      ║
+ * ║          ModuleEffect.damageBoost()                                          ║
+ * ║              .multiplier(1.25f)                                              ║
+ * ║              .perLevel(0.25f)                                                ║
+ * ║              .build()                                                        ║
+ * ║      )                                                                       ║
  * ║      .register();                                                            ║
  * ║                                                                              ║
- * ║  自动完成: 物品创建、Forge注册、EXTENDED_IDS填充                                ║
- * ║  仍需手动: UpgradeType枚举、语言文件、效果实现                                   ║
+ * ║  自动完成: 物品创建、Forge注册、EXTENDED_IDS填充、通用效果处理                    ║
+ * ║  仍需手动: UpgradeType枚举、语言文件、复杂自定义效果                              ║
+ * ║                                                                              ║
+ * ╠══════════════════════════════════════════════════════════════════════════════╣
+ * ║                                                                              ║
+ * ║  【可自动化的效果类型】                                                         ║
+ * ║  ─────────────────────────────────────────────────                           ║
+ * ║  • 属性修改器: ModuleEffect.attribute(ATTACK_DAMAGE/MOVEMENT_SPEED/...)      ║
+ * ║  • 药水效果:   ModuleEffect.potion(MobEffects.SPEED/NIGHT_VISION/...)        ║
+ * ║  • 生命恢复:   ModuleEffect.healing().amount(0.5f).interval(60)              ║
+ * ║  • 饥饿恢复:   ModuleEffect.food().amount(1).interval(2400)                  ║
+ * ║  • 伤害加成:   ModuleEffect.damageBoost().multiplier(1.25f)                  ║
+ * ║  • 伤害减免:   ModuleEffect.damageReduction().percent(0.15f)                 ║
+ * ║  • 伤害反弹:   ModuleEffect.damageReflection().percent(0.15f)                ║
+ * ║  • 周期回调:   ModuleEffect.tick(callback).interval(20)                      ║
+ * ║  • 攻击回调:   ModuleEffect.onHit(callback)                                  ║
+ * ║  • 受伤回调:   ModuleEffect.onHurt(callback)                                 ║
  * ║                                                                              ║
  * ╚══════════════════════════════════════════════════════════════════════════════╝
  */

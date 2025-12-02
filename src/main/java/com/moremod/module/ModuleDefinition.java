@@ -1,6 +1,12 @@
 package com.moremod.module;
 
+import com.moremod.module.effect.ModuleEffect;
 import net.minecraft.util.text.TextFormatting;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.function.Function;
 
 /**
@@ -8,19 +14,41 @@ import java.util.function.Function;
  *
  * 使用示例:
  * <pre>
- * ModuleDefinition.builder("MAGIC_ABSORB")
- *     .displayName("魔力吸收")
- *     .color(TextFormatting.DARK_PURPLE)
- *     .category(Category.COMBAT)
+ * ModuleDefinition.builder("SPEED_BOOST")
+ *     .displayName("速度提升")
+ *     .color(TextFormatting.AQUA)
+ *     .category(Category.AUXILIARY)
  *     .maxLevel(3)
- *     .levelDescriptions(lv -> {
- *         switch(lv) {
- *             case 1: return new String[]{"吸收少量法伤", "叠加少量余灼"};
- *             case 2: return new String[]{"更高吸收率", "更快余灼累积"};
- *             case 3: return new String[]{"触发魔力爆心", "强力爆发伤害"};
- *             default: return new String[]{};
- *         }
- *     })
+ *     .levelDescriptions(lv -> new String[]{"速度 +" + (lv * 20) + "%"})
+ *     // 添加自动效果
+ *     .effects(
+ *         ModuleEffect.attribute(SharedMonsterAttributes.MOVEMENT_SPEED)
+ *             .baseValue(0.2)
+ *             .perLevel(0.2)
+ *             .operation(Operation.MULTIPLY)
+ *             .build()
+ *     )
+ *     .register();
+ *
+ * ModuleDefinition.builder("HEALTH_REGEN")
+ *     .displayName("生命恢复")
+ *     .effects(
+ *         ModuleEffect.healing()
+ *             .amount(0.5f)
+ *             .perLevel(0.5f)
+ *             .interval(60)  // 3秒
+ *             .build()
+ *     )
+ *     .register();
+ *
+ * ModuleDefinition.builder("THORNS")
+ *     .displayName("反伤荆棘")
+ *     .effects(
+ *         ModuleEffect.damageReflection()
+ *             .percent(0.15f)
+ *             .perLevel(0.15f)
+ *             .build()
+ *     )
  *     .register();
  * </pre>
  */
@@ -52,6 +80,9 @@ public class ModuleDefinition {
     public final Function<Integer, String[]> levelDescriptions;  // 每级描述
     public final Function<Integer, Integer> stackSizes;          // 每级堆叠数
 
+    // 效果定义 (自动处理)
+    public final List<ModuleEffect> effects;                     // 模块效果列表
+
     private ModuleDefinition(Builder builder) {
         this.id = builder.id;
         this.displayName = builder.displayName;
@@ -60,6 +91,7 @@ public class ModuleDefinition {
         this.maxLevel = builder.maxLevel;
         this.levelDescriptions = builder.levelDescriptions;
         this.stackSizes = builder.stackSizes;
+        this.effects = Collections.unmodifiableList(new ArrayList<>(builder.effects));
     }
 
     /**
@@ -120,6 +152,7 @@ public class ModuleDefinition {
                 default: return 1;
             }
         };
+        private List<ModuleEffect> effects = new ArrayList<>();
 
         public Builder(String id) {
             this.id = id.toUpperCase();
@@ -161,6 +194,28 @@ public class ModuleDefinition {
 
         public Builder stackSizes(Function<Integer, Integer> stackSizes) {
             this.stackSizes = stackSizes;
+            return this;
+        }
+
+        /**
+         * 添加模块效果 (自动处理)
+         * 支持的效果类型:
+         * - 属性修改器 (攻击力、移动速度等)
+         * - 药水效果 (夜视、水下呼吸等)
+         * - 周期性恢复 (生命、饥饿)
+         * - 伤害加成/减免/反弹
+         * - 自定义回调
+         */
+        public Builder effects(ModuleEffect... effects) {
+            this.effects.addAll(Arrays.asList(effects));
+            return this;
+        }
+
+        /**
+         * 添加单个效果
+         */
+        public Builder addEffect(ModuleEffect effect) {
+            this.effects.add(effect);
             return this;
         }
 
