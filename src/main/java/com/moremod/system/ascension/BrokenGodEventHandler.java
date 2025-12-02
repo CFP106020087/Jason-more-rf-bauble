@@ -1,5 +1,7 @@
 package com.moremod.system.ascension;
 
+import baubles.api.BaublesApi;
+import baubles.api.cap.IBaublesItemHandler;
 import com.moremod.config.BrokenGodConfig;
 import com.moremod.item.broken.ItemBrokenArm;
 import com.moremod.item.broken.ItemBrokenShackles;
@@ -14,6 +16,7 @@ import net.minecraft.entity.monster.EntityMob;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.MobEffects;
 import net.minecraft.init.SoundEvents;
+import net.minecraft.item.ItemStack;
 import net.minecraft.potion.PotionEffect;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.EnumParticleTypes;
@@ -55,6 +58,9 @@ public class BrokenGodEventHandler {
 
     // ========== 玩家Tick处理 ==========
 
+    // 饰品检测计数器（每秒检测一次 = 20 ticks）
+    private static final int BAUBLE_CHECK_INTERVAL = 20;
+
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
@@ -81,6 +87,45 @@ public class BrokenGodEventHandler {
             player.motionX = 0;
             player.motionZ = 0;
             player.motionY = Math.max(player.motionY, -0.1);
+        }
+
+        // ✅ 低性能Fallback：每秒检测并补回缺失的破碎之神饰品
+        if (player.ticksExisted % BAUBLE_CHECK_INTERVAL == 0) {
+            checkAndRestoreBrokenGodBaubles(player);
+        }
+    }
+
+    /**
+     * 检测并补回缺失的破碎之神饰品
+     * 作为死亡保护机制的fallback，确保饰品不会因为任何原因丢失
+     */
+    private static void checkAndRestoreBrokenGodBaubles(EntityPlayer player) {
+        try {
+            IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(player);
+            if (baubles == null) return;
+
+            // 检查是否有任何破碎之神饰品缺失
+            boolean hasMissing = false;
+            int brokenItemCount = 0;
+            for (int i = 0; i < baubles.getSlots(); i++) {
+                ItemStack stack = baubles.getStackInSlot(i);
+                if (!stack.isEmpty() && BrokenGodItems.isBrokenItem(stack)) {
+                    brokenItemCount++;
+                }
+            }
+
+            // 破碎之神套装有6件饰品
+            if (brokenItemCount < 6) {
+                hasMissing = true;
+            }
+
+            // 如果有缺失，重新装备所有饰品
+            if (hasMissing) {
+                BrokenGodItems.replacePlayerBaubles(player);
+                LOGGER.debug("[BrokenGod] Restored missing baubles for player {}", player.getName());
+            }
+        } catch (Exception e) {
+            LOGGER.error("[BrokenGod] Error checking/restoring baubles", e);
         }
     }
 
