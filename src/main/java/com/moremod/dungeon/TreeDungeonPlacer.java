@@ -123,6 +123,8 @@ public class TreeDungeonPlacer {
             // 4) 處理門洞（入口和出口）
             if (room.type == RoomType.ENTRANCE) {
                 carveDoorway(base, dims.size, EntranceDirection.WEST);
+                // 5) 入口外部引導標識
+                createEntranceMarkers(base, dims.size);
             }
             if (room.type == RoomType.EXIT) {
                 carveDoorway(base, dims.size, EntranceDirection.EAST);
@@ -363,6 +365,56 @@ public class TreeDungeonPlacer {
                 }
             }
         }
+    }
+
+    /**
+     * 在入口房間外部創建引導標識
+     * 包含：信標柱、地面指示、光源
+     */
+    private void createEntranceMarkers(BlockPos base, int shellSize) {
+        int midZ = shellSize / 2;
+
+        // 入口在西側 (x = 0 方向)
+        BlockPos entrancePos = base.add(-1, INNER_Y, midZ);
+
+        // 創建引導路徑 (向西延伸)
+        for (int i = 1; i <= 10; i++) {
+            BlockPos pathPos = entrancePos.add(-i, 0, 0);
+            // 地面標記 - 金塊路徑
+            world.setBlockState(pathPos.down(), Blocks.GOLD_BLOCK.getDefaultState(), 2);
+            // 兩側紅石燈
+            if (i % 3 == 0) {
+                world.setBlockState(pathPos.add(0, 0, -2), Blocks.GLOWSTONE.getDefaultState(), 2);
+                world.setBlockState(pathPos.add(0, 0, 2), Blocks.GLOWSTONE.getDefaultState(), 2);
+            }
+        }
+
+        // 入口標識塔 (距離入口10格)
+        BlockPos towerBase = entrancePos.add(-10, -1, 0);
+
+        // 塔基座 (3x3 黑曜石)
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                world.setBlockState(towerBase.add(dx, 0, dz), Blocks.OBSIDIAN.getDefaultState(), 2);
+            }
+        }
+
+        // 塔身 (海晶燈柱)
+        for (int y = 1; y <= 8; y++) {
+            world.setBlockState(towerBase.add(0, y, 0), Blocks.SEA_LANTERN.getDefaultState(), 2);
+        }
+
+        // 塔頂信標效果 (金塊 + 信標)
+        world.setBlockState(towerBase.add(0, 9, 0), Blocks.GOLD_BLOCK.getDefaultState(), 2);
+        world.setBlockState(towerBase.add(0, 10, 0), Blocks.BEACON.getDefaultState(), 2);
+
+        // 四角裝飾火把
+        world.setBlockState(towerBase.add(-2, 1, -2), Blocks.TORCH.getDefaultState(), 2);
+        world.setBlockState(towerBase.add(-2, 1, 2), Blocks.TORCH.getDefaultState(), 2);
+        world.setBlockState(towerBase.add(2, 1, -2), Blocks.TORCH.getDefaultState(), 2);
+        world.setBlockState(towerBase.add(2, 1, 2), Blocks.TORCH.getDefaultState(), 2);
+
+        System.out.println("[入口標識] 已創建入口引導標識於 " + towerBase);
     }
 
     private void addSpecialConnections(DungeonLayout layout) {

@@ -14,8 +14,10 @@ import java.util.*;
 public class DungeonLayoutGenerator {
 
     // 壳体参数（需与放置器一致）
+    // 使用最大房间尺寸(BOSS=40)作为基准，确保任何房间都不会重叠
     private static final int SHELL_SIZE = 30;
-    private static final int GAP = 8; // 壳与壳之间的最小净距（中心间距 - SHELL_SIZE）
+    private static final int MAX_SHELL_SIZE = 40; // BOSS房间尺寸
+    private static final int GAP = 12; // 增加间距确保大房间不重叠
     private static final int MIN_ROOMS = 14;
     private static final int MAX_ROOMS = 24;
 
@@ -81,11 +83,11 @@ public class DungeonLayoutGenerator {
     // ---------------- 分离重叠 ----------------
 
     private void separateRooms(List<RoomNode> rooms, int dungeonSize) {
-        int iterations = 0, maxIter = 400;
+        int iterations = 0, maxIter = 800; // 增加迭代次数
         boolean ok = false;
         int half = dungeonSize / 2;
-        int minX = -half, maxX = half - SHELL_SIZE;
-        int minZ = -half, maxZ = half - SHELL_SIZE;
+        int minX = -half, maxX = half - MAX_SHELL_SIZE;
+        int minZ = -half, maxZ = half - MAX_SHELL_SIZE;
 
         while (!ok && iterations++ < maxIter) {
             ok = true;
@@ -97,7 +99,7 @@ public class DungeonLayoutGenerator {
                         ok = false;
                         // 以中心点为矢量推开
                         double[] dir = normDir(centerOf(b), centerOf(a));
-                        int push = 2; // 每次推2格
+                        int push = 4; // 每次推4格（加快分离速度）
                         a.position = clampBase(a.position.add((int) Math.round(dir[0] * push), 0, (int) Math.round(dir[1] * push)),
                                 minX, maxX, minZ, maxZ);
                         b.position = clampBase(b.position.add((int) Math.round(-dir[0] * push), 0, (int) Math.round(-dir[1] * push)),
@@ -105,6 +107,9 @@ public class DungeonLayoutGenerator {
                     }
                 }
             }
+        }
+        if (!ok) {
+            System.out.println("[地牢布局] 警告: 房间分离未完全完成，可能存在轻微重叠");
         }
     }
 
@@ -114,7 +119,8 @@ public class DungeonLayoutGenerator {
         double dx = ca.getX() - cb.getX();
         double dz = ca.getZ() - cb.getZ();
         double dist = Math.sqrt(dx * dx + dz * dz);
-        return dist < (SHELL_SIZE + GAP);
+        // 使用最大房间尺寸确保任何类型房间都不会重叠
+        return dist < (MAX_SHELL_SIZE + GAP);
     }
 
     private BlockPos centerOf(RoomNode r) {
