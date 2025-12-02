@@ -37,6 +37,7 @@ public enum UpgradeType {
     ATTACK_SPEED("攻击速度", TextFormatting.YELLOW, UpgradeCategory.COMBAT),
     RANGE_EXTENSION("范围拓展", TextFormatting.BLUE, UpgradeCategory.COMBAT),
     PURSUIT("追击打击", TextFormatting.LIGHT_PURPLE, UpgradeCategory.COMBAT),
+    RANGED_DAMAGE_BOOST("远程伤害增幅", TextFormatting.GOLD, UpgradeCategory.COMBAT),
 
     // ===== 能源類升級 =====
     KINETIC_GENERATOR("动能发电", TextFormatting.GRAY, UpgradeCategory.ENERGY),

@@ -65,12 +65,14 @@ public class EnergyBalanceConfig {
         public static int NIGHT_VISION     = 10;   // Lv3=30 RF/s
         public static int WATER_BREATHING  = 12;   // Lv3=36 RF/s
 
-        // 战斗类（5种）
+        // 战斗类（6种）
         public static int DAMAGE_BOOST     = 25;   // Lv5=125 RF/s
         public static int ATTACK_SPEED     = 20;   // Lv5=100 RF/s
         public static int RANGE_EXTENSION  = 15;   // Lv5=75 RF/s
         public static int PURSUIT          = 22;   // Lv3=66 RF/s
         public static int CRITICAL_STRIKE  = 18;   // Lv5=90 RF/s
+        public static int MAGIC_ABSORB     = 20;   // Lv3=60 RF/s
+        public static int RANGED_DAMAGE_BOOST = 18; // Lv3=54 RF/s
 
         // 实用类（2种）
         public static int EXP_AMPLIFIER    = 8;    // Lv5=40 RF/s
@@ -356,6 +358,8 @@ public class EnergyBalanceConfig {
             case "RANGE_EXTENSION": return ExtendedUpgrades.RANGE_EXTENSION * level;
             case "PURSUIT": return ExtendedUpgrades.PURSUIT * level;
             case "CRITICAL_STRIKE": return ExtendedUpgrades.CRITICAL_STRIKE * level;
+            case "MAGIC_ABSORB": return ExtendedUpgrades.MAGIC_ABSORB * level;
+            case "RANGED_DAMAGE_BOOST": return ExtendedUpgrades.RANGED_DAMAGE_BOOST * level;
 
             case "EXP_AMPLIFIER": return ExtendedUpgrades.EXP_AMPLIFIER * level;
             case "ITEM_MAGNET": return ExtendedUpgrades.ITEM_MAGNET * level;

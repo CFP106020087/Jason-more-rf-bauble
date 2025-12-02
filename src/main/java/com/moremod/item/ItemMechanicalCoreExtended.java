@@ -100,6 +100,7 @@ public class ItemMechanicalCoreExtended {
         register("PURSUIT",         "追击系统",   TextFormatting.LIGHT_PURPLE,3, UpgradeCategory.COMBAT);
         register("CRITICAL_STRIKE", "暴击",       TextFormatting.GOLD,        3, UpgradeCategory.COMBAT);
         register("MAGIC_ABSORB", "魔力吸收模块", TextFormatting.DARK_PURPLE, 3, UpgradeCategory.COMBAT);
+        register("RANGED_DAMAGE_BOOST", "远程伤害增幅", TextFormatting.GOLD, 3, UpgradeCategory.COMBAT);
 
         // ===== 能源类 =====
         register("KINETIC_GENERATOR","动能发电",  TextFormatting.GRAY,        3, UpgradeCategory.ENERGY);
