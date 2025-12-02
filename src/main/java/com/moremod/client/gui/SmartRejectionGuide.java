@@ -190,8 +190,8 @@ public class SmartRejectionGuide extends Gui {
         showGuide(new GuideInfo(
                 "§5◈ 你已成为破碎之神 ◈", 400, 10,
                 "§7你的人性已完全消散...",
-                "§6基础: §f关机模式、畸变脉冲",
-                "§d遗物: §f攻速×3、生命偷取、处决、时停",
+                "§6升格: §f停机模式、扭曲脉冲",
+                "§d遗物: §f6件破碎遗物(查看饰品界面)",
                 "§c代价: §7药水无效、NPC无视、链结站禁用",
                 "§b按 [" + keyName + "] 查看完整能力列表"
         ), true);
@@ -202,9 +202,8 @@ public class SmartRejectionGuide extends Gui {
         showGuide(new GuideInfo(
                 "§b◈ 你已成为机巧香巴拉 ◈", 400, 10,
                 "§7你是最美丽的人造之物...",
-                "§6核心: §f能量护盾、不灭之心",
-                "§b套装: §f绝对防御、因果反噬、被动免疫",
-                "§a永恒: §f人性锁定100%、完美圆满",
+                "§6升格: §f能量护盾、不灭之心、反伤",
+                "§b套装: §f6件香巴拉套装(查看饰品界面)",
                 "§c代价: §7伤害削弱50%、防御消耗能量",
                 "§b按 [" + keyName + "] 查看完整能力列表"
         ), true);
@@ -829,13 +828,21 @@ public class SmartRejectionGuide extends Gui {
                 0xFFFFFF | (alphaInt << 24));
         y += 14;
 
-        // ========== 基础能力 ==========
+        // ========== 升格能力 ==========
         y = renderBrokenGodSection(centerX, y, fr, alphaInt, bgAlpha,
-                "§6【基础能力】", 0xFFAA00, new String[] {
-            "§6• §f关机模式: §7濒死时进入20秒无敌",
-            "§6• §f畸变脉冲: §7受重击自动反击",
-            "§6• §f异常协议: §7+60%伤害加成",
-            "§6• §f异常场: §7周围敌人减速+凋零"
+                "§6【升格能力】", 0xFFAA00, new String[] {
+            "§6• §f停机模式: §7濒死时20秒无敌(无法移动)",
+            "§6• §f扭曲脉冲: §7受重击AOE反击+致盲",
+            "§6• §f存在干扰: §7怪物侦测距离减少"
+        });
+
+        // ========== 低人性效果(0%) ==========
+        y = renderBrokenGodSection(centerX, y, fr, alphaInt, bgAlpha,
+                "§5【低人性效果】", 0xAA00AA, new String[] {
+            "§5• §f最大生命: §7锁定为10HP",
+            "§5• §f药水: §7完全免疫(正负面皆无效)",
+            "§5• §fNPC: §7完全无视你",
+            "§5• §f链结站: §7无法使用"
         });
 
         // ========== 破碎遗物(饰品) ==========
@@ -844,34 +851,6 @@ public class SmartRejectionGuide extends Gui {
             "§d你拥有 §f6件§d 破碎遗物饰品",
             "§7打开饰品界面查看各遗物详细能力",
             "§8(手、心核、臂、枷锁、投影、终结)"
-        });
-
-        // ========== 核心增强 ==========
-        y = renderBrokenGodSection(centerX, y, fr, alphaInt, bgAlpha,
-                "§c【核心增强】", 0xFF5555, new String[] {
-            "§c• §f生命压缩: §7最大生命10HP",
-            "§c• §f100%生命偷取 + 溢出→吸收之心",
-            "§c• §f狂战士: §71HP时伤害×5",
-            "§c• §f100%暴击 + 暴击伤害×3"
-        });
-
-        // ========== 战斗特性 ==========
-        y = renderBrokenGodSection(centerX, y, fr, alphaInt, bgAlpha,
-                "§b【战斗特性】", 0x55FFFF, new String[] {
-            "§b• §f攻击速度×3",
-            "§b• §f攻击距离+3格",
-            "§b• §f处决: §7<50%血量直接击杀",
-            "§b• §f时停领域 + 护甲粉碎场"
-        });
-
-        // ========== 失去的能力 ==========
-        y += 4;
-        y = renderBrokenGodSection(centerX, y, fr, alphaInt, bgAlpha,
-                "§8【代价】", 0x888888, new String[] {
-            "§8• §7药水完全无效",
-            "§8• §7无法使用链结站",
-            "§8• §7狩猎协议失效",
-            "§8• §7NPC完全无视你"
         });
 
         return y;
@@ -908,13 +887,20 @@ public class SmartRejectionGuide extends Gui {
                 0xFFFFFF | (alphaInt << 24));
         y += 14;
 
-        // ========== 核心机制 ==========
+        // ========== 升格能力 ==========
         y = renderShambhalaSection(centerX, y, fr, alphaInt, bgAlpha,
-                "§6【核心机制】", 0xFFAA00, new String[] {
+                "§6【升格能力】", 0xFFAA00, new String[] {
             "§6• §f能量护盾: §7所有伤害消耗能量抵消",
             "§6• §f不灭之心: §7有能量时无法死亡",
-            "§6• §f狩猎协议: §7伤害+50%、掉落+100%",
-            "§6• §f治愈光环: §73格内友方每3秒+1心"
+            "§6• §f反伤机制: §7受伤时反射伤害给攻击者"
+        });
+
+        // ========== 高人性效果(100%) ==========
+        y = renderShambhalaSection(centerX, y, fr, alphaInt, bgAlpha,
+                "§a【高人性效果】", 0x55FF55, new String[] {
+            "§a• §f生物档案: §7最大10个槽位",
+            "§a• §fNPC信任: §7交易价格-30%",
+            "§a• §f链结站: §7可以正常使用"
         });
 
         // ========== 香巴拉套装(饰品) ==========
@@ -923,22 +909,6 @@ public class SmartRejectionGuide extends Gui {
             "§b你拥有 §f6件§b 香巴拉套装饰品",
             "§7打开饰品界面查看各套件详细能力",
             "§8(核心、壁垒、棘刺、净化、宁静、圣域)"
-        });
-
-        // ========== 防御特性 ==========
-        y = renderShambhalaSection(centerX, y, fr, alphaInt, bgAlpha,
-                "§e【防御特性】", 0xFFFF55, new String[] {
-            "§e• §f绝对防御: §7伤害100%转换为能量消耗",
-            "§e• §f因果反噬: §7按比例反射伤害",
-            "§e• §f绝对净化: §7被动免疫所有负面效果",
-            "§e• §f磐石之躯: §7免疫击退"
-        });
-
-        // ========== 主动技能 ==========
-        y = renderShambhalaSection(centerX, y, fr, alphaInt, bgAlpha,
-                "§d【主动技能】", 0xDD88FF, new String[] {
-            "§d• §f宁静光环: §7按R消除周围仇恨",
-            "§d• §f范围16格、冷却60秒"
         });
 
         // ========== 代价 ==========
