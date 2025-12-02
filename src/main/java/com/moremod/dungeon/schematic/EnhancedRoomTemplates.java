@@ -1558,18 +1558,19 @@ public class EnhancedRoomTemplates {
         // 中央传送平台 - 向下箭头图案
         createDownArrowPattern(s, center, accent);
 
-        // 下沉平台 (向下方向)
+        // 下沉平台 (向下方向) - 使用不同材质标记，不能用负Y
         for (int dx = -3; dx <= 3; dx++) {
             for (int dz = -3; dz <= 3; dz++) {
                 if (Math.abs(dx) + Math.abs(dz) <= 4) {
-                    s.setBlockState(center + dx, 0, center + dz, Blocks.AIR.getDefaultState());
+                    // 使用黑曜石作为下沉区域标记
+                    s.setBlockState(center + dx, 0, center + dz, Blocks.OBSIDIAN.getDefaultState());
                 }
             }
         }
-        // 底部平台
+        // 中央下沉一格的视觉效果
         for (int dx = -2; dx <= 2; dx++) {
             for (int dz = -2; dz <= 2; dz++) {
-                s.setBlockState(center + dx, -1, center + dz, Blocks.OBSIDIAN.getDefaultState());
+                s.setBlockState(center + dx, 0, center + dz, Blocks.MAGMA.getDefaultState());
             }
         }
 
