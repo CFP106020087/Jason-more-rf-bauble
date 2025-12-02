@@ -4,9 +4,76 @@ import com.moremod.item.UpgradeType;
 import com.moremod.creativetab.moremodCreativeTab;
 import net.minecraft.util.text.TextFormatting;
 import com.moremod.item.upgrades.ItemUpgradeComponent;
+
 /**
  * 扩展升级组件定义类 - 分级模块系统
  * 包含所有新的升级类型的分级版本
+ *
+ * ╔══════════════════════════════════════════════════════════════════════════════╗
+ * ║                        模块注册完整链路说明                                    ║
+ * ╠══════════════════════════════════════════════════════════════════════════════╣
+ * ║                                                                              ║
+ * ║  【方式一】手动注册 (本类使用的方式)                                            ║
+ * ║  ─────────────────────────────────────────────────                           ║
+ * ║  1. ItemMechanicalCoreExtended.registerUpgrades()                            ║
+ * ║     └─ 注册模块元数据 (ID, 显示名, 颜色, 最大等级, 类别)                        ║
+ * ║                                                                              ║
+ * ║  2. UpgradeType 枚举                                                         ║
+ * ║     └─ 添加枚举值 (用于物品创建和类型识别)                                      ║
+ * ║                                                                              ║
+ * ║  3. UpgradeItemsExtended (本类)                                              ║
+ * ║     └─ 定义物品实例 + 添加到 getAllExtendedUpgrades()                          ║
+ * ║                                                                              ║
+ * ║  4. RegisterItem.java                                                        ║
+ * ║     └─ 注册到 Forge Registry                                                 ║
+ * ║                                                                              ║
+ * ║  5. ItemMechanicalCore.BASE_EXTENDED_UPGRADE_IDS                             ║
+ * ║     └─ 添加模块ID字符串 (用于tooltip计数)                                      ║
+ * ║                                                                              ║
+ * ║  6. 语言文件 (en_us.lang / zh_cn.lang)                                       ║
+ * ║     └─ 添加 item.registryName.name=显示名称                                   ║
+ * ║                                                                              ║
+ * ║  7. 效果实现 (事件处理器 / Mixin / Tick处理)                                   ║
+ * ║                                                                              ║
+ * ╠══════════════════════════════════════════════════════════════════════════════╣
+ * ║                                                                              ║
+ * ║  【方式二】自动注册 (推荐新模块使用)                                            ║
+ * ║  ─────────────────────────────────────────────────                           ║
+ * ║  在 ModuleAutoRegistry.registerAllModules() 中添加定义:                       ║
+ * ║                                                                              ║
+ * ║  ModuleDefinition.builder("NEW_MODULE")                                      ║
+ * ║      .displayName("新模块")                                                   ║
+ * ║      .color(TextFormatting.GOLD)                                             ║
+ * ║      .category(Category.COMBAT)                                              ║
+ * ║      .maxLevel(3)                                                            ║
+ * ║      .levelDescriptions(lv -> new String[]{"描述..."})                        ║
+ * ║      .effects(                          // 可选：自动效果                      ║
+ * ║          ModuleEffect.damageBoost()                                          ║
+ * ║              .multiplier(1.25f)                                              ║
+ * ║              .perLevel(0.25f)                                                ║
+ * ║              .build()                                                        ║
+ * ║      )                                                                       ║
+ * ║      .register();                                                            ║
+ * ║                                                                              ║
+ * ║  自动完成: 物品创建、Forge注册、EXTENDED_IDS填充、通用效果处理                    ║
+ * ║  仍需手动: UpgradeType枚举、语言文件、复杂自定义效果                              ║
+ * ║                                                                              ║
+ * ╠══════════════════════════════════════════════════════════════════════════════╣
+ * ║                                                                              ║
+ * ║  【可自动化的效果类型】                                                         ║
+ * ║  ─────────────────────────────────────────────────                           ║
+ * ║  • 属性修改器: ModuleEffect.attribute(ATTACK_DAMAGE/MOVEMENT_SPEED/...)      ║
+ * ║  • 药水效果:   ModuleEffect.potion(MobEffects.SPEED/NIGHT_VISION/...)        ║
+ * ║  • 生命恢复:   ModuleEffect.healing().amount(0.5f).interval(60)              ║
+ * ║  • 饥饿恢复:   ModuleEffect.food().amount(1).interval(2400)                  ║
+ * ║  • 伤害加成:   ModuleEffect.damageBoost().multiplier(1.25f)                  ║
+ * ║  • 伤害减免:   ModuleEffect.damageReduction().percent(0.15f)                 ║
+ * ║  • 伤害反弹:   ModuleEffect.damageReflection().percent(0.15f)                ║
+ * ║  • 周期回调:   ModuleEffect.tick(callback).interval(20)                      ║
+ * ║  • 攻击回调:   ModuleEffect.onHit(callback)                                  ║
+ * ║  • 受伤回调:   ModuleEffect.onHurt(callback)                                 ║
+ * ║                                                                              ║
+ * ╚══════════════════════════════════════════════════════════════════════════════╝
  */
 public class UpgradeItemsExtended {
 
@@ -561,6 +628,45 @@ public class UpgradeItemsExtended {
             }, 3, 4
     );
 
+    // 魔力吸收（3级）
+    public static final ItemUpgradeComponent MAGIC_ABSORB_LV1 = createUpgrade(
+            UpgradeType.MAGIC_ABSORB, "magic_absorb_lv1",
+            new String[]{
+                    TextFormatting.DARK_PURPLE + "魔力吸收 I",
+                    TextFormatting.GRAY + "将魔力吸收升级至 Lv.1",
+                    "",
+                    TextFormatting.YELLOW + "▶ 吸收少量法伤",
+                    TextFormatting.GRAY + "并转化为物理力量",
+                    TextFormatting.RED + "叠加少量余灼",
+                    TextFormatting.DARK_GRAY + "基础魔力转换"
+            }, 1, 16
+    );
+
+    public static final ItemUpgradeComponent MAGIC_ABSORB_LV2 = createUpgrade(
+            UpgradeType.MAGIC_ABSORB, "magic_absorb_lv2",
+            new String[]{
+                    TextFormatting.DARK_PURPLE + "魔力吸收 II",
+                    TextFormatting.GRAY + "将魔力吸收升级至 Lv.2",
+                    "",
+                    TextFormatting.YELLOW + "▶ 更高法伤吸收率",
+                    TextFormatting.GOLD + "▶ 更快余灼累积",
+                    TextFormatting.BLUE + "强化魔力转换"
+            }, 2, 8
+    );
+
+    public static final ItemUpgradeComponent MAGIC_ABSORB_LV3 = createUpgrade(
+            UpgradeType.MAGIC_ABSORB, "magic_absorb_lv3",
+            new String[]{
+                    TextFormatting.DARK_PURPLE + "✦ 魔力吸收 III ✦",
+                    TextFormatting.GRAY + "将魔力吸收升级至最高等级",
+                    "",
+                    TextFormatting.YELLOW + "▶ 强化吸收倍率",
+                    TextFormatting.RED + "▶ 余灼满载触发『魔力爆心』",
+                    TextFormatting.LIGHT_PURPLE + "造成一次强力爆发伤害",
+                    TextFormatting.RED + "已达最高等级"
+            }, 3, 4
+    );
+
     // ===== 能源类升级（3级） =====
 
     // 动能发电
@@ -776,6 +882,7 @@ public class UpgradeItemsExtended {
                 ATTACK_SPEED_LV1, ATTACK_SPEED_LV2, ATTACK_SPEED_LV3,
                 RANGE_EXTENSION_LV1, RANGE_EXTENSION_LV2, RANGE_EXTENSION_LV3,
                 PURSUIT_LV1, PURSUIT_LV2, PURSUIT_LV3,
+                MAGIC_ABSORB_LV1, MAGIC_ABSORB_LV2, MAGIC_ABSORB_LV3,
 
                 // 能源类
                 KINETIC_GENERATOR_LV1, KINETIC_GENERATOR_LV2, KINETIC_GENERATOR_LV3,
