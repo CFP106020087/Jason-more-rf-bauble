@@ -1,5 +1,6 @@
 package com.moremod.module;
 
+import com.moremod.module.effect.IModuleEventHandler;
 import com.moremod.module.effect.ModuleEffect;
 import net.minecraft.util.text.TextFormatting;
 
@@ -10,47 +11,67 @@ import java.util.List;
 import java.util.function.Function;
 
 /**
- * 模块定义类 - 包含创建一个完整模块所需的所有信息
- *
- * 使用示例:
- * <pre>
- * ModuleDefinition.builder("SPEED_BOOST")
- *     .displayName("速度提升")
- *     .color(TextFormatting.AQUA)
- *     .category(Category.AUXILIARY)
- *     .maxLevel(3)
- *     .levelDescriptions(lv -> new String[]{"速度 +" + (lv * 20) + "%"})
- *     // 添加自动效果
- *     .effects(
- *         ModuleEffect.attribute(SharedMonsterAttributes.MOVEMENT_SPEED)
- *             .baseValue(0.2)
- *             .perLevel(0.2)
- *             .operation(Operation.MULTIPLY)
- *             .build()
- *     )
- *     .register();
- *
- * ModuleDefinition.builder("HEALTH_REGEN")
- *     .displayName("生命恢复")
- *     .effects(
- *         ModuleEffect.healing()
- *             .amount(0.5f)
- *             .perLevel(0.5f)
- *             .interval(60)  // 3秒
- *             .build()
- *     )
- *     .register();
- *
- * ModuleDefinition.builder("THORNS")
- *     .displayName("反伤荆棘")
- *     .effects(
- *         ModuleEffect.damageReflection()
- *             .percent(0.15f)
- *             .perLevel(0.15f)
- *             .build()
- *     )
- *     .register();
- * </pre>
+ * ╔══════════════════════════════════════════════════════════════════════════════╗
+ * ║                      模块定义类 (ModuleDefinition)                            ║
+ * ╠══════════════════════════════════════════════════════════════════════════════╣
+ * ║                                                                              ║
+ * ║  包含创建一个完整模块所需的所有信息，支持两种效果定义方式:                          ║
+ * ║  1. 简单效果 - 使用 .effects() 添加预定义效果                                   ║
+ * ║  2. 完整事件 - 使用 .handler() 添加自定义事件处理器                              ║
+ * ║                                                                              ║
+ * ╠══════════════════════════════════════════════════════════════════════════════╣
+ * ║                         方式一: 简单效果 (.effects)                            ║
+ * ╠══════════════════════════════════════════════════════════════════════════════╣
+ * ║                                                                              ║
+ * ║  ModuleDefinition.builder("SPEED_BOOST")                                     ║
+ * ║      .displayName("速度提升")                                                  ║
+ * ║      .effects(                                                               ║
+ * ║          ModuleEffect.attribute(MOVEMENT_SPEED)                              ║
+ * ║              .baseValue(0.2).perLevel(0.2).build(),                          ║
+ * ║          ModuleEffect.potion(MobEffects.SPEED)                               ║
+ * ║              .amplifierPerLevel(1).build()                                   ║
+ * ║      )                                                                       ║
+ * ║      .register();                                                            ║
+ * ║                                                                              ║
+ * ╠══════════════════════════════════════════════════════════════════════════════╣
+ * ║                     方式二: 完整事件处理器 (.handler)                           ║
+ * ╠══════════════════════════════════════════════════════════════════════════════╣
+ * ║                                                                              ║
+ * ║  // 1. 先实现 IModuleEventHandler 接口                                        ║
+ * ║  public class MagicAbsorbHandler implements IModuleEventHandler {            ║
+ * ║      @Override                                                               ║
+ * ║      public float onPlayerHurt(EventContext ctx, DamageSource src,           ║
+ * ║                                 float damage) {                              ║
+ * ║          if (!src.isMagicDamage()) return damage;                            ║
+ * ║          float absorbed = damage * (0.1f + ctx.level * 0.1f);                ║
+ * ║          ctx.setNBT("ember", ctx.getNBTFloat("ember") + absorbed);           ║
+ * ║          return damage - absorbed;                                           ║
+ * ║      }                                                                       ║
+ * ║                                                                              ║
+ * ║      @Override                                                               ║
+ * ║      public int getPassiveEnergyCost() { return 5; }                         ║
+ * ║  }                                                                           ║
+ * ║                                                                              ║
+ * ║  // 2. 然后注册模块                                                            ║
+ * ║  ModuleDefinition.builder("MAGIC_ABSORB")                                    ║
+ * ║      .displayName("魔力吸收")                                                  ║
+ * ║      .handler(new MagicAbsorbHandler())                                      ║
+ * ║      .register();                                                            ║
+ * ║                                                                              ║
+ * ╠══════════════════════════════════════════════════════════════════════════════╣
+ * ║                     IModuleEventHandler 可用事件钩子                           ║
+ * ╠══════════════════════════════════════════════════════════════════════════════╣
+ * ║                                                                              ║
+ * ║  【Tick】 onTick / onSecondTick / getTickInterval                            ║
+ * ║  【攻击】 onPlayerAttack / onPlayerHitEntity / onPlayerKillEntity            ║
+ * ║  【受伤】 onPlayerHurt / onPlayerAttacked / onPlayerDeath                    ║
+ * ║  【交互】 onRightClickBlock / onRightClickItem / onLeftClickBlock            ║
+ * ║  【状态】 onModuleActivated / onModuleDeactivated / onLevelChanged           ║
+ * ║  【能量】 getPassiveEnergyCost / onEnergyDepleted / onEnergyRestored         ║
+ * ║                                                                              ║
+ * ║  详见 IModuleEventHandler.java 的完整文档                                      ║
+ * ║                                                                              ║
+ * ╚══════════════════════════════════════════════════════════════════════════════╝
  */
 public class ModuleDefinition {
 
@@ -81,7 +102,8 @@ public class ModuleDefinition {
     public final Function<Integer, Integer> stackSizes;          // 每级堆叠数
 
     // 效果定义 (自动处理)
-    public final List<ModuleEffect> effects;                     // 模块效果列表
+    public final List<ModuleEffect> effects;                     // 模块效果列表 (简单效果)
+    public final IModuleEventHandler handler;                    // 事件处理器 (完整事件)
 
     private ModuleDefinition(Builder builder) {
         this.id = builder.id;
@@ -92,6 +114,21 @@ public class ModuleDefinition {
         this.levelDescriptions = builder.levelDescriptions;
         this.stackSizes = builder.stackSizes;
         this.effects = Collections.unmodifiableList(new ArrayList<>(builder.effects));
+        this.handler = builder.handler;
+    }
+
+    /**
+     * 是否有事件处理器
+     */
+    public boolean hasHandler() {
+        return handler != null;
+    }
+
+    /**
+     * 是否有简单效果
+     */
+    public boolean hasEffects() {
+        return effects != null && !effects.isEmpty();
     }
 
     /**
@@ -153,6 +190,7 @@ public class ModuleDefinition {
             }
         };
         private List<ModuleEffect> effects = new ArrayList<>();
+        private IModuleEventHandler handler = null;
 
         public Builder(String id) {
             this.id = id.toUpperCase();
@@ -216,6 +254,21 @@ public class ModuleDefinition {
          */
         public Builder addEffect(ModuleEffect effect) {
             this.effects.add(effect);
+            return this;
+        }
+
+        /**
+         * 设置事件处理器 (完整自定义逻辑)
+         *
+         * 使用方式:
+         * 1. 实现 IModuleEventHandler 接口
+         * 2. 覆盖你需要的事件方法 (onTick, onPlayerHurt, 等)
+         * 3. 调用 .handler(new YourHandler())
+         *
+         * 详见 IModuleEventHandler.java 的完整文档
+         */
+        public Builder handler(IModuleEventHandler handler) {
+            this.handler = handler;
             return this;
         }
 

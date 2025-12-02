@@ -31,12 +31,14 @@ public enum UpgradeType {
     MOVEMENT_SPEED("移动加速", TextFormatting.AQUA, UpgradeCategory.AUXILIARY),
     STEALTH("隐身潜行", TextFormatting.DARK_GRAY, UpgradeCategory.AUXILIARY),
     EXP_AMPLIFIER("经验增幅", TextFormatting.GREEN, UpgradeCategory.AUXILIARY),
+    AREA_MINING_BOOST("范围挖掘", TextFormatting.YELLOW, UpgradeCategory.AUXILIARY),
 
     // ===== 战斗類升級 =====
     DAMAGE_BOOST("伤害提升", TextFormatting.DARK_RED, UpgradeCategory.COMBAT),  // 修正：移除"套装"
     ATTACK_SPEED("攻击速度", TextFormatting.YELLOW, UpgradeCategory.COMBAT),
     RANGE_EXTENSION("范围拓展", TextFormatting.BLUE, UpgradeCategory.COMBAT),
     PURSUIT("追击打击", TextFormatting.LIGHT_PURPLE, UpgradeCategory.COMBAT),
+    RANGED_DAMAGE_BOOST("远程伤害增幅", TextFormatting.GOLD, UpgradeCategory.COMBAT),
 
     // ===== 能源類升級 =====
     KINETIC_GENERATOR("动能发电", TextFormatting.GRAY, UpgradeCategory.ENERGY),
