@@ -6,7 +6,6 @@ import com.moremod.item.ItemMechanicalCoreExtended;
 import com.moremod.item.UpgradeType;
 import com.moremod.item.upgrades.ItemUpgradeComponent;
 import com.moremod.module.handler.AreaMiningBoostHandler;
-import com.moremod.module.handler.RangedDamageBoostHandler;
 import net.minecraft.item.Item;
 import net.minecraft.util.text.TextFormatting;
 
@@ -187,43 +186,6 @@ public class ModuleAutoRegistry {
                 }
             })
             .handler(new AreaMiningBoostHandler())
-            .register();
-
-        // 远程伤害增幅模块 - 增加弓箭等远程武器伤害
-        ModuleDefinition.builder("RANGED_DAMAGE_BOOST")
-            .displayName("远程伤害增幅")
-            .color(TextFormatting.GOLD)
-            .category(ModuleDefinition.Category.COMBAT)
-            .maxLevel(3)
-            .levelDescriptions(lv -> {
-                switch (lv) {
-                    case 1: return new String[]{
-                        TextFormatting.GOLD + "远程增幅 I",
-                        TextFormatting.GRAY + "将远程伤害增幅升级至 Lv.1",
-                        "",
-                        TextFormatting.YELLOW + "▶ 远程伤害: +15%",
-                        TextFormatting.AQUA + "▶ 适用: 弓箭、投掷物",
-                        TextFormatting.DARK_GRAY + "基础远程增幅"
-                    };
-                    case 2: return new String[]{
-                        TextFormatting.GOLD + "远程增幅 II",
-                        TextFormatting.GRAY + "将远程伤害增幅升级至 Lv.2",
-                        "",
-                        TextFormatting.YELLOW + "▶ 远程伤害: +30%",
-                        TextFormatting.BLUE + "强化远程增幅"
-                    };
-                    case 3: return new String[]{
-                        TextFormatting.GOLD + "✦ 远程增幅 III ✦",
-                        TextFormatting.GRAY + "将远程伤害增幅升级至最高等级",
-                        "",
-                        TextFormatting.YELLOW + "▶ 远程伤害: +50%",
-                        TextFormatting.LIGHT_PURPLE + "精准射击大师",
-                        TextFormatting.RED + "已达最高等级"
-                    };
-                    default: return new String[]{};
-                }
-            })
-            .handler(new RangedDamageBoostHandler())
             .register();
     }
 
