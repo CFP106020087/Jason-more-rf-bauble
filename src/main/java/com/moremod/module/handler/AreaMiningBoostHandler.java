@@ -1,19 +1,13 @@
 package com.moremod.module.handler;
 
-import com.moremod.item.ItemMechanicalCore;
-import com.moremod.item.ItemMechanicalCoreExtended;
 import com.moremod.module.effect.EventContext;
 import com.moremod.module.effect.IModuleEventHandler;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
-import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.world.BlockEvent;
-import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
 import java.util.*;
 
@@ -39,44 +33,23 @@ public class AreaMiningBoostHandler implements IModuleEventHandler {
     // 防止递归挖掘的标记
     private static final Set<UUID> currentlyMining = new HashSet<>();
 
-    // 静态初始化：注册Forge事件
-    static {
-        MinecraftForge.EVENT_BUS.register(new BlockBreakListener());
-    }
+    @Override
+    public void onBlockBreak(EventContext ctx, BlockEvent.BreakEvent event) {
+        EntityPlayer player = ctx.player;
 
-    /**
-     * Forge事件监听器 - 监听方块破坏事件
-     */
-    public static class BlockBreakListener {
+        // 防止递归
+        if (currentlyMining.contains(player.getUniqueID())) return;
 
-        @SubscribeEvent
-        public void onBlockBreak(BlockEvent.BreakEvent event) {
-            EntityPlayer player = event.getPlayer();
-            if (player == null || player.world.isRemote) return;
-
-            // 防止递归
-            if (currentlyMining.contains(player.getUniqueID())) return;
-
-            // 检查玩家是否装备了机械核心且模块激活
-            ItemStack coreStack = ItemMechanicalCoreExtended.getCoreFromPlayer(player);
-            if (coreStack.isEmpty()) return;
-
-            int level = ItemMechanicalCoreExtended.getEffectiveUpgradeLevel(coreStack, "AREA_MINING_BOOST");
-            if (level <= 0) return;
-
-            // 执行连锁挖掘
-            performVeinMine(player, coreStack, event.getWorld(), event.getPos(), event.getState(), level);
-        }
+        // 执行连锁挖掘
+        performVeinMine(ctx, event.getWorld(), event.getPos(), event.getState());
     }
 
     /**
      * 执行连锁挖掘
      */
-    private static void performVeinMine(EntityPlayer player, ItemStack coreStack,
-                                         World world, BlockPos startPos,
-                                         IBlockState targetState, int level) {
+    private void performVeinMine(EventContext ctx, World world, BlockPos startPos, IBlockState targetState) {
         Block targetBlock = targetState.getBlock();
-        int maxBlocks = level < MAX_BLOCKS_PER_LEVEL.length ? MAX_BLOCKS_PER_LEVEL[level] : 32;
+        int maxBlocks = ctx.level < MAX_BLOCKS_PER_LEVEL.length ? MAX_BLOCKS_PER_LEVEL[ctx.level] : 32;
 
         // BFS查找相邻同类型方块
         Queue<BlockPos> toCheck = new LinkedList<>();
@@ -114,20 +87,19 @@ public class AreaMiningBoostHandler implements IModuleEventHandler {
             }
         }
 
-        // 检查能量是否足够
-        int totalEnergy = toBreak.size() * ENERGY_PER_BLOCK;
-        int availableEnergy = ItemMechanicalCore.getEnergy(coreStack);
+        if (toBreak.isEmpty()) return;
 
         // 根据能量限制实际挖掘数量
+        int availableEnergy = ctx.getEnergy();
         int blocksToMine = Math.min(toBreak.size(), availableEnergy / ENERGY_PER_BLOCK);
         if (blocksToMine <= 0) return;
 
         // 标记正在挖掘，防止递归
-        currentlyMining.add(player.getUniqueID());
+        currentlyMining.add(ctx.player.getUniqueID());
 
         try {
             // 消耗能量
-            ItemMechanicalCore.consumeEnergy(coreStack, blocksToMine * ENERGY_PER_BLOCK);
+            ctx.consumeEnergy(blocksToMine * ENERGY_PER_BLOCK);
 
             // 挖掘方块
             for (int i = 0; i < blocksToMine; i++) {
@@ -135,14 +107,14 @@ public class AreaMiningBoostHandler implements IModuleEventHandler {
                 IBlockState state = world.getBlockState(pos);
 
                 // 掉落物品
-                state.getBlock().harvestBlock(world, player, pos, state,
-                        world.getTileEntity(pos), player.getHeldItemMainhand());
+                state.getBlock().harvestBlock(world, ctx.player, pos, state,
+                        world.getTileEntity(pos), ctx.player.getHeldItemMainhand());
 
                 // 破坏方块
                 world.setBlockToAir(pos);
             }
         } finally {
-            currentlyMining.remove(player.getUniqueID());
+            currentlyMining.remove(ctx.player.getUniqueID());
         }
     }
 

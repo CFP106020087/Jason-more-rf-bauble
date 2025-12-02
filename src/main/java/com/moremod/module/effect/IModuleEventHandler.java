@@ -45,6 +45,10 @@ import net.minecraftforge.event.entity.player.PlayerInteractEvent;
  * ║  • onRightClickItem(ctx, event)            - 右键物品时                        ║
  * ║  • onLeftClickBlock(ctx, event)            - 左键方块时                        ║
  * ║                                                                              ║
+ * ║  【方块事件】                                                                  ║
+ * ║  ─────────────────────────────────────────────────                           ║
+ * ║  • onBlockBreak(ctx, event)                - 玩家破坏方块时                    ║
+ * ║                                                                              ║
  * ║  【状态事件】                                                                  ║
  * ║  ─────────────────────────────────────────────────                           ║
  * ║  • onModuleActivated(ctx)                  - 模块激活时                        ║
@@ -211,6 +215,15 @@ public interface IModuleEventHandler {
      * 玩家左键方块时调用
      */
     default void onLeftClickBlock(EventContext ctx, PlayerInteractEvent.LeftClickBlock event) {}
+
+    // ==================== 方块事件 ====================
+
+    /**
+     * 玩家破坏方块时调用
+     * @param ctx 事件上下文
+     * @param event 方块破坏事件
+     */
+    default void onBlockBreak(EventContext ctx, net.minecraftforge.event.world.BlockEvent.BreakEvent event) {}
 
     // ==================== 状态事件 ====================
 

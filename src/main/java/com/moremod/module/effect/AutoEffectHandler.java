@@ -15,6 +15,7 @@ import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
+import net.minecraftforge.event.world.BlockEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
@@ -39,6 +40,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * ║  - LivingDeathEvent     → onPlayerKillEntity                                 ║
  * ║  - LivingAttackEvent    → onPlayerAttacked                                   ║
  * ║  - PlayerInteractEvent  → onRightClick / onLeftClick                         ║
+ * ║  - BlockEvent.BreakEvent→ onBlockBreak                                       ║
  * ║                                                                              ║
  * ╚══════════════════════════════════════════════════════════════════════════════╝
  */
@@ -423,6 +425,29 @@ public class AutoEffectHandler {
         if (event.getWorld().isRemote) return;
         processInteractEvent(event.getEntityPlayer(), (player, coreStack, def, ctx) ->
                 def.handler.onLeftClickBlock(ctx, event));
+    }
+
+    // ==================== 方块事件 ====================
+
+    @SubscribeEvent
+    public static void onBlockBreak(BlockEvent.BreakEvent event) {
+        EntityPlayer player = event.getPlayer();
+        if (player == null || player.world.isRemote) return;
+
+        ItemStack coreStack = ItemMechanicalCore.findEquippedCore(player);
+        if (coreStack.isEmpty()) return;
+
+        for (ModuleDefinition def : ModuleAutoRegistry.getAllDefinitions()) {
+            if (!def.hasHandler()) continue;
+            if (!ItemMechanicalCore.isUpgradeActive(coreStack, def.id)) continue;
+
+            int level = 0;
+            try { level = ItemMechanicalCoreExtended.getUpgradeLevel(coreStack, def.id); } catch (Throwable ignored) {}
+            if (level <= 0) continue;
+
+            EventContext ctx = new EventContext(player, coreStack, def.id, level);
+            def.handler.onBlockBreak(ctx, event);
+        }
     }
 
     private interface InteractCallback {
