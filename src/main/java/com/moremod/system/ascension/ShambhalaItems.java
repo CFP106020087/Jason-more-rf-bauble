@@ -21,6 +21,9 @@ public class ShambhalaItems {
 
     private static final Logger LOGGER = LogManager.getLogger("moremod");
 
+    // 标准饰品栏位数量（0-6），不触碰额外栏位（7+）
+    private static final int STANDARD_BAUBLE_SLOTS = 7;
+
     // 物品实例（在 RegisterItem 中注册）
     public static ItemShambhalaCore SHAMBHALA_CORE;           // 不灭之心 - AMULET
     public static ItemShambhalaBastion SHAMBHALA_BASTION;     // 绝对防御 - RING
@@ -42,8 +45,10 @@ public class ShambhalaItems {
             return;
         }
 
-        // 第一步：移除所有非核心饰品，掉落到地上
-        for (int i = 0; i < baubles.getSlots(); i++) {
+        // 第一步：移除标准栏位（0-6）的非核心饰品，掉落到地上
+        // 注意：不触碰额外栏位（7+），避免误删其他模组的饰品
+        int maxSlot = Math.min(STANDARD_BAUBLE_SLOTS, baubles.getSlots());
+        for (int i = 0; i < maxSlot; i++) {
             ItemStack stack = baubles.getStackInSlot(i);
             if (!stack.isEmpty()) {
                 // 检查是否是机械核心 - 保留
@@ -126,10 +131,11 @@ public class ShambhalaItems {
     }
 
     /**
-     * 查找指定类型的空槽位
+     * 查找指定类型的空槽位（仅标准栏位0-6）
      */
     private static int findEmptySlotForType(IBaublesItemHandler baubles, BaubleType type) {
-        for (int i = 0; i < baubles.getSlots(); i++) {
+        int maxSlot = Math.min(STANDARD_BAUBLE_SLOTS, baubles.getSlots());
+        for (int i = 0; i < maxSlot; i++) {
             if (baubles.getStackInSlot(i).isEmpty()) {
                 // 检查槽位类型
                 if (isSlotValidForType(i, type)) {
@@ -141,11 +147,12 @@ public class ShambhalaItems {
     }
 
     /**
-     * 查找第二个RING槽位
+     * 查找第二个RING槽位（仅标准栏位0-6）
      */
     private static int findSecondRingSlot(IBaublesItemHandler baubles) {
         int foundFirst = -1;
-        for (int i = 0; i < baubles.getSlots(); i++) {
+        int maxSlot = Math.min(STANDARD_BAUBLE_SLOTS, baubles.getSlots());
+        for (int i = 0; i < maxSlot; i++) {
             if (isSlotValidForType(i, BaubleType.RING)) {
                 if (foundFirst < 0) {
                     if (!baubles.getStackInSlot(i).isEmpty()) {
