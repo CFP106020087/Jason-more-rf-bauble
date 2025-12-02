@@ -45,9 +45,17 @@ public class DungeonTemplateRegistry {
 
     public Schematic getRandomTemplate(DungeonTree.RoomType type) {
         List<Schematic> templates = templatesByType.get(type);
-        if (templates.isEmpty()) {
+        if (templates == null || templates.isEmpty()) {
             ensureBuiltinsFor(type); // 兜底：箱内模板
             templates = templatesByType.get(type);
+        }
+        if (templates == null || templates.isEmpty()) {
+            System.err.println("[DungeonTemplateRegistry] 警告: 类型 " + type + " 没有可用模板，使用NORMAL替代");
+            templates = templatesByType.get(DungeonTree.RoomType.NORMAL);
+            if (templates == null || templates.isEmpty()) {
+                ensureBuiltinsFor(DungeonTree.RoomType.NORMAL);
+                templates = templatesByType.get(DungeonTree.RoomType.NORMAL);
+            }
         }
         int i = random.nextInt(templates.size());
         return templates.get(i);

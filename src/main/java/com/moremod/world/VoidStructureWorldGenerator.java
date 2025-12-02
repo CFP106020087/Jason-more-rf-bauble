@@ -348,11 +348,17 @@ public class VoidStructureWorldGenerator implements IWorldGenerator {
 
     private void generateDungeonInternal(World world, BlockPos pos, long seed) {
         try {
+            System.out.println("[地牢生成] 开始生成地牢于 " + pos + ", seed=" + seed);
             DungeonLayoutGenerator gen = new DungeonLayoutGenerator();
             int size = 512;
             DungeonLayout layout = gen.generateLayout(pos, size, seed);
+            System.out.println("[地牢生成] 布局生成完成，房间数: " + layout.getRooms().size());
             new TreeDungeonPlacer(world).placeDungeon(layout);
-        } catch (Exception ignored) {}
+            System.out.println("[地牢生成] 地牢放置完成");
+        } catch (Exception e) {
+            System.err.println("[地牢生成] 生成失败: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     @SubscribeEvent
