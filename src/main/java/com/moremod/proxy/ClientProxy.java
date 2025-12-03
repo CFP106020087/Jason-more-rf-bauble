@@ -222,6 +222,7 @@ public class ClientProxy extends CommonProxy {
         RenderingRegistry.registerEntityRenderingHandler(EntityLaserBeam.class, RenderLaserBeam::new);
         RenderingRegistry.registerEntityRenderingHandler(EntityLightningArc.class, RenderLightningArc::new);
         RenderingRegistry.registerEntityRenderingHandler(EntitySwordBeam.class, RenderSwordBeam::new);
+        RenderingRegistry.registerEntityRenderingHandler(com.moremod.entity.fx.EntitySingularity.class, com.moremod.client.render.fx.RenderSingularity::new);
     }
 
     // ===== Player Layer System =====

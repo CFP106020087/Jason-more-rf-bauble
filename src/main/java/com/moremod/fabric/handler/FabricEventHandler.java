@@ -894,46 +894,25 @@ public class FabricEventHandler {
     }
     private static void activateDimensionalCollapse(EntityPlayer player, PlayerFabricData data) {
         World world = player.world;
-        BlockPos targetPos = player.getPosition();
+        if (world.isRemote) return;
 
-        // 增大基础范围
-        float baseRadius = 8.0f + data.spatialCount * 3.0f;  // 从6+2改为8+3
-        float radiusBonus = Math.min(15.0f, data.storedDamage / 30.0f);  // 从10/50改为15/30
-        float totalRadius = baseRadius + radiusBonus;
-
-        // 延长持续时间
-        int duration = 120 + data.spatialCount * 40;  // 从100+20改为120+40
-
-        // 大幅提升伤害倍率
-        float baseDamage = data.storedDamage * 5.0f;  // 从2倍改为5倍
-        float equipmentMultiplier = 2.0f + data.spatialCount * 1.0f;  // 从1+0.5改为2+1
-
-        // 添加额外的维度能量加成
-        float energyBonus = 1.0f + (data.dimensionalEnergy / 100.0f);
-
-        float totalDamage = baseDamage * equipmentMultiplier * energyBonus;
-
-        CollapseField field = new CollapseField(
-                targetPos, world, totalRadius, duration,
-                totalDamage, player, data.spatialCount
+        // 创建奇点实体
+        com.moremod.entity.fx.EntitySingularity singularity = new com.moremod.entity.fx.EntitySingularity(
+                world, player, data.storedDamage, data.spatialCount
         );
+        world.spawnEntity(singularity);
 
-        ACTIVE_COLLAPSE_FIELDS.add(field);
-
-        // 减少消耗，让玩家能更频繁使用
-        float consumed = data.storedDamage * 0.5f;  // 从0.8改为0.5
-        data.storedDamage -= consumed;
-        data.dimensionalEnergy = Math.max(0, data.dimensionalEnergy - 20);  // 从30改为20
+        // 消耗存储伤害（全部用于奇点）
+        float consumed = data.storedDamage;
+        data.storedDamage = 0;
+        data.dimensionalEnergy = Math.max(0, data.dimensionalEnergy - 20);
         data.lastCollapseTime = System.currentTimeMillis();
 
-        createInitialShockwave(player, targetPos, totalRadius);
-
         player.sendStatusMessage(new TextComponentString(
-                String.format("§5§l⟐ 维度崩塌领域展开！⟐\n§d范围:%.1f格 持续:%.1f秒 §c总伤害:%.0f",
-                        totalRadius, duration/20.0f, totalDamage)), false);
+                String.format("§5§l⟐ 奇点生成！⟐\n§d存储伤害:%.0f §7持续10秒后引爆", consumed)), false);
 
-        world.playSound(null, targetPos, SoundEvents.ENTITY_WITHER_SPAWN,
-                SoundCategory.PLAYERS, 2.0F, 0.5F);
+        world.playSound(null, player.getPosition(), SoundEvents.ENTITY_ENDERMEN_TELEPORT,
+                SoundCategory.PLAYERS, 2.0F, 0.3F);
 
         syncAllFabricDataToArmor(player, data);
     }

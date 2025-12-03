@@ -439,6 +439,22 @@ public class moremod {
         );
         System.out.println("[moremod] ⚔️ 剑气实体注册成功 (ID: " + (nextEntityId - 1) + ")");
         // ========================================
+
+        // ========================================
+        // 新增：奇点实体注册（维度崩塌技能）
+        // ========================================
+        EntityRegistry.registerModEntity(
+                new ResourceLocation(MODID, "singularity"),
+                com.moremod.entity.fx.EntitySingularity.class,
+                "singularity",
+                nextEntityId++,        // 13
+                INSTANCE,
+                64,                    // 追踪范围
+                1,                     // 更新频率（每tick更新以保证流畅动画）
+                true                   // 发送速度更新
+        );
+        System.out.println("[moremod] 🌀 奇点实体注册成功 (ID: " + (nextEntityId - 1) + ")");
+        // ========================================
     }
 
     /**
