@@ -166,29 +166,27 @@ public class FabricTooltipHandler {
     private static void addSpatialTooltip(List<String> tooltip, NBTTagCompound data, EntityPlayer player) {
         float stored = data.getFloat("StoredDamage");
         float energy = data.getFloat("DimensionalEnergy");
-        int phaseStrikes = data.getInteger("PhaseStrikeCount");
         long lastCollapse = data.getLong("LastCollapseTime");
 
         // 基础数值
         tooltip.add("§d▸ 维度能量: §f" + String.format("%.0f/100", energy));
         tooltip.add("§d▸ 存储伤害: §f" + String.format("%.1f", stored) + getStorageIndicator(stored));
-        tooltip.add("§d▸ 相位打击: §f" + phaseStrikes + "次");
 
-        // 崩塌领域状态
+        // 奇点/崩塌领域状态
         if (player != null) {
             int count = FabricWeavingSystem.countPlayerFabric(player, UpdatedFabricPlayerData.FabricType.SPATIAL);
 
             if (count < 3) {
-                tooltip.add("§d▸ 崩塌领域: §c需要3件套");
+                tooltip.add("§d▸ 奇点释放: §c需要3件套");
             } else {
                 long timeSinceCollapse = System.currentTimeMillis() - lastCollapse;
                 if (timeSinceCollapse < 10000) {
                     int cooldown = (int)((10000 - timeSinceCollapse) / 1000);
-                    tooltip.add("§d▸ 崩塌领域: §c" + cooldown + "秒");
+                    tooltip.add("§d▸ 奇点冷却: §c" + cooldown + "秒");
                 } else if (stored >= 30) {
-                    tooltip.add("§d▸ 崩塌领域: §a§l就绪 §7(Shift+右键)");
+                    tooltip.add("§d▸ 奇点释放: §a§l就绪 §7(Shift+右键)");
                 } else {
-                    tooltip.add("§d▸ 崩塌领域: §e需要30存储");
+                    tooltip.add("§d▸ 奇点释放: §e需要30存储");
                 }
             }
         }
@@ -199,23 +197,19 @@ public class FabricTooltipHandler {
         if (player != null) {
             int count = FabricWeavingSystem.countPlayerFabric(player, UpdatedFabricPlayerData.FabricType.SPATIAL);
 
-            // 相位打击
-            tooltip.add("  §7• 相位打击 §d" + (count * 15) + "%几率");
+            // 维度口袋 - 吸收倍率: 1x/1.5x/2x/2.5x
+            float[] absorptionMultipliers = {0f, 1.0f, 1.5f, 2.0f, 2.5f};
+            float absorption = absorptionMultipliers[Math.min(count, 4)];
+            tooltip.add("  §7• 维度口袋 §d" + String.format("%.0f%%", absorption * 100) + "吸收");
 
-            // 维度口袋
-            if (count >= 2) {
-                float storageRatio = 30 + (count - 2) * 20;
-                tooltip.add("  §7• 维度口袋 §d" + String.format("%.0f%%吸收", storageRatio));
-            }
-
-            // 时空之壁
-            if (count >= 4) {
-                tooltip.add("  §7• 时空之壁 §d80%触发");
-            }
+            // 时空之壁 - 反射倍率: 30%/50%/80%/120%
+            float[] reflectMultipliers = {0f, 0.3f, 0.5f, 0.8f, 1.2f};
+            float reflect = reflectMultipliers[Math.min(count, 4)];
+            tooltip.add("  §7• 时空之壁 §d" + String.format("%.0f%%", reflect * 100) + "反射");
 
             // 暴击增幅
             if (stored > 0) {
-                tooltip.add("  §7• 暴击增幅 §d+" + String.format("%.0f%%", Math.min(stored, 200) / 1));
+                tooltip.add("  §7• 暴击增幅 §d+" + String.format("%.0f%%", Math.min(stored, 200)));
             }
 
             // 能量恢复
@@ -348,10 +342,10 @@ public class FabricTooltipHandler {
                 break;
 
             case SPATIAL:
-                if (count >= 1) tooltip.add("  §61件: §7相位打击15%");
-                if (count >= 2) tooltip.add("  §62件: §7维度口袋30%");
-                if (count >= 3) tooltip.add("  §63件: §d维度崩塌解锁");
-                if (count >= 4) tooltip.add("  §64件: §d时空之壁80%");
+                if (count >= 1) tooltip.add("  §61件: §7维度口袋100% 时空之壁30%");
+                if (count >= 2) tooltip.add("  §62件: §7维度口袋150% 时空之壁50%");
+                if (count >= 3) tooltip.add("  §63件: §d维度口袋200% 时空之壁80% §5奇点解锁");
+                if (count >= 4) tooltip.add("  §64件: §d维度口袋250% 时空之壁120%");
                 break;
 
             case OTHERWORLD:
