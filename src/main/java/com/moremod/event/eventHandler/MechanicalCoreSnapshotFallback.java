@@ -127,6 +127,26 @@ public class MechanicalCoreSnapshotFallback {
 
                 // 检查是否在宽限期内（防止正常卸下操作触发恢复）
                 if (ticksSinceLastSeen <= GRACE_PERIOD_TICKS) {
+
+                    // ⚠ 安全检查1：玩家是否打开了容器（箱子/工作台等）
+                    // 如果打开了容器，核心可能被放入容器，不应该恢复（防止复制）
+                    if (isPlayerUsingContainer(player)) {
+                        if (debugMode) {
+                            System.out.println("[CoreSnapshot] 玩家正在使用容器，清除快照防止复制 - 玩家: " + player.getName());
+                        }
+                        snapshot.clear();
+                        return;
+                    }
+
+                    // ⚠ 安全检查2：核心是否在其他饰品槽位
+                    if (findCoreInBaubles(handler) != -1) {
+                        if (debugMode) {
+                            System.out.println("[CoreSnapshot] 机械核心在其他饰品槽，清除快照 - 玩家: " + player.getName());
+                        }
+                        snapshot.clear();
+                        return;
+                    }
+
                     // 检查机械核心是否在背包中（正常卸下）
                     boolean coreInInventory = findCoreInInventory(player) != null;
 
@@ -149,6 +169,31 @@ public class MechanicalCoreSnapshotFallback {
                 }
             }
         }
+    }
+
+    /**
+     * 检查玩家是否正在使用容器（箱子/工作台等）
+     * 用于防止核心放入容器时误判为丢失
+     */
+    private static boolean isPlayerUsingContainer(EntityPlayer player) {
+        // inventoryContainer 是玩家默认的背包容器
+        // 如果 openContainer 不等于 inventoryContainer，说明打开了其他容器
+        return player.openContainer != null &&
+               player.openContainer != player.inventoryContainer;
+    }
+
+    /**
+     * 在饰品槽中查找机械核心
+     * @return 找到的槽位ID，未找到返回-1
+     */
+    private static int findCoreInBaubles(IBaublesItemHandler handler) {
+        for (int i = 0; i < handler.getSlots(); i++) {
+            ItemStack stack = handler.getStackInSlot(i);
+            if (!stack.isEmpty() && ItemMechanicalCore.isMechanicalCore(stack)) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     /**
