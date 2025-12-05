@@ -25,6 +25,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * 1. 每秒记录佩戴机械核心玩家的核心NBT快照
  * 2. 检测头部饰品槽位(slot 0)的机械核心
  * 3. 如果核心意外消失，从快照恢复
+ *
+ * 注意：机械核心在生存模式下无法摘除，所以不存在"正常卸下"的情况
+ * 创造模式可通过 enabled 开关关闭此系统
  */
 @Mod.EventBusSubscriber(modid = "moremod")
 public class MechanicalCoreSnapshotFallback {
@@ -35,9 +38,9 @@ public class MechanicalCoreSnapshotFallback {
     // 配置
     private static final int CHECK_INTERVAL_TICKS = 20; // 每秒检查
     private static final int SNAPSHOT_HISTORY_SIZE = 3;  // 保留3个历史快照
-    private static final int GRACE_PERIOD_TICKS = 60;    // 3秒宽限期（防止正常卸下触发）
 
-    // 调试模式
+    // 开关（创造模式可关闭）
+    public static boolean enabled = true;
     public static boolean debugMode = false;
 
     /**
@@ -47,18 +50,16 @@ public class MechanicalCoreSnapshotFallback {
         final NBTTagCompound[] history;
         int currentIndex = 0;
         int validCount = 0;
-        long lastSeenTick = 0;
         boolean hadCore = false;
 
         CoreSnapshot() {
             history = new NBTTagCompound[SNAPSHOT_HISTORY_SIZE];
         }
 
-        void addSnapshot(NBTTagCompound nbt, long tick) {
+        void addSnapshot(NBTTagCompound nbt) {
             history[currentIndex] = nbt;
             currentIndex = (currentIndex + 1) % SNAPSHOT_HISTORY_SIZE;
             if (validCount < SNAPSHOT_HISTORY_SIZE) validCount++;
-            lastSeenTick = tick;
             hadCore = true;
         }
 
@@ -79,12 +80,8 @@ public class MechanicalCoreSnapshotFallback {
     }
 
     @SubscribeEvent
-    public static void onServerTick(TickEvent.ServerTickEvent event) {
-        if (event.phase != TickEvent.Phase.END) return;
-    }
-
-    @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
+        if (!enabled) return;
         if (event.phase != TickEvent.Phase.END) return;
         if (event.player.world.isRemote) return;
 
@@ -112,7 +109,7 @@ public class MechanicalCoreSnapshotFallback {
 
             NBTTagCompound nbt = new NBTTagCompound();
             headSlotStack.writeToNBT(nbt);
-            snapshot.addSnapshot(nbt, player.world.getTotalWorldTime());
+            snapshot.addSnapshot(nbt);
 
             if (debugMode) {
                 System.out.println("[CoreSnapshot] 记录快照 - 玩家: " + player.getName() +
@@ -121,92 +118,14 @@ public class MechanicalCoreSnapshotFallback {
 
         } else {
             // 玩家没有佩戴机械核心
+            // 机械核心在生存模式下无法摘除，所以如果消失了一定是网络抖动
             if (snapshot != null && snapshot.hadCore) {
-                long currentTick = player.world.getTotalWorldTime();
-                long ticksSinceLastSeen = currentTick - snapshot.lastSeenTick;
-
-                // 检查是否在宽限期内（防止正常卸下操作触发恢复）
-                if (ticksSinceLastSeen <= GRACE_PERIOD_TICKS) {
-
-                    // ⚠ 安全检查1：玩家是否打开了容器（箱子/工作台等）
-                    // 如果打开了容器，核心可能被放入容器，不应该恢复（防止复制）
-                    if (isPlayerUsingContainer(player)) {
-                        if (debugMode) {
-                            System.out.println("[CoreSnapshot] 玩家正在使用容器，清除快照防止复制 - 玩家: " + player.getName());
-                        }
-                        snapshot.clear();
-                        return;
-                    }
-
-                    // ⚠ 安全检查2：核心是否在其他饰品槽位
-                    if (findCoreInBaubles(handler) != -1) {
-                        if (debugMode) {
-                            System.out.println("[CoreSnapshot] 机械核心在其他饰品槽，清除快照 - 玩家: " + player.getName());
-                        }
-                        snapshot.clear();
-                        return;
-                    }
-
-                    // 检查机械核心是否在背包中（正常卸下）
-                    boolean coreInInventory = findCoreInInventory(player) != null;
-
-                    if (!coreInInventory) {
-                        // 核心不在背包中，可能是网络抖动导致丢失
-                        NBTTagCompound savedNbt = snapshot.getLatestSnapshot();
-                        if (savedNbt != null) {
-                            restoreCoreFromSnapshot(player, handler, savedNbt);
-                        }
-                    } else {
-                        // 核心在背包中，是正常卸下，清除快照
-                        if (debugMode) {
-                            System.out.println("[CoreSnapshot] 机械核心已移至背包，清除快照 - 玩家: " + player.getName());
-                        }
-                        snapshot.clear();
-                    }
-                } else {
-                    // 超过宽限期，清除快照
-                    snapshot.clear();
+                NBTTagCompound savedNbt = snapshot.getLatestSnapshot();
+                if (savedNbt != null) {
+                    restoreCoreFromSnapshot(player, handler, savedNbt);
                 }
             }
         }
-    }
-
-    /**
-     * 检查玩家是否正在使用容器（箱子/工作台等）
-     * 用于防止核心放入容器时误判为丢失
-     */
-    private static boolean isPlayerUsingContainer(EntityPlayer player) {
-        // inventoryContainer 是玩家默认的背包容器
-        // 如果 openContainer 不等于 inventoryContainer，说明打开了其他容器
-        return player.openContainer != null &&
-               player.openContainer != player.inventoryContainer;
-    }
-
-    /**
-     * 在饰品槽中查找机械核心
-     * @return 找到的槽位ID，未找到返回-1
-     */
-    private static int findCoreInBaubles(IBaublesItemHandler handler) {
-        for (int i = 0; i < handler.getSlots(); i++) {
-            ItemStack stack = handler.getStackInSlot(i);
-            if (!stack.isEmpty() && ItemMechanicalCore.isMechanicalCore(stack)) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    /**
-     * 在背包中查找机械核心
-     */
-    private static ItemStack findCoreInInventory(EntityPlayer player) {
-        for (int i = 0; i < player.inventory.getSizeInventory(); i++) {
-            ItemStack stack = player.inventory.getStackInSlot(i);
-            if (!stack.isEmpty() && ItemMechanicalCore.isMechanicalCore(stack)) {
-                return stack;
-            }
-        }
-        return null;
     }
 
     /**
@@ -220,10 +139,9 @@ public class MechanicalCoreSnapshotFallback {
             return;
         }
 
-        // 检查槽位是否为空
+        // 检查槽位是否为空（防止覆盖）
         ItemStack currentSlot = handler.getStackInSlot(0);
         if (!currentSlot.isEmpty()) {
-            // 槽位不为空，不覆盖
             if (debugMode) {
                 System.out.println("[CoreSnapshot] 槽位非空，跳过恢复 - 玩家: " + player.getName());
             }
@@ -271,16 +189,6 @@ public class MechanicalCoreSnapshotFallback {
     }
 
     /**
-     * 手动清除玩家快照（用于正常卸下核心时调用）
-     */
-    public static void clearSnapshot(UUID playerUUID) {
-        CoreSnapshot snapshot = snapshots.get(playerUUID);
-        if (snapshot != null) {
-            snapshot.clear();
-        }
-    }
-
-    /**
      * 调试：打印快照状态
      */
     public static void debugPrint(EntityPlayer player) {
@@ -289,12 +197,12 @@ public class MechanicalCoreSnapshotFallback {
 
         System.out.println("========== 机械核心快照状态 ==========");
         System.out.println("玩家: " + player.getName());
+        System.out.println("系统开关: " + (enabled ? "开启" : "关闭"));
 
         if (snapshot == null) {
             System.out.println("无快照数据");
         } else {
             System.out.println("有效快照数: " + snapshot.validCount);
-            System.out.println("上次记录tick: " + snapshot.lastSeenTick);
             System.out.println("曾佩戴核心: " + snapshot.hadCore);
 
             NBTTagCompound latest = snapshot.getLatestSnapshot();
