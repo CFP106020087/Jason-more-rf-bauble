@@ -85,12 +85,13 @@ public class BossAltarInteractionHandler {
             boolean hasPillar = false;
             for (int y = -1; y <= 5; y++) {
                 BlockPos checkPos = pillarBase.up(y);
+                net.minecraft.block.Block block = world.getBlockState(checkPos).getBlock();
 
-                // 检查是否是不可破坏方块（柱子材料）
-                if (world.getBlockState(checkPos).getBlock() ==
-                        com.moremod.init.ModBlocks.UNBREAKABLE_BARRIER_VOID ||
-                        world.getBlockState(checkPos).getBlock() ==
-                                com.moremod.init.ModBlocks.UNBREAKABLE_BARRIER_ANCHOR) {
+                // 检查是否是不可破坏方块（柱子材料）- 支持所有屏障类型
+                if (block == com.moremod.init.ModBlocks.UNBREAKABLE_BARRIER_VOID ||
+                        block == com.moremod.init.ModBlocks.UNBREAKABLE_BARRIER_ANCHOR ||
+                        block == com.moremod.init.ModBlocks.UNBREAKABLE_BARRIER_TEMPORAL ||
+                        block instanceof com.moremod.block.BlockUnbreakableBarrier) {
                     hasPillar = true;
                     break;
                 }
