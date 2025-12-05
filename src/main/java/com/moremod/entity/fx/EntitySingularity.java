@@ -10,7 +10,7 @@ import net.minecraft.network.datasync.DataSerializers;
 import net.minecraft.network.datasync.EntityDataManager;
 import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.SoundCategory;
-import net.minecraft.util.SoundEvents;
+import net.minecraft.init.SoundEvents;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
@@ -220,7 +220,7 @@ public class EntitySingularity extends Entity {
             // 每次伤害 = 存储伤害 * 0.1 * 距离倍率 * 件数倍率
             float damage = storedDamage * 0.1f * distanceMultiplier * pieceMultiplier;
 
-            TrueDamageHelper.dealTrueDamage(entity, damage, caster);
+            TrueDamageHelper.applyWrappedTrueDamage(entity, caster, damage, TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE);
 
             // 伤害特效
             if (world instanceof WorldServer) {
@@ -258,7 +258,7 @@ public class EntitySingularity extends Entity {
                 float distanceFalloff = (float) (1.0 - (distance / DAMAGE_RANGE) * 0.5);
                 float explosionDamage = storedDamage * explosionMultiplier * distanceFalloff;
 
-                TrueDamageHelper.dealTrueDamage(entity, explosionDamage, caster);
+                TrueDamageHelper.applyWrappedTrueDamage(entity, caster, explosionDamage, TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE);
             }
 
             // 爆炸音效

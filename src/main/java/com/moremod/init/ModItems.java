@@ -15,7 +15,7 @@ import com.moremod.item.ItemCausalGateband;
 import com.moremod.item.ItemBehaviorAnalysisChip;
 // 👻 添加诅咒蔓延导入
 import com.moremod.item.ItemCurseSpread;
-// 🌹 添加荆棘王冠之碎片导入
+// 🌹 荆棘王冠之碎片（七咒联动）
 import com.moremod.item.curse.ItemThornShard;
 // 🗡️ 添加澄月剑导入
 import com.moremod.item.ItemSwordChengYue;

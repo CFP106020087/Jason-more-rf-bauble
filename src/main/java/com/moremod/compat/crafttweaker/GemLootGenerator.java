@@ -16,25 +16,80 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import com.lycanitesmobs.core.entity.BaseCreatureEntity;
 import com.lycanitesmobs.core.entity.TameableCreatureEntity;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 
 /**
- * 宝石掉落生成器 v3.0 - 精简版
- * 
+ * 宝石掉落生成器 v3.1 - 世界等级限制版
+ *
  * 核心功能：
  * 1. 友善生物过滤
  * 2. 规则系统匹配
  * 3. 宝石生成
+ * 4. 维度等级上限
  */
 public class GemLootGenerator {
 
     private static final Random RANDOM = new Random();
-    
+
     // 基础配置
     public static ItemStack BASE_GEM_ITEM = ItemStack.EMPTY;
     public static int MAX_GEM_LEVEL = 100;
     private static boolean enabled = true;
     private static boolean debugMode = false;
+
+    // ==========================================
+    // 维度等级上限系统
+    // ==========================================
+
+    /** 维度ID -> 宝石等级上限 */
+    private static final Map<Integer, Integer> DIMENSION_LEVEL_CAPS = new HashMap<>();
+
+    /** 是否启用维度等级限制 */
+    private static boolean dimensionLevelCapEnabled = true;
+
+    static {
+        // 默认维度等级上限
+        DIMENSION_LEVEL_CAPS.put(0, 30);   // 主世界: 最高30级
+        DIMENSION_LEVEL_CAPS.put(-1, 40);  // 地狱: 最高40级
+        // 其他维度（末地等）不限制
+    }
+
+    /**
+     * 设置维度等级上限
+     * @param dimensionId 维度ID
+     * @param maxLevel 最高等级，-1表示不限制
+     */
+    public static void setDimensionLevelCap(int dimensionId, int maxLevel) {
+        if (maxLevel <= 0) {
+            DIMENSION_LEVEL_CAPS.remove(dimensionId);
+        } else {
+            DIMENSION_LEVEL_CAPS.put(dimensionId, maxLevel);
+        }
+    }
+
+    /**
+     * 获取维度的宝石等级上限
+     * @return 等级上限，-1表示无限制
+     */
+    public static int getDimensionLevelCap(int dimensionId) {
+        return DIMENSION_LEVEL_CAPS.getOrDefault(dimensionId, -1);
+    }
+
+    /**
+     * 启用/禁用维度等级限制
+     */
+    public static void setDimensionLevelCapEnabled(boolean enable) {
+        dimensionLevelCapEnabled = enable;
+    }
+
+    /**
+     * 清除所有维度等级限制
+     */
+    public static void clearDimensionLevelCaps() {
+        DIMENSION_LEVEL_CAPS.clear();
+    }
 
     // ==========================================
     // 主事件处理
@@ -70,13 +125,28 @@ public class GemLootGenerator {
             return;
         }
 
+        // 获取维度等级上限
+        int dimensionId = world.provider.getDimension();
+        int dimensionCap = dimensionLevelCapEnabled ? getDimensionLevelCap(dimensionId) : -1;
+
         // 生成宝石
         int dropCount = rule.getDropCount(RANDOM);
         for (int i = 0; i < dropCount; i++) {
             int gemLevel = rule.minLevel + RANDOM.nextInt(
                 Math.max(1, rule.maxLevel - rule.minLevel + 1)
             );
-            
+
+            // 应用维度等级上限
+            if (dimensionCap > 0 && gemLevel > dimensionCap) {
+                gemLevel = dimensionCap;
+                if (debugMode) {
+                    System.out.println(String.format(
+                        "[GemLoot] 维度%d等级上限%d，宝石降级",
+                        dimensionId, dimensionCap
+                    ));
+                }
+            }
+
             int affixCount = rule.minAffixes + RANDOM.nextInt(
                 Math.max(1, rule.maxAffixes - rule.minAffixes + 1)
             );
@@ -100,8 +170,8 @@ public class GemLootGenerator {
 
                 if (debugMode) {
                     System.out.println(String.format(
-                        "[GemLoot] %s 掉落: Lv%d, %d词条",
-                        entity.getName(), gemLevel, affixCount
+                        "[GemLoot] %s 掉落: Lv%d, %d词条 (维度%d)",
+                        entity.getName(), gemLevel, affixCount, dimensionId
                     ));
                 }
             }
