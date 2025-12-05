@@ -1,6 +1,7 @@
 package com.moremod.fabric.handler;
 
 import java.util.*;
+import java.util.Collections;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.moremod.event.OtherworldAttackEvent;
@@ -62,17 +63,20 @@ public class FabricEventHandler {
 
     // 时停系统常量
     private static final int TIME_STOP_COOLDOWN = 30000;
-    private static final float TIME_STOP_CHANCE_PER_PIECE = 0.04f;
-    private static final float TIME_RIFT_CHANCE_PER_PIECE = 0.02f;
+    private static final float TIME_STOP_CHANCE_PER_PIECE = 0.08f;  // 每件8%触发率
+    private static final int TIME_STOP_DURATION_PER_PIECE = 100;    // 每件+5秒(100tick)
 
     // 伤害黑名单 - 防止循环增伤
     private static final Set<String> DAMAGE_AMPLIFICATION_BLACKLIST = new HashSet<>(Arrays.asList(
             "spaceTimeBarrier",
             "dimensionalCollapse",
             "phaseDamage",
-            "abyssSplash"  // 新增：防止深渊溅射循环
-
+            "abyssSplash",       // 防止深渊溅射循环
+            "spatialReflect"     // 防止空间反射循环
     ));
+
+    // 空间反射防递归追踪
+    private static final Set<UUID> SPATIAL_REFLECT_ACTIVE = Collections.synchronizedSet(new HashSet<>());
 
     // 自定义伤害源
     public static class DimensionalDamageSource extends DamageSource {
@@ -86,6 +90,15 @@ public class FabricEventHandler {
         public AbyssSplashDamage() {
             super("abyssSplash");
             this.setDamageBypassesArmor();
+        }
+    }
+
+    // 空间反射伤害源 - 用于时空之壁
+    public static class SpatialReflectDamage extends DamageSource {
+        public SpatialReflectDamage() {
+            super("spatialReflect");
+            this.setDamageBypassesArmor();
+            this.setMagicDamage();
         }
     }
 
@@ -354,9 +367,12 @@ public class FabricEventHandler {
         public long chronoEndTime = 0;
         public float temporalEnergy = 100f;
 
+        // 时序回溯保护状态 (ASM Hook 用)
+        public boolean inTemporalRewind = false;
+        public long rewindProtectionEndTime = 0;
+
         // 延迟任务字段（替代 Thread.sleep）
         public long protectiveInvulEndTime = 0;  // 保护性时停无敌结束时间
-        public long riftNoClipEndTime = 0;       // 时空裂隙穿墙结束时间
 
         // 时空布料
         public int spatialCount = 0;
@@ -538,6 +554,81 @@ public class FabricEventHandler {
         return PLAYER_DATA.computeIfAbsent(player.getUniqueID(), k -> new PlayerFabricData());
     }
 
+    // ========== 时序回溯 API (供 ASM Hook 调用) ==========
+
+    /**
+     * 检查玩家是否穿戴时序织印
+     */
+    public static boolean hasTemporalFabric(EntityPlayer player) {
+        PlayerFabricData data = getPlayerData(player);
+        data.updateEquippedFabrics(player);
+        return data.hasTemporalFabric();
+    }
+
+    /**
+     * 检查玩家是否处于时序回溯保护状态
+     */
+    public static boolean isInTemporalRewind(EntityPlayer player) {
+        PlayerFabricData data = getPlayerData(player);
+        return data.inTemporalRewind;
+    }
+
+    /**
+     * 触发时序回溯
+     * @return true 如果成功触发回溯
+     */
+    public static boolean triggerTemporalRewind(EntityPlayer player) {
+        PlayerFabricData data = getPlayerData(player);
+
+        if (!data.hasTemporalFabric()) {
+            return false;
+        }
+
+        // 计算回溯概率
+        float baseChance = Math.min(data.temporalCount * 0.25f, 0.75f);
+        float actualChance = baseChance * (float) Math.pow(0.7, data.rewindCount);
+
+        if (RANDOM.nextFloat() < actualChance) {
+            performTemporalRewindProtection(player, data);
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * 执行时序回溯保护
+     */
+    private static void performTemporalRewindProtection(EntityPlayer player, PlayerFabricData data) {
+        data.inTemporalRewind = true;
+        data.rewindCount++;
+
+        // 回满血
+        player.setHealth(player.getMaxHealth());
+        player.getFoodStats().setFoodLevel(20);
+        player.getFoodStats().setFoodSaturationLevel(20.0F);
+
+        // 短暂无敌
+        player.hurtResistantTime = 60;
+
+        // 触发时停保护
+        createProtectiveTimeStop(player, data);
+
+        // 消耗时间能量
+        data.temporalEnergy = Math.max(0, data.temporalEnergy - 30);
+
+        // 3秒后解除回溯保护状态
+        data.rewindProtectionEndTime = System.currentTimeMillis() + 3000;
+
+        // 播放特效
+        spawnRewindEffects(player);
+
+        player.sendStatusMessage(new TextComponentString(
+                String.format("§b⏮ 时序回溯！完全恢复！(第%d次)", data.rewindCount)), false);
+
+        syncAllFabricDataToArmor(player, data);
+    }
+
     public static void syncAllFabricDataToArmor(EntityPlayer player, PlayerFabricData data) {
         for (ItemStack armor : player.getArmorInventoryList()) {
             if (!FabricWeavingSystem.hasFabric(armor)) continue;
@@ -688,16 +779,15 @@ public class FabricEventHandler {
             player.setEntityInvulnerable(false);
         }
 
-        // 时空裂隙穿墙结束
-        if (data.riftNoClipEndTime > 0 && now >= data.riftNoClipEndTime) {
-            data.riftNoClipEndTime = 0;
-            player.noClip = false;
-            player.setEntityInvulnerable(false);
-        }
-
         // 时间加速结束
         if (data.chronoAccelerated && data.chronoEndTime > 0 && now >= data.chronoEndTime) {
             removeChronoAttributes(player, data);
+        }
+
+        // 时序回溯保护结束
+        if (data.inTemporalRewind && data.rewindProtectionEndTime > 0 && now >= data.rewindProtectionEndTime) {
+            data.inTemporalRewind = false;
+            data.rewindProtectionEndTime = 0;
         }
 
         if (player.ticksExisted % 10 == 0) {
@@ -817,46 +907,25 @@ public class FabricEventHandler {
     }
     private static void activateDimensionalCollapse(EntityPlayer player, PlayerFabricData data) {
         World world = player.world;
-        BlockPos targetPos = player.getPosition();
+        if (world.isRemote) return;
 
-        // 增大基础范围
-        float baseRadius = 8.0f + data.spatialCount * 3.0f;  // 从6+2改为8+3
-        float radiusBonus = Math.min(15.0f, data.storedDamage / 30.0f);  // 从10/50改为15/30
-        float totalRadius = baseRadius + radiusBonus;
-
-        // 延长持续时间
-        int duration = 120 + data.spatialCount * 40;  // 从100+20改为120+40
-
-        // 大幅提升伤害倍率
-        float baseDamage = data.storedDamage * 5.0f;  // 从2倍改为5倍
-        float equipmentMultiplier = 2.0f + data.spatialCount * 1.0f;  // 从1+0.5改为2+1
-
-        // 添加额外的维度能量加成
-        float energyBonus = 1.0f + (data.dimensionalEnergy / 100.0f);
-
-        float totalDamage = baseDamage * equipmentMultiplier * energyBonus;
-
-        CollapseField field = new CollapseField(
-                targetPos, world, totalRadius, duration,
-                totalDamage, player, data.spatialCount
+        // 创建奇点实体
+        com.moremod.entity.fx.EntitySingularity singularity = new com.moremod.entity.fx.EntitySingularity(
+                world, player, data.storedDamage, data.spatialCount
         );
+        world.spawnEntity(singularity);
 
-        ACTIVE_COLLAPSE_FIELDS.add(field);
-
-        // 减少消耗，让玩家能更频繁使用
-        float consumed = data.storedDamage * 0.5f;  // 从0.8改为0.5
-        data.storedDamage -= consumed;
-        data.dimensionalEnergy = Math.max(0, data.dimensionalEnergy - 20);  // 从30改为20
+        // 消耗存储伤害（全部用于奇点）
+        float consumed = data.storedDamage;
+        data.storedDamage = 0;
+        data.dimensionalEnergy = Math.max(0, data.dimensionalEnergy - 20);
         data.lastCollapseTime = System.currentTimeMillis();
 
-        createInitialShockwave(player, targetPos, totalRadius);
-
         player.sendStatusMessage(new TextComponentString(
-                String.format("§5§l⟐ 维度崩塌领域展开！⟐\n§d范围:%.1f格 持续:%.1f秒 §c总伤害:%.0f",
-                        totalRadius, duration/20.0f, totalDamage)), false);
+                String.format("§5§l⟐ 奇点生成！⟐\n§d存储伤害:%.0f §7持续10秒后引爆", consumed)), false);
 
-        world.playSound(null, targetPos, SoundEvents.ENTITY_WITHER_SPAWN,
-                SoundCategory.PLAYERS, 2.0F, 0.5F);
+        world.playSound(null, player.getPosition(), SoundEvents.ENTITY_ENDERMEN_TELEPORT,
+                SoundCategory.PLAYERS, 2.0F, 0.3F);
 
         syncAllFabricDataToArmor(player, data);
     }
@@ -918,46 +987,52 @@ public class FabricEventHandler {
 
         if (!data.hasSpatialFabric()) return;
 
+        // 检查是否是循环伤害源
         if (DAMAGE_AMPLIFICATION_BLACKLIST.contains(event.getSource().getDamageType())) {
             return;
         }
 
-        // 时空之壁 - 反伤系统
-        if (data.spatialCount >= 4 &&RANDOM.nextFloat() < data.spatialCount * 0.2f) {
-            float damage = event.getAmount();
-            boolean transferred = activateSpaceTimeBarrier(player, event.getSource(), damage, data);
+        // 防止递归：如果玩家已在反射过程中，跳过
+        if (SPATIAL_REFLECT_ACTIVE.contains(player.getUniqueID())) {
+            return;
+        }
 
-            if (transferred) {
-                event.setCanceled(true);
+        float originalDamage = event.getAmount();
 
-                float collected = damage * 0.5f;
-                data.storedDamage += collected;
+        // ===== 能力4: 时空之壁 - 受伤时将伤害倍数转给周围敌人 =====
+        // 倍率: 1件=0.3x, 2件=0.5x, 3件=0.8x, 4件=1.2x
+        float[] reflectMultipliers = {0.0f, 0.3f, 0.5f, 0.8f, 1.2f};
+        float reflectMultiplier = reflectMultipliers[Math.min(data.spatialCount, 4)];
 
-                data.dimensionalEnergy = Math.max(0, data.dimensionalEnergy - 10);
+        if (reflectMultiplier > 0) {
+            float reflectDamage = originalDamage * reflectMultiplier;
+            int affectedCount = activateSpatialReflect(player, reflectDamage, data);
 
+            if (affectedCount > 0) {
                 player.sendStatusMessage(new TextComponentString(
-                        String.format("§d⊡ 时空之壁！转移%.1f伤害，收集%.1f到口袋", damage, collected)), true);
-
-                syncAllFabricDataToArmor(player, data);
-                return;
+                        String.format("§d⊡ 时空之壁！反射%.1f伤害给%d个敌人 (%.0f%%倍率)",
+                                reflectDamage, affectedCount, reflectMultiplier * 100)), true);
             }
         }
 
-        // 维度口袋 - 存储所有伤害
-        if (data.spatialCount >= 2 && data.dimensionalEnergy > 5) {
-            float storageRatio = 0.3f + (data.spatialCount - 2) * 0.2f;
-            float damageToStore = event.getAmount() * storageRatio;
+        // ===== 能力2: 维度口袋 - 吸收伤害存储 =====
+        // 吸收倍率: 1件=1.0x, 2件=1.5x, 3件=2.0x, 4件=2.5x
+        float[] absorptionMultipliers = {0.0f, 1.0f, 1.5f, 2.0f, 2.5f};
+        float absorptionMultiplier = absorptionMultipliers[Math.min(data.spatialCount, 4)];
 
+        if (absorptionMultiplier > 0 && data.dimensionalEnergy > 5) {
+            // 存储 = 原始伤害 × 吸收倍率
+            float damageToStore = originalDamage * absorptionMultiplier;
             data.storedDamage += damageToStore;
-            event.setAmount(event.getAmount() - damageToStore);
 
-            float energyCost = 2 + damageToStore * 0.05f;
+            // 能量消耗基于原始伤害
+            float energyCost = 2 + originalDamage * 0.1f;
             data.dimensionalEnergy = Math.max(0, data.dimensionalEnergy - energyCost);
 
             String storageLevel = getStorageLevel(data.storedDamage);
             player.sendStatusMessage(new TextComponentString(
-                    String.format("§d%s 维度存储: +%.1f (总计:%.1f)",
-                            storageLevel, damageToStore, data.storedDamage)), true);
+                    String.format("§d%s 维度存储: +%.1f (%.0f%%倍率, 总计:%.1f)",
+                            storageLevel, damageToStore, absorptionMultiplier * 100, data.storedDamage)), true);
 
             spawnDimensionalAbsorption(player, damageToStore, data.storedDamage);
 
@@ -965,38 +1040,78 @@ public class FabricEventHandler {
         }
     }
 
-    @SubscribeEvent
-    public static void onSpatialAttack(LivingAttackEvent event) {
-        if (!(event.getSource().getTrueSource() instanceof EntityPlayer)) return;
+    /**
+     * 激活空间反射 - 将伤害传递给周围敌人
+     * @return 受影响的敌人数量
+     */
+    private static int activateSpatialReflect(EntityPlayer player, float damage, PlayerFabricData data) {
+        // 防递归标记
+        SPATIAL_REFLECT_ACTIVE.add(player.getUniqueID());
 
-        EntityPlayer player = (EntityPlayer) event.getSource().getTrueSource();
-        PlayerFabricData data = getPlayerData(player);
+        try {
+            double range = 5.0 + data.spatialCount * 2.0;  // 7/9/11/13格
 
-        if (!data.hasSpatialFabric()) return;
-
-        EntityLivingBase target = event.getEntityLiving();
-
-        if (RANDOM.nextFloat() < data.spatialCount * 0.15f) {
-            target.hurtResistantTime = 0;
-            target.hurtTime = 0;
-
-            float phaseDamage = event.getAmount() * (1.5f + data.spatialCount * 0.5f);
-            target.attackEntityFrom(
-                    new DimensionalDamageSource("phaseDamage").setDamageBypassesArmor().setDamageIsAbsolute(),
-                    phaseDamage
+            List<EntityLivingBase> targets = player.world.getEntitiesWithinAABB(
+                    EntityLivingBase.class,
+                    player.getEntityBoundingBox().grow(range),
+                    entity -> entity != player &&
+                            entity.isEntityAlive() &&
+                            !(entity instanceof EntityPlayer) &&
+                            entity.getDistanceSq(player) <= range * range
             );
 
-            createDimensionalTear(target);
+            if (targets.isEmpty()) {
+                return 0;
+            }
 
-            data.phaseStrikeCount++;
-            data.dimensionalEnergy = Math.max(0, data.dimensionalEnergy - 5);
+            // 伤害分散给所有目标
+            float damagePerTarget = damage / targets.size();
 
-            player.sendStatusMessage(new TextComponentString(
-                    String.format("§d相位打击！%.1f真实伤害", phaseDamage)), true);
+            for (EntityLivingBase target : targets) {
+                // 使用专用的反射伤害源，防止触发其他反射效果造成无限循环
+                target.attackEntityFrom(new SpatialReflectDamage(), damagePerTarget);
 
-            syncAllFabricDataToArmor(player, data);
+                // 粒子效果
+                if (player.world instanceof WorldServer) {
+                    spawnReflectEffect(player, target);
+                }
+            }
+
+            // 音效
+            player.world.playSound(null, player.getPosition(),
+                    SoundEvents.ENTITY_ENDERMEN_TELEPORT, SoundCategory.PLAYERS, 0.8F, 1.5F);
+
+            return targets.size();
+        } finally {
+            // 确保移除标记
+            SPATIAL_REFLECT_ACTIVE.remove(player.getUniqueID());
         }
     }
+
+    /**
+     * 空间反射粒子效果
+     */
+    private static void spawnReflectEffect(EntityPlayer player, EntityLivingBase target) {
+        if (!(player.world instanceof WorldServer)) return;
+        WorldServer world = (WorldServer) player.world;
+
+        Vec3d start = new Vec3d(player.posX, player.posY + player.height / 2, player.posZ);
+        Vec3d end = new Vec3d(target.posX, target.posY + target.height / 2, target.posZ);
+        Vec3d diff = end.subtract(start);
+
+        for (int i = 0; i <= 8; i++) {
+            Vec3d pos = start.add(diff.scale(i / 8.0));
+            world.spawnParticle(EnumParticleTypes.CRIT_MAGIC,
+                    pos.x, pos.y, pos.z,
+                    1, 0, 0, 0, 0.05);
+        }
+
+        world.spawnParticle(EnumParticleTypes.DRAGON_BREATH,
+                target.posX, target.posY + target.height / 2, target.posZ,
+                10, 0.3, 0.3, 0.3, 0.02);
+    }
+
+    // 已移除：相位打击 (Phase Strike) - 空间织印能力1
 
     @SubscribeEvent
     public static void onSpatialCrit(CriticalHitEvent event) {
@@ -1090,29 +1205,7 @@ public class FabricEventHandler {
     }
 
     // ========== 时序布料事件 ==========
-    @SubscribeEvent
-    public static void onTemporalDeath(LivingDeathEvent event) {
-        if (!(event.getEntityLiving() instanceof EntityPlayer)) return;
-
-        EntityPlayer player = (EntityPlayer) event.getEntityLiving();
-        PlayerFabricData data = getPlayerData(player);
-
-        if (!data.hasTemporalFabric() || data.temporalSnapshots.isEmpty()) return;
-
-        float baseChance = Math.min(data.temporalCount * 0.25f, 0.75f);
-        float actualChance = baseChance * (float)Math.pow(0.7, data.rewindCount);
-
-        if (RANDOM.nextFloat() < actualChance) {
-            event.setCanceled(true);
-            performEnhancedTemporalRewind(player, data);
-            createProtectiveTimeStop(player, data);
-            data.rewindCount++;
-
-            data.temporalEnergy = Math.max(0, data.temporalEnergy - 30);
-
-            syncAllFabricDataToArmor(player, data);
-        }
-    }
+    // 注：死亡回溯现由 ASM Hook (TemporalDeathHook) 处理
 
     @SubscribeEvent(priority = EventPriority.HIGH)
     public static void onTemporalHurt(LivingHurtEvent event) {
@@ -1123,15 +1216,11 @@ public class FabricEventHandler {
 
         if (!data.hasTemporalFabric()) return;
 
-        float reduction = data.temporalCount * 0.15f;
-        event.setAmount(event.getAmount() * (1 - reduction));
-
+        // 时停触发检测
         if (shouldTriggerTimeStop(player, data)) {
             TimeStopZone zone = activateImprovedTimeStop(player, data);
             if (zone != null) {
-                event.setAmount(event.getAmount() * 0.3f);
                 data.lastTimeStopTime = System.currentTimeMillis();
-
                 data.temporalEnergy = Math.max(0, data.temporalEnergy - 20);
 
                 player.sendStatusMessage(new TextComponentString(
@@ -1140,18 +1229,6 @@ public class FabricEventHandler {
 
                 syncAllFabricDataToArmor(player, data);
             }
-        }
-
-        if (shouldTriggerTimeRift(data)) {
-            createAdvancedTemporalRift(player, event.getSource());
-            event.setCanceled(true);
-
-            data.temporalEnergy = Math.max(0, data.temporalEnergy - 10);
-
-            player.sendStatusMessage(new TextComponentString(
-                    "§b✦ 时间断层激活！伤害无效化"), true);
-
-            syncAllFabricDataToArmor(player, data);
         }
     }
 
@@ -1405,32 +1482,6 @@ public class FabricEventHandler {
         }
     }
 
-    private static void performEnhancedTemporalRewind(EntityPlayer player, PlayerFabricData data) {
-        if (data.temporalSnapshots.isEmpty()) return;
-
-        PlayerFabricData.TemporalSnapshot snapshot = data.temporalSnapshots.getFirst();
-
-        player.setPositionAndUpdate(snapshot.x, snapshot.y, snapshot.z);
-
-        // 修改：直接回滿血
-        player.setHealth(player.getMaxHealth());
-        player.getFoodStats().setFoodLevel(20);  // 滿飢餓值
-        player.getFoodStats().setFoodSaturationLevel(20.0F);  // 滿飽食度
-
-        player.hurtResistantTime = 60;
-
-
-        // 新增：再生效果，提供第二次恢復
-        player.addPotionEffect(new PotionEffect(MobEffects.INSTANT_HEALTH, 10, 10, false, false));
-        // 立即額外恢復一次
-        player.heal(player.getMaxHealth());
-
-        spawnRewindEffects(player);
-
-        player.sendStatusMessage(new TextComponentString(
-                String.format("§b⏮ 時序回溯成功！完全恢復！(第%d次)", data.rewindCount + 1)), false);
-    }
-
     private static void createProtectiveTimeStop(EntityPlayer player, PlayerFabricData data) {
         createTimeStopZone(player.world, player.getPosition(), 10.0, player, 60);
 
@@ -1440,53 +1491,19 @@ public class FabricEventHandler {
         data.protectiveInvulEndTime = System.currentTimeMillis() + 3000;
     }
 
-    private static void createAdvancedTemporalRift(EntityPlayer player, DamageSource source) {
-        PlayerFabricData data = getPlayerData(player);
-        player.noClip = true;
-        player.setEntityInvulnerable(true);
-
-        // 使用基于Tick的延迟任务替代 Thread.sleep
-        data.riftNoClipEndTime = System.currentTimeMillis() + 2000;
-
-        if (source.getTrueSource() instanceof EntityLivingBase) {
-            EntityLivingBase attacker = (EntityLivingBase) source.getTrueSource();
-            freezeEntity(attacker, 60);
-            attacker.attackEntityFrom(DamageSource.MAGIC, 10.0f);
-        }
-
-        spawnRiftEffects(player);
-    }
-
     private static TimeStopZone activateImprovedTimeStop(EntityPlayer player, PlayerFabricData data) {
         World world = player.world;
 
-        double range;
-        int duration;
+        if (data.temporalCount <= 0) return null;
 
-        switch (data.temporalCount) {
-            case 1:
-                range = 8.0;
-                duration = 60;
-                break;
-            case 2:
-                range = 12.0;
-                duration = 100;
-                break;
-            case 3:
-                range = 16.0;
-                duration = 140;
-                break;
-            case 4:
-                range = 20.0;
-                duration = 200;
-                break;
-            default:
-                return null;
-        }
+        // 线性计算：每件+5秒，范围保持阶梯式
+        int duration = data.temporalCount * TIME_STOP_DURATION_PER_PIECE;  // 每件100tick(5秒)
+        double range = 8.0 + (data.temporalCount - 1) * 4.0;  // 8/12/16/20格
 
         TimeStopZone zone = createTimeStopZone(world, player.getPosition(), range, player, duration);
 
-        if (data.temporalCount >= 4 && zone != null) {
+        if (zone != null) {
+            // 所有件数都触发时间加速
             applyChronoAcceleration(player, data, duration);
         }
 
@@ -1529,7 +1546,7 @@ public class FabricEventHandler {
                     TEMPORAL_ATTACK_UUID, "Chrono Attack Speed", 1.0, 2));
         }
 
-        player.addPotionEffect(new PotionEffect(MobEffects.HASTE, duration, 4, false, false));
+        player.addPotionEffect(new PotionEffect(MobEffects.HASTE, duration, 10, false, false));  // 急迫XI
 
         // chronoEndTime 已在上面设置，延迟任务在 onPlayerTick 中处理
 
@@ -1646,102 +1663,7 @@ public class FabricEventHandler {
         return RANDOM.nextFloat() < chance;
     }
 
-    private static boolean shouldTriggerTimeRift(PlayerFabricData data) {
-        float chance = data.temporalCount * TIME_RIFT_CHANCE_PER_PIECE;
-
-        if (data.temporalCount >= 4) {
-            chance += 0.05f;
-        }
-
-        return RANDOM.nextFloat() < chance;
-    }
-
-    private static boolean activateSpaceTimeBarrier(EntityPlayer player, DamageSource source,
-                                                    float damage, PlayerFabricData data) {
-        double range = 5.0 + data.spatialCount * 2.0;
-        float multiplier = 1.5f + data.spatialCount * 0.5f;
-        float transferDamage = damage * multiplier;
-
-        List<EntityLivingBase> targets = player.world.getEntitiesWithinAABB(
-                EntityLivingBase.class,
-                player.getEntityBoundingBox().grow(range),
-                entity -> entity != player &&
-                        entity.isEntityAlive() &&
-                        !(entity instanceof EntityPlayer) &&
-                        entity.getDistanceSq(player) <= range * range
-        );
-
-        if (targets.isEmpty()) {
-            createSpaceDistortion(player, damage, data);
-            return true;
-        }
-
-        float damagePerTarget = transferDamage / targets.size();
-
-        for (EntityLivingBase target : targets) {
-            float distance = target.getDistance(player);
-            float distanceFactor = 1.0f - (distance / (float)range) * 0.3f;
-            float finalDamage = damagePerTarget * distanceFactor;
-
-            target.attackEntityFrom(
-                    new DimensionalDamageSource("spaceTimeBarrier"),
-                    finalDamage
-            );
-
-            if (player.world instanceof WorldServer) {
-                spawnBarrierEffect(player, target);
-            }
-        }
-
-        spawnBarrierShield(player, range);
-
-        player.world.playSound(null, player.getPosition(),
-                SoundEvents.ENTITY_ENDERMEN_TELEPORT, SoundCategory.PLAYERS, 1.0F, 0.5F);
-
-        return true;
-    }
-
-    private static void createDimensionalTear(EntityLivingBase target) {
-        if (!(target.world instanceof WorldServer)) return;
-        WorldServer world = (WorldServer) target.world;
-
-        world.spawnParticle(EnumParticleTypes.DRAGON_BREATH,
-                target.posX, target.posY + target.height / 2, target.posZ,
-                20, 0.5, 0.5, 0.5, 0.05);
-
-        List<EntityLivingBase> nearby = target.world.getEntitiesWithinAABB(
-                EntityLivingBase.class, target.getEntityBoundingBox().grow(3),
-                e -> e != target);
-
-        for (EntityLivingBase entity : nearby) {
-            Vec3d knockback = entity.getPositionVector()
-                    .subtract(target.getPositionVector()).normalize().scale(1.5);
-            entity.motionX = knockback.x;
-            entity.motionY = knockback.y;
-            entity.motionZ = knockback.z;
-        }
-    }
-
-    private static void createSpaceDistortion(EntityPlayer player, float damage, PlayerFabricData data) {
-        data.storedDamage += damage * 0.5f;
-
-        if (!(player.world instanceof WorldServer)) return;
-        WorldServer world = (WorldServer) player.world;
-
-        for (int i = 0; i < 20; i++) {
-            double angle = (Math.PI * 2 * i) / 20;
-            for (double r = 1; r <= 3; r += 0.5) {
-                double x = player.posX + Math.cos(angle) * r;
-                double z = player.posZ + Math.sin(angle) * r;
-                world.spawnParticle(EnumParticleTypes.DRAGON_BREATH,
-                        x, player.posY + 1, z,
-                        1, 0, 0.2, 0, 0.05);
-            }
-        }
-
-        player.sendStatusMessage(new TextComponentString(
-                String.format("§d⊡ 时空之壁！能量储存至虚空（+%.1f）", damage * 0.5f)), true);
-    }
+    // 已移除旧版时空之壁方法，新版见 activateSpatialReflect
 
     private static void handleInsightAndSanity(EntityPlayer player, PlayerFabricData data) {
         data.insight = Math.min(data.insight + data.otherworldCount, 100);
@@ -1884,46 +1806,7 @@ public class FabricEventHandler {
         }
     }
 
-    private static void spawnBarrierEffect(EntityPlayer player, EntityLivingBase target) {
-        if (!(player.world instanceof WorldServer)) return;
-        WorldServer world = (WorldServer) player.world;
-
-        Vec3d start = new Vec3d(player.posX, player.posY + player.height/2, player.posZ);
-        Vec3d end = new Vec3d(target.posX, target.posY + target.height/2, target.posZ);
-        Vec3d diff = end.subtract(start);
-
-        for (int i = 0; i <= 10; i++) {
-            Vec3d pos = start.add(diff.scale(i / 10.0));
-            world.spawnParticle(EnumParticleTypes.PORTAL,
-                    pos.x, pos.y, pos.z,
-                    1, 0, 0, 0, 0.1);
-        }
-
-        world.spawnParticle(EnumParticleTypes.CRIT_MAGIC,
-                target.posX, target.posY + target.height/2, target.posZ,
-                20, 0.5, 0.5, 0.5, 0.1);
-    }
-
-    private static void spawnBarrierShield(EntityPlayer player, double range) {
-        if (!(player.world instanceof WorldServer)) return;
-        WorldServer world = (WorldServer) player.world;
-
-        for (int i = 0; i < 36; i++) {
-            double angle = (Math.PI * 2 * i) / 36;
-
-            double x = player.posX + Math.cos(angle) * range;
-            double z = player.posZ + Math.sin(angle) * range;
-            world.spawnParticle(EnumParticleTypes.END_ROD,
-                    x, player.posY + 1, z,
-                    1, 0, 0.1, 0, 0.02);
-
-            double y = player.posY + Math.sin(angle) * range;
-            double xz = Math.cos(angle) * range;
-            world.spawnParticle(EnumParticleTypes.END_ROD,
-                    player.posX + xz, y + 1, player.posZ,
-                    1, 0, 0.1, 0, 0.02);
-        }
-    }
+    // 已移除旧版粒子效果方法，新版见 spawnReflectEffect
 
     private static void spawnAbyssParticles(EntityPlayer player) {
         if (!(player.world instanceof WorldServer)) return;
@@ -1982,25 +1865,6 @@ public class FabricEventHandler {
             world.spawnParticle(EnumParticleTypes.PORTAL,
                     x, player.posY + height, z,
                     2, 0, 0, 0.0, 0);
-        }
-    }
-
-    private static void spawnRiftEffects(EntityPlayer player) {
-        if (!(player.world instanceof WorldServer)) return;
-        WorldServer world = (WorldServer) player.world;
-
-        for (int i = 0; i < 30; i++) {
-            Vec3d random = new Vec3d(
-                    (RANDOM.nextDouble() - 0.5) * 3,
-                    (RANDOM.nextDouble() - 0.5) * 3,
-                    (RANDOM.nextDouble() - 0.5) * 3
-            );
-
-            world.spawnParticle(EnumParticleTypes.DRAGON_BREATH,
-                    player.posX + random.x,
-                    player.posY + 1 + random.y,
-                    player.posZ + random.z,
-                    1, 0, 0, 0, 0.05);
         }
     }
 
