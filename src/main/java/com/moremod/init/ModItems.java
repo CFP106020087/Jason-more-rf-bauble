@@ -15,6 +15,8 @@ import com.moremod.item.ItemCausalGateband;
 import com.moremod.item.ItemBehaviorAnalysisChip;
 // 👻 添加诅咒蔓延导入
 import com.moremod.item.ItemCurseSpread;
+// 🌹 添加荆棘王冠之碎片导入
+import com.moremod.item.curse.ItemThornShard;
 // 🗡️ 添加澄月剑导入
 import com.moremod.item.ItemSwordChengYue;
 // 🌟 添加剑气测试器导入
@@ -85,6 +87,7 @@ public final class ModItems {
     public static Item CAUSAL_GATEBAND;         // ⭕ 因果闕帶（智能沉默）
     public static Item BEHAVIOR_ANALYSIS_CHIP;  // 🧠 行為分析晶片
     public static Item CURSE_SPREAD;            // 👻 诅咒蔓延
+    public static Item THORN_SHARD;             // 🌹 荆棘王冠之碎片（七咒联动）
 
     // 🗡️ 武器系列
     public static ItemSwordChengYue SWORD_CHENGYUE;      // 澄月 - 成长性终极武器
@@ -162,6 +165,10 @@ public final class ModItems {
         // 👻 注册诅咒蔓延
         CURSE_SPREAD = reg(e, new ItemCurseSpread());
         System.out.println("[MoreMod] 👻 诅咒蔓延已注册");
+
+        // 🌹 注册荆棘王冠之碎片
+        THORN_SHARD = reg(e, new ItemThornShard());
+        System.out.println("[MoreMod] 🌹 荆棘王冠之碎片已注册");
 
         // 🗡️ 注册澄月剑
         SWORD_CHENGYUE = (ItemSwordChengYue) reg(e, new ItemSwordChengYue());
@@ -260,6 +267,10 @@ public final class ModItems {
         // 👻 绑定诅咒蔓延模型
         bindModel(CURSE_SPREAD, "curse_spread");
         System.out.println("[MoreMod] 👻 诅咒蔓延模型已注册");
+
+        // 🌹 绑定荆棘王冠之碎片模型
+        bindModel(THORN_SHARD, "thorn_shard");
+        System.out.println("[MoreMod] 🌹 荆棘王冠之碎片模型已注册");
 
         // 🗡️ 绑定澄月剑模型
         bindModel(SWORD_CHENGYUE, "sword_chengyue");
