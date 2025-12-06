@@ -2,13 +2,9 @@ package com.moremod.event;
 
 import com.moremod.core.CurseDeathHook;
 import com.moremod.item.curse.ItemGluttonousPhalanx;
-import com.moremod.item.curse.ItemThornShard;
 import com.moremod.item.curse.ItemVoidGaze;
-import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.item.EntityXPOrb;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraftforge.event.entity.living.LivingAttackEvent;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.living.LootingLevelEvent;
 import net.minecraftforge.event.entity.player.PlayerPickupXpEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -18,6 +14,8 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 /**
  * 七咒饰品事件处理器
  * 处理七咒之戒联动饰品的各种效果
+ *
+ * 注意：荆棘碎片和怨念结晶的效果在各自的类中处理
  */
 @Mod.EventBusSubscriber(modid = "moremod")
 public class CurseAccessoryEventHandler {
@@ -68,47 +66,6 @@ public class CurseAccessoryEventHandler {
         event.setLootingLevel(event.getLootingLevel() + ItemGluttonousPhalanx.getLootingBonus());
     }
 
-    // ========== 荆棘碎片：受伤时反弹伤害 ==========
-
-    @SubscribeEvent(priority = EventPriority.NORMAL)
-    public static void onLivingHurt(LivingHurtEvent event) {
-        if (event.isCanceled()) return;
-        if (!(event.getEntity() instanceof EntityPlayer)) return;
-
-        EntityPlayer player = (EntityPlayer) event.getEntity();
-        if (player.world.isRemote) return;
-
-        // 检查是否佩戴七咒之戒
-        if (!CurseDeathHook.hasCursedRing(player)) return;
-
-        EntityLivingBase attacker = null;
-        if (event.getSource().getTrueSource() instanceof EntityLivingBase) {
-            attacker = (EntityLivingBase) event.getSource().getTrueSource();
-        }
-
-        // 荆棘碎片：反弹伤害
-        if (ItemThornShard.isWearing(player) && attacker != null && attacker != player) {
-            ItemThornShard.reflectDamage(player, attacker, event.getAmount());
-        }
-    }
-
-    // ========== 荆棘碎片：攻击时自伤 ==========
-
-    @SubscribeEvent(priority = EventPriority.NORMAL)
-    public static void onPlayerAttack(LivingAttackEvent event) {
-        if (event.isCanceled()) return;
-        if (!(event.getSource().getTrueSource() instanceof EntityPlayer)) return;
-
-        EntityPlayer player = (EntityPlayer) event.getSource().getTrueSource();
-        if (player.world.isRemote) return;
-
-        // 检查是否佩戴荆棘碎片
-        if (!ItemThornShard.isWearing(player)) return;
-
-        // 检查是否佩戴七咒之戒
-        if (!CurseDeathHook.hasCursedRing(player)) return;
-
-        // 攻击时自伤
-        ItemThornShard.applySelfDamage(player, event.getAmount());
-    }
+    // 注意：荆棘碎片的事件处理在 ItemThornShard 类内部
+    // 注意：怨念结晶的真伤光环在 ItemCrystallizedResentment.onWornTick 中处理
 }
