@@ -412,3 +412,7 @@ item.holy_water.tooltip=解除诅咒并恢复生命力
 item.biological_sample.name=生物样本
 item.intel_book.name=情报书
 item.intel_statistics_book.name=情报整合统计书
+
+# 七咒之戒联动饰品 (Cursed Ring Synergy Accessories)
+item.gluttonous_phalanx.name=饕餮指骨
+item.crystallized_resentment.name=怨念结晶
