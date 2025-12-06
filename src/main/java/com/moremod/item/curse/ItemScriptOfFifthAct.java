@@ -294,11 +294,15 @@ public class ItemScriptOfFifthAct extends Item implements IBauble {
         boolean rewriteTriggered = healthRatio <= REWRITE_HEALTH_THRESHOLD;
 
         if (rewriteTriggered) {
-            // 改写结局：300% 反弹，自己不受伤害
+            // 改写结局：300% 反弹，自己也承受 50% 伤害
             float reflectDamage = totalDamage * REWRITE_REFLECT_MULTIPLIER;
+            float settleDamage = totalDamage * SETTLEMENT_DAMAGE_RATIO;
 
             // 反弹给周围敌人
             int enemiesHit = reflectDamageToNearby(player, reflectDamage);
+
+            // 自己也承受 50% 伤害
+            applySettledDamage(player, settleDamage);
 
             // 效果提示
             player.sendMessage(new TextComponentString(
@@ -310,7 +314,9 @@ public class ItemScriptOfFifthAct extends Item implements IBauble {
                     TextFormatting.GRAY + " 个敌人！"
             ));
             player.sendMessage(new TextComponentString(
-                    TextFormatting.GREEN + "你毫发无伤地改写了命运！"
+                    TextFormatting.YELLOW + "承受 " +
+                    TextFormatting.RED + String.format("%.1f", settleDamage) +
+                    TextFormatting.YELLOW + " 伤害 (50%)"
             ));
 
             // 粒子效果
@@ -531,7 +537,7 @@ public class ItemScriptOfFifthAct extends Item implements IBauble {
         list.add(TextFormatting.GRAY + "  · " + TextFormatting.GOLD + "300%" +
                 TextFormatting.GRAY + " 伤害反弹给周围 " + TextFormatting.AQUA + "8" +
                 TextFormatting.GRAY + " 格内敌人");
-        list.add(TextFormatting.GREEN + "  · 自己完全免疫伤害！");
+        list.add(TextFormatting.YELLOW + "  · 自己仍承受 50% 伤害");
         list.add(TextFormatting.DARK_GRAY + "  无冷却");
 
         list.add("");
