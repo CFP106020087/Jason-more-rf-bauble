@@ -428,7 +428,8 @@ public class ItemScriptOfFifthAct extends Item implements IBauble {
         float damagePerEntity = totalDamage / entities.size();
 
         for (EntityLivingBase target : entities) {
-            TrueDamageHelper.applyTrueDamage(target, player, damagePerEntity);
+            TrueDamageHelper.applyWrappedTrueDamage(target, player, damagePerEntity,
+                    TrueDamageHelper.TrueDamageFlag.REFLECT);
 
             // 粒子效果
             if (player.world instanceof WorldServer) {
