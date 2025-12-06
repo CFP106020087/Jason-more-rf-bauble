@@ -74,7 +74,9 @@ public class TrueDamageHelper {
         PHANTOM_TWIN,
         TERMINUS_BONUS,
         PHANTOM_STRIKE,
-        EXECUTE
+        EXECUTE,
+        REFLECT,           // 反伤/反弹
+        THORN_BURST        // 荆棘爆发（七咒）
     }
 
     public static DamageSource createTrueDamageSource(@Nullable Entity source) {

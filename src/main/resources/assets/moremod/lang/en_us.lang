@@ -15,3 +15,7 @@ item.moremod.synergy_guide.name=Synergy Guide
 item.biological_sample.name=Biological Sample
 item.intel_book.name=Intel Book
 item.intel_statistics_book.name=Intel Statistics Book
+
+# Cursed Ring Synergy Accessories
+item.gluttonous_phalanx.name=Gluttonous Phalanx
+item.crystallized_resentment.name=Crystallized Resentment
