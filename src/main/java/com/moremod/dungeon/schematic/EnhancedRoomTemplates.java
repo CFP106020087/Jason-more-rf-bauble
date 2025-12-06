@@ -1313,8 +1313,8 @@ public class EnhancedRoomTemplates {
                 }
             }
         }
-        // 使用时间锁定方块作为祭坛核心（更美观）
-        s.setBlockState(x, y + 1, z, ModBlocks.UNBREAKABLE_BARRIER_TEMPORAL.getDefaultState());
+        // 使用量子领域方块作为祭坛核心（与 DungeonBossSpawner 匹配）
+        s.setBlockState(x, y + 1, z, ModBlocks.UNBREAKABLE_BARRIER_QUANTUM.getDefaultState());
     }
 
     private static void createMiniBossPlatform(Schematic s, int x, int z) {

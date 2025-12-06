@@ -7,6 +7,7 @@ import com.moremod.core.CurseDeathHook;
 import com.moremod.creativetab.moremodCreativeTab;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.monster.IMob;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.MobEffects;
@@ -28,7 +29,7 @@ import java.util.List;
  * Crystallized Resentment
  *
  * 效果：
- * - 正面：真伤光环 - 每秒对周围敌人造成1点真实伤害
+ * - 正面：真伤光环 - 每秒对周围敌人造成其最大生命值1%的真实伤害
  * - 负面：无法获得再生效果
  *
  * 机制：
@@ -40,8 +41,10 @@ public class ItemCrystallizedResentment extends Item implements IBauble {
 
     // 真伤光环半径
     public static final double AURA_RADIUS = 4.0;
-    // 真伤光环伤害
-    public static final float AURA_DAMAGE = 1.0f;
+    // 真伤光环伤害百分比 (1% = 0.01)
+    public static final float AURA_DAMAGE_PERCENT = 0.01f;
+    // 最小伤害（防止对低血量怪无效）
+    public static final float MIN_DAMAGE = 1.0f;
     // 伤害间隔 (tick) - 每秒一次
     public static final int DAMAGE_INTERVAL = 20;
 
@@ -104,7 +107,7 @@ public class ItemCrystallizedResentment extends Item implements IBauble {
     }
 
     /**
-     * 应用真伤光环
+     * 应用真伤光环 - 对敌人造成其最大生命值1%的真实伤害
      */
     private void applyTrueDamageAura(EntityPlayer player) {
         AxisAlignedBB auraBox = player.getEntityBoundingBox().grow(AURA_RADIUS);
@@ -115,7 +118,10 @@ public class ItemCrystallizedResentment extends Item implements IBauble {
         );
 
         for (EntityLivingBase target : entities) {
-            target.attackEntityFrom(TRUE_DAMAGE, AURA_DAMAGE);
+            // 计算百分比伤害
+            float maxHealth = (float) target.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).getAttributeValue();
+            float damage = Math.max(MIN_DAMAGE, maxHealth * AURA_DAMAGE_PERCENT);
+            target.attackEntityFrom(TRUE_DAMAGE, damage);
         }
     }
 
@@ -170,7 +176,10 @@ public class ItemCrystallizedResentment extends Item implements IBauble {
         list.add("");
         list.add(TextFormatting.GREEN + ". 正面效果");
         list.add(TextFormatting.GRAY + "  真伤光环: 每秒对 " + TextFormatting.YELLOW + (int)AURA_RADIUS + "格" +
-                TextFormatting.GRAY + " 内敌人造成 " + TextFormatting.RED + (int)AURA_DAMAGE + " 真实伤害");
+                TextFormatting.GRAY + " 内敌人造成");
+        list.add(TextFormatting.GRAY + "  其最大生命值 " + TextFormatting.RED + (int)(AURA_DAMAGE_PERCENT * 100) + "%" +
+                TextFormatting.GRAY + " 的真实伤害");
+        list.add(TextFormatting.DARK_GRAY + "  (最低 " + (int)MIN_DAMAGE + " 点)");
 
         list.add("");
         list.add(TextFormatting.RED + ". 负面效果");
