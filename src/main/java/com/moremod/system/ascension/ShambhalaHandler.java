@@ -268,20 +268,14 @@ public class ShambhalaHandler {
 
     /**
      * 对单个目标施加反伤
+     * 使用 TrueDamageHelper 实现真实伤害反弹
      */
     private static void applyReflectDamageToTarget(EntityPlayer player, net.minecraft.entity.EntityLivingBase target, float damage) {
-        if (ShambhalaConfig.thornsTrueDamage) {
-            // 使用包装的真实伤害
-            com.moremod.util.combat.TrueDamageHelper.applyWrappedTrueDamage(
-                    target, player, damage,
-                    com.moremod.util.combat.TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE
-            );
-        } else {
-            // 使用自定义的反伤伤害源
-            net.minecraft.util.DamageSource reflectSource = new net.minecraft.util.DamageSource(SHAMBHALA_REFLECT_SOURCE);
-            reflectSource.setDamageBypassesArmor();
-            target.attackEntityFrom(reflectSource, damage);
-        }
+        // 始终使用 TrueDamageHelper 进行真实伤害反弹
+        com.moremod.util.combat.TrueDamageHelper.applyWrappedTrueDamage(
+                target, player, damage,
+                com.moremod.util.combat.TrueDamageHelper.TrueDamageFlag.REFLECT
+        );
 
         // 反伤粒子效果
         if (player.world instanceof WorldServer) {

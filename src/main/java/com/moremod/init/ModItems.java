@@ -15,6 +15,14 @@ import com.moremod.item.ItemCausalGateband;
 import com.moremod.item.ItemBehaviorAnalysisChip;
 // 👻 添加诅咒蔓延导入
 import com.moremod.item.ItemCurseSpread;
+// 🌹 荆棘王冠之碎片（七咒联动）
+import com.moremod.item.curse.ItemThornShard;
+// 👁 虚无之眸（七咒联动）
+import com.moremod.item.curse.ItemVoidGaze;
+// 🦴 饕餮指骨（七咒联动）
+import com.moremod.item.curse.ItemGluttonousPhalanx;
+// 💎 怨念结晶（七咒联动）
+import com.moremod.item.curse.ItemCrystallizedResentment;
 // 🗡️ 添加澄月剑导入
 import com.moremod.item.ItemSwordChengYue;
 // 🌟 添加剑气测试器导入
@@ -85,6 +93,10 @@ public final class ModItems {
     public static Item CAUSAL_GATEBAND;         // ⭕ 因果闕帶（智能沉默）
     public static Item BEHAVIOR_ANALYSIS_CHIP;  // 🧠 行為分析晶片
     public static Item CURSE_SPREAD;            // 👻 诅咒蔓延
+    public static Item THORN_SHARD;             // 🌹 荆棘王冠之碎片（七咒联动）
+    public static Item VOID_GAZE;               // 👁 虚无之眸（七咒联动）
+    public static Item GLUTTONOUS_PHALANX;      // 🦴 饕餮指骨（七咒联动）
+    public static Item CRYSTALLIZED_RESENTMENT; // 💎 怨念结晶（七咒联动）
 
     // 🗡️ 武器系列
     public static ItemSwordChengYue SWORD_CHENGYUE;      // 澄月 - 成长性终极武器
@@ -162,6 +174,22 @@ public final class ModItems {
         // 👻 注册诅咒蔓延
         CURSE_SPREAD = reg(e, new ItemCurseSpread());
         System.out.println("[MoreMod] 👻 诅咒蔓延已注册");
+
+        // 🌹 注册荆棘王冠之碎片
+        THORN_SHARD = reg(e, new ItemThornShard());
+        System.out.println("[MoreMod] 🌹 荆棘王冠之碎片已注册");
+
+        // 👁 注册虚无之眸
+        VOID_GAZE = reg(e, new ItemVoidGaze());
+        System.out.println("[MoreMod] 👁 虚无之眸已注册");
+
+        // 🦴 注册饕餮指骨
+        GLUTTONOUS_PHALANX = reg(e, new ItemGluttonousPhalanx());
+        System.out.println("[MoreMod] 🦴 饕餮指骨已注册");
+
+        // 💎 注册怨念结晶
+        CRYSTALLIZED_RESENTMENT = reg(e, new ItemCrystallizedResentment());
+        System.out.println("[MoreMod] 💎 怨念结晶已注册");
 
         // 🗡️ 注册澄月剑
         SWORD_CHENGYUE = (ItemSwordChengYue) reg(e, new ItemSwordChengYue());
@@ -260,6 +288,22 @@ public final class ModItems {
         // 👻 绑定诅咒蔓延模型
         bindModel(CURSE_SPREAD, "curse_spread");
         System.out.println("[MoreMod] 👻 诅咒蔓延模型已注册");
+
+        // 🌹 绑定荆棘王冠之碎片模型
+        bindModel(THORN_SHARD, "thorn_shard");
+        System.out.println("[MoreMod] 🌹 荆棘王冠之碎片模型已注册");
+
+        // 👁 绑定虚无之眸模型
+        bindModel(VOID_GAZE, "void_gaze");
+        System.out.println("[MoreMod] 👁 虚无之眸模型已注册");
+
+        // 🦴 绑定饕餮指骨模型
+        bindModel(GLUTTONOUS_PHALANX, "gluttonous_phalanx");
+        System.out.println("[MoreMod] 🦴 饕餮指骨模型已注册");
+
+        // 💎 绑定怨念结晶模型
+        bindModel(CRYSTALLIZED_RESENTMENT, "crystallized_resentment");
+        System.out.println("[MoreMod] 💎 怨念结晶模型已注册");
 
         // 🗡️ 绑定澄月剑模型
         bindModel(SWORD_CHENGYUE, "sword_chengyue");

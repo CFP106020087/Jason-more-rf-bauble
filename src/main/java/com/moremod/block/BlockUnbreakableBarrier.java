@@ -131,19 +131,12 @@ public class BlockUnbreakableBarrier extends Block {
                 spawnCrystalParticles(world, pos);
                 world.playSound(null, pos, SoundEvents.BLOCK_END_PORTAL_FRAME_FILL,
                         SoundCategory.BLOCKS, 0.5F, 1.5F);
-            } else {
-                // 其他屏障
-                player.sendStatusMessage(new TextComponentString(
-                        TextFormatting.DARK_PURPLE + "【" + type.name + "】" +
-                                TextFormatting.RED + " 此屏障无法破坏"
-                ), true);
-
-                spawnDenialParticles(world, pos, facing);
-                world.playSound(null, pos, SoundEvents.BLOCK_ANVIL_LAND,
-                        SoundCategory.BLOCKS, 0.5F, 2.0F);
+                return true; // 虚空水晶消费交互
             }
+            // 其他屏障类型（包括QUANTUM祭坛）不消费右键事件
+            // 这样可以让事件传递到BossAltarInteractionHandler处理Boss召唤
         }
-        return true;
+        return false; // 不消费事件，让其他处理器可以处理
     }
 
     @Override
