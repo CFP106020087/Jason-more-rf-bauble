@@ -1,6 +1,5 @@
 package com.moremod.compat.crafttweaker;
 
-import com.github.alexthe666.iceandfire.api.ChainLightningUtils;
 import com.github.alexthe666.iceandfire.api.IEntityEffectCapability;
 import com.github.alexthe666.iceandfire.api.InFCapabilities;
 import com.github.alexthe666.iceandfire.entity.EntityFireDragon;
@@ -12,8 +11,11 @@ import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.init.MobEffects;
 import net.minecraft.potion.PotionEffect;
 import net.minecraft.util.DamageSource;
+import net.minecraft.world.World;
 import stanhebben.zenscript.annotations.ZenClass;
 import stanhebben.zenscript.annotations.ZenMethod;
+
+import java.lang.reflect.Method;
 
 /**
  * Ice and Fire 模组效果整合
@@ -22,6 +24,10 @@ import stanhebben.zenscript.annotations.ZenMethod;
 @ZenRegister
 @ZenClass("mods.moremod.IceAndFireHelper")
 public class IceAndFireHelper {
+
+    // 缓存反射方法
+    private static Method chainLightningMethod = null;
+    private static boolean chainLightningMethodChecked = false;
 
     /**
      * 火龙效果 - 点燃+击退+对冰龙额外伤害
@@ -32,22 +38,22 @@ public class IceAndFireHelper {
         try {
             EntityLivingBase mcTarget = CraftTweakerMC.getEntityLivingBase(target);
             EntityLivingBase mcAttacker = CraftTweakerMC.getEntityLivingBase(attacker);
-            
+
             if (mcTarget == null || mcAttacker == null) return false;
-            
+
             // 点燃
             mcTarget.setFire(fireDuration);
-            
+
             // 击退
             mcTarget.knockBack(mcTarget, knockbackStrength,
                     mcAttacker.posX - mcTarget.posX,
                     mcAttacker.posZ - mcTarget.posZ);
-            
+
             // 对冰龙额外伤害
             if (mcTarget instanceof EntityIceDragon) {
                 mcTarget.attackEntityFrom(DamageSource.IN_FIRE, dragonBonus);
             }
-            
+
             return true;
         } catch (Exception e) {
             return false;
@@ -64,9 +70,9 @@ public class IceAndFireHelper {
         try {
             EntityLivingBase mcTarget = CraftTweakerMC.getEntityLivingBase(target);
             EntityLivingBase mcAttacker = CraftTweakerMC.getEntityLivingBase(attacker);
-            
+
             if (mcTarget == null || mcAttacker == null) return false;
-            
+
             // Ice and Fire 冰冻效果
             if (!mcTarget.world.isRemote) {
                 try {
@@ -78,21 +84,21 @@ public class IceAndFireHelper {
                     // 如果Ice and Fire不存在,使用原版效果
                 }
             }
-            
+
             // 减速+挖掘疲劳
             mcTarget.addPotionEffect(new PotionEffect(MobEffects.SLOWNESS, slownessDuration, 2));
             mcTarget.addPotionEffect(new PotionEffect(MobEffects.MINING_FATIGUE, slownessDuration, 2));
-            
+
             // 击退
             mcTarget.knockBack(mcTarget, knockbackStrength,
                     mcAttacker.posX - mcTarget.posX,
                     mcAttacker.posZ - mcTarget.posZ);
-            
+
             // 对火龙额外伤害
             if (mcTarget instanceof EntityFireDragon) {
                 mcTarget.attackEntityFrom(DamageSource.DROWN, dragonBonus);
             }
-            
+
             return true;
         } catch (Exception e) {
             return false;
@@ -108,37 +114,77 @@ public class IceAndFireHelper {
         try {
             EntityLivingBase mcTarget = CraftTweakerMC.getEntityLivingBase(target);
             EntityLivingBase mcAttacker = CraftTweakerMC.getEntityLivingBase(attacker);
-            
+
             if (mcTarget == null || mcAttacker == null) return false;
-            
-            // Ice and Fire 闪电链
+
+            // Ice and Fire 闪电链 (通过反射调用，兼容不同版本)
+            boolean chainLightningSuccess = false;
             try {
-                ChainLightningUtils.createChainLightningFromTarget(
-                        mcTarget.world,
-                        mcTarget,
-                        mcAttacker
-                );
+                chainLightningSuccess = invokeChainLightning(mcTarget.world, mcTarget, mcAttacker);
             } catch (Exception e) {
-                // 如果Ice and Fire不存在,使用原版闪电
+                // 反射调用失败
+            }
+
+            if (!chainLightningSuccess) {
+                // 如果Ice and Fire方法不存在或失败，使用原版闪电
                 mcTarget.world.addWeatherEffect(new net.minecraft.entity.effect.EntityLightningBolt(
                     mcTarget.world, mcTarget.posX, mcTarget.posY, mcTarget.posZ, false
                 ));
             }
-            
+
             // 击退
             mcTarget.knockBack(mcTarget, knockbackStrength,
                     mcAttacker.posX - mcTarget.posX,
                     mcAttacker.posZ - mcTarget.posZ);
-            
+
             // 对龙额外伤害
             if (mcTarget instanceof EntityFireDragon || mcTarget instanceof EntityIceDragon) {
                 mcTarget.attackEntityFrom(DamageSource.LIGHTNING_BOLT, dragonBonus);
             }
-            
+
             return true;
         } catch (Exception e) {
             return false;
         }
+    }
+
+    /**
+     * 通过反射调用 ChainLightningUtils 的方法
+     * 兼容不同版本的 Ice and Fire
+     */
+    private static boolean invokeChainLightning(World world, EntityLivingBase target, EntityLivingBase source) {
+        if (!chainLightningMethodChecked) {
+            chainLightningMethodChecked = true;
+            try {
+                Class<?> clazz = Class.forName("com.github.alexthe666.iceandfire.api.ChainLightningUtils");
+                // 尝试不同的方法签名（Ice and Fire 有两个重载版本）
+                // 1. createChainLightningFromTarget(World, EntityLivingBase, EntityLivingBase)
+                // 2. createChainLightningFromTarget(World, EntityLivingBase, Entity)
+                try {
+                    chainLightningMethod = clazz.getMethod("createChainLightningFromTarget",
+                            World.class, EntityLivingBase.class, EntityLivingBase.class);
+                } catch (NoSuchMethodException e1) {
+                    try {
+                        chainLightningMethod = clazz.getMethod("createChainLightningFromTarget",
+                                World.class, EntityLivingBase.class, net.minecraft.entity.Entity.class);
+                    } catch (NoSuchMethodException e2) {
+                        // 方法不存在
+                    }
+                }
+            } catch (ClassNotFoundException e) {
+                // ChainLightningUtils 类不存在
+            }
+        }
+
+        if (chainLightningMethod != null) {
+            try {
+                chainLightningMethod.invoke(null, world, target, source);
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
+        }
+        return false;
     }
 
     /**
