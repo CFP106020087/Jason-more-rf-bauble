@@ -28,7 +28,7 @@ import java.util.List;
  * Crystallized Resentment
  *
  * 效果：
- * - 正面：真伤光环 - 每秒对周围敌人造成1点真实伤害
+ * - 正面：真伤光环 - 每秒对周围敌人造成2点真实伤害
  * - 负面：无法获得再生效果
  *
  * 机制：
@@ -41,7 +41,7 @@ public class ItemCrystallizedResentment extends Item implements IBauble {
     // 真伤光环半径
     public static final double AURA_RADIUS = 4.0;
     // 真伤光环伤害
-    public static final float AURA_DAMAGE = 1.0f;
+    public static final float AURA_DAMAGE = 2.0f;
     // 伤害间隔 (tick) - 每秒一次
     public static final int DAMAGE_INTERVAL = 20;
 
