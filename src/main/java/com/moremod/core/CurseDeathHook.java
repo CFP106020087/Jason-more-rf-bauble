@@ -13,6 +13,8 @@ import net.minecraft.world.WorldServer;
 import net.minecraft.init.MobEffects;
 import net.minecraft.potion.PotionEffect;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -26,7 +28,8 @@ import java.util.UUID;
  * 虚无之眸效果：
  * - 致命伤害时消耗经验抵御死亡
  * - 每次触发消耗 3 级经验
- * - 无冷却时间（只要有足够经验就能触发）
+ * - 30秒冷却时间
+ * - 触发后1.5秒无敌
  */
 public class CurseDeathHook {
 
@@ -36,7 +39,10 @@ public class CurseDeathHook {
     private static final float RECOVERY_HEALTH = 4.0f;
     // 触发后无敌时间（tick）- 1.5秒 = 30 tick
     private static final int INVINCIBILITY_TICKS = 30;
-    // 注意：已移除冷却时间，虚无之眸无冷却
+    // 冷却时间（毫秒）- 30秒
+    private static final long COOLDOWN_MS = 30000;
+    // 冷却记录
+    private static final Map<UUID, Long> COOLDOWNS = new HashMap<>();
 
     // ========== Hook 1: damageEntity ==========
 
@@ -118,9 +124,23 @@ public class CurseDeathHook {
     }
 
     /**
-     * 尝试用经验阻止死亡（无冷却）
+     * 尝试用经验阻止死亡（30秒冷却）
      */
     private static boolean tryPreventDeathWithXP(EntityPlayer player, DamageSource source) {
+        UUID playerId = player.getUniqueID();
+
+        // 检查冷却
+        if (isOnCooldown(player)) {
+            int remaining = getRemainingCooldown(player);
+            player.sendMessage(new TextComponentString(
+                    TextFormatting.DARK_PURPLE + "虚无之眸低语：" +
+                    TextFormatting.GRAY + "深渊尚在沉睡... (" +
+                    TextFormatting.RED + remaining + "秒" +
+                    TextFormatting.GRAY + ")"
+            ));
+            return false;
+        }
+
         // 检查经验是否足够
         if (player.experienceLevel < XP_LEVEL_COST) {
             // 经验不足，无法阻止死亡
@@ -130,6 +150,9 @@ public class CurseDeathHook {
             ));
             return false;
         }
+
+        // 设置冷却
+        COOLDOWNS.put(playerId, System.currentTimeMillis());
 
         // 消耗经验
         player.addExperienceLevel(-XP_LEVEL_COST);
@@ -146,7 +169,8 @@ public class CurseDeathHook {
                 TextFormatting.GRAY + " 消耗 " +
                 TextFormatting.GREEN + XP_LEVEL_COST + " 级经验" +
                 TextFormatting.GRAY + " 抵御了死亡 " +
-                TextFormatting.AQUA + "[1.5秒无敌]"
+                TextFormatting.AQUA + "[1.5秒无敌]" +
+                TextFormatting.GRAY + " [30秒冷却]"
         ));
 
         // 粒子效果
@@ -201,17 +225,25 @@ public class CurseDeathHook {
     }
 
     /**
-     * 检查是否在冷却中（已移除冷却，始终返回false）
+     * 检查是否在冷却中
      */
     public static boolean isOnCooldown(EntityPlayer player) {
-        return false; // 无冷却
+        UUID playerId = player.getUniqueID();
+        Long lastTrigger = COOLDOWNS.get(playerId);
+        if (lastTrigger == null) return false;
+        return (System.currentTimeMillis() - lastTrigger) < COOLDOWN_MS;
     }
 
     /**
-     * 获取剩余冷却时间（秒）（已移除冷却，始终返回0）
+     * 获取剩余冷却时间（秒）
      */
     public static int getRemainingCooldown(EntityPlayer player) {
-        return 0; // 无冷却
+        UUID playerId = player.getUniqueID();
+        Long lastTrigger = COOLDOWNS.get(playerId);
+        if (lastTrigger == null) return 0;
+        long elapsed = System.currentTimeMillis() - lastTrigger;
+        long remaining = COOLDOWN_MS - elapsed;
+        return remaining > 0 ? (int) Math.ceil(remaining / 1000.0) : 0;
     }
 
     /**
@@ -231,17 +263,15 @@ public class CurseDeathHook {
 
     /**
      * 清理玩家状态（玩家退出时调用）
-     * 已移除冷却，此方法保留用于兼容性
      */
     public static void cleanupPlayer(UUID playerId) {
-        // 无需清理，已移除冷却
+        COOLDOWNS.remove(playerId);
     }
 
     /**
      * 清空所有状态（世界卸载时调用）
-     * 已移除冷却，此方法保留用于兼容性
      */
     public static void clearAllState() {
-        // 无需清理，已移除冷却
+        COOLDOWNS.clear();
     }
 }
