@@ -391,18 +391,12 @@ public class ItemScriptOfFifthAct extends Item implements IBauble {
     }
 
     /**
-     * 应用结算伤害（绕过剧本效果）
+     * 应用结算伤害（使用真伤，绕过剧本效果）
      */
     private static void applySettledDamage(EntityPlayer player, float damage) {
-        // 直接设置血量，避免触发事件
-        float newHealth = player.getHealth() - damage;
-        if (newHealth <= 0) {
-            // 死亡
-            player.setHealth(0.001f);
-            player.attackEntityFrom(net.minecraft.util.DamageSource.MAGIC, 1000);
-        } else {
-            player.setHealth(newHealth);
-        }
+        // 使用真伤结算，无视护甲
+        TrueDamageHelper.applyWrappedTrueDamage(player, null, damage,
+                TrueDamageHelper.TrueDamageFlag.SCRIPT_SETTLE);
     }
 
     /**
