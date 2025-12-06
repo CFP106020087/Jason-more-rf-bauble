@@ -199,7 +199,7 @@ public class ItemThornShard extends Item implements IBauble {
         // 释放真实伤害
         player.world.getMinecraftServer().addScheduledTask(() -> {
             TrueDamageHelper.applyWrappedTrueDamage(target, player, trueDamage,
-                    TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE);
+                    TrueDamageHelper.TrueDamageFlag.THORN_BURST);
 
             // 清空伤害记录
             DAMAGE_RECORDS.remove(player.getUniqueID());
