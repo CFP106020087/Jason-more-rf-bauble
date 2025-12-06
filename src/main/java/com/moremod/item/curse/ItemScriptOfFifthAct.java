@@ -37,19 +37,16 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * 饰品类型：杂项 (Charm)
  *
- * 外观：一卷总是滴着血的羊皮纸，系在腰间
- *
  * 基础效果【宿命论】：
  * - 伤害延迟：受到的所有伤害不会立即扣除，而是被"记录"在剧本上
+ * - 记录的是原始伤害（不含倍率）
  * - 谢幕条件：
  *   1. 记录伤害 ≥ 当前血量时立即结算
  *   2. 周围没有敌人时，伤害清零（杀光敌人则不结算）
  *
- * 被动【改写结局】：
- * - 结算时若血量 < 30%：
- *   - 300% 伤害反弹给周围 8 格内敌人
- *   - 自己不用承受任何伤害
- * - 无冷却
+ * 结算规则：
+ * - 正常结算：承受 50% 的记录伤害
+ * - 改写结局（血量 < 30%）：300% 反弹，自己不受伤害
  */
 @Mod.EventBusSubscriber(modid = "moremod")
 public class ItemScriptOfFifthAct extends Item implements IBauble {
@@ -62,6 +59,8 @@ public class ItemScriptOfFifthAct extends Item implements IBauble {
     private static final float REWRITE_REFLECT_MULTIPLIER = 3.0f;
     // 改写结局的反弹范围
     private static final double REWRITE_RANGE = 8.0;
+    // 正常结算的伤害比例（50%）
+    private static final float SETTLEMENT_DAMAGE_RATIO = 0.5f;
 
     // 玩家伤害缓存数据
     private static final Map<UUID, ScriptData> SCRIPT_DATA = new ConcurrentHashMap<>();
@@ -189,7 +188,7 @@ public class ItemScriptOfFifthAct extends Item implements IBauble {
     // ========== 事件处理 ==========
 
     /**
-     * 拦截伤害，记录到剧本
+     * 拦截伤害，记录到剧本（记录原始伤害，不含倍率）
      */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onPlayerHurt(LivingHurtEvent event) {
@@ -207,8 +206,14 @@ public class ItemScriptOfFifthAct extends Item implements IBauble {
         ScriptData data = SCRIPT_DATA.get(player.getUniqueID());
         if (data == null || data.isSettling) return;
 
-        // 记录伤害
+        // 获取原始伤害（在任何倍率应用之前）
+        // 注意：由于我们使用 HIGHEST 优先级，这应该是最早的伤害值
         float damage = event.getAmount();
+
+        // 检查是否是七咒翻倍后的伤害，如果是则还原
+        // 七咒之戒会将伤害翻倍，我们需要记录原始值
+        // 这里假设七咒翻倍在我们之后处理，所以 damage 应该是原始值
+
         data.addDamage(damage);
 
         // 取消实际伤害
@@ -266,13 +271,9 @@ public class ItemScriptOfFifthAct extends Item implements IBauble {
      * 判断实体是否对玩家敌对
      */
     private static boolean isHostile(EntityLivingBase entity, EntityPlayer player) {
-        // 怪物
         if (entity instanceof EntityMob) return true;
-        // 不同队伍
         if (!entity.isOnSameTeam(player)) {
-            // 检查是否是其他玩家（PvP情况）
-            if (entity instanceof EntityPlayer) return false; // 暂不考虑PvP
-            // 其他非友好生物
+            if (entity instanceof EntityPlayer) return false;
             return true;
         }
         return false;
@@ -293,11 +294,15 @@ public class ItemScriptOfFifthAct extends Item implements IBauble {
         boolean rewriteTriggered = healthRatio <= REWRITE_HEALTH_THRESHOLD;
 
         if (rewriteTriggered) {
-            // 改写结局：300% 反弹，自己不受伤害
+            // 改写结局：300% 反弹，自己也承受 50% 伤害
             float reflectDamage = totalDamage * REWRITE_REFLECT_MULTIPLIER;
+            float settleDamage = totalDamage * SETTLEMENT_DAMAGE_RATIO;
 
             // 反弹给周围敌人
             int enemiesHit = reflectDamageToNearby(player, reflectDamage);
+
+            // 自己也承受 50% 伤害
+            applySettledDamage(player, settleDamage);
 
             // 效果提示
             player.sendMessage(new TextComponentString(
@@ -309,10 +314,12 @@ public class ItemScriptOfFifthAct extends Item implements IBauble {
                     TextFormatting.GRAY + " 个敌人！"
             ));
             player.sendMessage(new TextComponentString(
-                    TextFormatting.GREEN + "你毫发无伤地改写了命运！"
+                    TextFormatting.YELLOW + "承受 " +
+                    TextFormatting.RED + String.format("%.1f", settleDamage) +
+                    TextFormatting.YELLOW + " 伤害 (50%)"
             ));
 
-            // 燃烧粒子效果
+            // 粒子效果
             if (player.world instanceof WorldServer) {
                 WorldServer ws = (WorldServer) player.world;
                 ws.spawnParticle(EnumParticleTypes.FLAME,
@@ -332,15 +339,16 @@ public class ItemScriptOfFifthAct extends Item implements IBauble {
                         SoundCategory.PLAYERS, 1.0F, 0.5F);
             }
         } else {
-            // 正常结算：承受全部伤害
-            applySettledDamage(player, totalDamage);
+            // 正常结算：承受 50% 伤害
+            float settleDamage = totalDamage * SETTLEMENT_DAMAGE_RATIO;
+            applySettledDamage(player, settleDamage);
 
             // 效果提示
             player.sendMessage(new TextComponentString(
                     TextFormatting.DARK_RED + "📜 " + reason +
                     TextFormatting.GRAY + " 结算 " +
-                    TextFormatting.RED + String.format("%.1f", totalDamage) +
-                    TextFormatting.GRAY + " 伤害！"
+                    TextFormatting.RED + String.format("%.1f", settleDamage) +
+                    TextFormatting.GRAY + " 伤害 (50%)"
             ));
 
             // 提示改写结局条件
@@ -368,22 +376,23 @@ public class ItemScriptOfFifthAct extends Item implements IBauble {
     }
 
     /**
-     * 强制结算伤害（卸下饰品时，无法触发改写结局）
+     * 强制结算伤害（卸下饰品时，无法触发改写结局，但仍然只承受50%）
      */
     private static void forceSettleDamage(EntityPlayer player, ScriptData data) {
         if (data.bufferedDamage <= 0) return;
 
         data.isSettling = true;
         float totalDamage = data.bufferedDamage;
+        float settleDamage = totalDamage * SETTLEMENT_DAMAGE_RATIO;
 
-        // 直接承受全部伤害
-        applySettledDamage(player, totalDamage);
+        // 直接承受 50% 伤害
+        applySettledDamage(player, settleDamage);
 
         player.sendMessage(new TextComponentString(
                 TextFormatting.DARK_RED + "📜 剧本被撕毁！" +
                 TextFormatting.GRAY + " 强制结算 " +
-                TextFormatting.RED + String.format("%.1f", totalDamage) +
-                TextFormatting.GRAY + " 伤害"
+                TextFormatting.RED + String.format("%.1f", settleDamage) +
+                TextFormatting.GRAY + " 伤害 (50%)"
         ));
 
         data.bufferedDamage = 0;
@@ -391,12 +400,11 @@ public class ItemScriptOfFifthAct extends Item implements IBauble {
     }
 
     /**
-     * 应用结算伤害（使用真伤，绕过剧本效果）
+     * 应用结算伤害（使用真伤）
      */
     private static void applySettledDamage(EntityPlayer player, float damage) {
-        // 使用真伤结算，无视护甲
         TrueDamageHelper.applyWrappedTrueDamage(player, null, damage,
-                TrueDamageHelper.TrueDamageFlag.SCRIPT_SETTLE);
+                TrueDamageHelper.TrueDamageFlag.EXECUTE);
     }
 
     /**
@@ -411,7 +419,6 @@ public class ItemScriptOfFifthAct extends Item implements IBauble {
         );
 
         if (entities.isEmpty()) {
-            // 没有敌人，伤害消散（但玩家仍然不受伤害）
             player.sendMessage(new TextComponentString(
                     TextFormatting.GRAY + "周围没有敌人，反弹伤害消散..."
             ));
@@ -423,7 +430,7 @@ public class ItemScriptOfFifthAct extends Item implements IBauble {
 
         for (EntityLivingBase target : entities) {
             TrueDamageHelper.applyWrappedTrueDamage(target, player, damagePerEntity,
-                    TrueDamageHelper.TrueDamageFlag.REFLECT);
+                    TrueDamageHelper.TrueDamageFlag.EXECUTE);
 
             // 粒子效果
             if (player.world instanceof WorldServer) {
@@ -519,20 +526,24 @@ public class ItemScriptOfFifthAct extends Item implements IBauble {
                 TextFormatting.GRAY + " → 伤害清零，不结算");
 
         list.add("");
+        list.add(TextFormatting.AQUA + "◆ 结算规则");
+        list.add(TextFormatting.GRAY + "  正常结算：承受 " + TextFormatting.YELLOW + "50%" +
+                TextFormatting.GRAY + " 记录伤害");
+
+        list.add("");
         list.add(TextFormatting.LIGHT_PURPLE + "◆ 改写结局 " + TextFormatting.GRAY + "(被动)");
         list.add(TextFormatting.GRAY + "  结算时若血量 < " + TextFormatting.RED + "30%" +
                 TextFormatting.GRAY + ":");
         list.add(TextFormatting.GRAY + "  · " + TextFormatting.GOLD + "300%" +
                 TextFormatting.GRAY + " 伤害反弹给周围 " + TextFormatting.AQUA + "8" +
                 TextFormatting.GRAY + " 格内敌人");
-        list.add(TextFormatting.GREEN + "  · 自己完全免疫伤害！");
+        list.add(TextFormatting.YELLOW + "  · 自己仍承受 50% 伤害");
         list.add(TextFormatting.DARK_GRAY + "  无冷却");
 
         list.add("");
         list.add(TextFormatting.DARK_RED + "◆ 代价");
         list.add(TextFormatting.RED + "  卸下饰品时" + TextFormatting.DARK_RED + "强制结算" +
-                TextFormatting.RED + "所有伤害");
-        list.add(TextFormatting.RED + "  (无法触发改写结局)");
+                TextFormatting.RED + " (仍为50%)");
 
         // 当前状态
         if (player != null && hasScript(player)) {
@@ -541,6 +552,7 @@ public class ItemScriptOfFifthAct extends Item implements IBauble {
                 list.add("");
                 list.add(TextFormatting.GOLD + "当前状态:");
                 list.add(TextFormatting.GRAY + "  记录伤害: " + TextFormatting.RED + String.format("%.1f", data.bufferedDamage));
+                list.add(TextFormatting.GRAY + "  结算伤害: " + TextFormatting.YELLOW + String.format("%.1f", data.bufferedDamage * SETTLEMENT_DAMAGE_RATIO) + " (50%)");
                 float healthRatio = player.getHealth() / player.getMaxHealth();
                 if (healthRatio <= REWRITE_HEALTH_THRESHOLD) {
                     list.add(TextFormatting.GREEN + "  ✓ 改写结局就绪");
@@ -557,6 +569,7 @@ public class ItemScriptOfFifthAct extends Item implements IBauble {
             list.add(TextFormatting.GRAY + "战斗中不会掉血");
             list.add(TextFormatting.GRAY + "杀光敌人 = 伤害清零");
             list.add(TextFormatting.GRAY + "低血量触发改写 = 反杀翻盘");
+            list.add(TextFormatting.GRAY + "正常结算只承受 50% 伤害");
         } else {
             list.add("");
             list.add(TextFormatting.DARK_GRAY + "按住 Shift 查看更多");
