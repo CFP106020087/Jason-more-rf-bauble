@@ -79,13 +79,15 @@ public class ItemNooseOfHangedKing extends Item implements IBauble {
         final double hangY;
         final double hangZ;
         final EntityPlayer executioner;
+        final int dimensionId;
 
-        ExecutionData(EntityPlayer executioner, double x, double y, double z, float hangHeight) {
+        ExecutionData(EntityPlayer executioner, double x, double y, double z, float hangHeight, int dimensionId) {
             this.endTime = System.currentTimeMillis() + (EXECUTION_DURATION_TICKS * 50L);
             this.hangX = x;
             this.hangY = y + hangHeight;
             this.hangZ = z;
             this.executioner = executioner;
+            this.dimensionId = dimensionId;
         }
 
         boolean isExpired() {
@@ -183,6 +185,11 @@ public class ItemNooseOfHangedKing extends Item implements IBauble {
             Map.Entry<Integer, ExecutionData> entry = it.next();
             int entityId = entry.getKey();
             ExecutionData data = entry.getValue();
+
+            // 只处理同一维度的实体
+            if (data.dimensionId != world.provider.getDimension()) {
+                continue;
+            }
 
             net.minecraft.entity.Entity entity = world.getEntityByID(entityId);
             if (entity == null || !(entity instanceof EntityLivingBase)) {
@@ -317,9 +324,10 @@ public class ItemNooseOfHangedKing extends Item implements IBauble {
         // 计算悬挂高度
         float hangHeight = 2.5f + player.world.rand.nextFloat() * 1.0f;
 
-        // 记录处刑数据（锁定当前位置）
+        // 记录处刑数据（锁定当前位置，包含维度ID）
         EXECUTED_ENTITIES.put(target.getEntityId(),
-            new ExecutionData(player, target.posX, target.posY, target.posZ, hangHeight));
+            new ExecutionData(player, target.posX, target.posY, target.posZ, hangHeight,
+                player.world.provider.getDimension()));
 
         // 初始向上推力（视觉效果）
         target.motionY = 0.8;
