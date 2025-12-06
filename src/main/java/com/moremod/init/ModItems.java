@@ -97,6 +97,8 @@ public final class ModItems {
     public static Item VOID_GAZE;               // 👁 虚无之眸（七咒联动）
     public static Item GLUTTONOUS_PHALANX;      // 🦴 饕餮指骨（七咒联动）
     public static Item CRYSTALLIZED_RESENTMENT; // 💎 怨念结晶（七咒联动）
+    public static Item NOOSE_OF_HANGED_KING;    // 🪢 缢王之索（七咒联动）
+    public static Item SCRIPT_OF_FIFTH_ACT;     // 📜 第五幕剧本（七咒联动）
 
     // 🗡️ 武器系列
     public static ItemSwordChengYue SWORD_CHENGYUE;      // 澄月 - 成长性终极武器
@@ -190,6 +192,14 @@ public final class ModItems {
         // 💎 注册怨念结晶
         CRYSTALLIZED_RESENTMENT = reg(e, new ItemCrystallizedResentment());
         System.out.println("[MoreMod] 💎 怨念结晶已注册");
+
+        // 🪢 注册缢王之索
+        NOOSE_OF_HANGED_KING = reg(e, new com.moremod.item.curse.ItemNooseOfHangedKing());
+        System.out.println("[MoreMod] 🪢 缢王之索已注册");
+
+        // 📜 注册第五幕剧本
+        SCRIPT_OF_FIFTH_ACT = reg(e, new com.moremod.item.curse.ItemScriptOfFifthAct());
+        System.out.println("[MoreMod] 📜 第五幕剧本已注册");
 
         // 🗡️ 注册澄月剑
         SWORD_CHENGYUE = (ItemSwordChengYue) reg(e, new ItemSwordChengYue());
@@ -304,6 +314,14 @@ public final class ModItems {
         // 💎 绑定怨念结晶模型
         bindModel(CRYSTALLIZED_RESENTMENT, "crystallized_resentment");
         System.out.println("[MoreMod] 💎 怨念结晶模型已注册");
+
+        // 🪢 绑定缢王之索模型
+        bindModel(NOOSE_OF_HANGED_KING, "noose_of_hanged_king");
+        System.out.println("[MoreMod] 🪢 缢王之索模型已注册");
+
+        // 📜 绑定第五幕剧本模型
+        bindModel(SCRIPT_OF_FIFTH_ACT, "script_of_fifth_act");
+        System.out.println("[MoreMod] 📜 第五幕剧本模型已注册");
 
         // 🗡️ 绑定澄月剑模型
         bindModel(SWORD_CHENGYUE, "sword_chengyue");
