@@ -10,6 +10,9 @@ import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.WorldServer;
 
+import net.minecraft.init.MobEffects;
+import net.minecraft.potion.PotionEffect;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -35,6 +38,8 @@ public class CurseDeathHook {
     private static final long COOLDOWN_MS = 30000; // 30秒
     // 触发后恢复的血量
     private static final float RECOVERY_HEALTH = 4.0f;
+    // 触发后无敌时间（tick）- 1.5秒 = 30 tick
+    private static final int INVINCIBILITY_TICKS = 30;
 
     // 冷却时间记录
     private static final Map<UUID, Long> COOLDOWNS = new HashMap<>();
@@ -150,12 +155,16 @@ public class CurseDeathHook {
         // 设置冷却
         COOLDOWNS.put(playerId, System.currentTimeMillis() + COOLDOWN_MS);
 
+        // 给予1.5秒无敌（抗性提升V = 100%伤害减免）
+        player.addPotionEffect(new PotionEffect(MobEffects.RESISTANCE, INVINCIBILITY_TICKS, 4, false, true));
+
         // 效果提示
         player.sendMessage(new TextComponentString(
                 TextFormatting.DARK_PURPLE + "☠ 虚无之眸凝视深渊！" +
                 TextFormatting.GRAY + " 消耗 " +
                 TextFormatting.GREEN + XP_LEVEL_COST + " 级经验" +
-                TextFormatting.GRAY + " 抵御了死亡"
+                TextFormatting.GRAY + " 抵御了死亡 " +
+                TextFormatting.AQUA + "[1.5秒无敌]"
         ));
 
         // 粒子效果

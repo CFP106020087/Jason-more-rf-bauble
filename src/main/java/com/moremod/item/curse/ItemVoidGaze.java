@@ -48,6 +48,10 @@ public class ItemVoidGaze extends Item implements IBauble {
     public static final int XP_LEVEL_COST = 3;
     // 冷却时间（秒）- 降低到30秒
     public static final int COOLDOWN_SECONDS = 30;
+    // 触发后无敌时间（tick）- 1.5秒 = 30 tick
+    public static final int INVINCIBILITY_TICKS = 30;
+    // 经验获取加成
+    public static final float XP_BONUS = 0.10f; // +10%
     // 负面效果：降低最大生命值
     private static final double HEALTH_REDUCTION = -4.0;
 
@@ -174,6 +178,20 @@ public class ItemVoidGaze extends Item implements IBauble {
     }
 
     /**
+     * 检查玩家是否佩戴虚无之眸（供事件处理器调用）
+     */
+    public static boolean isWearing(EntityPlayer player) {
+        return CurseDeathHook.hasVoidGaze(player);
+    }
+
+    /**
+     * 获取经验加成倍率
+     */
+    public static float getXpBonus() {
+        return XP_BONUS;
+    }
+
+    /**
      * 检查玩家是否佩戴七咒之戒
      */
     private static boolean hasCursedRing(EntityPlayer player) {
@@ -212,6 +230,11 @@ public class ItemVoidGaze extends Item implements IBauble {
             return;
         }
 
+        // 正面效果
+        list.add("");
+        list.add(TextFormatting.GREEN + "▪ 正面效果");
+        list.add(TextFormatting.GRAY + "  经验获取 " + TextFormatting.GREEN + "+" + (int)(XP_BONUS * 100) + "%");
+
         // 负面效果
         list.add("");
         list.add(TextFormatting.RED + "▪ 负面效果");
@@ -232,6 +255,7 @@ public class ItemVoidGaze extends Item implements IBauble {
         list.add(TextFormatting.GRAY + "  致命伤害时自动触发");
         list.add(TextFormatting.RED + "  消耗 " + TextFormatting.GREEN + XP_LEVEL_COST + " 级经验");
         list.add(TextFormatting.GRAY + "  恢复 " + TextFormatting.GREEN + "4" + TextFormatting.GRAY + " 点血量");
+        list.add(TextFormatting.AQUA + "  获得 " + TextFormatting.WHITE + "1.5秒无敌");
         list.add(TextFormatting.GRAY + "  冷却时间：" + TextFormatting.YELLOW + COOLDOWN_SECONDS + " 秒");
 
         // 显示冷却状态
