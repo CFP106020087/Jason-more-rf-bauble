@@ -76,7 +76,9 @@ public class IntelDataHelper {
 
     /**
      * 计算对目标实体的伤害加成倍率
+     * @deprecated 优先使用 calculateDamageMultiplier(data, entityId) 以避免重复查询EntityList
      */
+    @Deprecated
     public static float calculateDamageMultiplier(@Nullable IHumanityData data, EntityLivingBase target) {
         if (data == null || target == null) return 1.0f;
 

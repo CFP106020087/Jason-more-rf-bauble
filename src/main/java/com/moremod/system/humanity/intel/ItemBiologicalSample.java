@@ -40,10 +40,19 @@ public class ItemBiologicalSample extends Item {
      * 创建包含生物信息的样本
      */
     public static ItemStack createSample(EntityLivingBase entity) {
-        ItemStack stack = new ItemStack(IntelSystemItems.BIOLOGICAL_SAMPLE);
-
         ResourceLocation entityId = EntityList.getKey(entity);
         if (entityId == null) return ItemStack.EMPTY;
+        return createSampleFromId(entity, entityId);
+    }
+
+    /**
+     * 创建包含生物信息的样本（优化版本）
+     * 接受已获取的entityId避免重复查询EntityList
+     */
+    public static ItemStack createSampleFromId(EntityLivingBase entity, ResourceLocation entityId) {
+        if (entityId == null) return ItemStack.EMPTY;
+
+        ItemStack stack = new ItemStack(IntelSystemItems.BIOLOGICAL_SAMPLE);
 
         NBTTagCompound tag = new NBTTagCompound();
         tag.setString(NBT_ENTITY_ID, entityId.toString());

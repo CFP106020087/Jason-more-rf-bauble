@@ -199,9 +199,12 @@ public class CoreDropProtection {
             EntityItem item = (EntityItem) event.getEntity();
             ItemStack stack = item.getItem();
             if (ItemMechanicalCore.isMechanicalCore(stack)) {
-                if (!isAnyoneRestoring(event.getWorld().getMinecraftServer())) {
-                    event.setCanceled(true);
-                }
+                // 机械核心永远不应该作为掉落物生成
+                // 移除 isAnyoneRestoring 检查，防止网络抖动（内网穿透）导致的掉落
+                event.setCanceled(true);
+
+                // 记录日志以便调试
+                System.out.println("[CoreDropProtection] 阻止机械核心作为EntityItem生成");
             }
         }
     }
