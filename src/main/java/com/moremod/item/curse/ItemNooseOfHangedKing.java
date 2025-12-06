@@ -229,7 +229,8 @@ public class ItemNooseOfHangedKing extends Item implements IBauble {
                 damage = Math.max(1.0f, damage);
 
                 // 使用 TrueDamageHelper 造成真伤
-                TrueDamageHelper.applyTrueDamage(target, data.executioner, damage);
+                TrueDamageHelper.applyWrappedTrueDamage(target, data.executioner, damage,
+                        TrueDamageHelper.TrueDamageFlag.EXECUTE);
 
                 // 粒子效果
                 if (world instanceof WorldServer) {
