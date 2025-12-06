@@ -7,12 +7,14 @@ import com.moremod.core.CurseDeathHook;
 import com.moremod.creativetab.moremodCreativeTab;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.monster.IMob;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.MobEffects;
 import net.minecraft.item.EnumRarity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraft.potion.PotionEffect;
+import net.minecraft.util.DamageSource;
+import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
@@ -26,20 +28,27 @@ import java.util.List;
  * Crystallized Resentment
  *
  * 效果：
- * - 正面：受伤时对攻击者施加凋零 II (3秒)
+ * - 正面：真伤光环 - 每秒对周围敌人造成1点真实伤害
  * - 负面：无法获得再生效果
  *
  * 机制：
  * - 需要佩戴七咒之戒才能装备
- * - 凋零反击由事件处理器实现
+ * - 真伤光环由 onWornTick 实现
  * - 再生禁止由 onWornTick 实现
  */
 public class ItemCrystallizedResentment extends Item implements IBauble {
 
-    // 凋零等级 (0-indexed, 1 = Wither II)
-    public static final int WITHER_LEVEL = 1;
-    // 凋零持续时间 (tick)
-    public static final int WITHER_DURATION = 60; // 3秒
+    // 真伤光环半径
+    public static final double AURA_RADIUS = 4.0;
+    // 真伤光环伤害
+    public static final float AURA_DAMAGE = 1.0f;
+    // 伤害间隔 (tick) - 每秒一次
+    public static final int DAMAGE_INTERVAL = 20;
+
+    // 真实伤害源 - 无视护甲
+    private static final DamageSource TRUE_DAMAGE = new DamageSource("resentment")
+            .setDamageBypassesArmor()
+            .setMagicDamage();
 
     public ItemCrystallizedResentment() {
         this.setMaxStackSize(1);
@@ -87,6 +96,27 @@ public class ItemCrystallizedResentment extends Item implements IBauble {
         if (player.isPotionActive(MobEffects.REGENERATION)) {
             player.removePotionEffect(MobEffects.REGENERATION);
         }
+
+        // 真伤光环 - 每秒对周围敌对生物造成真实伤害
+        if (player.ticksExisted % DAMAGE_INTERVAL == 0) {
+            applyTrueDamageAura(player);
+        }
+    }
+
+    /**
+     * 应用真伤光环
+     */
+    private void applyTrueDamageAura(EntityPlayer player) {
+        AxisAlignedBB auraBox = player.getEntityBoundingBox().grow(AURA_RADIUS);
+        List<EntityLivingBase> entities = player.world.getEntitiesWithinAABB(
+                EntityLivingBase.class,
+                auraBox,
+                e -> e != player && e instanceof IMob && e.isEntityAlive()
+        );
+
+        for (EntityLivingBase target : entities) {
+            target.attackEntityFrom(TRUE_DAMAGE, AURA_DAMAGE);
+        }
     }
 
     // ========== 辅助方法 ==========
@@ -104,14 +134,6 @@ public class ItemCrystallizedResentment extends Item implements IBauble {
             }
         } catch (Exception ignored) {}
         return false;
-    }
-
-    /**
-     * 对攻击者施加凋零效果
-     */
-    public static void applyWitherToAttacker(EntityLivingBase attacker) {
-        if (attacker == null) return;
-        attacker.addPotionEffect(new PotionEffect(MobEffects.WITHER, WITHER_DURATION, WITHER_LEVEL, false, true));
     }
 
     // ========== 物品属性 ==========
@@ -147,14 +169,15 @@ public class ItemCrystallizedResentment extends Item implements IBauble {
 
         list.add("");
         list.add(TextFormatting.GREEN + ". 正面效果");
-        list.add(TextFormatting.GRAY + "  受伤时对攻击者施加 " + TextFormatting.DARK_PURPLE + "凋零 II" + TextFormatting.GRAY + " (3秒)");
+        list.add(TextFormatting.GRAY + "  真伤光环: 每秒对 " + TextFormatting.YELLOW + (int)AURA_RADIUS + "格" +
+                TextFormatting.GRAY + " 内敌人造成 " + TextFormatting.RED + (int)AURA_DAMAGE + " 真实伤害");
 
         list.add("");
         list.add(TextFormatting.RED + ". 负面效果");
         list.add(TextFormatting.DARK_RED + "  无法获得再生效果");
 
         list.add("");
-        list.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"以怨报怨，永无止境\"");
+        list.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"怨念无形，却能伤人\"");
         list.add(TextFormatting.DARK_PURPLE + "===========================");
     }
 }

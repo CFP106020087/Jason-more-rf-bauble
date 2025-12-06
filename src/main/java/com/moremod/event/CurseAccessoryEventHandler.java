@@ -1,7 +1,6 @@
 package com.moremod.event;
 
 import com.moremod.core.CurseDeathHook;
-import com.moremod.item.curse.ItemCrystallizedResentment;
 import com.moremod.item.curse.ItemGluttonousPhalanx;
 import com.moremod.item.curse.ItemThornShard;
 import com.moremod.item.curse.ItemVoidGaze;
@@ -69,7 +68,6 @@ public class CurseAccessoryEventHandler {
         event.setLootingLevel(event.getLootingLevel() + ItemGluttonousPhalanx.getLootingBonus());
     }
 
-    // ========== 怨念结晶：受伤时对攻击者施加凋零 ==========
     // ========== 荆棘碎片：受伤时反弹伤害 ==========
 
     @SubscribeEvent(priority = EventPriority.NORMAL)
@@ -86,11 +84,6 @@ public class CurseAccessoryEventHandler {
         EntityLivingBase attacker = null;
         if (event.getSource().getTrueSource() instanceof EntityLivingBase) {
             attacker = (EntityLivingBase) event.getSource().getTrueSource();
-        }
-
-        // 怨念结晶：对攻击者施加凋零
-        if (ItemCrystallizedResentment.isWearing(player) && attacker != null) {
-            ItemCrystallizedResentment.applyWitherToAttacker(attacker);
         }
 
         // 荆棘碎片：反弹伤害
