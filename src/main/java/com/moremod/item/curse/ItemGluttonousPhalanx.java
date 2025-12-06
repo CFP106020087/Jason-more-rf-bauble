@@ -48,7 +48,7 @@ public class ItemGluttonousPhalanx extends Item implements IBauble {
 
     @Override
     public BaubleType getBaubleType(ItemStack itemStack) {
-        return BaubleType.CHARM;
+        return BaubleType.BODY; // 身体槽位，避免与其他七咒饰品冲突
     }
 
     @Override

@@ -35,21 +35,19 @@ import java.util.UUID;
  * - 需要佩戴七咒之戒才能装备
  * - 致命伤害时消耗 3 级经验阻止死亡
  * - 触发后恢复 4 点血量
- * - 30 秒冷却时间
+ * - 无冷却！只要有足够经验就能持续触发
  *
  * 代价：
  * - 装备时永久降低最大生命值
  * - 经验消耗
- * - 冷却期间无法再次触发
  */
 public class ItemVoidGaze extends Item implements IBauble {
 
-    // 经验消耗量（级数）- 降低到3级
+    // 经验消耗量（级数）
     public static final int XP_LEVEL_COST = 3;
-    // 冷却时间（秒）- 降低到30秒
-    public static final int COOLDOWN_SECONDS = 30;
     // 触发后无敌时间（tick）- 1.5秒 = 30 tick
     public static final int INVINCIBILITY_TICKS = 30;
+    // 注意：无冷却时间
     // 经验获取加成
     public static final float XP_BONUS = 0.10f; // +10%
     // 负面效果：降低最大生命值
@@ -68,7 +66,7 @@ public class ItemVoidGaze extends Item implements IBauble {
 
     @Override
     public BaubleType getBaubleType(ItemStack itemStack) {
-        return BaubleType.CHARM;
+        return BaubleType.BELT; // 腰带槽位，避免与其他七咒饰品冲突
     }
 
     @Override
@@ -256,19 +254,12 @@ public class ItemVoidGaze extends Item implements IBauble {
         list.add(TextFormatting.RED + "  消耗 " + TextFormatting.GREEN + XP_LEVEL_COST + " 级经验");
         list.add(TextFormatting.GRAY + "  恢复 " + TextFormatting.GREEN + "4" + TextFormatting.GRAY + " 点血量");
         list.add(TextFormatting.AQUA + "  获得 " + TextFormatting.WHITE + "1.5秒无敌");
-        list.add(TextFormatting.GRAY + "  冷却时间：" + TextFormatting.YELLOW + COOLDOWN_SECONDS + " 秒");
+        list.add(TextFormatting.GREEN + "  无冷却！");
 
-        // 显示冷却状态
+        // 显示当前经验等级
         if (player != null && hasVoidGaze(player)) {
             list.add("");
-            if (CurseDeathHook.isOnCooldown(player)) {
-                int remaining = CurseDeathHook.getRemainingCooldown(player);
-                list.add(TextFormatting.RED + "⏳ 冷却中：" + remaining + " 秒");
-            } else {
-                list.add(TextFormatting.GREEN + "✓ 已就绪");
-            }
-
-            // 显示当前经验等级
+            list.add(TextFormatting.GREEN + "✓ 随时就绪");
             list.add(TextFormatting.GRAY + "当前经验等级：" +
                     (player.experienceLevel >= XP_LEVEL_COST ?
                             TextFormatting.GREEN : TextFormatting.RED) +

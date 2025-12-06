@@ -62,7 +62,7 @@ public class ItemCrystallizedResentment extends Item implements IBauble {
 
     @Override
     public BaubleType getBaubleType(ItemStack itemStack) {
-        return BaubleType.CHARM;
+        return BaubleType.HEAD; // 头部槽位，避免与其他七咒饰品冲突
     }
 
     @Override
