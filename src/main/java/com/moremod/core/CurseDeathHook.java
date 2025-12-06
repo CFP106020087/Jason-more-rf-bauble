@@ -29,10 +29,10 @@ import java.util.UUID;
  */
 public class CurseDeathHook {
 
-    // 经验消耗量（级数）
-    private static final int XP_LEVEL_COST = 10;
-    // 冷却时间（毫秒）
-    private static final long COOLDOWN_MS = 60000; // 60秒
+    // 经验消耗量（级数）- 与 ItemVoidGaze 同步
+    private static final int XP_LEVEL_COST = 3;
+    // 冷却时间（毫秒）- 与 ItemVoidGaze 同步
+    private static final long COOLDOWN_MS = 30000; // 30秒
     // 触发后恢复的血量
     private static final float RECOVERY_HEALTH = 4.0f;
 

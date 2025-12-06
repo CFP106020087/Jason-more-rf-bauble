@@ -7,6 +7,9 @@ import com.moremod.core.CurseDeathHook;
 import com.moremod.creativetab.moremodCreativeTab;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.SharedMonsterAttributes;
+import net.minecraft.entity.ai.attributes.AttributeModifier;
+import net.minecraft.entity.ai.attributes.IAttributeInstance;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.EnumRarity;
 import net.minecraft.item.Item;
@@ -18,31 +21,39 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * 虚无之眸 - 七咒之戒联动饰品
  * Eye of the Void
  *
  * 效果：
- * - 基础效果：无（仅为联动载体）
+ * - 基础效果（负面）：降低最大生命值 4 点
  * - 七咒联动：致命伤害时消耗经验抵御死亡
  *
  * 机制：
  * - 需要佩戴七咒之戒才能装备
- * - 致命伤害时消耗 10 级经验阻止死亡
+ * - 致命伤害时消耗 3 级经验阻止死亡
  * - 触发后恢复 4 点血量
- * - 60 秒冷却时间
+ * - 30 秒冷却时间
  *
  * 代价：
- * - 经验是稀缺资源，每次触发损失大量等级
+ * - 装备时永久降低最大生命值
+ * - 经验消耗
  * - 冷却期间无法再次触发
  */
 public class ItemVoidGaze extends Item implements IBauble {
 
-    // 经验消耗量（级数）
-    private static final int XP_LEVEL_COST = 10;
-    // 冷却时间（秒）
-    private static final int COOLDOWN_SECONDS = 60;
+    // 经验消耗量（级数）- 降低到3级
+    public static final int XP_LEVEL_COST = 3;
+    // 冷却时间（秒）- 降低到30秒
+    public static final int COOLDOWN_SECONDS = 30;
+    // 负面效果：降低最大生命值
+    private static final double HEALTH_REDUCTION = -4.0;
+
+    // 属性修改器UUID
+    private static final UUID VOID_GAZE_HEALTH_UUID = UUID.fromString("a1b2c3d4-e5f6-7890-abcd-ef1234567890");
+    private static final String VOID_GAZE_HEALTH_NAME = "VoidGazeHealthReduction";
 
     public ItemVoidGaze() {
         this.setMaxStackSize(1);
@@ -72,22 +83,85 @@ public class ItemVoidGaze extends Item implements IBauble {
         if (!(player instanceof EntityPlayer)) return;
 
         EntityPlayer p = (EntityPlayer) player;
+
+        // 应用负面效果：降低最大生命值
+        applyHealthReduction(p);
+
         // 装备时的提示
         p.sendMessage(new net.minecraft.util.text.TextComponentString(
                 TextFormatting.DARK_PURPLE + "虚无之眸低语：" +
-                TextFormatting.GRAY + "当你凝视深渊，深渊也在凝视你..."
+                TextFormatting.GRAY + "当你凝视深渊，深渊也在侵蚀你..."
         ));
     }
 
     @Override
     public void onUnequipped(ItemStack itemstack, EntityLivingBase player) {
-        // 无特殊效果
+        if (player.world.isRemote) return;
+        if (!(player instanceof EntityPlayer)) return;
+
+        EntityPlayer p = (EntityPlayer) player;
+
+        // 移除负面效果
+        removeHealthReduction(p);
     }
 
     @Override
     public void onWornTick(ItemStack itemstack, EntityLivingBase entity) {
         // 死亡保护逻辑由 CurseDeathHook (ASM) 处理
-        // 这里不需要做任何事
+        // 确保负面效果持续存在
+        if (entity.world.isRemote) return;
+        if (!(entity instanceof EntityPlayer)) return;
+
+        EntityPlayer player = (EntityPlayer) entity;
+
+        // 每5秒检查一次属性是否存在
+        if (player.ticksExisted % 100 == 0) {
+            IAttributeInstance attr = player.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH);
+            if (attr != null && attr.getModifier(VOID_GAZE_HEALTH_UUID) == null) {
+                applyHealthReduction(player);
+            }
+        }
+    }
+
+    // ========== 负面效果 ==========
+
+    /**
+     * 应用生命值降低效果
+     */
+    private void applyHealthReduction(EntityPlayer player) {
+        IAttributeInstance attr = player.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH);
+        if (attr == null) return;
+
+        // 先移除旧的
+        if (attr.getModifier(VOID_GAZE_HEALTH_UUID) != null) {
+            attr.removeModifier(VOID_GAZE_HEALTH_UUID);
+        }
+
+        // 添加新的
+        AttributeModifier modifier = new AttributeModifier(
+                VOID_GAZE_HEALTH_UUID,
+                VOID_GAZE_HEALTH_NAME,
+                HEALTH_REDUCTION,
+                0  // Operation 0 = 加法
+        );
+        attr.applyModifier(modifier);
+
+        // 如果当前血量超过最大血量，调整
+        if (player.getHealth() > player.getMaxHealth()) {
+            player.setHealth(player.getMaxHealth());
+        }
+    }
+
+    /**
+     * 移除生命值降低效果
+     */
+    private void removeHealthReduction(EntityPlayer player) {
+        IAttributeInstance attr = player.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH);
+        if (attr == null) return;
+
+        if (attr.getModifier(VOID_GAZE_HEALTH_UUID) != null) {
+            attr.removeModifier(VOID_GAZE_HEALTH_UUID);
+        }
     }
 
     // ========== 辅助方法 ==========
@@ -138,6 +212,12 @@ public class ItemVoidGaze extends Item implements IBauble {
             return;
         }
 
+        // 负面效果
+        list.add("");
+        list.add(TextFormatting.RED + "▪ 负面效果");
+        list.add(TextFormatting.DARK_RED + "  装备时最大生命值 " + (int)HEALTH_REDUCTION);
+
+        // 七咒联动效果
         list.add("");
         list.add(TextFormatting.DARK_PURPLE + "◆ 七咒联动 - 深渊凝视");
 
@@ -172,7 +252,7 @@ public class ItemVoidGaze extends Item implements IBauble {
         }
 
         list.add("");
-        list.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"当你凝视深渊，深渊也在保护你\"");
+        list.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "\"凝视深渊的代价，是被深渊侵蚀\"");
         list.add(TextFormatting.DARK_PURPLE + "═══════════════════════════");
     }
 }
