@@ -52,6 +52,8 @@ public class ItemThornShard extends Item implements IBauble {
     private static final float SELF_DAMAGE_CHANCE = 0.15f;
     // 自伤伤害
     private static final float SELF_DAMAGE_AMOUNT = 1.0f;
+    // 反伤伤害（受伤时反弹给攻击者）
+    private static final float REFLECT_DAMAGE = 3.0f;
 
     // 玩家伤害记录：UUID -> 时间戳伤害列表
     private static final Map<UUID, LinkedList<DamageRecord>> DAMAGE_RECORDS = new ConcurrentHashMap<>();
@@ -126,7 +128,7 @@ public class ItemThornShard extends Item implements IBauble {
     // ========== 事件处理 ==========
 
     /**
-     * 记录玩家受到的伤害（用于联动效果）
+     * 记录玩家受到的伤害（用于联动效果）+ 反伤效果
      */
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onPlayerHurt(LivingHurtEvent event) {
@@ -141,7 +143,21 @@ public class ItemThornShard extends Item implements IBauble {
         // 检查是否有七咒联动
         if (!hasCursedRing(player)) return;
 
-        // 检查是否在虚弱期
+        // ===== 反伤效果：对攻击者造成固定真伤 =====
+        if (event.getSource().getTrueSource() instanceof EntityLivingBase) {
+            EntityLivingBase attacker = (EntityLivingBase) event.getSource().getTrueSource();
+            if (attacker != player) {
+                // 延迟执行反伤，避免事件冲突
+                player.world.getMinecraftServer().addScheduledTask(() -> {
+                    attacker.attackEntityFrom(
+                            new DamageSource("thornReflect").setDamageBypassesArmor(),
+                            REFLECT_DAMAGE
+                    );
+                });
+            }
+        }
+
+        // 检查是否在虚弱期（伤害记录需要）
         if (isInWeaknessPeriod(player)) return;
 
         // 记录伤害

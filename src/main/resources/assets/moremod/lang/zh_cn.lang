@@ -13,6 +13,8 @@ item.neural_synchronizer.name=神经同步模块
 item.curse_spread.name=扩散诅咒的烙印
 item.thorn_shard.name=荆棘王冠之碎片
 item.void_gaze.name=虚无之眸
+item.noose_of_hanged_king.name=缢王之索
+item.script_of_fifth_act.name=第五幕剧本
 
 # ===== 破碎之神圣物 (Broken God Relics) =====
 item.broken_hand.name=破碎之手

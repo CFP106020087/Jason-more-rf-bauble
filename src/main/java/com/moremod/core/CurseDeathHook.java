@@ -237,6 +237,14 @@ public class CurseDeathHook {
     }
 
     /**
+     * 公开方法：尝试阻止死亡（供事件处理器直接调用）
+     * 不检查装备，调用前需确保已检查
+     */
+    public static boolean tryPreventDeath(EntityPlayer player, DamageSource source) {
+        return tryPreventDeathWithXP(player, source);
+    }
+
+    /**
      * 兼容方法
      */
     public static boolean onPreLivingDeath(EntityLivingBase entity, DamageSource source) {
