@@ -35,7 +35,8 @@ import java.util.UUID;
  * - 需要佩戴七咒之戒才能装备
  * - 致命伤害时消耗 3 级经验阻止死亡
  * - 触发后恢复 4 点血量
- * - 无冷却！只要有足够经验就能持续触发
+ * - 30秒冷却时间
+ * - 触发后1.5秒无敌
  *
  * 代价：
  * - 装备时永久降低最大生命值
@@ -47,7 +48,8 @@ public class ItemVoidGaze extends Item implements IBauble {
     public static final int XP_LEVEL_COST = 3;
     // 触发后无敌时间（tick）- 1.5秒 = 30 tick
     public static final int INVINCIBILITY_TICKS = 30;
-    // 注意：无冷却时间
+    // 冷却时间（秒）
+    public static final int COOLDOWN_SECONDS = 30;
     // 经验获取加成
     public static final float XP_BONUS = 0.10f; // +10%
     // 负面效果：降低最大生命值
@@ -254,12 +256,17 @@ public class ItemVoidGaze extends Item implements IBauble {
         list.add(TextFormatting.RED + "  消耗 " + TextFormatting.GREEN + XP_LEVEL_COST + " 级经验");
         list.add(TextFormatting.GRAY + "  恢复 " + TextFormatting.GREEN + "4" + TextFormatting.GRAY + " 点血量");
         list.add(TextFormatting.AQUA + "  获得 " + TextFormatting.WHITE + "1.5秒无敌");
-        list.add(TextFormatting.GREEN + "  无冷却！");
+        list.add(TextFormatting.YELLOW + "  冷却：" + COOLDOWN_SECONDS + "秒");
 
-        // 显示当前经验等级
+        // 显示冷却状态
         if (player != null && hasVoidGaze(player)) {
             list.add("");
-            list.add(TextFormatting.GREEN + "✓ 随时就绪");
+            if (CurseDeathHook.isOnCooldown(player)) {
+                int remaining = CurseDeathHook.getRemainingCooldown(player);
+                list.add(TextFormatting.RED + "⏳ 冷却中... " + remaining + "秒");
+            } else {
+                list.add(TextFormatting.GREEN + "✓ 已就绪");
+            }
             list.add(TextFormatting.GRAY + "当前经验等级：" +
                     (player.experienceLevel >= XP_LEVEL_COST ?
                             TextFormatting.GREEN : TextFormatting.RED) +

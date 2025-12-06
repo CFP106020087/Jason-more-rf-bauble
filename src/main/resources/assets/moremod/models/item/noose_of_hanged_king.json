@@ -1,0 +1,6 @@
+{
+  "parent": "item/generated",
+  "textures": {
+    "layer0": "moremod:items/noose_of_hanged_king"
+  }
+}
