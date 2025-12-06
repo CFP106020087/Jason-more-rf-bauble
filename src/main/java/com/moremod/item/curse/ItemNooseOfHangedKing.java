@@ -6,11 +6,17 @@ import baubles.api.IBauble;
 import com.moremod.util.combat.TrueDamageHelper;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.util.ITooltipFlag;
+import net.minecraft.enchantment.Enchantment;
+import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.init.Enchantments;
 import net.minecraft.init.SoundEvents;
+import net.minecraft.inventory.EntityEquipmentSlot;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.SoundCategory;
@@ -38,7 +44,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * 外观：一根粗糙的、甚至能看到倒刺的麻绳圈
  *
  * 基础效果【窒息之握】：
- * - 攻击时 15% 概率触发"处刑"
+ * - 攻击时触发"处刑"，概率 = 15% + 5% × 诅咒附魔数量
  * - 目标被提至半空 10 秒，完全定身，每秒受到 5% 最大生命值真伤
  * - 对 Boss 同样有效
  *
@@ -49,8 +55,12 @@ import java.util.concurrent.ConcurrentHashMap;
 @Mod.EventBusSubscriber(modid = "moremod")
 public class ItemNooseOfHangedKing extends Item implements IBauble {
 
-    // 处刑触发概率
-    private static final float EXECUTION_CHANCE = 0.15f;
+    // 基础处刑触发概率
+    private static final float BASE_EXECUTION_CHANCE = 0.15f;
+    // 每个诅咒附魔增加的概率
+    private static final float CURSE_BONUS_PER_ENCHANT = 0.05f;
+    // 最大触发概率
+    private static final float MAX_EXECUTION_CHANCE = 0.75f;
     // 处刑持续时间（tick）
     private static final int EXECUTION_DURATION_TICKS = 200; // 10秒
     // 每秒伤害（最大生命值百分比）
@@ -143,11 +153,16 @@ public class ItemNooseOfHangedKing extends Item implements IBauble {
         // 检查目标是否已经在被处刑
         if (EXECUTED_ENTITIES.containsKey(target.getEntityId())) return;
 
-        // 15% 概率触发
-        if (player.world.rand.nextFloat() > EXECUTION_CHANCE) return;
+        // 计算触发概率：基础 15% + 5% × 诅咒附魔数量
+        int curseCount = countCurseEnchantments(player);
+        float executionChance = Math.min(MAX_EXECUTION_CHANCE,
+                BASE_EXECUTION_CHANCE + CURSE_BONUS_PER_ENCHANT * curseCount);
+
+        // 概率触发
+        if (player.world.rand.nextFloat() > executionChance) return;
 
         // 执行处刑（对所有生物有效，包括 Boss）
-        executeTarget(player, target);
+        executeTarget(player, target, curseCount);
 
         // 代价：玩家失去氧气
         applySuffocationCost(player);
@@ -250,9 +265,54 @@ public class ItemNooseOfHangedKing extends Item implements IBauble {
     // ========== 辅助方法 ==========
 
     /**
+     * 计算玩家身上的诅咒附魔数量（包括饰品栏）
+     */
+    private static int countCurseEnchantments(EntityPlayer player) {
+        int count = 0;
+
+        // 检查装备栏（盔甲 + 手持物品）
+        for (EntityEquipmentSlot slot : EntityEquipmentSlot.values()) {
+            ItemStack stack = player.getItemStackFromSlot(slot);
+            count += countCursesOnItem(stack);
+        }
+
+        // 检查饰品栏
+        try {
+            for (int i = 0; i < BaublesApi.getBaublesHandler(player).getSlots(); i++) {
+                ItemStack bauble = BaublesApi.getBaubles(player).getStackInSlot(i);
+                count += countCursesOnItem(bauble);
+            }
+        } catch (Exception ignored) {}
+
+        return count;
+    }
+
+    /**
+     * 计算单个物品上的诅咒附魔数量
+     */
+    private static int countCursesOnItem(ItemStack stack) {
+        if (stack.isEmpty()) return 0;
+
+        int count = 0;
+        NBTTagList enchantments = stack.getEnchantmentTagList();
+
+        for (int i = 0; i < enchantments.tagCount(); i++) {
+            NBTTagCompound tag = enchantments.getCompoundTagAt(i);
+            int id = tag.getShort("id");
+            Enchantment ench = Enchantment.getEnchantmentByID(id);
+
+            if (ench != null && ench.isCurse()) {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    /**
      * 执行处刑（对所有生物有效）
      */
-    private static void executeTarget(EntityPlayer player, EntityLivingBase target) {
+    private static void executeTarget(EntityPlayer player, EntityLivingBase target, int curseCount) {
         // 计算悬挂高度
         float hangHeight = 2.5f + player.world.rand.nextFloat() * 1.0f;
 
@@ -264,12 +324,17 @@ public class ItemNooseOfHangedKing extends Item implements IBauble {
         target.motionY = 0.8;
         target.velocityChanged = true;
 
+        // 计算当前触发概率用于显示
+        float currentChance = Math.min(MAX_EXECUTION_CHANCE,
+                BASE_EXECUTION_CHANCE + CURSE_BONUS_PER_ENCHANT * curseCount);
+
         // 效果提示
         String targetName = target.hasCustomName() ? target.getCustomNameTag() : target.getName();
         player.sendMessage(new TextComponentString(
                 TextFormatting.DARK_RED + "☠ 处刑！" +
                 TextFormatting.GRAY + " [" + targetName + "] 被吊起 " +
-                TextFormatting.GOLD + "10" + TextFormatting.GRAY + " 秒"
+                TextFormatting.GOLD + "10" + TextFormatting.GRAY + " 秒" +
+                (curseCount > 0 ? TextFormatting.DARK_PURPLE + " [诅咒×" + curseCount + "]" : "")
         ));
 
         // 粒子和音效
@@ -355,10 +420,21 @@ public class ItemNooseOfHangedKing extends Item implements IBauble {
             list.add(TextFormatting.DARK_RED + "⚠ 需要佩戴七咒之戒才能装备");
         }
 
+        // 计算当前概率
+        int curseCount = player != null ? countCurseEnchantments(player) : 0;
+        float currentChance = Math.min(MAX_EXECUTION_CHANCE,
+                BASE_EXECUTION_CHANCE + CURSE_BONUS_PER_ENCHANT * curseCount);
+        int chancePercent = (int) (currentChance * 100);
+
         list.add("");
         list.add(TextFormatting.GOLD + "◆ 窒息之握");
-        list.add(TextFormatting.GRAY + "  攻击时 " + TextFormatting.RED + "15%" +
-                TextFormatting.GRAY + " 概率触发" + TextFormatting.DARK_RED + "「处刑」");
+        list.add(TextFormatting.GRAY + "  攻击时触发" + TextFormatting.DARK_RED + "「处刑」");
+        list.add(TextFormatting.GRAY + "  概率: " + TextFormatting.RED + "15%" +
+                TextFormatting.GRAY + " + " + TextFormatting.DARK_PURPLE + "5%×诅咒数");
+        if (player != null && curseCount > 0) {
+            list.add(TextFormatting.DARK_PURPLE + "  当前: " + TextFormatting.GOLD + chancePercent + "%" +
+                    TextFormatting.GRAY + " (" + curseCount + " 个诅咒)");
+        }
         list.add(TextFormatting.GRAY + "  目标被吊至半空 " + TextFormatting.GOLD + "10" +
                 TextFormatting.GRAY + " 秒");
         list.add(TextFormatting.GRAY + "  期间" + TextFormatting.AQUA + "完全定身" +
@@ -377,6 +453,10 @@ public class ItemNooseOfHangedKing extends Item implements IBauble {
             list.add(TextFormatting.DARK_GRAY + "━━━━━━━━━━━━━━━━━━");
             list.add(TextFormatting.GRAY + "10 秒内造成 50% 最大生命值真伤");
             list.add(TextFormatting.GRAY + "配合其他伤害可轻松击杀高血量目标");
+            list.add("");
+            list.add(TextFormatting.DARK_PURPLE + "诅咒加成:");
+            list.add(TextFormatting.GRAY + "  绑定诅咒、消失诅咒等都算");
+            list.add(TextFormatting.GRAY + "  最高叠加至 " + TextFormatting.GOLD + "75%" + TextFormatting.GRAY + " 概率");
         } else {
             list.add("");
             list.add(TextFormatting.DARK_GRAY + "按住 Shift 查看更多");
