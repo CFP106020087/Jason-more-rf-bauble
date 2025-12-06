@@ -7,14 +7,10 @@ import com.moremod.util.combat.TrueDamageHelper;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.SharedMonsterAttributes;
-import net.minecraft.entity.monster.EntityMob;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.MobEffects;
 import net.minecraft.init.SoundEvents;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraft.potion.PotionEffect;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.SoundCategory;
@@ -43,8 +39,8 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * 基础效果【窒息之握】：
  * - 攻击时 15% 概率触发"处刑"
- * - 目标被提至半空 3 秒，每秒受到 4% 最大生命值窒息伤害（无视护甲）
- * - 对 Boss 无效，但会造成短暂僵直/减速
+ * - 目标被提至半空 10 秒，完全定身，每秒受到 5% 最大生命值真伤
+ * - 对 Boss 同样有效
  *
  * 代价【同感痛苦】：
  * - 每次触发处刑，玩家失去 1 格氧气
@@ -56,34 +52,39 @@ public class ItemNooseOfHangedKing extends Item implements IBauble {
     // 处刑触发概率
     private static final float EXECUTION_CHANCE = 0.15f;
     // 处刑持续时间（tick）
-    private static final int EXECUTION_DURATION_TICKS = 60; // 3秒
+    private static final int EXECUTION_DURATION_TICKS = 200; // 10秒
     // 每秒伤害（最大生命值百分比）
-    private static final float DAMAGE_PERCENT_PER_SECOND = 0.04f;
-    // Boss 减速时间（tick）
-    private static final int BOSS_SLOW_DURATION = 40; // 2秒
+    private static final float DAMAGE_PERCENT_PER_SECOND = 0.05f;
     // 氧气消耗量
     private static final int AIR_COST = 30; // 约 1 格氧气
     // 氧气不足时的伤害
     private static final float SUFFOCATION_DAMAGE = 2.0f;
 
-    // 被处刑的实体记录：实体ID -> 处刑结束时间
+    // 被处刑的实体记录：实体ID -> 处刑数据
     private static final Map<Integer, ExecutionData> EXECUTED_ENTITIES = new ConcurrentHashMap<>();
 
     private static class ExecutionData {
         final long endTime;
-        final double originalY;
-        final float hangHeight;
+        final double hangX;
+        final double hangY;
+        final double hangZ;
         final EntityPlayer executioner;
 
-        ExecutionData(EntityPlayer executioner, double originalY, float hangHeight) {
+        ExecutionData(EntityPlayer executioner, double x, double y, double z, float hangHeight) {
             this.endTime = System.currentTimeMillis() + (EXECUTION_DURATION_TICKS * 50L);
-            this.originalY = originalY;
-            this.hangHeight = hangHeight;
+            this.hangX = x;
+            this.hangY = y + hangHeight;
+            this.hangZ = z;
             this.executioner = executioner;
         }
 
         boolean isExpired() {
             return System.currentTimeMillis() > endTime;
+        }
+
+        int getRemainingSeconds() {
+            long remaining = endTime - System.currentTimeMillis();
+            return remaining > 0 ? (int) (remaining / 1000) : 0;
         }
     }
 
@@ -145,16 +146,8 @@ public class ItemNooseOfHangedKing extends Item implements IBauble {
         // 15% 概率触发
         if (player.world.rand.nextFloat() > EXECUTION_CHANCE) return;
 
-        // 判断是否是 Boss
-        boolean isBoss = isBossEntity(target);
-
-        if (isBoss) {
-            // Boss: 施加减速效果
-            applyBossEffect(player, target);
-        } else {
-            // 普通怪物: 执行处刑
-            executeTarget(player, target);
-        }
+        // 执行处刑（对所有生物有效，包括 Boss）
+        executeTarget(player, target);
 
         // 代价：玩家失去氧气
         applySuffocationCost(player);
@@ -169,7 +162,6 @@ public class ItemNooseOfHangedKing extends Item implements IBauble {
         if (event.world.isRemote) return;
 
         World world = event.world;
-        long currentTime = System.currentTimeMillis();
 
         Iterator<Map.Entry<Integer, ExecutionData>> it = EXECUTED_ENTITIES.entrySet().iterator();
         while (it.hasNext()) {
@@ -188,12 +180,11 @@ public class ItemNooseOfHangedKing extends Item implements IBauble {
             // 检查是否过期
             if (data.isExpired()) {
                 // 处刑结束，让实体落下
-                target.motionY = -0.5;
                 target.fallDistance = 0;
                 it.remove();
 
                 // 效果提示
-                if (data.executioner != null) {
+                if (data.executioner != null && !data.executioner.world.isRemote) {
                     data.executioner.sendStatusMessage(new TextComponentString(
                             TextFormatting.GRAY + "处刑结束..."
                     ), true);
@@ -201,16 +192,20 @@ public class ItemNooseOfHangedKing extends Item implements IBauble {
                 continue;
             }
 
-            // 保持悬空
-            double targetY = data.originalY + data.hangHeight;
-            if (target.posY < targetY) {
-                target.motionY = 0.15;
-            } else {
-                target.motionY = 0;
-                target.setPosition(target.posX, targetY, target.posZ);
-            }
+            // ===== 完全定身：锁定位置和所有运动 =====
+            target.setPosition(data.hangX, data.hangY, data.hangZ);
+            target.motionX = 0;
+            target.motionY = 0;
+            target.motionZ = 0;
+            target.velocityChanged = true;
             target.fallDistance = 0;
             target.onGround = false;
+
+            // 禁止 AI 移动（如果有的话）
+            if (target instanceof net.minecraft.entity.EntityLiving) {
+                net.minecraft.entity.EntityLiving living = (net.minecraft.entity.EntityLiving) target;
+                living.setNoAI(false); // 保持 AI 但位置被锁定
+            }
 
             // 每秒造成窒息伤害（每 20 tick）
             if (world.getTotalWorldTime() % 20 == 0) {
@@ -218,18 +213,35 @@ public class ItemNooseOfHangedKing extends Item implements IBauble {
                 float damage = maxHealth * DAMAGE_PERCENT_PER_SECOND;
                 damage = Math.max(1.0f, damage);
 
-                // 使用真伤
+                // 使用 TrueDamageHelper 造成真伤
                 TrueDamageHelper.applyTrueDamage(target, data.executioner, damage);
 
                 // 粒子效果
                 if (world instanceof WorldServer) {
                     WorldServer ws = (WorldServer) world;
+                    // 窒息烟雾
                     ws.spawnParticle(EnumParticleTypes.SMOKE_NORMAL,
                             target.posX, target.posY + target.height, target.posZ,
-                            10, 0.2, 0.2, 0.2, 0.02);
+                            15, 0.2, 0.2, 0.2, 0.02);
+                    // 绞索魔法效果
                     ws.spawnParticle(EnumParticleTypes.CRIT_MAGIC,
                             target.posX, target.posY + target.height + 0.5, target.posZ,
-                            5, 0.1, 0.1, 0.1, 0.05);
+                            8, 0.1, 0.1, 0.1, 0.05);
+                    // 伤害指示
+                    ws.spawnParticle(EnumParticleTypes.DAMAGE_INDICATOR,
+                            target.posX, target.posY + target.height / 2, target.posZ,
+                            3, 0.2, 0.2, 0.2, 0.1);
+                }
+
+                // 显示剩余时间
+                if (data.executioner != null && !data.executioner.world.isRemote) {
+                    int remaining = data.getRemainingSeconds();
+                    data.executioner.sendStatusMessage(new TextComponentString(
+                            TextFormatting.DARK_RED + "☠ 处刑中... " +
+                            TextFormatting.GOLD + remaining + "s" +
+                            TextFormatting.GRAY + " | " +
+                            TextFormatting.RED + String.format("%.0f", damage) + " 真伤/秒"
+                    ), true);
                 }
             }
         }
@@ -238,23 +250,26 @@ public class ItemNooseOfHangedKing extends Item implements IBauble {
     // ========== 辅助方法 ==========
 
     /**
-     * 执行处刑（普通怪物）
+     * 执行处刑（对所有生物有效）
      */
     private static void executeTarget(EntityPlayer player, EntityLivingBase target) {
-        // 记录处刑数据
-        float hangHeight = 2.0f + player.world.rand.nextFloat() * 1.5f;
-        EXECUTED_ENTITIES.put(target.getEntityId(),
-            new ExecutionData(player, target.posY, hangHeight));
+        // 计算悬挂高度
+        float hangHeight = 2.5f + player.world.rand.nextFloat() * 1.0f;
 
-        // 初始向上推力
+        // 记录处刑数据（锁定当前位置）
+        EXECUTED_ENTITIES.put(target.getEntityId(),
+            new ExecutionData(player, target.posX, target.posY, target.posZ, hangHeight));
+
+        // 初始向上推力（视觉效果）
         target.motionY = 0.8;
         target.velocityChanged = true;
 
         // 效果提示
+        String targetName = target.hasCustomName() ? target.getCustomNameTag() : target.getName();
         player.sendMessage(new TextComponentString(
                 TextFormatting.DARK_RED + "☠ 处刑！" +
-                TextFormatting.GRAY + " 目标被吊起 " +
-                TextFormatting.GOLD + "3" + TextFormatting.GRAY + " 秒"
+                TextFormatting.GRAY + " [" + targetName + "] 被吊起 " +
+                TextFormatting.GOLD + "10" + TextFormatting.GRAY + " 秒"
         ));
 
         // 粒子和音效
@@ -262,38 +277,13 @@ public class ItemNooseOfHangedKing extends Item implements IBauble {
             WorldServer ws = (WorldServer) player.world;
             ws.spawnParticle(EnumParticleTypes.SMOKE_LARGE,
                     target.posX, target.posY + 1, target.posZ,
-                    20, 0.3, 0.5, 0.3, 0.05);
+                    30, 0.3, 0.5, 0.3, 0.05);
+            ws.spawnParticle(EnumParticleTypes.SPELL_WITCH,
+                    target.posX, target.posY + 1.5, target.posZ,
+                    20, 0.2, 0.3, 0.2, 0.0);
             ws.playSound(null, target.getPosition(),
                     SoundEvents.ENTITY_LEASHKNOT_PLACE,
                     SoundCategory.HOSTILE, 1.0F, 0.5F);
-        }
-    }
-
-    /**
-     * 对 Boss 施加效果（无法吊起，改为减速）
-     */
-    private static void applyBossEffect(EntityPlayer player, EntityLivingBase target) {
-        // 施加缓慢 III
-        target.addPotionEffect(new PotionEffect(MobEffects.SLOWNESS, BOSS_SLOW_DURATION, 2));
-        // 施加虚弱 II
-        target.addPotionEffect(new PotionEffect(MobEffects.WEAKNESS, BOSS_SLOW_DURATION, 1));
-
-        // 短暂僵直（通过设置无敌帧）
-        target.hurtResistantTime = 10;
-
-        // 效果提示
-        player.sendMessage(new TextComponentString(
-                TextFormatting.DARK_RED + "☠ 绞索缠绕！" +
-                TextFormatting.GRAY + " Boss 被减速 " +
-                TextFormatting.GOLD + "2" + TextFormatting.GRAY + " 秒"
-        ));
-
-        // 粒子效果
-        if (player.world instanceof WorldServer) {
-            WorldServer ws = (WorldServer) player.world;
-            ws.spawnParticle(EnumParticleTypes.SMOKE_NORMAL,
-                    target.posX, target.posY + target.height, target.posZ,
-                    30, 0.5, 0.5, 0.5, 0.02);
         }
     }
 
@@ -319,22 +309,6 @@ public class ItemNooseOfHangedKing extends Item implements IBauble {
                     TextFormatting.GRAY + " 受到窒息伤害"
             ), true);
         }
-    }
-
-    /**
-     * 检查是否是 Boss 实体
-     */
-    private static boolean isBossEntity(EntityLivingBase entity) {
-        // 检查是否有 Boss 血条
-        if (!entity.isNonBoss()) return true;
-
-        // 检查最大生命值（超过 100 视为 Boss）
-        double maxHealth = entity.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).getBaseValue();
-        if (maxHealth >= 100) return true;
-
-        // 检查类名是否包含 Boss
-        String className = entity.getClass().getSimpleName().toLowerCase();
-        return className.contains("boss");
     }
 
     /**
@@ -385,18 +359,13 @@ public class ItemNooseOfHangedKing extends Item implements IBauble {
         list.add(TextFormatting.GOLD + "◆ 窒息之握");
         list.add(TextFormatting.GRAY + "  攻击时 " + TextFormatting.RED + "15%" +
                 TextFormatting.GRAY + " 概率触发" + TextFormatting.DARK_RED + "「处刑」");
-        list.add(TextFormatting.GRAY + "  目标被吊至半空 " + TextFormatting.GOLD + "3" +
+        list.add(TextFormatting.GRAY + "  目标被吊至半空 " + TextFormatting.GOLD + "10" +
                 TextFormatting.GRAY + " 秒");
-        list.add(TextFormatting.GRAY + "  每秒受到 " + TextFormatting.RED + "4%" +
-                TextFormatting.GRAY + " 最大生命值窒息伤害");
-        list.add(TextFormatting.DARK_PURPLE + "  (无视护甲)");
-
-        list.add("");
-        list.add(TextFormatting.YELLOW + "◇ 对 Boss");
-        list.add(TextFormatting.GRAY + "  无法吊起，改为施加");
-        list.add(TextFormatting.GRAY + "  " + TextFormatting.AQUA + "缓慢III" +
-                TextFormatting.GRAY + " + " + TextFormatting.RED + "虚弱II" +
-                TextFormatting.GRAY + " 持续 2 秒");
+        list.add(TextFormatting.GRAY + "  期间" + TextFormatting.AQUA + "完全定身" +
+                TextFormatting.GRAY + "，无法移动");
+        list.add(TextFormatting.GRAY + "  每秒受到 " + TextFormatting.RED + "5%" +
+                TextFormatting.GRAY + " 最大生命值" + TextFormatting.LIGHT_PURPLE + "真伤");
+        list.add(TextFormatting.YELLOW + "  对 Boss 同样有效！");
 
         list.add("");
         list.add(TextFormatting.DARK_RED + "◆ 代价：同感痛苦");
@@ -406,8 +375,8 @@ public class ItemNooseOfHangedKing extends Item implements IBauble {
         if (GuiScreen.isShiftKeyDown()) {
             list.add("");
             list.add(TextFormatting.DARK_GRAY + "━━━━━━━━━━━━━━━━━━");
-            list.add(TextFormatting.GRAY + "吊起敌人后可以安全输出");
-            list.add(TextFormatting.GRAY + "但要注意氧气管理");
+            list.add(TextFormatting.GRAY + "10 秒内造成 50% 最大生命值真伤");
+            list.add(TextFormatting.GRAY + "配合其他伤害可轻松击杀高血量目标");
         } else {
             list.add("");
             list.add(TextFormatting.DARK_GRAY + "按住 Shift 查看更多");
