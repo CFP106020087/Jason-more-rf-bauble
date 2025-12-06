@@ -12,6 +12,7 @@ item.towel.name=毛巾
 item.neural_synchronizer.name=神经同步模块
 item.curse_spread.name=扩散诅咒的烙印
 item.thorn_shard.name=荆棘王冠之碎片
+item.void_gaze.name=虚无之眸
 
 # ===== 破碎之神圣物 (Broken God Relics) =====
 item.broken_hand.name=破碎之手
