@@ -31,3 +31,9 @@ item.moremod.predator_cloth.name=Predator Cloth
 item.moremod.predator_cloth.desc=Blood-stained hunter's cloth that increases attack damage.
 item.moremod.siphon_wrap.name=Siphon Wrap
 item.moremod.siphon_wrap.desc=Soul-draining wrap that restores hunger on kill.
+
+# Fabric Tools
+item.moremod.fabric_remover.name=Fabric Remover
+item.moremod.fabric_remover.desc=Removes woven fabric from armor and returns the material.
+item.moremod.fabric_remover.usage=Right-click to auto-detect and remove fabric from one armor piece.
+item.moremod.fabric_remover.uses=Uses remaining
