@@ -215,7 +215,7 @@ public class FabricWeavingSystem {
     private static UpdatedFabricPlayerData.FabricType getFabricTypeFromItem(ItemStack item) {
         String itemName = item.getItem().getRegistryName().toString();
 
-        // 匹配新的物品ID
+        // 高级织布
         if (itemName.contains("abyssal_fabric") ) {
             return UpdatedFabricPlayerData.FabricType.ABYSS;
         }
@@ -229,6 +229,23 @@ public class FabricWeavingSystem {
             return UpdatedFabricPlayerData.FabricType.OTHERWORLD;
         }
 
+        // 基础织布
+        if (itemName.contains("resilient_fiber") ) {
+            return UpdatedFabricPlayerData.FabricType.RESILIENT;
+        }
+        if (itemName.contains("vital_thread") ) {
+            return UpdatedFabricPlayerData.FabricType.VITAL;
+        }
+        if (itemName.contains("light_weave") ) {
+            return UpdatedFabricPlayerData.FabricType.LIGHT;
+        }
+        if (itemName.contains("predator_cloth") ) {
+            return UpdatedFabricPlayerData.FabricType.PREDATOR;
+        }
+        if (itemName.contains("siphon_wrap") ) {
+            return UpdatedFabricPlayerData.FabricType.SIPHON;
+        }
+
         return null;
     }
 
@@ -237,6 +254,7 @@ public class FabricWeavingSystem {
      */
     private static void addFabricSpecificData(NBTTagCompound data, UpdatedFabricPlayerData.FabricType type) {
         switch (type) {
+            // 高级织布
             case ABYSS:
                 data.setInteger("AbyssKills", 0);
                 data.setFloat("AbyssPower", 0);
@@ -257,6 +275,23 @@ public class FabricWeavingSystem {
                 data.setInteger("Sanity", 100);
                 data.setInteger("ForbiddenKnowledge", 0);
                 break;
+
+            // 基础织布（简单数据）
+            case RESILIENT:
+                // 坚韧纤维：无特殊数据，纯属性加成
+                break;
+            case VITAL:
+                data.setLong("LastRegenTick", 0);
+                break;
+            case LIGHT:
+                // 轻盈织物：无特殊数据，纯属性加成
+                break;
+            case PREDATOR:
+                data.setLong("LastBleedTime", 0);
+                break;
+            case SIPHON:
+                data.setInteger("TotalKills", 0);
+                break;
         }
     }
 
@@ -265,6 +300,7 @@ public class FabricWeavingSystem {
      */
     private static String getColoredPrefix(UpdatedFabricPlayerData.FabricType type) {
         switch (type) {
+            // 高级织布
             case ABYSS:
                 return TextFormatting.DARK_RED + "[深渊] " + TextFormatting.RESET;
             case TEMPORAL:
@@ -273,6 +309,18 @@ public class FabricWeavingSystem {
                 return TextFormatting.LIGHT_PURPLE + "[时空] " + TextFormatting.RESET;
             case OTHERWORLD:
                 return TextFormatting.DARK_PURPLE + "[异界] " + TextFormatting.RESET;
+
+            // 基础织布
+            case RESILIENT:
+                return TextFormatting.GRAY + "[坚韧] " + TextFormatting.RESET;
+            case VITAL:
+                return TextFormatting.LIGHT_PURPLE + "[活力] " + TextFormatting.RESET;
+            case LIGHT:
+                return TextFormatting.AQUA + "[轻盈] " + TextFormatting.RESET;
+            case PREDATOR:
+                return TextFormatting.RED + "[掠食] " + TextFormatting.RESET;
+            case SIPHON:
+                return TextFormatting.DARK_GREEN + "[吸魂] " + TextFormatting.RESET;
             default:
                 return "";
         }

@@ -63,6 +63,14 @@ public class FabricTooltipHandler {
             case OTHERWORLD:
                 addOtherworldTooltip(tooltip, fabricData, player);
                 break;
+            // 基础织布
+            case RESILIENT:
+            case VITAL:
+            case LIGHT:
+            case PREDATOR:
+            case SIPHON:
+                addBasicFabricTooltip(tooltip, type, player);
+                break;
         }
 
         // 通用信息
@@ -94,6 +102,17 @@ public class FabricTooltipHandler {
                 return "§d§l◈ 时空织印 ◈";
             case OTHERWORLD:
                 return "§5§l⊙ 异界织印 ⊙";
+            // 基础织布
+            case RESILIENT:
+                return "§7§l◆ 坚韧织印 ◆";
+            case VITAL:
+                return "§d§l♥ 活力织印 ♥";
+            case LIGHT:
+                return "§b§l✦ 轻盈织印 ✦";
+            case PREDATOR:
+                return "§c§l⚔ 掠食织印 ⚔";
+            case SIPHON:
+                return "§2§l◈ 吸魂织印 ◈";
             default:
                 return "§7未知织印";
         }
@@ -324,6 +343,32 @@ public class FabricTooltipHandler {
         }
     }
 
+    private static void addBasicFabricTooltip(List<String> tooltip, UpdatedFabricPlayerData.FabricType type, EntityPlayer player) {
+        int count = player != null ? FabricWeavingSystem.countPlayerFabric(player, type) : 0;
+
+        switch (type) {
+            case RESILIENT:
+                tooltip.add("§7▸ 每件: §f+2 护甲");
+                if (count > 0) tooltip.add("§7▸ 当前加成: §f+" + (count * 2) + " 护甲");
+                break;
+            case VITAL:
+                tooltip.add("§d▸ 每件: §f+1 最大生命");
+                if (count > 0) tooltip.add("§d▸ 当前加成: §f+" + count + " 最大生命");
+                break;
+            case LIGHT:
+                tooltip.add("§b▸ 每件: §f+5% 移动速度");
+                if (count > 0) tooltip.add("§b▸ 当前加成: §f+" + (count * 5) + "% 移动速度");
+                break;
+            case PREDATOR:
+                tooltip.add("§c▸ 每件: §f+5% 攻击伤害");
+                if (count > 0) tooltip.add("§c▸ 当前加成: §f+" + (count * 5) + "% 攻击伤害");
+                break;
+            case SIPHON:
+                tooltip.add("§2▸ 效果: §f击杀回复1饥饿值");
+                break;
+        }
+    }
+
     private static void addSetBonus(List<String> tooltip, UpdatedFabricPlayerData.FabricType type, int count) {
         switch (type) {
             case ABYSS:
@@ -353,6 +398,32 @@ public class FabricTooltipHandler {
                 if (count >= 2) tooltip.add("  §62件: §7攻击×1.5");
                 if (count >= 3) tooltip.add("  §63件: §7攻击×1.75");
                 if (count >= 4) tooltip.add("  §64件: §5攻击×2.0 极限×51");
+                break;
+
+            // 基础织布套装效果
+            case RESILIENT:
+                tooltip.add("  §7每件: +2护甲");
+                if (count >= 4) tooltip.add("  §64件: §f+10%击退抗性");
+                break;
+
+            case VITAL:
+                tooltip.add("  §d每件: +1最大生命");
+                if (count >= 4) tooltip.add("  §64件: §f每5秒回复1血");
+                break;
+
+            case LIGHT:
+                tooltip.add("  §b每件: +5%移动速度");
+                if (count >= 4) tooltip.add("  §64件: §f-25%摔落伤害");
+                break;
+
+            case PREDATOR:
+                tooltip.add("  §c每件: +5%攻击伤害");
+                if (count >= 4) tooltip.add("  §64件: §f10%机率造成流血");
+                break;
+
+            case SIPHON:
+                tooltip.add("  §2每件: 击杀回复饥饿");
+                if (count >= 4) tooltip.add("  §64件: §f10%机率额外经验");
                 break;
         }
     }
