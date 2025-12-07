@@ -19,6 +19,7 @@ import java.util.ArrayList;
 public class UniversalFabricRituals {
 
     public static void registerRituals() {
+        // ========== 高级织布（需要虚空纺锤）==========
         // 深渊布料
         RitualInfusionAPI.RITUAL_RECIPES.add(
                 new UniversalFabricRecipe("moremod:abyssal_fabric", 400, 5000)
@@ -39,7 +40,33 @@ public class UniversalFabricRituals {
                 new UniversalFabricRecipe("moremod:otherworldly_fiber", 800, 10000)
         );
 
-        System.out.println("[MoreMod] Registered 4 universal fabric weaving rituals");
+        // ========== 基础织布（不需要虚空纺锤）==========
+        // 坚韧纤维
+        RitualInfusionAPI.RITUAL_RECIPES.add(
+                new BasicFabricRecipe("moremod:resilient_fiber", 200, 2000)
+        );
+
+        // 活力丝线
+        RitualInfusionAPI.RITUAL_RECIPES.add(
+                new BasicFabricRecipe("moremod:vital_thread", 200, 2000)
+        );
+
+        // 轻盈织物
+        RitualInfusionAPI.RITUAL_RECIPES.add(
+                new BasicFabricRecipe("moremod:light_weave", 200, 2000)
+        );
+
+        // 掠食者布料
+        RitualInfusionAPI.RITUAL_RECIPES.add(
+                new BasicFabricRecipe("moremod:predator_cloth", 200, 2000)
+        );
+
+        // 吸魂织带
+        RitualInfusionAPI.RITUAL_RECIPES.add(
+                new BasicFabricRecipe("moremod:siphon_wrap", 200, 2000)
+        );
+
+        System.out.println("[MoreMod] Registered 4 advanced + 5 basic fabric weaving rituals");
     }
 
     /**
@@ -234,6 +261,122 @@ public class UniversalFabricRituals {
         @Override
         public boolean isSimple() {
             return false;
+        }
+    }
+
+    /**
+     * 基础织布配方 - 不需要虚空纺锤，只需要布料
+     */
+    public static class BasicFabricRecipe extends RitualInfusionRecipe {
+
+        private final String fabricId;
+        private final Item fabricItem;
+        private ItemStack currentCoreItem = ItemStack.EMPTY;
+        private List<ItemStack> currentPedestalItems = new ArrayList<>();
+
+        public BasicFabricRecipe(String fabricId, int time, int energy) {
+            super(
+                    new ArmorIngredient(),
+                    createBasicPedestalIngredients(fabricId),
+                    new ItemStack(Items.DIAMOND_CHESTPLATE), // 占位输出
+                    time,
+                    energy,
+                    0.02f // 较低的失败率
+            );
+
+            this.fabricId = fabricId;
+            this.fabricItem = Item.getByNameOrId(fabricId);
+
+            if (this.fabricItem == null) {
+                System.err.println("[Basic Fabric Ritual] ERROR: Fabric item not found: " + fabricId);
+            }
+        }
+
+        private static List<Ingredient> createBasicPedestalIngredients(String fabricId) {
+            Item fabric = Item.getByNameOrId(fabricId);
+
+            if (fabric == null) {
+                System.err.println("[Basic Fabric Ritual] Failed to create pedestal ingredients");
+                return Arrays.asList(Ingredient.EMPTY);
+            }
+
+            // 只需要布料，不需要虚空纺锤
+            return Arrays.asList(
+                    Ingredient.fromStacks(new ItemStack(fabric))
+            );
+        }
+
+        @Override
+        public Ingredient getCore() {
+            return new ArmorIngredient() {
+                @Override
+                public boolean apply(ItemStack stack) {
+                    boolean matches = super.apply(stack);
+                    if (matches && !stack.isEmpty()) {
+                        currentCoreItem = stack.copy();
+                    }
+                    return matches;
+                }
+            };
+        }
+
+        @Override
+        public boolean matchPedestalStacks(List<ItemStack> stacks) {
+            boolean matches = super.matchPedestalStacks(stacks);
+            if (matches) {
+                currentPedestalItems.clear();
+                for (ItemStack stack : stacks) {
+                    currentPedestalItems.add(stack.copy());
+                }
+                generateDynamicOutput();
+            }
+            return matches;
+        }
+
+        private void generateDynamicOutput() {
+            if (currentCoreItem.isEmpty() || !(currentCoreItem.getItem() instanceof ItemArmor)) {
+                return;
+            }
+
+            if (FabricWeavingSystem.hasFabric(currentCoreItem)) {
+                return;
+            }
+
+            ItemStack fabricStack = ItemStack.EMPTY;
+            for (ItemStack stack : currentPedestalItems) {
+                if (stack.getItem() == fabricItem) {
+                    fabricStack = stack;
+                    break;
+                }
+            }
+
+            if (fabricStack.isEmpty()) {
+                return;
+            }
+
+            ItemStack result = currentCoreItem.copy();
+            result.setCount(1);
+
+            boolean success = FabricWeavingSystem.weaveIntoArmor(result, fabricStack);
+
+            if (success) {
+                this.output = result;
+            } else {
+                this.output = ItemStack.EMPTY;
+            }
+        }
+
+        @Override
+        public ItemStack getOutput() {
+            if (this.output != null && !this.output.isEmpty() && FabricWeavingSystem.hasFabric(this.output)) {
+                return this.output.copy();
+            }
+
+            // JEI显示用
+            ItemStack example = new ItemStack(Items.DIAMOND_CHESTPLATE);
+            ItemStack fabricStack = new ItemStack(fabricItem);
+            FabricWeavingSystem.weaveIntoArmor(example, fabricStack);
+            return example;
         }
     }
 }
