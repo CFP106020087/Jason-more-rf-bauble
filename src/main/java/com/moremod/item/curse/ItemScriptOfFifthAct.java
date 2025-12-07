@@ -447,7 +447,7 @@ public class ItemScriptOfFifthAct extends Item implements IBauble {
                             player.posX + dx * t,
                             player.posY + 1 + dy * t,
                             player.posZ + dz * t,
-                            1, 0, 0, 0, 0);
+                            1, 0, 0, 0.0, 0);
                 }
 
                 // 目标位置爆炸效果

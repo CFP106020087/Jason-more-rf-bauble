@@ -2,6 +2,7 @@ package com.moremod.creativetab;
 
 import com.moremod.item.RegisterItem;
 import net.minecraft.creativetab.CreativeTabs;
+import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -26,8 +27,12 @@ public class MoremodMaterialsTab extends CreativeTabs {
     @Override
     @SideOnly(Side.CLIENT)
     public ItemStack createIcon() {
-        // 使用机械核心作为标签页图标
-        return new ItemStack(RegisterItem.MECHANICAL_CORE);
+        // 防御性检查，防止 holder lookups 期间崩溃
+        if (RegisterItem.MECHANICAL_CORE != null) {
+            return new ItemStack(RegisterItem.MECHANICAL_CORE);
+        }
+        // 备用图标
+        return new ItemStack(Items.IRON_INGOT);
     }
 
     /**

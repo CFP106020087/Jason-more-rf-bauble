@@ -3,14 +3,17 @@ package com.moremod.tile;
 import com.moremod.ritual.RitualInfusionAPI;
 import com.moremod.ritual.RitualInfusionRecipe;
 import net.minecraft.block.state.IBlockState;
+import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.network.NetworkManager;
 import net.minecraft.network.play.server.SPacketUpdateTileEntity;
-import net.minecraft.util.ITickable;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumParticleTypes;
+import net.minecraft.util.ITickable;
+import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
+import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.items.CapabilityItemHandler;
 import net.minecraftforge.items.ItemStackHandler;
 
@@ -20,194 +23,176 @@ import java.util.List;
 
 public class TileEntityRitualCore extends TileEntity implements ITickable {
 
+    // --- 庫存系統 (核心輸入 + 成品輸出) ---
     private final ItemStackHandler inv = new ItemStackHandler(2) {
         @Override
         protected void onContentsChanged(int slot) {
             markDirty();
+            // 當物品變更時，立即同步給客戶端 (為了 Renderer 能馬上看到物品變化)
             if (world != null && !world.isRemote) {
-                IBlockState state = world.getBlockState(pos);
-                world.notifyBlockUpdate(pos, state, state, 3);
+                syncToClient();
+                // 如果拿走了輸入物品，儀式必須強制中斷
+                if (slot == 0 && getStackInSlot(0).isEmpty() && isActive) {
+                    reset();
+                }
             }
         }
     };
 
-    private RitualInfusionRecipe active;
-    private int process;
+    // --- 運行狀態變數 ---
+    private RitualInfusionRecipe activeRecipe;
+    private int process = 0;
     private boolean isActive = false;
     private boolean hasEnoughEnergy = false;
 
-    // 8个基座位置：东南西北 + 东南、东北、西南、西北
+    // 用於客戶端平滑渲染的緩存變量
+    public float clientRotation = 0;
+    public float lastClientRotation = 0;
+
+    // 8個基座位置定義
     private static final BlockPos[] OFFS8 = new BlockPos[]{
-            new BlockPos( 3, 0,  0),  // 东
-            new BlockPos(-3, 0,  0),  // 西
-            new BlockPos( 0, 0,  3),  // 南
-            new BlockPos( 0, 0, -3),  // 北
-            new BlockPos( 2, 0,  2),  // 东南
-            new BlockPos( 2, 0, -2),  // 东北
-            new BlockPos(-2, 0,  2),  // 西南
-            new BlockPos(-2, 0, -2)   // 西北
+            new BlockPos( 3, 0,  0), new BlockPos(-3, 0,  0),
+            new BlockPos( 0, 0,  3), new BlockPos( 0, 0, -3),
+            new BlockPos( 2, 0,  2), new BlockPos( 2, 0, -2),
+            new BlockPos(-2, 0,  2), new BlockPos(-2, 0, -2)
     };
 
+    // --- 核心邏輯循環 ---
     @Override
     public void update() {
         if (world == null) return;
 
+        // 客戶端邏輯：只處理粒子和渲染動畫數據
         if (world.isRemote) {
-            if (isActive && hasEnoughEnergy) {
-                spawnParticles();
-            }
+            updateClientVisuals();
             return;
         }
 
-        // 获取所有有物品的基座
-        List<TileEntityPedestal> peds = findPedestals();
+        // 服務端邏輯
+
+        // 1. 查找有效基座 (必須有物品)
+        List<TileEntityPedestal> peds = findValidPedestals();
         if (peds.isEmpty()) {
+            if (isActive) reset();
+            return;
+        }
+
+        // 2. 配方匹配邏輯
+        // 如果當前沒有激活配方，或輸入物品變了，嘗試尋找新配方
+        if (activeRecipe == null || !activeRecipe.getCore().apply(inv.getStackInSlot(0))) {
+            activeRecipe = findMatchingRecipe(peds);
+            process = 0; // 新配方，進度歸零
+        }
+
+        // 如果還是找不到配方，歸位
+        if (activeRecipe == null) {
+            updateState(false, false);
+            return;
+        }
+
+        // 3. 運行中完整性檢查 (二次確認)
+        // 確保基座數量足夠，且中途沒有被玩家偷走基座上的物品
+        if (peds.size() < activeRecipe.getPedestalCount() || !isValidRitualStructure(peds, activeRecipe)) {
+            // 為了容錯，如果只是暫時缺電可以不重置，但如果物品沒了就必須重置
             reset();
             return;
         }
 
-        // 检查配方
-        if (active == null || !coreMatchesAnyRecipe()) {
-            active = findMatchingRecipe(peds);
-            process = 0;
-        }
+        // 4. 能量處理
+        int time = Math.max(1, activeRecipe.getTime());
+        int energyPerTick = Math.max(1, activeRecipe.getEnergyPerPedestal() / time);
 
-        if (active == null) {
-            setActiveState(false, false);
+        boolean currentTickEnergy = checkAndConsumeEnergy(peds, activeRecipe, energyPerTick, true); // true = 模擬檢查
+
+        if (!currentTickEnergy) {
+            // 能量不足，暫停進度，但不重置配方 (給玩家時間去充電)
+            updateState(true, false);
             return;
         }
 
-        // 确保有足够的基座
-        if (peds.size() < active.getPedestalCount()) {
-            setActiveState(false, false);
-            return;
-        }
+        // 5. 推進儀式
+        // 實際消耗能量
+        checkAndConsumeEnergy(peds, activeRecipe, energyPerTick, false);
 
-        int perTick = Math.max(1, active.getEnergyPerPedestal() / Math.max(1, active.getTime()));
-
-        // 能量检查 - 只检查配方需要的基座数量
-        boolean energyOk = true;
-        for (int i = 0; i < active.getPedestalCount() && i < peds.size(); i++) {
-            if (peds.get(i).getEnergy().getEnergyStored() < perTick) {
-                energyOk = false;
-                break;
-            }
-        }
-
-        if (!energyOk) {
-            process = 0;
-            setActiveState(true, false);  // 激活但能量不足
-            return;
-        }
-
-        // 扣能量 & 进度 - 只扣配方需要的基座
-        for (int i = 0; i < active.getPedestalCount() && i < peds.size(); i++) {
-            peds.get(i).getEnergy().extractEnergy(perTick, false);
-        }
         process++;
-        setActiveState(true, true);  // 激活且能量充足
+        updateState(true, true); // 狀態：激活且有能量
 
-        if (process % 5 == 0) {
-            world.playEvent(2005, pos, 0);
+        // 每秒產生一次音效或服務端粒子包
+        if (process % 20 == 0) {
+            // 這裡可以發包給客戶端播放特定音效
         }
 
-        if (process >= active.getTime()) {
-            if (world.rand.nextFloat() < active.getFailChance()) {
-                onFail(peds);
-            } else {
-                completeRitual(peds);
-            }
+        // 6. 完成或失敗判定
+        if (process >= time) {
+            finishRitual(peds);
             reset();
         }
     }
 
-    private List<TileEntityPedestal> findPedestals() {
-        List<TileEntityPedestal> list = new ArrayList<>();
-        for (BlockPos off : OFFS8) {
-            TileEntity te = world.getTileEntity(pos.add(off));
-            if (te instanceof TileEntityPedestal) {
-                TileEntityPedestal ped = (TileEntityPedestal) te;
-                // 只添加有物品的基座
-                if (!ped.isEmpty()) {
-                    list.add(ped);
-                }
-            }
-        }
-        return list;
-    }
+    // --- 輔助邏輯方法 ---
 
-    private void completeRitual(List<TileEntityPedestal> peds) {
-        consumeInputs(peds);
-        inv.setStackInSlot(1, active.getOutput().copy());
-        markDirty();
-        IBlockState state = world.getBlockState(pos);
-        world.notifyBlockUpdate(pos, state, state, 3);
-        world.markBlockRangeForRenderUpdate(pos.add(-1, -1, -1), pos.add(1, 1, 1));
-    }
+    private void updateClientVisuals() {
+        // 更新旋轉角度用於渲染插值
+        lastClientRotation = clientRotation;
+        clientRotation += (isActive ? 10.0f : 1.0f);
 
-    private void setActiveState(boolean active, boolean hasEnergy) {
-        if (this.isActive != active || this.hasEnoughEnergy != hasEnergy) {
-            this.isActive = active;
-            this.hasEnoughEnergy = hasEnergy;
-            markDirty();
-            if (!world.isRemote) {
-                IBlockState state = world.getBlockState(pos);
-                world.notifyBlockUpdate(pos, state, state, 3);
-            }
+        if (isActive && hasEnoughEnergy) {
+            spawnParticles();
         }
     }
 
     private void spawnParticles() {
+        // 在這裡生成更加複雜的粒子效果，例如從基座飛向核心的粒子
         if (world.rand.nextInt(3) == 0) {
-            double x = pos.getX() + 0.5;
-            double y = pos.getY() + 1.0;
-            double z = pos.getZ() + 0.5;
+            world.spawnParticle(EnumParticleTypes.PORTAL,
+                    pos.getX() + 0.5, pos.getY() + 1.2, pos.getZ() + 0.5,
+                    0, 0.1, 0);
+        }
+    }
 
-            for (int i = 0; i < 2; i++) {
-                world.spawnParticle(
-                        EnumParticleTypes.PORTAL,
-                        x + (world.rand.nextDouble() - 0.5) * 0.5,
-                        y + world.rand.nextDouble() * 0.5,
-                        z + (world.rand.nextDouble() - 0.5) * 0.5,
-                        0, 0.1, 0
-                );
+    private boolean checkAndConsumeEnergy(List<TileEntityPedestal> peds, RitualInfusionRecipe recipe, int amount, boolean simulate) {
+        int count = recipe.getPedestalCount();
+        // 檢查前 N 個基座是否有足夠能量
+        for (int i = 0; i < count && i < peds.size(); i++) {
+            TileEntityPedestal ped = peds.get(i);
+            if (ped.getEnergy().extractEnergy(amount, true) < amount) {
+                return false;
             }
         }
-    }
 
-    private boolean coreMatchesAnyRecipe() {
-        for (RitualInfusionRecipe r : RitualInfusionAPI.RITUAL_RECIPES) {
-            if (r.getCore().apply(inv.getStackInSlot(0))) return true;
-        }
-        return false;
-    }
-
-    private RitualInfusionRecipe findMatchingRecipe(List<TileEntityPedestal> peds) {
-        List<net.minecraft.item.ItemStack> stacks = new ArrayList<>();
-        for (TileEntityPedestal p : peds) {
-            stacks.add(p.getInv().getStackInSlot(0));
-        }
-
-        for (RitualInfusionRecipe r : RitualInfusionAPI.RITUAL_RECIPES) {
-            if (r.getCore().apply(inv.getStackInSlot(0)) && r.matchPedestalStacks(stacks)) {
-                return r;
+        if (!simulate) {
+            for (int i = 0; i < count && i < peds.size(); i++) {
+                peds.get(i).getEnergy().extractEnergy(amount, false);
             }
         }
-        return null;
+        return true;
     }
 
-    private void consumeInputs(List<TileEntityPedestal> peds) {
-        inv.extractItem(0, 1, false);
-
-        // 创建配方需要的物品列表副本
-        List<net.minecraft.item.crafting.Ingredient> needed = new ArrayList<>(active.getPedestalCount());
-        for (int i = 0; i < active.getPedestalCount(); i++) {
-            needed.add(active.getPedestalItems().get(i));
+    private void finishRitual(List<TileEntityPedestal> peds) {
+        // 失敗判定 (Risk mechanics)
+        if (activeRecipe.getFailChance() > 0 && world.rand.nextFloat() < activeRecipe.getFailChance()) {
+            doFailExplosion();
+        } else {
+            // 成功：產生產物
+            ItemStack output = activeRecipe.getOutput().copy();
+            inv.setStackInSlot(1, output); // 放入產出槽
         }
 
-        // 消耗匹配的物品
+        // 無論成功失敗，消耗原材料
+        consumeIngredients(peds);
+
+        // 視覺通知
+        IBlockState state = world.getBlockState(pos);
+        world.notifyBlockUpdate(pos, state, state, 3);
+    }
+
+    private void consumeIngredients(List<TileEntityPedestal> peds) {
+        inv.extractItem(0, 1, false); // 消耗核心
+
+        List<net.minecraft.item.crafting.Ingredient> needed = new ArrayList<>(activeRecipe.getPedestalItems());
+        // 簡單的匹配消耗邏輯
         for (TileEntityPedestal ped : peds) {
-            net.minecraft.item.ItemStack stack = ped.getInv().getStackInSlot(0);
+            ItemStack stack = ped.getInv().getStackInSlot(0);
             for (int i = 0; i < needed.size(); i++) {
                 if (needed.get(i).apply(stack)) {
                     ped.consumeOne();
@@ -218,49 +203,96 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         }
     }
 
-    private void onFail(List<TileEntityPedestal> peds) {
-        world.playEvent(2001, pos, 0);
-        world.createExplosion(null, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 1.0F, false);
-        consumeInputs(peds);
+    private void doFailExplosion() {
+        world.createExplosion(null, pos.getX(), pos.getY(), pos.getZ(), 2.0F, true);
+        // 可以添加更噁心的懲罰，比如產生咒蝕泥土(Tainted Soil)
     }
 
     private void reset() {
         process = 0;
-        active = null;
-        setActiveState(false, false);
+        activeRecipe = null;
+        updateState(false, false);
     }
 
-    public boolean isActive() { return isActive && process > 0; }
-    public boolean hasEnoughEnergy() { return hasEnoughEnergy; }
+    // 狀態同步優化：只有狀態真的改變時才發包，節省頻寬
+    private void updateState(boolean active, boolean energy) {
+        if (this.isActive != active || this.hasEnoughEnergy != energy) {
+            this.isActive = active;
+            this.hasEnoughEnergy = energy;
+            markDirty();
+            syncToClient();
+        }
+    }
+
+    private void syncToClient() {
+        if (world != null && !world.isRemote) {
+            IBlockState state = world.getBlockState(pos);
+            world.notifyBlockUpdate(pos, state, state, 3);
+        }
+    }
+
+    private List<TileEntityPedestal> findValidPedestals() {
+        List<TileEntityPedestal> list = new ArrayList<>();
+        for (BlockPos off : OFFS8) {
+            TileEntity te = world.getTileEntity(pos.add(off));
+            if (te instanceof TileEntityPedestal) {
+                TileEntityPedestal ped = (TileEntityPedestal) te;
+                if (!ped.isEmpty()) list.add(ped);
+            }
+        }
+        return list;
+    }
+
+    // 嚴格檢查：確保找到的基座物品真的符合當前配方 (防止中途換物品)
+    private boolean isValidRitualStructure(List<TileEntityPedestal> peds, RitualInfusionRecipe recipe) {
+        List<ItemStack> stacks = new ArrayList<>();
+        for (TileEntityPedestal p : peds) stacks.add(p.getInv().getStackInSlot(0));
+        return recipe.matchPedestalStacks(stacks);
+    }
+
+    private RitualInfusionRecipe findMatchingRecipe(List<TileEntityPedestal> peds) {
+        List<ItemStack> stacks = new ArrayList<>();
+        for (TileEntityPedestal p : peds) stacks.add(p.getInv().getStackInSlot(0));
+
+        for (RitualInfusionRecipe r : RitualInfusionAPI.RITUAL_RECIPES) {
+            if (r.getCore().apply(inv.getStackInSlot(0)) && r.matchPedestalStacks(stacks)) {
+                return r;
+            }
+        }
+        return null;
+    }
+
+    // --- 標準 Getters & Setters ---
+    public boolean isActive() { return isActive; }
     public int getProgress() { return process; }
-    public int getMaxTime() { return active != null ? active.getTime() : 100; }
+    public int getMaxTime() { return activeRecipe != null ? activeRecipe.getTime() : 100; }
     public ItemStackHandler getInv() { return inv; }
     public BlockPos[] getPedestalOffsets() { return OFFS8; }
 
+    // --- 渲染關鍵優化 ---
+
+    /**
+     * [重要] 無限渲染邊界
+     * 這是為了 Renderer 的光束效果。如果不重寫這個，
+     * 當核心方塊在畫面外（但光束還在畫面內）時，光束會消失。
+     */
+    @Override
+    public AxisAlignedBB getRenderBoundingBox() {
+        return INFINITE_EXTENT_AABB;
+    }
+
     @Override
     public double getMaxRenderDistanceSquared() {
-        return 256.0D;
+        return 65536.0D; // 讓它在很遠的地方也能被看見
     }
 
-    @Override
-    public boolean hasCapability(net.minecraftforge.common.capabilities.Capability<?> capability, @Nullable EnumFacing facing) {
-        return capability == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY || super.hasCapability(capability, facing);
-    }
-
-    @Nullable
-    @Override
-    public <T> T getCapability(net.minecraftforge.common.capabilities.Capability<T> capability, @Nullable EnumFacing facing) {
-        if (capability == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY) {
-            return CapabilityItemHandler.ITEM_HANDLER_CAPABILITY.cast(inv);
-        }
-        return super.getCapability(capability, facing);
-    }
+    // --- NBT 與 數據包 ---
 
     @Override
     public NBTTagCompound writeToNBT(NBTTagCompound compound) {
         super.writeToNBT(compound);
         compound.setTag("Inv", inv.serializeNBT());
-        compound.setInteger("Proc", process);
+        compound.setInteger("Process", process);
         compound.setBoolean("Active", isActive);
         compound.setBoolean("HasEnergy", hasEnoughEnergy);
         return compound;
@@ -270,7 +302,7 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     public void readFromNBT(NBTTagCompound compound) {
         super.readFromNBT(compound);
         inv.deserializeNBT(compound.getCompoundTag("Inv"));
-        process = compound.getInteger("Proc");
+        process = compound.getInteger("Process");
         isActive = compound.getBoolean("Active");
         hasEnoughEnergy = compound.getBoolean("HasEnergy");
     }
@@ -281,12 +313,32 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     }
 
     @Override
-    public void onDataPacket(NetworkManager net, SPacketUpdateTileEntity pkt) {
-        readFromNBT(pkt.getNbtCompound());
+    public SPacketUpdateTileEntity getUpdatePacket() {
+        return new SPacketUpdateTileEntity(pos, 1, getUpdateTag());
     }
 
     @Override
-    public SPacketUpdateTileEntity getUpdatePacket() {
-        return new SPacketUpdateTileEntity(pos, 1, getUpdateTag());
+    public void onDataPacket(NetworkManager net, SPacketUpdateTileEntity pkt) {
+        readFromNBT(pkt.getNbtCompound());
+        // 強制標記渲染更新，確保光束狀態立刻刷新
+        if (world != null && world.isRemote) {
+            world.markBlockRangeForRenderUpdate(pos, pos);
+        }
+    }
+
+    // --- Capability (自動化支持) ---
+
+    @Override
+    public boolean hasCapability(Capability<?> capability, @Nullable EnumFacing facing) {
+        return capability == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY || super.hasCapability(capability, facing);
+    }
+
+    @Nullable
+    @Override
+    public <T> T getCapability(Capability<T> capability, @Nullable EnumFacing facing) {
+        if (capability == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY) {
+            return CapabilityItemHandler.ITEM_HANDLER_CAPABILITY.cast(inv);
+        }
+        return super.getCapability(capability, facing);
     }
 }
