@@ -287,10 +287,14 @@ public class IntelEventHandler {
         }
 
         // 遍历所有掉落物，按概率复制
+        // 注意：跳过装备类物品（武器、工具、盔甲），只复制普通掉落物
         java.util.List<EntityItem> bonusDrops = new java.util.ArrayList<>();
         for (EntityItem drop : event.getDrops()) {
             ItemStack stack = drop.getItem();
             if (stack.isEmpty()) continue;
+
+            // 跳过装备类物品（防止给僵尸武器后掉落两把）
+            if (isEquipmentItem(stack)) continue;
 
             // 计算额外掉落数量
             float bonusChance = dropMultiplier - 1.0f;
@@ -325,5 +329,34 @@ public class IntelEventHandler {
 
         // 添加额外掉落物到事件
         event.getDrops().addAll(bonusDrops);
+    }
+
+    /**
+     * 检查物品是否为装备类物品
+     * 装备类物品不应该被双倍掉落复制
+     */
+    private static boolean isEquipmentItem(ItemStack stack) {
+        net.minecraft.item.Item item = stack.getItem();
+
+        // 武器类
+        if (item instanceof net.minecraft.item.ItemSword) return true;
+        if (item instanceof net.minecraft.item.ItemBow) return true;
+        if (item instanceof net.minecraft.item.ItemShield) return true;
+
+        // 工具类
+        if (item instanceof net.minecraft.item.ItemTool) return true;
+        if (item instanceof net.minecraft.item.ItemHoe) return true;
+        if (item instanceof net.minecraft.item.ItemFishingRod) return true;
+        if (item instanceof net.minecraft.item.ItemFlintAndSteel) return true;
+        if (item instanceof net.minecraft.item.ItemShears) return true;
+
+        // 盔甲类
+        if (item instanceof net.minecraft.item.ItemArmor) return true;
+        if (item instanceof net.minecraft.item.ItemElytra) return true;
+
+        // 特殊物品（可能被怪物拾取）
+        if (item instanceof net.minecraft.item.ItemSkull) return true;
+
+        return false;
     }
 }
