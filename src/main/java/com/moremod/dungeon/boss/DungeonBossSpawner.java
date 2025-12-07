@@ -17,11 +17,8 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 
 import java.util.List;
-import java.util.Random;
 
 public class DungeonBossSpawner {
-
-    private static final Random random = new Random();
 
     // Boss类型枚举
     public enum BossType {
@@ -66,10 +63,7 @@ public class DungeonBossSpawner {
 
     private static BossType selectRandomBossType(World world) {
         // 使用 world.rand 進行50/50隨機選擇
-        double roll = world.rand.nextDouble();
-        BossType selected = roll < 0.5 ? BossType.RIFTWARDEN : BossType.STONE_SENTINEL;
-        System.out.println("[DungeonBossSpawner] 随机选择Boss: " + selected.name() + " (roll=" + String.format("%.3f", roll) + ")");
-        return selected;
+        return world.rand.nextBoolean() ? BossType.RIFTWARDEN : BossType.STONE_SENTINEL;
     }
 
     private static boolean spawnBoss(World world, BlockPos altarPos, EntityPlayer activator, BossType bossType) {
@@ -78,47 +72,29 @@ public class DungeonBossSpawner {
         WorldServer ws = (WorldServer) world;
         EntityLiving boss = null;
 
-        System.out.println("[DungeonBossSpawner] 尝试生成Boss: " + bossType.name());
-
-        try {
-            switch (bossType) {
-                case RIFTWARDEN:
-                    boss = createRiftwarden(ws, altarPos, activator);
-                    break;
-                case STONE_SENTINEL:
-                    boss = createStoneSentinel(ws, altarPos, activator);
-                    break;
-            }
-        } catch (Exception e) {
-            System.err.println("[DungeonBossSpawner] 创建Boss时发生异常: " + e.getMessage());
-            e.printStackTrace();
-            return false;
+        switch (bossType) {
+            case RIFTWARDEN:
+                boss = createRiftwarden(ws, altarPos, activator);
+                break;
+            case STONE_SENTINEL:
+                boss = createStoneSentinel(ws, altarPos, activator);
+                break;
         }
 
-        if (boss == null) {
-            System.err.println("[DungeonBossSpawner] Boss创建失败，返回null: " + bossType.name());
-            return false;
-        }
-
-        System.out.println("[DungeonBossSpawner] Boss创建成功: " + boss.getClass().getSimpleName());
+        if (boss == null) return false;
 
         // 生成特效
         spawnSummonEffects(ws, altarPos, bossType);
 
         // 生成Boss
-        boolean spawned = ws.spawnEntity(boss);
-        System.out.println("[DungeonBossSpawner] ws.spawnEntity() 返回: " + spawned + " | Boss存活: " + boss.isEntityAlive());
-
-        // 不再自动生成守卫
-        // spawnGuards(ws, altarPos, bossType);
+        ws.spawnEntity(boss);
 
         // 广播Boss生成消息
         broadcastBossSpawn(ws, altarPos, activator, bossType);
 
-        // 将祭坛变为
+        // 将祭坛变为空气
         world.setBlockState(altarPos, Blocks.AIR.getDefaultState());
 
-        System.out.println("[DungeonBossSpawner] Boss生成完成: " + bossType.name() + " 位置: " + altarPos);
         return true;
     }
 
