@@ -65,18 +65,11 @@ public class DungeonBossSpawner {
     }
 
     private static BossType selectRandomBossType() {
-        // 简单的50/50概率选择
-        return random.nextBoolean() ? BossType.RIFTWARDEN : BossType.STONE_SENTINEL;
-
-        // 如果需要不同的权重，可以使用以下方式：
-        /*
-        double rand = random.nextDouble();
-        if (rand < 0.6) {
-            return BossType.RIFTWARDEN;  // 60%概率
-        } else {
-            return BossType.STONE_SENTINEL;  // 40%概率
-        }
-        */
+        // 使用 nextDouble() 替代 nextBoolean()，增加随机性
+        double roll = random.nextDouble();
+        BossType selected = roll < 0.5 ? BossType.RIFTWARDEN : BossType.STONE_SENTINEL;
+        System.out.println("[DungeonBossSpawner] 随机选择Boss: " + selected.name() + " (roll=" + String.format("%.3f", roll) + ")");
+        return selected;
     }
 
     private static boolean spawnBoss(World world, BlockPos altarPos, EntityPlayer activator, BossType bossType) {
@@ -85,22 +78,36 @@ public class DungeonBossSpawner {
         WorldServer ws = (WorldServer) world;
         EntityLiving boss = null;
 
-        switch (bossType) {
-            case RIFTWARDEN:
-                boss = createRiftwarden(ws, altarPos, activator);
-                break;
-            case STONE_SENTINEL:
-                boss = createStoneSentinel(ws, altarPos, activator);
-                break;
+        System.out.println("[DungeonBossSpawner] 尝试生成Boss: " + bossType.name());
+
+        try {
+            switch (bossType) {
+                case RIFTWARDEN:
+                    boss = createRiftwarden(ws, altarPos, activator);
+                    break;
+                case STONE_SENTINEL:
+                    boss = createStoneSentinel(ws, altarPos, activator);
+                    break;
+            }
+        } catch (Exception e) {
+            System.err.println("[DungeonBossSpawner] 创建Boss时发生异常: " + e.getMessage());
+            e.printStackTrace();
+            return false;
         }
 
-        if (boss == null) return false;
+        if (boss == null) {
+            System.err.println("[DungeonBossSpawner] Boss创建失败，返回null: " + bossType.name());
+            return false;
+        }
+
+        System.out.println("[DungeonBossSpawner] Boss创建成功: " + boss.getClass().getSimpleName());
 
         // 生成特效
         spawnSummonEffects(ws, altarPos, bossType);
 
         // 生成Boss
-        ws.spawnEntity(boss);
+        boolean spawned = ws.spawnEntity(boss);
+        System.out.println("[DungeonBossSpawner] ws.spawnEntity() 返回: " + spawned + " | Boss存活: " + boss.isEntityAlive());
 
         // 不再自动生成守卫
         // spawnGuards(ws, altarPos, bossType);
@@ -111,6 +118,7 @@ public class DungeonBossSpawner {
         // 将祭坛变为
         world.setBlockState(altarPos, Blocks.AIR.getDefaultState());
 
+        System.out.println("[DungeonBossSpawner] Boss生成完成: " + bossType.name() + " 位置: " + altarPos);
         return true;
     }
 
