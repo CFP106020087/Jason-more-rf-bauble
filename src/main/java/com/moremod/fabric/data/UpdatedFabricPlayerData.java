@@ -337,10 +337,18 @@ public class UpdatedFabricPlayerData {
      * 布料类型枚举
      */
     public enum FabricType {
+        // 高级织布
         ABYSS("abyss", "深渊布料", 0x8B0000),
         TEMPORAL("temporal", "时序布料", 0x00CED1),
         SPATIAL("spatial", "时空布料", 0x9370DB),
-        OTHERWORLD("otherworld", "异界纤维", 0x4B0082);
+        OTHERWORLD("otherworld", "异界纤维", 0x4B0082),
+
+        // 基础织布（便宜版）
+        RESILIENT("resilient", "坚韧纤维", 0x808080),      // 灰色 - 护甲+击退抗性
+        VITAL("vital", "活力丝线", 0xFF69B4),              // 粉色 - 生命+回复
+        LIGHT("light", "轻盈织物", 0x87CEEB),              // 天蓝 - 速度+减摔落
+        PREDATOR("predator", "掠食者布料", 0xB22222),      // 暗红 - 攻击+流血
+        SIPHON("siphon", "吸魂织带", 0x228B22);            // 深绿 - 击杀回复
 
         private final String id;
         private final String displayName;
@@ -355,5 +363,10 @@ public class UpdatedFabricPlayerData {
         public String getId() { return id; }
         public String getDisplayName() { return displayName; }
         public int getColor() { return color; }
+
+        // 检查是否为基础织布
+        public boolean isBasicFabric() {
+            return this == RESILIENT || this == VITAL || this == LIGHT || this == PREDATOR || this == SIPHON;
+        }
     }
 }

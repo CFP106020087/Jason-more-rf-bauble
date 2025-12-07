@@ -19,3 +19,21 @@ item.intel_statistics_book.name=Intel Statistics Book
 # Cursed Ring Synergy Accessories
 item.gluttonous_phalanx.name=Gluttonous Phalanx
 item.crystallized_resentment.name=Crystallized Resentment
+
+# Basic Fabrics
+item.moremod.resilient_fiber.name=Resilient Fiber
+item.moremod.resilient_fiber.desc=Sturdy fiber that increases armor.
+item.moremod.vital_thread.name=Vital Thread
+item.moremod.vital_thread.desc=Life-infused thread that increases max health.
+item.moremod.light_weave.name=Light Weave
+item.moremod.light_weave.desc=Feather-light weave that increases movement speed.
+item.moremod.predator_cloth.name=Predator Cloth
+item.moremod.predator_cloth.desc=Blood-stained hunter's cloth that increases attack damage.
+item.moremod.siphon_wrap.name=Siphon Wrap
+item.moremod.siphon_wrap.desc=Soul-draining wrap that restores hunger on kill.
+
+# Fabric Tools
+item.moremod.fabric_remover.name=Fabric Remover
+item.moremod.fabric_remover.desc=Removes woven fabric from armor and returns the material.
+item.moremod.fabric_remover.usage=Right-click to auto-detect and remove fabric from one armor piece.
+item.moremod.fabric_remover.uses=Uses remaining

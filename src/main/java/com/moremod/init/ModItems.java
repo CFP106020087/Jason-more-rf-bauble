@@ -38,6 +38,8 @@ import com.moremod.item.ItemIdentifyScroll;
 import com.moremod.item.upgrades.ItemNeuralSynchronizer;
 import com.moremod.item.ItemBioStabilizer;
 import com.moremod.item.ItemTowel;
+// 🧵 添加织布拆解器导入
+import com.moremod.item.ItemFabricRemover;
 
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.item.Item.ToolMaterial;
@@ -82,6 +84,16 @@ public final class ModItems {
     public static Item CHRONO_FABRIC;           // 时空布料
     public static Item ABYSSAL_FABRIC;          // 深渊布料
     public static Item VOID_SPINDLE;            // 虚空纺锤
+
+    // —— 基础织布（便宜版） ——
+    public static Item RESILIENT_FIBER;         // 坚韧纤维
+    public static Item VITAL_THREAD;            // 活力丝线
+    public static Item LIGHT_WEAVE;             // 轻盈织物
+    public static Item PREDATOR_CLOTH;          // 掠食者布料
+    public static Item SIPHON_WRAP;             // 吸魂织带
+
+    // —— 织布工具 ——
+    public static Item FABRIC_REMOVER;          // 织布拆解器
 
     // 🏪 自动交易机相关物品
     public static Item VILLAGER_CAPSULE;        // 村民胶囊
@@ -149,6 +161,17 @@ public final class ModItems {
         CHRONO_FABRIC            = reg(e, new ItemMaterial("chrono_fabric",          EnumRarity.RARE,     true,  "item.moremod.chrono_fabric.desc"));
         ABYSSAL_FABRIC           = reg(e, new ItemMaterial("abyssal_fabric",         EnumRarity.RARE,     true,  "item.moremod.abyssal_fabric.desc"));
         VOID_SPINDLE             = reg(e, new ItemMaterial("void_spindle",           EnumRarity.RARE,     true,  "item.moremod.void_spindle.desc"));
+
+        // 基础织布（便宜版）
+        RESILIENT_FIBER  = reg(e, new ItemMaterial("resilient_fiber",  EnumRarity.COMMON, false, "item.moremod.resilient_fiber.desc"));
+        VITAL_THREAD     = reg(e, new ItemMaterial("vital_thread",     EnumRarity.COMMON, false, "item.moremod.vital_thread.desc"));
+        LIGHT_WEAVE      = reg(e, new ItemMaterial("light_weave",      EnumRarity.COMMON, false, "item.moremod.light_weave.desc"));
+        PREDATOR_CLOTH   = reg(e, new ItemMaterial("predator_cloth",   EnumRarity.COMMON, false, "item.moremod.predator_cloth.desc"));
+        SIPHON_WRAP      = reg(e, new ItemMaterial("siphon_wrap",      EnumRarity.COMMON, false, "item.moremod.siphon_wrap.desc"));
+
+        // 🧵 注册织布拆解器
+        FABRIC_REMOVER = reg(e, new ItemFabricRemover());
+        System.out.println("[MoreMod] 🧵 织布拆解器已注册");
 
         // 🏪 注册村民胶囊
         VILLAGER_CAPSULE = reg(e, new ItemVillagerCapsule());
@@ -271,6 +294,17 @@ public final class ModItems {
         bindModel(CHRONO_FABRIC,           "chrono_fabric");
         bindModel(ABYSSAL_FABRIC,          "abyssal_fabric");
         bindModel(VOID_SPINDLE,            "void_spindle");
+
+        // 基础织布模型
+        bindModel(RESILIENT_FIBER,  "resilient_fiber");
+        bindModel(VITAL_THREAD,     "vital_thread");
+        bindModel(LIGHT_WEAVE,      "light_weave");
+        bindModel(PREDATOR_CLOTH,   "predator_cloth");
+        bindModel(SIPHON_WRAP,      "siphon_wrap");
+
+        // 🧵 绑定织布拆解器模型
+        bindModel(FABRIC_REMOVER, "fabric_remover");
+        System.out.println("[MoreMod] 🧵 织布拆解器模型已注册");
 
         // 🏪 绑定村民胶囊模型
         bindModel(VILLAGER_CAPSULE, "villager_capsule");
