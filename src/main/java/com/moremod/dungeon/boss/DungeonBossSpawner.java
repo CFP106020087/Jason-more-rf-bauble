@@ -65,18 +65,11 @@ public class DungeonBossSpawner {
     }
 
     private static BossType selectRandomBossType() {
-        // 临时强制生成Riftwarden进行测试
-        // TODO: 测试后恢复随机选择
-        System.out.println("[DungeonBossSpawner] 强制选择Boss: RIFTWARDEN (测试模式)");
-        return BossType.RIFTWARDEN;
-
-        /*
-        // 使用 nextDouble() 替代 nextBoolean()，增加随机性
+        // 50/50随机选择
         double roll = random.nextDouble();
         BossType selected = roll < 0.5 ? BossType.RIFTWARDEN : BossType.STONE_SENTINEL;
         System.out.println("[DungeonBossSpawner] 随机选择Boss: " + selected.name() + " (roll=" + String.format("%.3f", roll) + ")");
         return selected;
-        */
     }
 
     private static boolean spawnBoss(World world, BlockPos altarPos, EntityPlayer activator, BossType bossType) {
