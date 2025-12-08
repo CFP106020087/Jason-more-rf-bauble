@@ -483,3 +483,6 @@ tile.moremod.fishing_net.name=渔网
 tile.moremod.compost_bin.name=堆肥桶
 tile.moremod.animal_feeder.name=动物喂食器
 tile.moremod.bio_generator.name=生物质发电机
+
+# ===== 假玩家系统 (Fake Player System) =====
+tile.moremod.fake_player_activator.name=假玩家激活器

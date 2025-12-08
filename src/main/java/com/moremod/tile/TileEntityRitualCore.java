@@ -1424,7 +1424,7 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
 
     /**
      * 更新灵魂绑定仪式
-     * 三阶祭坛 + 玩家头颅 + 灵魂材料 = 假玩家核心
+     * 三阶祭坛 + 头颅(玩家/骷髅/凋零骷髅) + 灵魂材料 = 假玩家核心
      * @return true 如果正在进行灵魂绑定仪式
      */
     private boolean updateSoulBindingRitual() {
@@ -1437,9 +1437,9 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             return false;
         }
 
-        // 检查中心是否是玩家头颅(meta=3)
+        // 检查中心是否是有效头颅(meta=0骷髅, 1凋零骷髅, 3玩家)
         ItemStack coreItem = inv.getStackInSlot(0);
-        if (coreItem.isEmpty() || coreItem.getItem() != Items.SKULL || coreItem.getMetadata() != 3) {
+        if (coreItem.isEmpty() || coreItem.getItem() != Items.SKULL) {
             if (soulBindingActive) {
                 soulBindingActive = false;
                 soulBindingProgress = 0;
@@ -1447,8 +1447,18 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             return false;
         }
 
-        // 获取头颅中的玩家信息
-        GameProfile skullProfile = ItemFakePlayerCore.getProfileFromSkull(coreItem);
+        // 检查头颅类型: 0=骷髅, 1=凋零骷髅, 3=玩家
+        int skullMeta = coreItem.getMetadata();
+        if (skullMeta != 0 && skullMeta != 1 && skullMeta != 3) {
+            if (soulBindingActive) {
+                soulBindingActive = false;
+                soulBindingProgress = 0;
+            }
+            return false;
+        }
+
+        // 获取头颅中的身份信息
+        GameProfile skullProfile = getProfileFromSkullStack(coreItem);
         if (skullProfile == null) {
             return false;
         }
@@ -1560,6 +1570,50 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
 
         syncToClient();
         markDirty();
+    }
+
+    /**
+     * 从头颅物品获取GameProfile
+     * 支持: 骷髅头(meta=0), 凋零骷髅头(meta=1), 玩家头颅(meta=3)
+     */
+    @Nullable
+    private GameProfile getProfileFromSkullStack(ItemStack skull) {
+        if (skull.isEmpty() || skull.getItem() != Items.SKULL) {
+            return null;
+        }
+
+        int meta = skull.getMetadata();
+
+        // 玩家头颅 - 尝试获取玩家信息
+        if (meta == 3) {
+            GameProfile profile = ItemFakePlayerCore.getProfileFromSkull(skull);
+            if (profile != null) {
+                return profile;
+            }
+            // 如果没有玩家信息，返回默认玩家profile
+            return new GameProfile(
+                java.util.UUID.fromString("606e2ff0-ed77-4842-9d6c-e1d3321c7838"),
+                "Steve"
+            );
+        }
+
+        // 骷髅头 - 创建骷髅身份
+        if (meta == 0) {
+            return new GameProfile(
+                java.util.UUID.fromString("a1a1a1a1-b2b2-c3c3-d4d4-e5e5e5e5e5e5"),
+                "Skeleton"
+            );
+        }
+
+        // 凋零骷髅头 - 创建凋零骷髅身份
+        if (meta == 1) {
+            return new GameProfile(
+                java.util.UUID.fromString("b2b2b2b2-c3c3-d4d4-e5e5-f6f6f6f6f6f6"),
+                "Wither_Skeleton"
+            );
+        }
+
+        return null;
     }
 
     /**

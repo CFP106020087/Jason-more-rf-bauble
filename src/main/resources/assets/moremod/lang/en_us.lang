@@ -75,3 +75,6 @@ tile.moremod.fishing_net.name=Fishing Net
 tile.moremod.compost_bin.name=Compost Bin
 tile.moremod.animal_feeder.name=Animal Feeder
 tile.moremod.bio_generator.name=Bio Generator
+
+# Fake Player System
+tile.moremod.fake_player_activator.name=Fake Player Activator

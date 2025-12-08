@@ -23,6 +23,7 @@ import com.moremod.block.BlockFishingNet;         // 🎣 渔网
 import com.moremod.block.BlockCompostBin;         // 堆肥桶
 import com.moremod.block.BlockAnimalFeeder;       // 动物喂食器
 import com.moremod.block.BlockBioGenerator;       // 生物质发电机
+import com.moremod.block.BlockFakePlayerActivator; // 假玩家激活器
 
 // 🗡️ 两个版本的剑升级台方块
 import com.moremod.block.BlockSwordUpgradeStation;
@@ -47,6 +48,7 @@ import com.moremod.tile.TileEntityFishingNet;         // 🎣 渔网 TE
 import com.moremod.tile.TileEntityCompostBin;         // 堆肥桶 TE
 import com.moremod.tile.TileEntityAnimalFeeder;       // 动物喂食器 TE
 import com.moremod.tile.TileEntityBioGenerator;       // 生物质发电机 TE
+import com.moremod.tile.TileEntityFakePlayerActivator; // 假玩家激活器 TE
 
 // 🗡️ 两个版本的剑升级台 TE
 import com.moremod.tile.TileEntitySwordUpgradeStation;
@@ -115,6 +117,9 @@ public class ModBlocks {
 
     // 生物质发电机方块
     public static Block BIO_GENERATOR;
+
+    // 假玩家激活器方块
+    public static Block FAKE_PLAYER_ACTIVATOR;
 
     @SubscribeEvent
     public static void registerBlocks(RegistryEvent.Register<Block> event) {
@@ -214,6 +219,11 @@ public class ModBlocks {
         event.getRegistry().register(BIO_GENERATOR);
         System.out.println("[MoreMod] 生物質發電機方塊已註冊");
 
+        // 假玩家激活器方块
+        FAKE_PLAYER_ACTIVATOR = new BlockFakePlayerActivator();
+        event.getRegistry().register(FAKE_PLAYER_ACTIVATOR);
+        System.out.println("[MoreMod] 假玩家激活器方塊已註冊");
+
         // ---- TileEntity 注册 ----
         GameRegistry.registerTileEntity(TileEntityDimensionLoom.class,
                 new ResourceLocation(moremod.MODID, "dimension_loom"));
@@ -275,6 +285,11 @@ public class ModBlocks {
         GameRegistry.registerTileEntity(TileEntityBioGenerator.class,
                 new ResourceLocation(moremod.MODID, "bio_generator"));
         System.out.println("[MoreMod] 生物質發電機 TileEntity 已註冊");
+
+        // 假玩家激活器 TileEntity
+        GameRegistry.registerTileEntity(TileEntityFakePlayerActivator.class,
+                new ResourceLocation(moremod.MODID, "fake_player_activator"));
+        System.out.println("[MoreMod] 假玩家激活器 TileEntity 已註冊");
     }
 
     @SubscribeEvent
@@ -386,6 +401,13 @@ public class ModBlocks {
                     .setRegistryName(BIO_GENERATOR.getRegistryName()));
             System.out.println("[MoreMod] 生物質發電機 ItemBlock 已註冊");
         }
+
+        // 假玩家激活器 ItemBlock
+        if (FAKE_PLAYER_ACTIVATOR != null) {
+            event.getRegistry().register(new ItemBlock(FAKE_PLAYER_ACTIVATOR)
+                    .setRegistryName(FAKE_PLAYER_ACTIVATOR.getRegistryName()));
+            System.out.println("[MoreMod] 假玩家激活器 ItemBlock 已註冊");
+        }
     }
 
     @SideOnly(Side.CLIENT)
@@ -472,6 +494,12 @@ public class ModBlocks {
         if (BIO_GENERATOR != null) {
             registerBlockModel(BIO_GENERATOR);
             System.out.println("[MoreMod] 生物質發電機模型已註冊");
+        }
+
+        // 假玩家激活器模型
+        if (FAKE_PLAYER_ACTIVATOR != null) {
+            registerBlockModel(FAKE_PLAYER_ACTIVATOR);
+            System.out.println("[MoreMod] 假玩家激活器模型已註冊");
         }
     }
 
