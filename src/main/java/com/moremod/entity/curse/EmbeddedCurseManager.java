@@ -43,14 +43,25 @@ public class EmbeddedCurseManager {
 
     private static final String NBT_KEY = "moremod_embedded_curses";
 
-    // 所有可嵌入的诅咒饰品类型
+    /**
+     * 可嵌入的诅咒饰品类型
+     *
+     * 七咒对应关系：
+     * 1. 受伤加倍 → VOID_GAZE (虚无之眸)
+     * 2. 中立生物攻击 → GLUTTONOUS_PHALANX (饕餮指骨)
+     * 3. 护甲降低30% → THORN_SHARD (荆棘碎片)
+     * 4. 伤害降低50% → CRYSTALLIZED_RESENTMENT (怨念结晶)
+     * 5. 着火永燃 → NOOSE_OF_HANGED_KING (绞王之索)
+     * 6. 灵魂破碎 → SCRIPT_OF_FIFTH_ACT (第五幕剧本)
+     * 7. 失眠症 → 嵌入任意3个饰品解除
+     */
     public enum EmbeddedCurseType {
-        VOID_GAZE("void_gaze", "虚无之眸", "死亡保护+经验加成"),
-        THORN_SHARD("thorn_shard", "荆棘碎片", "伤害反弹+爆发"),
-        CRYSTALLIZED_RESENTMENT("crystallized_resentment", "怨念结晶", "真伤光环"),
-        GLUTTONOUS_PHALANX("gluttonous_phalanx", "饕餮指骨", "掠夺加成"),
-        NOOSE_OF_HANGED_KING("noose_of_hanged_king", "绞王之索", "窒息免疫"),
-        SCRIPT_OF_FIFTH_ACT("script_of_fifth_act", "第五幕剧本", "暴击加成");
+        VOID_GAZE("void_gaze", "虚无之眸", "抵消: 受伤加倍"),
+        GLUTTONOUS_PHALANX("gluttonous_phalanx", "饕餮指骨", "抵消: 中立生物攻击"),
+        THORN_SHARD("thorn_shard", "荆棘碎片", "抵消: 护甲降低30%"),
+        CRYSTALLIZED_RESENTMENT("crystallized_resentment", "怨念结晶", "抵消: 伤害降低50%"),
+        NOOSE_OF_HANGED_KING("noose_of_hanged_king", "绞王之索", "抵消: 着火永燃"),
+        SCRIPT_OF_FIFTH_ACT("script_of_fifth_act", "第五幕剧本", "抵消: 灵魂破碎");
 
         private final String id;
         private final String displayName;
