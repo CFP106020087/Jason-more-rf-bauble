@@ -624,7 +624,14 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         ItemStack inputStack = inv.getStackInSlot(0);
         EmbeddedRelicType type = EmbeddedCurseManager.getTypeFromItem(inputStack);
 
-        if (type == null) return;
+        if (type == null) {
+            // 类型无效，让玩家下马并提示
+            player.sendMessage(new TextComponentString(
+                TextFormatting.RED + "嵌入失败：无法识别遗物类型！"
+            ));
+            player.dismountRidingEntity();
+            return;
+        }
 
         // 嵌入遗物
         boolean success = EmbeddedCurseManager.embedRelic(player, type);
@@ -635,10 +642,11 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
 
             // 播放效果
             spawnEmbeddingCompleteEffects(player);
-
-            // 让玩家站起来
-            player.dismountRidingEntity();
         }
+        // 注意：embedRelic 方法内部已经会发送失败消息
+
+        // 不管成功或失败，都让玩家站起来
+        player.dismountRidingEntity();
     }
 
     /**
