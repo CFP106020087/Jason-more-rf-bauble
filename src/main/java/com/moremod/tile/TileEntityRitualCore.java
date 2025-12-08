@@ -171,11 +171,20 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     private void finishRitual(List<TileEntityPedestal> peds) {
         // 失敗判定 (Risk mechanics)
         if (activeRecipe.getFailChance() > 0 && world.rand.nextFloat() < activeRecipe.getFailChance()) {
+            System.out.println("[Ritual] Failed! Explosion!");
             doFailExplosion();
         } else {
             // 成功：產生產物
-            ItemStack output = activeRecipe.getOutput().copy();
-            inv.setStackInSlot(1, output); // 放入產出槽
+            ItemStack output = activeRecipe.getOutput();
+            System.out.println("[Ritual] Recipe output: " + output + " isEmpty=" + output.isEmpty());
+
+            if (output.isEmpty()) {
+                System.err.println("[Ritual] ERROR: Output is empty! Recipe class: " + activeRecipe.getClass().getSimpleName());
+            } else {
+                ItemStack outputCopy = output.copy();
+                System.out.println("[Ritual] Setting output slot to: " + outputCopy.getDisplayName());
+                inv.setStackInSlot(1, outputCopy); // 放入產出槽
+            }
         }
 
         // 無論成功失敗，消耗原材料
@@ -184,6 +193,7 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         // 視覺通知
         IBlockState state = world.getBlockState(pos);
         world.notifyBlockUpdate(pos, state, state, 3);
+        markDirty();
     }
 
     private void consumeIngredients(List<TileEntityPedestal> peds) {

@@ -75,8 +75,8 @@ public class UniversalFabricRituals {
     public static class UniversalFabricRecipe extends RitualInfusionRecipe {
 
         private final String fabricId;
-        private final Item fabricItem;
-        private final Item spindleItem;
+        private Item fabricItem;  // 延迟查找
+        private Item spindleItem; // 延迟查找
         private ItemStack currentCoreItem = ItemStack.EMPTY;
         private List<ItemStack> currentPedestalItems = new ArrayList<>();
 
@@ -91,15 +91,26 @@ public class UniversalFabricRituals {
             );
 
             this.fabricId = fabricId;
-            this.fabricItem = Item.getByNameOrId(fabricId);
-            this.spindleItem = Item.getByNameOrId("moremod:void_spindle");
+            // 延迟查找物品，避免注册时序问题
+        }
 
-            if (this.fabricItem == null) {
-                System.err.println("[Fabric Ritual] ERROR: Fabric item not found: " + fabricId);
+        // 延迟获取布料物品
+        private Item getFabricItem() {
+            if (fabricItem == null) {
+                fabricItem = Item.getByNameOrId(fabricId);
+                if (fabricItem == null) {
+                    System.err.println("[Fabric Ritual] ERROR: Fabric item not found: " + fabricId);
+                }
             }
-            if (this.spindleItem == null) {
-                System.err.println("[Fabric Ritual] ERROR: Spindle item not found: moremod:void_spindle");
+            return fabricItem;
+        }
+
+        // 延迟获取纺锤物品
+        private Item getSpindleItem() {
+            if (spindleItem == null) {
+                spindleItem = Item.getByNameOrId("moremod:void_spindle");
             }
+            return spindleItem;
         }
 
         private static List<Ingredient> createPedestalIngredients(String fabricId) {
@@ -168,17 +179,18 @@ public class UniversalFabricRituals {
                 return;
             }
 
-            // 找到布料物品
+            // 找到布料物品 - 使用延迟获取
+            Item fabric = getFabricItem();
             ItemStack fabricStack = ItemStack.EMPTY;
             for (ItemStack stack : currentPedestalItems) {
-                if (stack.getItem() == fabricItem) {
+                if (fabric != null && stack.getItem() == fabric) {
                     fabricStack = stack;
                     break;
                 }
             }
 
             if (fabricStack.isEmpty()) {
-                System.err.println("[Fabric] Fabric not found in pedestal items!");
+                System.err.println("[Fabric] Fabric not found in pedestal items! fabricItem=" + fabric);
                 return;
             }
 
@@ -207,12 +219,18 @@ public class UniversalFabricRituals {
         public ItemStack getOutput() {
             // 如果有动态生成的输出，返回它
             if (this.output != null && !this.output.isEmpty() && FabricWeavingSystem.hasFabric(this.output)) {
+                System.out.println("[Fabric] Returning dynamic output: " + this.output.getDisplayName());
                 return this.output.copy();
             }
 
             // 否则返回示例输出（用于JEI显示）
+            System.out.println("[Fabric] WARNING: Returning fallback example output! output=" + this.output);
+            Item fabric = getFabricItem();
+            if (fabric == null) {
+                return new ItemStack(Items.DIAMOND_CHESTPLATE);
+            }
             ItemStack example = new ItemStack(Items.DIAMOND_CHESTPLATE);
-            ItemStack fabricStack = new ItemStack(fabricItem);
+            ItemStack fabricStack = new ItemStack(fabric);
             FabricWeavingSystem.weaveIntoArmor(example, fabricStack);
             return example;
         }
@@ -270,7 +288,7 @@ public class UniversalFabricRituals {
     public static class BasicFabricRecipe extends RitualInfusionRecipe {
 
         private final String fabricId;
-        private final Item fabricItem;
+        private Item fabricItem;  // 延迟查找
         private ItemStack currentCoreItem = ItemStack.EMPTY;
         private List<ItemStack> currentPedestalItems = new ArrayList<>();
 
@@ -285,11 +303,18 @@ public class UniversalFabricRituals {
             );
 
             this.fabricId = fabricId;
-            this.fabricItem = Item.getByNameOrId(fabricId);
+            // 延迟查找物品，避免注册时序问题
+        }
 
-            if (this.fabricItem == null) {
-                System.err.println("[Basic Fabric Ritual] ERROR: Fabric item not found: " + fabricId);
+        // 延迟获取布料物品
+        private Item getFabricItem() {
+            if (fabricItem == null) {
+                fabricItem = Item.getByNameOrId(fabricId);
+                if (fabricItem == null) {
+                    System.err.println("[Basic Fabric Ritual] ERROR: Fabric item not found: " + fabricId);
+                }
             }
+            return fabricItem;
         }
 
         private static List<Ingredient> createBasicPedestalIngredients(String fabricId) {
@@ -335,33 +360,41 @@ public class UniversalFabricRituals {
 
         private void generateDynamicOutput() {
             if (currentCoreItem.isEmpty() || !(currentCoreItem.getItem() instanceof ItemArmor)) {
+                System.err.println("[Basic Fabric] Core item is empty or not armor!");
                 return;
             }
 
             if (FabricWeavingSystem.hasFabric(currentCoreItem)) {
+                System.err.println("[Basic Fabric] Core item already has fabric!");
                 return;
             }
 
+            // 使用延迟获取
+            Item fabric = getFabricItem();
             ItemStack fabricStack = ItemStack.EMPTY;
             for (ItemStack stack : currentPedestalItems) {
-                if (stack.getItem() == fabricItem) {
+                if (fabric != null && stack.getItem() == fabric) {
                     fabricStack = stack;
                     break;
                 }
             }
 
             if (fabricStack.isEmpty()) {
+                System.err.println("[Basic Fabric] Fabric not found in pedestal items! fabricItem=" + fabric);
                 return;
             }
 
             ItemStack result = currentCoreItem.copy();
             result.setCount(1);
 
+            System.out.println("[Basic Fabric] Attempting to weave into: " + result.getDisplayName());
             boolean success = FabricWeavingSystem.weaveIntoArmor(result, fabricStack);
 
             if (success) {
+                System.out.println("[Basic Fabric] Successfully woven!");
                 this.output = result;
             } else {
+                System.err.println("[Basic Fabric] Weaving failed!");
                 this.output = ItemStack.EMPTY;
             }
         }
@@ -369,12 +402,18 @@ public class UniversalFabricRituals {
         @Override
         public ItemStack getOutput() {
             if (this.output != null && !this.output.isEmpty() && FabricWeavingSystem.hasFabric(this.output)) {
+                System.out.println("[Basic Fabric] Returning dynamic output: " + this.output.getDisplayName());
                 return this.output.copy();
             }
 
             // JEI显示用
+            System.out.println("[Basic Fabric] WARNING: Returning fallback example output! output=" + this.output);
+            Item fabric = getFabricItem();
+            if (fabric == null) {
+                return new ItemStack(Items.DIAMOND_CHESTPLATE);
+            }
             ItemStack example = new ItemStack(Items.DIAMOND_CHESTPLATE);
-            ItemStack fabricStack = new ItemStack(fabricItem);
+            ItemStack fabricStack = new ItemStack(fabric);
             FabricWeavingSystem.weaveIntoArmor(example, fabricStack);
             return example;
         }
