@@ -1,0 +1,21 @@
+{
+  "parent": "block/block",
+  "textures": {
+    "particle": "moremod:blocks/fishing_net",
+    "net": "moremod:blocks/fishing_net"
+  },
+  "elements": [
+    {
+      "from": [0, 0, 0],
+      "to": [16, 1, 16],
+      "faces": {
+        "down":  { "texture": "#net", "cullface": "down" },
+        "up":    { "texture": "#net", "cullface": "up" },
+        "north": { "texture": "#net", "cullface": "north" },
+        "south": { "texture": "#net", "cullface": "south" },
+        "west":  { "texture": "#net", "cullface": "west" },
+        "east":  { "texture": "#net", "cullface": "east" }
+      }
+    }
+  ]
+}

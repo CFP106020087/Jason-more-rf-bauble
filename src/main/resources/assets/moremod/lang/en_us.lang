@@ -67,3 +67,6 @@ tile.moremod.enchanting_booster.arcane_stone.name=Arcane Stone
 tile.moremod.enchanting_booster.enchanted_bookshelf.name=Enchanted Bookshelf
 tile.moremod.enchanting_booster.knowledge_crystal.name=Knowledge Crystal
 tile.moremod.enchanting_booster.soul_library.name=Soul Library
+
+# Fishing Net
+tile.moremod.fishing_net.name=Fishing Net

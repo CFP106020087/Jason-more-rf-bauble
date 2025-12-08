@@ -475,3 +475,6 @@ tile.moremod.enchanting_booster.arcane_stone.name=奥术石
 tile.moremod.enchanting_booster.enchanted_bookshelf.name=附魔书架
 tile.moremod.enchanting_booster.knowledge_crystal.name=知识水晶
 tile.moremod.enchanting_booster.soul_library.name=灵魂图书馆
+
+# ===== 渔网 (Fishing Net) =====
+tile.moremod.fishing_net.name=渔网

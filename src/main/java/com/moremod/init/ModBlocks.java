@@ -19,6 +19,7 @@ import com.moremod.block.BlockPurificationAltar;  // 🔮 添加提纯祭坛导�
 import com.moremod.block.BlockTransferStation;    // 🎨 添加转移台导入
 import com.moremod.block.BlockEnchantingBooster;  // ✨ 附魔增强方块
 import com.moremod.block.ItemBlockEnchantingBooster;
+import com.moremod.block.BlockFishingNet;         // 🎣 渔网
 
 // 🗡️ 两个版本的剑升级台方块
 import com.moremod.block.BlockSwordUpgradeStation;
@@ -39,6 +40,7 @@ import com.moremod.tile.TileEntitySimpleWisdomShrine;
 import com.moremod.tile.TileEntityExtractionStation;  // ⭐ 添加提取台 TE 导入
 import com.moremod.tile.TileEntityPurificationAltar;  // 🔮 添加提纯祭坛 TE 导入
 import com.moremod.tile.TileEntityTransferStation;    // 🎨 添加转移台 TE 导入
+import com.moremod.tile.TileEntityFishingNet;         // 🎣 渔网 TE
 
 // 🗡️ 两个版本的剑升级台 TE
 import com.moremod.tile.TileEntitySwordUpgradeStation;
@@ -95,6 +97,9 @@ public class ModBlocks {
 
     // ✨ 附魔增强方块
     public static BlockEnchantingBooster ENCHANTING_BOOSTER;
+
+    // 🎣 渔网方块
+    public static Block FISHING_NET;
 
     @SubscribeEvent
     public static void registerBlocks(RegistryEvent.Register<Block> event) {
@@ -174,6 +179,11 @@ public class ModBlocks {
         event.getRegistry().register(ENCHANTING_BOOSTER);
         System.out.println("[MoreMod] ✨ 附魔增強方塊已註冊 (4種類型)");
 
+        // 🎣 注册渔网方块
+        FISHING_NET = new BlockFishingNet();
+        event.getRegistry().register(FISHING_NET);
+        System.out.println("[MoreMod] 🎣 漁網方塊已註冊");
+
         // ---- TileEntity 注册 ----
         GameRegistry.registerTileEntity(TileEntityDimensionLoom.class,
                 new ResourceLocation(moremod.MODID, "dimension_loom"));
@@ -215,6 +225,11 @@ public class ModBlocks {
         GameRegistry.registerTileEntity(TileEntitySwordUpgradeStationMaterial.class,
                 new ResourceLocation(moremod.MODID, "sword_upgrade_station_material"));
         System.out.println("[MoreMod] 劍升級台 TileEntity（legacy+material）已註冊");
+
+        // 🎣 渔网 TileEntity
+        GameRegistry.registerTileEntity(TileEntityFishingNet.class,
+                new ResourceLocation(moremod.MODID, "fishing_net"));
+        System.out.println("[MoreMod] 🎣 漁網 TileEntity 已註冊");
     }
 
     @SubscribeEvent
@@ -298,6 +313,13 @@ public class ModBlocks {
                     .setRegistryName(ENCHANTING_BOOSTER.getRegistryName()));
             System.out.println("[MoreMod] ✨ 附魔增強方塊 ItemBlock 已註冊");
         }
+
+        // 🎣 渔网 ItemBlock
+        if (FISHING_NET != null) {
+            event.getRegistry().register(new ItemBlock(FISHING_NET)
+                    .setRegistryName(FISHING_NET.getRegistryName()));
+            System.out.println("[MoreMod] 🎣 漁網 ItemBlock 已註冊");
+        }
     }
 
     @SideOnly(Side.CLIENT)
@@ -360,6 +382,12 @@ public class ModBlocks {
                 );
             }
             System.out.println("[MoreMod] ✨ 附魔增強方塊模型已註冊 (4種)");
+        }
+
+        // 🎣 渔网模型
+        if (FISHING_NET != null) {
+            registerBlockModel(FISHING_NET);
+            System.out.println("[MoreMod] 🎣 漁網模型已註冊");
         }
     }
 
