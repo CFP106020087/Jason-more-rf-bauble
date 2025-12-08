@@ -472,11 +472,11 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             embeddingFailFeedbackCooldown--;
         }
 
-        // 找到坐在祭坛上的玩家
-        EntityPlayer seatedPlayer = findSeatedPlayer();
+        // 找到站在祭坛中心的七咒玩家
+        EntityPlayer standingPlayer = findStandingCursedPlayer();
 
-        if (seatedPlayer == null) {
-            // 没有玩家坐着，重置所有嵌入相关状态
+        if (standingPlayer == null) {
+            // 没有七咒玩家站在祭坛上，重置所有嵌入相关状态
             if (embeddingRitualActive) {
                 embeddingRitualActive = false;
                 embeddingProgress = 0;
@@ -486,7 +486,7 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         }
 
         // 检查是否满足嵌入条件，获取失败原因
-        String failReason = checkEmbeddingConditions(seatedPlayer);
+        String failReason = checkEmbeddingConditions(standingPlayer);
 
         if (failReason != null) {
             // 条件不满足
@@ -500,22 +500,10 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
 
             // 每秒发送一次反馈消息（不要太频繁）
             if (embeddingFailFeedbackCooldown <= 0) {
-                seatedPlayer.sendStatusMessage(new TextComponentString(
+                standingPlayer.sendStatusMessage(new TextComponentString(
                     TextFormatting.RED + failReason
                 ), true);
                 embeddingFailFeedbackCooldown = 20; // 1秒冷却
-            }
-
-            // 如果持续失败超过5秒，自动让玩家下马
-            if (embeddingFailCounter >= EMBEDDING_FAIL_DISMOUNT_TIME) {
-                seatedPlayer.sendMessage(new TextComponentString(
-                    TextFormatting.RED + "嵌入条件无法满足，仪式已取消。"
-                ));
-                seatedPlayer.sendMessage(new TextComponentString(
-                    TextFormatting.GRAY + "原因: " + failReason
-                ));
-                seatedPlayer.dismountRidingEntity();
-                embeddingFailCounter = 0;
             }
 
             return;
@@ -528,7 +516,7 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         if (!embeddingRitualActive) {
             embeddingRitualActive = true;
             embeddingProgress = 0;
-            notifyEmbeddingStart(seatedPlayer);
+            notifyEmbeddingStart(standingPlayer);
         }
 
         embeddingProgress++;
@@ -537,7 +525,7 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         if (embeddingProgress % 20 == 0) {
             // 每秒显示进度
             int seconds = (EMBEDDING_TIME - embeddingProgress) / 20;
-            seatedPlayer.sendStatusMessage(new TextComponentString(
+            standingPlayer.sendStatusMessage(new TextComponentString(
                 TextFormatting.DARK_PURPLE + "嵌入仪式进行中... " +
                 TextFormatting.GOLD + seconds + "秒"
             ), true);
@@ -548,24 +536,29 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
 
         // 完成嵌入
         if (embeddingProgress >= EMBEDDING_TIME) {
-            performEmbedding(seatedPlayer);
+            performEmbedding(standingPlayer);
             embeddingRitualActive = false;
             embeddingProgress = 0;
         }
     }
 
     /**
-     * 找到坐在祭坛上的玩家
+     * 找到站在祭坛中心的七咒玩家
      */
-    private EntityPlayer findSeatedPlayer() {
-        // 查找祭坛核心位置附近的座椅实体
-        AxisAlignedBB area = new AxisAlignedBB(pos).grow(1);
-        List<EntityRitualSeat> seats = world.getEntitiesWithinAABB(EntityRitualSeat.class, area);
+    @Nullable
+    private EntityPlayer findStandingCursedPlayer() {
+        // 检测站在祭坛核心上方的玩家（Y+1 位置）
+        AxisAlignedBB area = new AxisAlignedBB(
+            pos.getX(), pos.getY() + 0.5, pos.getZ(),
+            pos.getX() + 1, pos.getY() + 2.5, pos.getZ() + 1
+        );
 
-        for (EntityRitualSeat seat : seats) {
-            if (pos.equals(seat.getCorePos())) {
-                EntityPlayer player = seat.getSeatedPlayer();
-                if (player != null) return player;
+        List<EntityPlayer> players = world.getEntitiesWithinAABB(EntityPlayer.class, area);
+
+        for (EntityPlayer player : players) {
+            // 必须有七咒之戒
+            if (CurseDeathHook.hasCursedRing(player)) {
+                return player;
             }
         }
         return null;
@@ -625,11 +618,10 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         EmbeddedRelicType type = EmbeddedCurseManager.getTypeFromItem(inputStack);
 
         if (type == null) {
-            // 类型无效，让玩家下马并提示
+            // 类型无效
             player.sendMessage(new TextComponentString(
                 TextFormatting.RED + "嵌入失败：无法识别遗物类型！"
             ));
-            player.dismountRidingEntity();
             return;
         }
 
@@ -642,11 +634,12 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
 
             // 播放效果
             spawnEmbeddingCompleteEffects(player);
+
+            player.sendMessage(new TextComponentString(
+                TextFormatting.GOLD + "✦ " + type.getDisplayName() + " 已成功嵌入你的灵魂！"
+            ));
         }
         // 注意：embedRelic 方法内部已经会发送失败消息
-
-        // 不管成功或失败，都让玩家站起来
-        player.dismountRidingEntity();
     }
 
     /**

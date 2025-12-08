@@ -17,27 +17,33 @@ public class ContainerFakePlayerActivator extends Container {
 
     private final TileEntityFakePlayerActivator tile;
     private final int PLAYER_INV_START;
+    private final int machineSlotCount;
 
     public ContainerFakePlayerActivator(InventoryPlayer playerInv, TileEntityFakePlayerActivator tile) {
         this.tile = tile;
         IItemHandler inv = tile.getInventory();
+        int invSize = inv.getSlots();
 
-        // 假玩家核心槽 (中间上方)
-        this.addSlotToContainer(new SlotItemHandler(inv, 0, 80, 8) {
-            @Override
-            public boolean isItemValid(ItemStack stack) {
-                return stack.getItem() instanceof ItemFakePlayerCore;
-            }
-        });
-
-        // 工具/物品槽 3x3 (左侧)
-        for (int row = 0; row < 3; row++) {
-            for (int col = 0; col < 3; col++) {
-                int slotIndex = 1 + row * 3 + col;
-                this.addSlotToContainer(new SlotItemHandler(inv, slotIndex, 8 + col * 18, 30 + row * 18));
-            }
+        // 假玩家核心槽 (中间上方) - 只在有槽位时添加
+        if (invSize > 0) {
+            this.addSlotToContainer(new SlotItemHandler(inv, 0, 80, 8) {
+                @Override
+                public boolean isItemValid(ItemStack stack) {
+                    return stack.getItem() instanceof ItemFakePlayerCore;
+                }
+            });
         }
 
+        // 工具/物品槽 3x3 (左侧) - 安全检查槽位数量
+        int toolSlots = Math.min(9, invSize - 1);
+        for (int i = 0; i < toolSlots; i++) {
+            int row = i / 3;
+            int col = i % 3;
+            int slotIndex = 1 + i;
+            this.addSlotToContainer(new SlotItemHandler(inv, slotIndex, 8 + col * 18, 30 + row * 18));
+        }
+
+        machineSlotCount = Math.min(10, invSize);
         PLAYER_INV_START = this.inventorySlots.size();
 
         // 玩家背包
@@ -83,8 +89,10 @@ public class ContainerFakePlayerActivator extends Container {
                 }
                 // 其他物品 -> 工具槽
                 else {
-                    if (!this.mergeItemStack(stackInSlot, 1, 10, false)) {
-                        return ItemStack.EMPTY;
+                    if (machineSlotCount > 1) {
+                        if (!this.mergeItemStack(stackInSlot, 1, machineSlotCount, false)) {
+                            return ItemStack.EMPTY;
+                        }
                     }
                 }
             }
