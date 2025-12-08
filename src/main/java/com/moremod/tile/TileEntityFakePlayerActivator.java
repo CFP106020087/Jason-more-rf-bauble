@@ -269,6 +269,9 @@ public class TileEntityFakePlayerActivator extends TileEntity implements ITickab
         EntityLivingBase target = entities.get(0);
         fakePlayer.attackTargetEntityWithCurrentItem(target);
 
+        // 攻击后立即清除周围生物对假玩家的仇恨
+        com.moremod.fakeplayer.FakePlayerAggroHandler.clearAggroInArea(fakePlayer, 10.0);
+
         return true;
     }
 
