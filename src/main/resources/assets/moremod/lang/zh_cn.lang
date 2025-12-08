@@ -418,17 +418,27 @@ item.intel_statistics_book.name=情报整合统计书
 # 七咒之戒联动饰品 (Cursed Ring Synergy Accessories)
 item.gluttonous_phalanx.name=饕餮指骨
 item.crystallized_resentment.name=怨念结晶
+
 # 基础织布
-item.moremod.resilient_fiber.name=坚韧纤维
-item.moremod.resilient_fiber.desc=坚固耐用的纤维，增加护甲值。
-item.moremod.vital_thread.name=活力丝线
-item.moremod.vital_thread.desc=蕴含生命力的丝线，增加最大生命值。
+item.moremod.resilient_fiber.name=弹性纤维
+item.moremod.resilient_fiber.desc=以皮革与铁铸就的坚韧织物
+item.moremod.resilient_fiber.effect=§7织入效果：§b减少受到的伤害15%
+
+item.moremod.vital_thread.name=生机丝线
+item.moremod.vital_thread.desc=蕴含自然生命力的翠绿丝线
+item.moremod.vital_thread.effect=§7织入效果：§a每秒恢复0.5点生命值
+
 item.moremod.light_weave.name=轻盈织物
-item.moremod.light_weave.desc=轻如羽毛的织物，增加移动速度。
+item.moremod.light_weave.desc=如羽毛般轻盈的神奇织物
+item.moremod.light_weave.effect=§7织入效果：§f+10%移动速度，跳跃高度提升
+
 item.moremod.predator_cloth.name=掠食者布料
-item.moremod.predator_cloth.desc=染血的猎者布料，增加攻击伤害。
-item.moremod.siphon_wrap.name=吸魂织带
-item.moremod.siphon_wrap.desc=汲取灵魂的织带，击杀回复饥饿值。
+item.moremod.predator_cloth.desc=燃烧着战意的血红织物
+item.moremod.predator_cloth.effect=§7织入效果：§c+15%近战伤害
+
+item.moremod.siphon_wrap.name=虹吸包裹
+item.moremod.siphon_wrap.desc=汲取生命精华的暗紫织物
+item.moremod.siphon_wrap.effect=§7织入效果：§5攻击时吸取5%伤害为生命
 
 # 织布工具
 item.moremod.fabric_remover.name=织布拆解器
