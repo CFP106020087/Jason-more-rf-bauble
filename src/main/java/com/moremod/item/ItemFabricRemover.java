@@ -1,9 +1,6 @@
 package com.moremod.item;
 
 import com.moremod.creativetab.MoremodMaterialsTab;
-import com.moremod.fabric.data.UpdatedFabricPlayerData;
-import com.moremod.fabric.system.FabricWeavingSystem;
-import com.moremod.init.ModItems;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.EnumRarity;
@@ -25,9 +22,7 @@ import java.util.List;
 
 /**
  * 织布拆解器 - 从盔甲上移除织入的布料并返还材料
- * 使用方式：潜行+右键移除头盔织布，右键移除胸甲织布
- *          潜行+主手换到副手后右键移除护腿/靴子
- * 简化版：右键循环检测并移除第一个有织布的盔甲
+ * 使用方式：丢在地上与织有布料的盔甲接触即可自动拆除
  */
 @SuppressWarnings("deprecation")
 public class ItemFabricRemover extends Item {
@@ -48,79 +43,12 @@ public class ItemFabricRemover extends Item {
             return new ActionResult<>(EnumActionResult.PASS, heldStack);
         }
 
-        // 检查玩家穿戴的所有盔甲
-        boolean removed = false;
-        for (ItemStack armor : player.getArmorInventoryList()) {
-            if (FabricWeavingSystem.hasFabric(armor)) {
-                // 获取织布类型
-                UpdatedFabricPlayerData.FabricType fabricType = FabricWeavingSystem.getFabricType(armor);
-                if (fabricType == null) continue;
+        // 提示玩家使用丢出机制
+        player.sendMessage(new TextComponentString(
+                TextFormatting.YELLOW + "将拆解器丢在地上，与织有布料的盔甲接触即可拆除！"));
 
-                // 移除织布
-                if (FabricWeavingSystem.removeFabric(armor)) {
-                    // 返还织布材料
-                    ItemStack fabricItem = getFabricItem(fabricType);
-                    if (!fabricItem.isEmpty()) {
-                        if (!player.inventory.addItemStackToInventory(fabricItem)) {
-                            // 背包满了，掉落到地上
-                            player.dropItem(fabricItem, false);
-                        }
-                    }
-
-                    // 扣除耐久
-                    heldStack.damageItem(1, player);
-
-                    // 发送消息
-                    String fabricName = fabricType.getDisplayName();
-                    player.sendMessage(new TextComponentString(
-                            TextFormatting.GREEN + "成功拆解 " + TextFormatting.GOLD + fabricName +
-                                    TextFormatting.GREEN + "，已返还材料！"));
-
-                    removed = true;
-                    break; // 每次只移除一件
-                }
-            }
-        }
-
-        if (!removed) {
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.YELLOW + "未找到织有布料的盔甲！"));
-        }
-
-        // 始终返回 SUCCESS 以阻止后续动作（如装备盔甲）
+        // 始终返回 SUCCESS 以阻止装备盔甲
         return new ActionResult<>(EnumActionResult.SUCCESS, heldStack);
-    }
-
-    /**
-     * 根据织布类型获取对应的物品
-     */
-    private ItemStack getFabricItem(UpdatedFabricPlayerData.FabricType type) {
-        switch (type) {
-            // 高级织布
-            case ABYSS:
-                return new ItemStack(ModItems.ABYSSAL_FABRIC);
-            case TEMPORAL:
-                return new ItemStack(ModItems.CHRONO_FABRIC);
-            case SPATIAL:
-                return new ItemStack(ModItems.SPACETIME_FABRIC);
-            case OTHERWORLD:
-                return new ItemStack(ModItems.OTHERWORLDLY_FIBER);
-
-            // 基础织布
-            case RESILIENT:
-                return new ItemStack(ModItems.RESILIENT_FIBER);
-            case VITAL:
-                return new ItemStack(ModItems.VITAL_THREAD);
-            case LIGHT:
-                return new ItemStack(ModItems.LIGHT_WEAVE);
-            case PREDATOR:
-                return new ItemStack(ModItems.PREDATOR_CLOTH);
-            case SIPHON:
-                return new ItemStack(ModItems.SIPHON_WRAP);
-
-            default:
-                return ItemStack.EMPTY;
-        }
     }
 
     @Override

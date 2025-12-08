@@ -117,12 +117,17 @@ public class EntityThrownCapsule extends EntityThrowable {
         int radius = (size - 1) / 2;
 
         StructureData data = new StructureData();
-        List<BlockPos> captured = data.captureFromWorld(world, center, radius, 
+        List<BlockPos> captured = data.captureFromWorld(world, center, radius,
             CapsuleConfig.getExcludedBlocks());
 
+        // 收集区域内的掉落物品
+        ItemStructureCapsule capsuleItem = (ItemStructureCapsule) capsuleStack.getItem();
+        int invSize = capsuleItem.getInventorySize();
+        collectItemsInArea(center, radius, invSize);
+
         if (captured.isEmpty()) {
-            // 没有捕获到任何方块
-            return false;
+            // 没有捕获到任何方块（但可能收集了物品）
+            return ItemStructureCapsule.getStoredItemCount(capsuleStack) > 0;
         }
 
         // 从世界中移除捕获的方块
@@ -135,11 +140,35 @@ public class EntityThrownCapsule extends EntityThrowable {
     }
 
     /**
+     * 收集区域内的掉落物品
+     */
+    private void collectItemsInArea(BlockPos center, int radius, int maxSlots) {
+        net.minecraft.util.math.AxisAlignedBB area = new net.minecraft.util.math.AxisAlignedBB(
+            center.getX() - radius, center.getY(), center.getZ() - radius,
+            center.getX() + radius + 1, center.getY() + radius * 2 + 1, center.getZ() + radius + 1
+        );
+
+        List<EntityItem> items = world.getEntitiesWithinAABB(EntityItem.class, area);
+        for (EntityItem entityItem : items) {
+            ItemStack itemStack = entityItem.getItem();
+            ItemStack remaining = ItemStructureCapsule.addItemToStorage(capsuleStack, itemStack, maxSlots);
+            if (remaining.isEmpty()) {
+                entityItem.setDead();
+            } else {
+                entityItem.setItem(remaining);
+            }
+        }
+    }
+
+    /**
      * 释放结构
      */
     private boolean deployStructure(BlockPos deployPos, int size) {
         StructureData data = ItemStructureCapsule.loadStructure(capsuleStack);
-        if (data == null || data.isEmpty()) {
+        boolean hasStructure = (data != null && !data.isEmpty());
+        boolean hasItems = ItemStructureCapsule.getStoredItemCount(capsuleStack) > 0;
+
+        if (!hasStructure && !hasItems) {
             return false;
         }
 
@@ -147,14 +176,39 @@ public class EntityThrownCapsule extends EntityThrowable {
         // 调整部署位置为结构的最小角
         BlockPos minCorner = deployPos.add(-radius, 0, -radius);
 
-        boolean success = data.deployToWorld(world, minCorner, CapsuleConfig.getOverridableBlocks());
-
-        if (success) {
-            // 清空胶囊
-            ItemStructureCapsule.clearStructure(capsuleStack);
+        boolean structureSuccess = true;
+        if (hasStructure) {
+            // 使用跳过不可破坏方块的部署方法
+            structureSuccess = data.deployToWorldSkipUnbreakable(world, minCorner, CapsuleConfig.getOverridableBlocks());
         }
 
-        return success;
+        // 释放存储的物品
+        if (hasItems) {
+            dropStoredItems(deployPos);
+        }
+
+        if (structureSuccess || hasItems) {
+            // 清空胶囊
+            ItemStructureCapsule.clearStructure(capsuleStack);
+            ItemStructureCapsule.clearStoredItems(capsuleStack);
+        }
+
+        return structureSuccess || hasItems;
+    }
+
+    /**
+     * 释放存储的物品
+     */
+    private void dropStoredItems(BlockPos pos) {
+        java.util.List<ItemStack> items = ItemStructureCapsule.getStoredItems(capsuleStack);
+        for (ItemStack item : items) {
+            EntityItem entityItem = new EntityItem(world, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, item);
+            entityItem.setPickupDelay(10);
+            entityItem.motionX = (rand.nextDouble() - 0.5) * 0.3;
+            entityItem.motionY = 0.2;
+            entityItem.motionZ = (rand.nextDouble() - 0.5) * 0.3;
+            world.spawnEntity(entityItem);
+        }
     }
 
     /**

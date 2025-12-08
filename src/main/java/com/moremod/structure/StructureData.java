@@ -189,6 +189,77 @@ public class StructureData {
         return true;
     }
 
+    /**
+     * 将结构部署到世界（跳过不可破坏方块而非失败）
+     * @param world 世界
+     * @param deployPos 部署位置（结构的最小角）
+     * @param overridableBlocks 可被覆盖的方块列表
+     * @return 是否成功部署（至少部署了一个方块）
+     */
+    public boolean deployToWorldSkipUnbreakable(World world, BlockPos deployPos, List<Block> overridableBlocks) {
+        if (blocks.isEmpty()) {
+            return false;
+        }
+
+        int deployedCount = 0;
+
+        // 直接部署，跳过不可破坏的位置
+        for (BlockInfo info : blocks) {
+            BlockPos worldPos = deployPos.add(info.relativePos);
+            IBlockState existing = world.getBlockState(worldPos);
+
+            // 跳过不可破坏的方块（硬度 < 0）
+            if (existing.getBlock() != Blocks.AIR && existing.getBlockHardness(world, worldPos) < 0) {
+                continue; // 跳过此位置，而非失败
+            }
+
+            // 检查是否可覆盖
+            if (existing.getBlock() != Blocks.AIR) {
+                if (overridableBlocks == null || !overridableBlocks.contains(existing.getBlock())) {
+                    // 非可覆盖方块，跳过（但不阻止其他方块部署）
+                    if (existing.getBlockHardness(world, worldPos) >= 0) {
+                        // 可破坏但不在可覆盖列表中，仍然跳过
+                        continue;
+                    }
+                }
+            }
+
+            // 先清除旧的 TileEntity
+            TileEntity oldTE = world.getTileEntity(worldPos);
+            if (oldTE != null) {
+                world.removeTileEntity(worldPos);
+            }
+
+            // 设置方块
+            world.setBlockState(worldPos, info.state, 2);
+            deployedCount++;
+
+            // 恢复 TileEntity
+            if (info.tileNBT != null) {
+                TileEntity newTE = world.getTileEntity(worldPos);
+                if (newTE != null) {
+                    NBTTagCompound nbt = info.tileNBT.copy();
+                    nbt.setInteger("x", worldPos.getX());
+                    nbt.setInteger("y", worldPos.getY());
+                    nbt.setInteger("z", worldPos.getZ());
+                    newTE.readFromNBT(nbt);
+                    newTE.markDirty();
+                }
+            }
+        }
+
+        // 通知更新（只更新成功部署的方块）
+        for (BlockInfo info : blocks) {
+            BlockPos worldPos = deployPos.add(info.relativePos);
+            IBlockState current = world.getBlockState(worldPos);
+            if (current.getBlock() == info.state.getBlock()) {
+                world.notifyNeighborsOfStateChange(worldPos, info.state.getBlock(), false);
+            }
+        }
+
+        return deployedCount > 0;
+    }
+
     // ============== NBT 序列化 ==============
 
     public void writeToNBT(NBTTagCompound nbt) {
