@@ -209,6 +209,14 @@ public class PacketHandler {
                 Side.SERVER
         );
 
+        // === 假玩家激活器配置 (C->S) ===
+        INSTANCE.registerMessage(
+                PacketFakePlayerActivatorConfig.Handler.class,
+                PacketFakePlayerActivatorConfig.class,
+                id++,
+                Side.SERVER
+        );
+
         System.out.println("[MoreMod] 网络包注册完成，共 " + id + " 个消息类型");
     }
 }

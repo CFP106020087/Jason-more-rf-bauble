@@ -2,6 +2,7 @@ package com.moremod.tile;
 
 import com.mojang.authlib.GameProfile;
 import com.moremod.block.BlockFakePlayerActivator;
+import com.moremod.fakeplayer.FakePlayerAggroHandler;
 import com.moremod.fakeplayer.ModFakePlayer;
 import com.moremod.item.ritual.ItemFakePlayerCore;
 import net.minecraft.block.Block;
@@ -13,6 +14,8 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.network.NetworkManager;
+import net.minecraft.network.play.server.SPacketUpdateTileEntity;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumActionResult;
 import net.minecraft.util.EnumFacing;
@@ -22,7 +25,12 @@ import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
+import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
+import net.minecraft.world.chunk.Chunk;
+import net.minecraftforge.common.ForgeChunkManager;
+import net.minecraftforge.common.ForgeChunkManager.Ticket;
+import net.minecraftforge.common.ForgeChunkManager.Type;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.energy.CapabilityEnergy;
 import net.minecraftforge.energy.EnergyStorage;
@@ -35,16 +43,20 @@ import java.lang.ref.WeakReference;
 import java.util.List;
 
 /**
- * 假玩家激活器 TileEntity
- * 使用假玩家核心模拟玩家操作
+ * 假玩家激活器 TileEntity (增强版)
+ * - GUI 界面配置
+ * - 可调节打击间隔
+ * - 持续打击/点击模式
+ * - 内置区块加载
  */
 public class TileEntityFakePlayerActivator extends TileEntity implements ITickable {
 
     // 操作模式
     public enum Mode {
-        RIGHT_CLICK("右键点击", 50),      // 右键方块
-        USE_ITEM("使用物品", 30),          // 使用手持物品（如骨粉）
-        ATTACK("攻击生物", 100);           // 攻击前方生物
+        RIGHT_CLICK("右键点击", 50),
+        USE_ITEM("使用物品", 30),
+        ATTACK("攻击生物", 100),
+        BREAK_BLOCK("挖掘方块", 80);
 
         private final String displayName;
         private final int energyCost;
@@ -59,20 +71,30 @@ public class TileEntityFakePlayerActivator extends TileEntity implements ITickab
     }
 
     // 配置
-    private static final int MAX_ENERGY = 50000;
-    private static final int COOLDOWN_TICKS = 10; // 0.5秒冷却
+    private static final int MAX_ENERGY = 100000;
+    private static final int MIN_INTERVAL = 1;
+    private static final int MAX_INTERVAL = 100;
+    private static final int DEFAULT_INTERVAL = 10;
 
     // 当前模式
     private Mode currentMode = Mode.RIGHT_CLICK;
 
-    // 能量存储
-    private final EnergyStorageInternal energyStorage = new EnergyStorageInternal(MAX_ENERGY, 1000, 0);
+    // 操作间隔（tick）
+    private int actionInterval = DEFAULT_INTERVAL;
 
-    // 物品存储: 0=假玩家核心, 1=工具/物品
-    private final ItemStackHandler inventory = new ItemStackHandler(2) {
+    // 区块加载
+    private boolean chunkLoadingEnabled = false;
+    private Ticket chunkTicket = null;
+
+    // 能量存储
+    private final EnergyStorageInternal energyStorage = new EnergyStorageInternal(MAX_ENERGY, 5000, 0);
+
+    // 物品存储: 0=假玩家核心, 1-9=工具/物品槽
+    private final ItemStackHandler inventory = new ItemStackHandler(10) {
         @Override
         protected void onContentsChanged(int slot) {
             markDirty();
+            syncToClient();
         }
 
         @Override
@@ -80,13 +102,19 @@ public class TileEntityFakePlayerActivator extends TileEntity implements ITickab
             if (slot == 0) {
                 return stack.getItem() instanceof ItemFakePlayerCore;
             }
-            return true; // 工具槽接受任何物品
+            return true;
         }
     };
 
     // 运行状态
-    private int cooldown = 0;
+    private int tickCounter = 0;
     private boolean isActive = false;
+    private int currentToolSlot = 1; // 当前使用的工具槽（1-9）
+
+    // 持续操作状态
+    private boolean continuousMode = true;
+    private int breakProgress = 0;
+    private BlockPos currentBreakPos = null;
 
     // 缓存的假玩家
     private WeakReference<ModFakePlayer> cachedFakePlayer = new WeakReference<>(null);
@@ -95,11 +123,13 @@ public class TileEntityFakePlayerActivator extends TileEntity implements ITickab
     public void update() {
         if (world == null || world.isRemote) return;
 
-        // 冷却计时
-        if (cooldown > 0) {
-            cooldown--;
+        tickCounter++;
+
+        // 检查间隔
+        if (tickCounter < actionInterval) {
             return;
         }
+        tickCounter = 0;
 
         // 检查是否有有效的假玩家核心
         ItemStack coreStack = inventory.getStackInSlot(0);
@@ -130,19 +160,18 @@ public class TileEntityFakePlayerActivator extends TileEntity implements ITickab
         boolean success = performAction(coreStack);
 
         if (success) {
-            // 消耗能量
             energyStorage.extractEnergyInternal(energyNeeded);
-            // 消耗核心耐久
-            coreStack.damageItem(1, getFakePlayer(coreStack));
-            if (coreStack.isEmpty()) {
-                inventory.setStackInSlot(0, ItemStack.EMPTY);
+            // 消耗核心耐久（每100次操作消耗1点）
+            if (tickCounter % 100 == 0) {
+                coreStack.damageItem(1, getFakePlayer(coreStack));
+                if (coreStack.isEmpty()) {
+                    inventory.setStackInSlot(0, ItemStack.EMPTY);
+                }
             }
-            // 增加使用次数
             ItemFakePlayerCore.incrementActivation(coreStack);
             setActiveState(true);
         }
 
-        cooldown = COOLDOWN_TICKS;
         markDirty();
     }
 
@@ -153,19 +182,16 @@ public class TileEntityFakePlayerActivator extends TileEntity implements ITickab
         ModFakePlayer fakePlayer = getFakePlayer(coreStack);
         if (fakePlayer == null) return false;
 
-        // 获取朝向
         IBlockState state = world.getBlockState(pos);
         EnumFacing facing = state.getValue(BlockFakePlayerActivator.FACING);
 
-        // 设置假玩家位置和朝向
         BlockPos targetPos = pos.offset(facing);
         fakePlayer.setLocationAndFacing(targetPos, facing);
 
-        // 给假玩家装备工具
-        ItemStack toolStack = inventory.getStackInSlot(1);
+        // 获取当前工具
+        ItemStack toolStack = getCurrentTool();
         fakePlayer.setHeldItem(EnumHand.MAIN_HAND, toolStack.copy());
         fakePlayer.updateEquipmentAttributes();
-        fakePlayer.updateCooldown();
 
         boolean success = false;
 
@@ -179,20 +205,55 @@ public class TileEntityFakePlayerActivator extends TileEntity implements ITickab
             case ATTACK:
                 success = performAttack(fakePlayer, targetPos);
                 break;
+            case BREAK_BLOCK:
+                success = performBreakBlock(fakePlayer, targetPos);
+                break;
         }
 
-        // 更新工具耐久
+        // 更新工具
         ItemStack newTool = fakePlayer.getHeldItemMainhand();
-        if (newTool.isEmpty() || newTool.getItemDamage() >= newTool.getMaxDamage()) {
-            inventory.setStackInSlot(1, ItemStack.EMPTY);
-        } else if (!ItemStack.areItemStacksEqual(toolStack, newTool)) {
-            inventory.setStackInSlot(1, newTool);
-        }
+        updateCurrentTool(newTool);
 
-        // 收集假玩家产生的掉落物
+        // 收集掉落物
         collectDroppedItems(fakePlayer);
 
         return success;
+    }
+
+    /**
+     * 获取当前工具
+     */
+    private ItemStack getCurrentTool() {
+        ItemStack tool = inventory.getStackInSlot(currentToolSlot);
+        if (tool.isEmpty()) {
+            // 自动切换到下一个有物品的槽位
+            for (int i = 1; i < 10; i++) {
+                ItemStack stack = inventory.getStackInSlot(i);
+                if (!stack.isEmpty()) {
+                    currentToolSlot = i;
+                    return stack;
+                }
+            }
+        }
+        return tool;
+    }
+
+    /**
+     * 更新当前工具
+     */
+    private void updateCurrentTool(ItemStack newTool) {
+        if (newTool.isEmpty() || newTool.getItemDamage() >= newTool.getMaxDamage()) {
+            inventory.setStackInSlot(currentToolSlot, ItemStack.EMPTY);
+            // 切换到下一个工具
+            for (int i = 1; i < 10; i++) {
+                if (!inventory.getStackInSlot(i).isEmpty()) {
+                    currentToolSlot = i;
+                    break;
+                }
+            }
+        } else {
+            inventory.setStackInSlot(currentToolSlot, newTool);
+        }
     }
 
     /**
@@ -201,7 +262,6 @@ public class TileEntityFakePlayerActivator extends TileEntity implements ITickab
     private boolean performRightClick(ModFakePlayer fakePlayer, BlockPos targetPos, EnumFacing facing) {
         IBlockState targetState = world.getBlockState(targetPos);
 
-        // 如果目标位置是空气，尝试放置方块
         if (targetState.getBlock().isAir(targetState, world, targetPos)) {
             ItemStack tool = fakePlayer.getHeldItemMainhand();
             if (!tool.isEmpty()) {
@@ -214,50 +274,43 @@ public class TileEntityFakePlayerActivator extends TileEntity implements ITickab
             return false;
         }
 
-        // 右键点击方块
         try {
-            boolean result = targetState.getBlock().onBlockActivated(
+            return targetState.getBlock().onBlockActivated(
                 world, targetPos, targetState, fakePlayer, EnumHand.MAIN_HAND,
                 facing.getOpposite(), 0.5F, 0.5F, 0.5F
             );
-            return result;
         } catch (Exception e) {
             return false;
         }
     }
 
     /**
-     * 使用物品（如骨粉）
+     * 使用物品
      */
     private boolean performUseItem(ModFakePlayer fakePlayer, BlockPos targetPos, EnumFacing facing) {
         ItemStack tool = fakePlayer.getHeldItemMainhand();
         if (tool.isEmpty()) return false;
 
-        // 尝试对方块使用物品
         EnumActionResult result = tool.getItem().onItemUse(
             fakePlayer, world, targetPos, EnumHand.MAIN_HAND,
             facing.getOpposite(), 0.5F, 0.5F, 0.5F
         );
 
         if (result == EnumActionResult.SUCCESS) {
-            // 更新物品数量
-            inventory.setStackInSlot(1, fakePlayer.getHeldItemMainhand());
+            updateCurrentTool(fakePlayer.getHeldItemMainhand());
             return true;
         }
 
-        // 尝试右键使用物品
         tool.getItem().onItemRightClick(world, fakePlayer, EnumHand.MAIN_HAND);
-        inventory.setStackInSlot(1, fakePlayer.getHeldItemMainhand());
-
+        updateCurrentTool(fakePlayer.getHeldItemMainhand());
         return true;
     }
 
     /**
-     * 攻击前方生物
+     * 攻击生物
      */
     private boolean performAttack(ModFakePlayer fakePlayer, BlockPos targetPos) {
-        // 搜索前方的生物
-        AxisAlignedBB searchBox = new AxisAlignedBB(targetPos).grow(1.5);
+        AxisAlignedBB searchBox = new AxisAlignedBB(targetPos).grow(2.0);
         List<EntityLivingBase> entities = world.getEntitiesWithinAABB(
             EntityLivingBase.class, searchBox,
             e -> e != null && e.isEntityAlive() && !(e instanceof EntityPlayer)
@@ -265,18 +318,66 @@ public class TileEntityFakePlayerActivator extends TileEntity implements ITickab
 
         if (entities.isEmpty()) return false;
 
-        // 攻击最近的生物
+        fakePlayer.updateCooldown();
         EntityLivingBase target = entities.get(0);
         fakePlayer.attackTargetEntityWithCurrentItem(target);
 
-        // 攻击后立即清除周围生物对假玩家的仇恨
-        com.moremod.fakeplayer.FakePlayerAggroHandler.clearAggroInArea(fakePlayer, 10.0);
+        // 清除仇恨
+        FakePlayerAggroHandler.clearAggroInArea(fakePlayer, 10.0);
 
         return true;
     }
 
     /**
-     * 收集假玩家周围的掉落物
+     * 挖掘方块（持续）
+     */
+    private boolean performBreakBlock(ModFakePlayer fakePlayer, BlockPos targetPos) {
+        IBlockState targetState = world.getBlockState(targetPos);
+
+        if (targetState.getBlock().isAir(targetState, world, targetPos)) {
+            breakProgress = 0;
+            currentBreakPos = null;
+            return false;
+        }
+
+        // 计算破坏进度
+        float hardness = targetState.getBlockHardness(world, targetPos);
+        if (hardness < 0) return false; // 不可破坏
+
+        ItemStack tool = fakePlayer.getHeldItemMainhand();
+        float breakSpeed = tool.getDestroySpeed(targetState);
+        if (breakSpeed <= 1.0F) breakSpeed = 1.0F;
+
+        int ticksToBreak = (int) Math.ceil(hardness * 30 / breakSpeed);
+        if (ticksToBreak < 1) ticksToBreak = 1;
+
+        if (!targetPos.equals(currentBreakPos)) {
+            breakProgress = 0;
+            currentBreakPos = targetPos;
+        }
+
+        breakProgress += actionInterval;
+
+        // 发送破坏进度
+        int progress = (int) ((float) breakProgress / ticksToBreak * 10);
+        world.sendBlockBreakProgress(fakePlayer.getEntityId(), targetPos, Math.min(progress, 9));
+
+        if (breakProgress >= ticksToBreak) {
+            // 破坏方块
+            fakePlayer.simulateBlockBreak(targetPos);
+            breakProgress = 0;
+            currentBreakPos = null;
+
+            // 清除破坏进度显示
+            world.sendBlockBreakProgress(fakePlayer.getEntityId(), targetPos, -1);
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * 收集掉落物
      */
     private void collectDroppedItems(ModFakePlayer fakePlayer) {
         AxisAlignedBB collectBox = new AxisAlignedBB(pos).grow(3);
@@ -286,16 +387,22 @@ public class TileEntityFakePlayerActivator extends TileEntity implements ITickab
             if (entityItem.isDead) continue;
 
             ItemStack stack = entityItem.getItem();
-            // 尝试放入工具槽（如果是同类物品）
-            ItemStack toolStack = inventory.getStackInSlot(1);
-            if (!toolStack.isEmpty() && ItemStack.areItemsEqual(toolStack, stack)) {
-                int space = toolStack.getMaxStackSize() - toolStack.getCount();
-                if (space > 0) {
+            // 尝试放入库存
+            for (int i = 1; i < 10; i++) {
+                ItemStack slotStack = inventory.getStackInSlot(i);
+                if (slotStack.isEmpty()) {
+                    inventory.setStackInSlot(i, stack.copy());
+                    entityItem.setDead();
+                    break;
+                } else if (ItemStack.areItemsEqual(slotStack, stack) &&
+                           slotStack.getCount() < slotStack.getMaxStackSize()) {
+                    int space = slotStack.getMaxStackSize() - slotStack.getCount();
                     int toAdd = Math.min(space, stack.getCount());
-                    toolStack.grow(toAdd);
+                    slotStack.grow(toAdd);
                     stack.shrink(toAdd);
                     if (stack.isEmpty()) {
                         entityItem.setDead();
+                        break;
                     }
                 }
             }
@@ -331,68 +438,127 @@ public class TileEntityFakePlayerActivator extends TileEntity implements ITickab
         }
     }
 
+    // ========== 区块加载 ==========
+
     /**
-     * 切换模式
+     * 启用/禁用区块加载
      */
+    public void setChunkLoading(boolean enabled) {
+        if (this.chunkLoadingEnabled != enabled) {
+            this.chunkLoadingEnabled = enabled;
+            if (enabled) {
+                requestChunkLoad();
+            } else {
+                releaseChunkLoad();
+            }
+            markDirty();
+            syncToClient();
+        }
+    }
+
+    private void requestChunkLoad() {
+        if (world == null || world.isRemote) return;
+        if (chunkTicket != null) return;
+
+        try {
+            chunkTicket = ForgeChunkManager.requestTicket(
+                net.minecraftforge.fml.common.Loader.instance().activeModContainer(),
+                world, Type.NORMAL
+            );
+            if (chunkTicket != null) {
+                chunkTicket.getModData().setInteger("x", pos.getX());
+                chunkTicket.getModData().setInteger("y", pos.getY());
+                chunkTicket.getModData().setInteger("z", pos.getZ());
+                ForgeChunkManager.forceChunk(chunkTicket, new net.minecraft.util.math.ChunkPos(pos));
+            }
+        } catch (Exception e) {
+            System.err.println("[MoreMod] Failed to request chunk loading: " + e.getMessage());
+        }
+    }
+
+    private void releaseChunkLoad() {
+        if (chunkTicket != null) {
+            ForgeChunkManager.releaseTicket(chunkTicket);
+            chunkTicket = null;
+        }
+    }
+
+    @Override
+    public void invalidate() {
+        super.invalidate();
+        releaseChunkLoad();
+    }
+
+    @Override
+    public void onChunkUnload() {
+        super.onChunkUnload();
+        releaseChunkLoad();
+    }
+
+    // ========== GUI 配置方法 ==========
+
     public void cycleMode() {
         Mode[] modes = Mode.values();
         int nextIndex = (currentMode.ordinal() + 1) % modes.length;
         currentMode = modes[nextIndex];
         markDirty();
+        syncToClient();
     }
 
-    /**
-     * 获取当前模式名称
-     */
-    public String getModeName() {
-        return currentMode.getDisplayName();
-    }
-
-    /**
-     * 显示状态信息
-     */
-    public void showStatus(EntityPlayer player) {
-        ItemStack coreStack = inventory.getStackInSlot(0);
-        ItemStack toolStack = inventory.getStackInSlot(1);
-
-        player.sendMessage(new TextComponentString(
-            TextFormatting.GOLD + "═══ 假玩家激活器状态 ═══"
-        ));
-        player.sendMessage(new TextComponentString(
-            TextFormatting.GRAY + "模式: " + TextFormatting.WHITE + currentMode.getDisplayName() +
-            TextFormatting.GRAY + " (潜行+空手切换)"
-        ));
-        player.sendMessage(new TextComponentString(
-            TextFormatting.GRAY + "能量: " + TextFormatting.GREEN + energyStorage.getEnergyStored() +
-            TextFormatting.GRAY + " / " + MAX_ENERGY + " RF"
-        ));
-
-        if (!coreStack.isEmpty()) {
-            String playerName = ItemFakePlayerCore.getStoredPlayerName(coreStack);
-            int durability = coreStack.getMaxDamage() - coreStack.getItemDamage();
-            player.sendMessage(new TextComponentString(
-                TextFormatting.GRAY + "核心: " + TextFormatting.LIGHT_PURPLE + playerName +
-                TextFormatting.GRAY + " (耐久: " + durability + ")"
-            ));
-        } else {
-            player.sendMessage(new TextComponentString(
-                TextFormatting.RED + "未安装假玩家核心!"
-            ));
+    public void setMode(int modeIndex) {
+        if (modeIndex >= 0 && modeIndex < Mode.values().length) {
+            currentMode = Mode.values()[modeIndex];
+            markDirty();
+            syncToClient();
         }
-
-        if (!toolStack.isEmpty()) {
-            player.sendMessage(new TextComponentString(
-                TextFormatting.GRAY + "工具: " + TextFormatting.WHITE + toolStack.getDisplayName() +
-                " x" + toolStack.getCount()
-            ));
-        }
-
-        player.sendMessage(new TextComponentString(
-            TextFormatting.YELLOW + "需要红石信号激活"
-        ));
     }
 
-    // === NBT ===
+    public void setActionInterval(int interval) {
+        this.actionInterval = Math.max(MIN_INTERVAL, Math.min(MAX_INTERVAL, interval));
+        markDirty();
+        syncToClient();
+    }
+
+    public void adjustInterval(int delta) {
+        setActionInterval(actionInterval + delta);
+    }
+
+    // ========== Getters ==========
+
+    public Mode getCurrentMode() { return currentMode; }
+    public int getActionInterval() { return actionInterval; }
+    public boolean isChunkLoadingEnabled() { return chunkLoadingEnabled; }
+    public boolean isActive() { return isActive; }
+    public ItemStackHandler getInventory() { return inventory; }
+    public IEnergyStorage getEnergyStorage() { return energyStorage; }
+    public int getEnergyStored() { return energyStorage.getEnergyStored(); }
+    public int getMaxEnergy() { return MAX_ENERGY; }
+
+    // ========== 同步 ==========
+
+    private void syncToClient() {
+        if (world != null && !world.isRemote) {
+            IBlockState state = world.getBlockState(pos);
+            world.notifyBlockUpdate(pos, state, state, 3);
+        }
+    }
+
+    @Override
+    public NBTTagCompound getUpdateTag() {
+        return writeToNBT(new NBTTagCompound());
+    }
+
+    @Override
+    public SPacketUpdateTileEntity getUpdatePacket() {
+        return new SPacketUpdateTileEntity(pos, 1, getUpdateTag());
+    }
+
+    @Override
+    public void onDataPacket(NetworkManager net, SPacketUpdateTileEntity pkt) {
+        readFromNBT(pkt.getNbtCompound());
+    }
+
+    // ========== NBT ==========
 
     @Override
     public NBTTagCompound writeToNBT(NBTTagCompound compound) {
@@ -400,7 +566,9 @@ public class TileEntityFakePlayerActivator extends TileEntity implements ITickab
         compound.setTag("Inventory", inventory.serializeNBT());
         compound.setInteger("Energy", energyStorage.getEnergyStored());
         compound.setInteger("Mode", currentMode.ordinal());
-        compound.setInteger("Cooldown", cooldown);
+        compound.setInteger("Interval", actionInterval);
+        compound.setBoolean("ChunkLoading", chunkLoadingEnabled);
+        compound.setInteger("ToolSlot", currentToolSlot);
         return compound;
     }
 
@@ -413,19 +581,19 @@ public class TileEntityFakePlayerActivator extends TileEntity implements ITickab
         if (modeOrdinal >= 0 && modeOrdinal < Mode.values().length) {
             currentMode = Mode.values()[modeOrdinal];
         }
-        cooldown = compound.getInteger("Cooldown");
+        actionInterval = compound.getInteger("Interval");
+        if (actionInterval < MIN_INTERVAL) actionInterval = DEFAULT_INTERVAL;
+        chunkLoadingEnabled = compound.getBoolean("ChunkLoading");
+        currentToolSlot = compound.getInteger("ToolSlot");
+        if (currentToolSlot < 1 || currentToolSlot > 9) currentToolSlot = 1;
     }
 
-    // === Capabilities ===
+    // ========== Capabilities ==========
 
     @Override
     public boolean hasCapability(Capability<?> capability, @Nullable EnumFacing facing) {
-        if (capability == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY) {
-            return true;
-        }
-        if (capability == CapabilityEnergy.ENERGY) {
-            return true;
-        }
+        if (capability == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY) return true;
+        if (capability == CapabilityEnergy.ENERGY) return true;
         return super.hasCapability(capability, facing);
     }
 
@@ -441,14 +609,7 @@ public class TileEntityFakePlayerActivator extends TileEntity implements ITickab
         return super.getCapability(capability, facing);
     }
 
-    // === Getters ===
-
-    public ItemStackHandler getInventory() { return inventory; }
-    public IEnergyStorage getEnergyStorage() { return energyStorage; }
-    public Mode getCurrentMode() { return currentMode; }
-    public boolean isActive() { return isActive; }
-
-    // === 内部能量存储类 ===
+    // ========== 内部能量存储 ==========
 
     private static class EnergyStorageInternal extends EnergyStorage {
         public EnergyStorageInternal(int capacity, int maxReceive, int maxExtract) {

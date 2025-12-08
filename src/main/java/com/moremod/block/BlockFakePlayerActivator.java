@@ -1,5 +1,6 @@
 package com.moremod.block;
 
+import com.moremod.client.gui.GuiHandler;
 import com.moremod.moremod;
 import com.moremod.tile.TileEntityFakePlayerActivator;
 import net.minecraft.block.Block;
@@ -100,37 +101,9 @@ public class BlockFakePlayerActivator extends Block implements ITileEntityProvid
             return false;
         }
 
-        TileEntityFakePlayerActivator activator = (TileEntityFakePlayerActivator) te;
-        ItemStack heldItem = playerIn.getHeldItem(hand);
-
-        // 潜行+空手 = 切换模式
-        if (playerIn.isSneaking() && heldItem.isEmpty()) {
-            activator.cycleMode();
-            playerIn.sendMessage(new TextComponentString(
-                TextFormatting.GOLD + "模式切换: " + TextFormatting.WHITE + activator.getModeName()
-            ));
-            return true;
-        }
-
-        // 空手右键 = 显示状态
-        if (heldItem.isEmpty()) {
-            activator.showStatus(playerIn);
-            return true;
-        }
-
-        // 手持物品 = 尝试放入
-        IItemHandler handler = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, facing);
-        if (handler != null) {
-            // 尝试放入核心槽或工具槽
-            for (int i = 0; i < handler.getSlots(); i++) {
-                ItemStack remainder = handler.insertItem(i, heldItem.copy(), false);
-                if (remainder.getCount() < heldItem.getCount()) {
-                    heldItem.setCount(remainder.getCount());
-                    return true;
-                }
-            }
-        }
-
+        // 打开 GUI
+        playerIn.openGui(moremod.instance, GuiHandler.FAKE_PLAYER_ACTIVATOR_GUI,
+                worldIn, pos.getX(), pos.getY(), pos.getZ());
         return true;
     }
 

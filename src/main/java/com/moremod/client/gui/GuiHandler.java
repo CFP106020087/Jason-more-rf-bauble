@@ -44,6 +44,10 @@ import com.moremod.synergy.station.ContainerSynergyStation;
 import com.moremod.synergy.station.GuiSynergyStation;
 import com.moremod.synergy.station.TileEntitySynergyStation;
 
+// 🤖 假玩家激活器GUI导入
+import com.moremod.container.ContainerFakePlayerActivator;
+import com.moremod.tile.TileEntityFakePlayerActivator;
+
 // 📖 Synergy 协同手册GUI导入
 import com.moremod.synergy.gui.GuiSynergyGuide;
 
@@ -91,6 +95,9 @@ public class GuiHandler implements IGuiHandler {
 
     // 📖 Synergy 协同手册 (客户端GUI，无Container)
     public static final int SYNERGY_GUIDE_GUI = 30;
+
+    // 🤖 假玩家激活器
+    public static final int FAKE_PLAYER_ACTIVATOR_GUI = 31;
 
     // ---------------- Server ----------------
     @Override
@@ -170,6 +177,10 @@ public class GuiHandler implements IGuiHandler {
                 }
                 case SYNERGY_GUIDE_GUI: { // 📖 ID=30 客户端GUI无需Container
                     result = null;
+                    break;
+                }
+                case FAKE_PLAYER_ACTIVATOR_GUI: { // 🤖 ID=31
+                    result = createFakePlayerActivatorContainer(player, world, x, y, z);
                     break;
                 }
                 default:
@@ -261,6 +272,10 @@ public class GuiHandler implements IGuiHandler {
                 }
                 case SYNERGY_GUIDE_GUI: { // 📖 ID=30
                     result = new GuiSynergyGuide(player);
+                    break;
+                }
+                case FAKE_PLAYER_ACTIVATOR_GUI: { // 🤖 ID=31
+                    result = createFakePlayerActivatorGui(player, world, x, y, z);
                     break;
                 }
                 default:
@@ -575,5 +590,31 @@ public class GuiHandler implements IGuiHandler {
                 guiId == GUI_SAGE_BOOK ||
                 guiId == VOID_BACKPACK_GUI ||
                 guiId == SYNERGY_GUIDE_GUI;
+    }
+
+    // ====== 🤖 ID=31：假玩家激活器 ======
+    private Object createFakePlayerActivatorContainer(EntityPlayer player, World world, int x, int y, int z) {
+        BlockPos pos = new BlockPos(x, y, z);
+        TileEntity te = world.getTileEntity(pos);
+
+        if (te instanceof TileEntityFakePlayerActivator) {
+            System.out.println("[GuiHandler] 打开假玩家激活器 Container");
+            return new ContainerFakePlayerActivator(player.inventory, (TileEntityFakePlayerActivator) te);
+        }
+        System.out.println("[GuiHandler] ❌ 未识别的假玩家激活器 TE: " + (te == null ? "null" : te.getClass().getName()));
+        return null;
+    }
+
+    @SideOnly(Side.CLIENT)
+    private Object createFakePlayerActivatorGui(EntityPlayer player, World world, int x, int y, int z) {
+        BlockPos pos = new BlockPos(x, y, z);
+        TileEntity te = world.getTileEntity(pos);
+
+        if (te instanceof TileEntityFakePlayerActivator) {
+            System.out.println("[GuiHandler] 打开假玩家激活器 GUI");
+            return new GuiFakePlayerActivator(player.inventory, (TileEntityFakePlayerActivator) te);
+        }
+        System.out.println("[GuiHandler] ❌ 未识别的假玩家激活器 TE(客户端): " + (te == null ? "null" : te.getClass().getName()));
+        return null;
     }
 }

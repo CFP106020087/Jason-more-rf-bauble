@@ -4,6 +4,10 @@ import com.mojang.authlib.GameProfile;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.EntityEquipmentSlot;
 import net.minecraft.item.ItemStack;
+import net.minecraft.network.EnumPacketDirection;
+import net.minecraft.network.NetHandlerPlayServer;
+import net.minecraft.network.NetworkManager;
+import net.minecraft.network.Packet;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.BlockPos;
@@ -13,6 +17,7 @@ import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.common.util.FakePlayer;
+import net.minecraftforge.fml.common.FMLCommonHandler;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -22,6 +27,7 @@ import java.util.UUID;
 /**
  * 假玩家实现 - 通过仪式从玩家头颅创建
  * 可以模拟玩家的各种操作：右键、攻击、挖掘等
+ * 参考 Cyclic mod 的 UtilFakePlayer 实现
  */
 public class ModFakePlayer extends FakePlayer {
 
@@ -43,6 +49,9 @@ public class ModFakePlayer extends FakePlayer {
     // 控制器引用
     private WeakReference<BlockPos> controllerPos;
 
+    // 网络连接已初始化标志
+    private boolean connectionInitialized = false;
+
     public ModFakePlayer(WorldServer world, @Nullable GameProfile sourceProfile, @Nullable String customName) {
         super(world, sourceProfile != null ? sourceProfile : DEFAULT_PROFILE);
         this.sourceProfile = sourceProfile;
@@ -51,18 +60,48 @@ public class ModFakePlayer extends FakePlayer {
         // 初始化
         setSize(0.6F, 1.8F);
         capabilities.disableDamage = true;
+
+        // 初始化网络连接（参考 Cyclic）
+        initConnection();
+    }
+
+    /**
+     * 初始化假玩家的网络连接
+     * 防止某些操作因为 connection 为 null 而崩溃
+     */
+    private void initConnection() {
+        if (connectionInitialized) return;
+
+        try {
+            this.connection = new NetHandlerPlayServer(
+                FMLCommonHandler.instance().getMinecraftServerInstance(),
+                new NetworkManager(EnumPacketDirection.SERVERBOUND),
+                this
+            ) {
+                @SuppressWarnings("rawtypes")
+                @Override
+                public void sendPacket(Packet packetIn) {
+                    // 假玩家不需要发送网络包
+                }
+            };
+            this.onGround = true;
+            this.setSilent(true);
+            connectionInitialized = true;
+        } catch (Exception e) {
+            System.err.println("[MoreMod] Failed to initialize fake player connection: " + e.getMessage());
+        }
     }
 
     /**
      * 设置假玩家面向的方向和位置
      */
     public void setLocationAndFacing(BlockPos targetPos, EnumFacing facing) {
-        double x = targetPos.getX() + 0.5 - facing.getFrontOffsetX() * 0.5;
-        double y = targetPos.getY() + 0.5 - facing.getFrontOffsetY() * 0.5;
-        double z = targetPos.getZ() + 0.5 - facing.getFrontOffsetZ() * 0.5;
+        double x = targetPos.getX() + 0.5 - facing.getXOffset() * 0.5;
+        double y = targetPos.getY() + 0.5 - facing.getYOffset() * 0.5;
+        double z = targetPos.getZ() + 0.5 - facing.getZOffset() * 0.5;
 
-        int yaw;
-        int pitch;
+        float yaw;
+        float pitch;
 
         switch (facing) {
             case DOWN:
@@ -86,7 +125,7 @@ public class ModFakePlayer extends FakePlayer {
                 pitch = 0;
                 break;
             case EAST:
-                yaw = 270;
+                yaw = -90;
                 pitch = 0;
                 break;
             default:
@@ -95,6 +134,9 @@ public class ModFakePlayer extends FakePlayer {
         }
 
         setLocationAndAngles(x, y, z, yaw, pitch);
+        // 确保旋转也更新
+        this.rotationYawHead = yaw;
+        this.prevRotationYawHead = yaw;
     }
 
     /**
@@ -123,7 +165,7 @@ public class ModFakePlayer extends FakePlayer {
     public RayTraceResult trace(double blockReachDistance) {
         Vec3d start = new Vec3d(this.posX, this.posY + this.getEyeHeight(), this.posZ);
         Vec3d look = this.getLook(1.0F);
-        Vec3d end = start.addVector(look.x * blockReachDistance, look.y * blockReachDistance, look.z * blockReachDistance);
+        Vec3d end = start.add(look.x * blockReachDistance, look.y * blockReachDistance, look.z * blockReachDistance);
         return this.world.rayTraceBlocks(start, end, false, false, true);
     }
 
@@ -135,7 +177,8 @@ public class ModFakePlayer extends FakePlayer {
 
     @Override
     public void setActiveHand(@Nonnull EnumHand hand) {
-        // 不做任何事，假玩家不需要
+        // 假玩家支持使用物品
+        super.setActiveHand(hand);
     }
 
     /**
@@ -150,6 +193,13 @@ public class ModFakePlayer extends FakePlayer {
      */
     public void updateCooldown() {
         this.ticksSinceLastSwing = 20090;
+    }
+
+    /**
+     * 重置攻击冷却（用于持续攻击）
+     */
+    public void resetCooldown() {
+        this.ticksSinceLastSwing = 0;
     }
 
     /**
@@ -222,5 +272,22 @@ public class ModFakePlayer extends FakePlayer {
     @Nullable
     public GameProfile getSourceProfile() {
         return sourceProfile;
+    }
+
+    /**
+     * 模拟玩家挖掘方块
+     */
+    public boolean simulateBlockBreak(BlockPos targetPos) {
+        if (world == null || world.isRemote) return false;
+
+        try {
+            // 使用 interactionManager 来挖掘方块
+            if (this.interactionManager != null) {
+                return this.interactionManager.tryHarvestBlock(targetPos);
+            }
+        } catch (Exception e) {
+            // 忽略错误
+        }
+        return false;
     }
 }
