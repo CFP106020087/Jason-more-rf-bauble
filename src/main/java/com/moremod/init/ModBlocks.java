@@ -17,6 +17,8 @@ import com.moremod.block.BlockSimpleWisdomShrine;
 import com.moremod.block.BlockExtractionStation;  // ⭐ 添加提取台导入
 import com.moremod.block.BlockPurificationAltar;  // 🔮 添加提纯祭坛导入
 import com.moremod.block.BlockTransferStation;    // 🎨 添加转移台导入
+import com.moremod.block.BlockEnchantingBooster;  // ✨ 附魔增强方块
+import com.moremod.block.ItemBlockEnchantingBooster;
 
 // 🗡️ 两个版本的剑升级台方块
 import com.moremod.block.BlockSwordUpgradeStation;
@@ -91,6 +93,9 @@ public class ModBlocks {
     public static Block SWORD_UPGRADE_STATION;
     public static Block SWORD_UPGRADE_STATION_MATERIAL;
 
+    // ✨ 附魔增强方块
+    public static BlockEnchantingBooster ENCHANTING_BOOSTER;
+
     @SubscribeEvent
     public static void registerBlocks(RegistryEvent.Register<Block> event) {
         event.getRegistry().register(SPACETIME_SHARD_ORE);
@@ -163,6 +168,11 @@ public class ModBlocks {
         SWORD_UPGRADE_STATION_MATERIAL = new BlockSwordUpgradeStationMaterial();
         event.getRegistry().register(SWORD_UPGRADE_STATION_MATERIAL);
         System.out.println("[MoreMod] 劍升級台(material) 方塊已註冊");
+
+        // ✨ 注册附魔增强方块
+        ENCHANTING_BOOSTER = new BlockEnchantingBooster();
+        event.getRegistry().register(ENCHANTING_BOOSTER);
+        System.out.println("[MoreMod] ✨ 附魔增強方塊已註冊 (4種類型)");
 
         // ---- TileEntity 注册 ----
         GameRegistry.registerTileEntity(TileEntityDimensionLoom.class,
@@ -281,6 +291,13 @@ public class ModBlocks {
                     .setRegistryName(SWORD_UPGRADE_STATION_MATERIAL.getRegistryName()));
             System.out.println("[MoreMod] 劍升級台(material) ItemBlock已註冊");
         }
+
+        // ✨ 附魔增强方块 ItemBlock (支持多变体)
+        if (ENCHANTING_BOOSTER != null) {
+            event.getRegistry().register(new ItemBlockEnchantingBooster(ENCHANTING_BOOSTER)
+                    .setRegistryName(ENCHANTING_BOOSTER.getRegistryName()));
+            System.out.println("[MoreMod] ✨ 附魔增強方塊 ItemBlock 已註冊");
+        }
     }
 
     @SideOnly(Side.CLIENT)
@@ -331,6 +348,18 @@ public class ModBlocks {
         if (SWORD_UPGRADE_STATION_MATERIAL != null) {
             registerBlockModel(SWORD_UPGRADE_STATION_MATERIAL);
             System.out.println("[MoreMod] 劍升級台(material) 模型已註冊");
+        }
+
+        // ✨ 附魔增强方块模型 (4个变体)
+        if (ENCHANTING_BOOSTER != null) {
+            for (BlockEnchantingBooster.BoosterType type : BlockEnchantingBooster.BoosterType.values()) {
+                ModelLoader.setCustomModelResourceLocation(
+                    Item.getItemFromBlock(ENCHANTING_BOOSTER),
+                    type.getMeta(),
+                    new ModelResourceLocation("moremod:enchanting_booster_" + type.getName(), "inventory")
+                );
+            }
+            System.out.println("[MoreMod] ✨ 附魔增強方塊模型已註冊 (4種)");
         }
     }
 

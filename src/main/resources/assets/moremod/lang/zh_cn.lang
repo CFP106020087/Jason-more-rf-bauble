@@ -469,3 +469,9 @@ item.moremod.soul_fruit.name=灵魂果实
 item.moremod.soul_fruit.desc=消耗5级经验获得强大的临时增益
 item.moremod.fake_player_core.name=假玩家核心
 item.moremod.fake_player_core.desc=封印了玩家灵魂的神秘核心，可用于自动化设备模拟玩家操作
+
+# ===== 附魔增强方块 (Enchanting Booster Blocks) =====
+tile.moremod.enchanting_booster.arcane_stone.name=奥术石
+tile.moremod.enchanting_booster.enchanted_bookshelf.name=附魔书架
+tile.moremod.enchanting_booster.knowledge_crystal.name=知识水晶
+tile.moremod.enchanting_booster.soul_library.name=灵魂图书馆

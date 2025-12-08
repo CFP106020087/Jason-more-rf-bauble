@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "type=arcane_stone": { "model": "moremod:enchanting_booster_arcane_stone" },
+    "type=enchanted_bookshelf": { "model": "moremod:enchanting_booster_enchanted_bookshelf" },
+    "type=knowledge_crystal": { "model": "moremod:enchanting_booster_knowledge_crystal" },
+    "type=soul_library": { "model": "moremod:enchanting_booster_soul_library" }
+  }
+}

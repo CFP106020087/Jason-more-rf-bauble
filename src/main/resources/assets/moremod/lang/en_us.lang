@@ -61,3 +61,9 @@ item.moremod.soul_fruit.name=Soul Fruit
 item.moremod.soul_fruit.desc=Consume 5 levels for powerful temporary buffs
 item.moremod.fake_player_core.name=Fake Player Core
 item.moremod.fake_player_core.desc=A mysterious core containing a player's soul, used for automation
+
+# Enchanting Booster Blocks
+tile.moremod.enchanting_booster.arcane_stone.name=Arcane Stone
+tile.moremod.enchanting_booster.enchanted_bookshelf.name=Enchanted Bookshelf
+tile.moremod.enchanting_booster.knowledge_crystal.name=Knowledge Crystal
+tile.moremod.enchanting_booster.soul_library.name=Soul Library
