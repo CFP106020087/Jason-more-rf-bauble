@@ -85,9 +85,9 @@ public class ItemFabricRemover extends Item {
         if (!removed) {
             player.sendMessage(new TextComponentString(
                     TextFormatting.YELLOW + "未找到织有布料的盔甲！"));
-            return new ActionResult<>(EnumActionResult.FAIL, heldStack);
         }
 
+        // 始终返回 SUCCESS 以阻止后续动作（如装备盔甲）
         return new ActionResult<>(EnumActionResult.SUCCESS, heldStack);
     }
 
