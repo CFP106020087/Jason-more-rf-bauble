@@ -37,3 +37,13 @@ item.moremod.fabric_remover.name=Fabric Remover
 item.moremod.fabric_remover.desc=Removes woven fabric from armor and returns the material.
 item.moremod.fabric_remover.usage=Right-click to auto-detect and remove fabric from one armor piece.
 item.moremod.fabric_remover.uses=Uses remaining
+
+# Sacred Relics (Seven Holy Relics)
+# Embed into body at Tier 3 altar to counter Cursed Ring effects
+item.moremod.sacred_heart.name=Sacred Heart
+item.moremod.peace_emblem.name=Peace Emblem
+item.moremod.guardian_scale.name=Guardian Scale
+item.moremod.courage_blade.name=Courage Blade
+item.moremod.frost_dew.name=Frost Dew
+item.moremod.soul_anchor.name=Soul Anchor
+item.moremod.slumber_sachet.name=Slumber Sachet

@@ -1,7 +1,7 @@
 package com.moremod.entity.curse;
 
 import com.moremod.core.CurseDeathHook;
-import com.moremod.entity.curse.EmbeddedCurseManager.EmbeddedCurseType;
+import com.moremod.entity.curse.EmbeddedCurseManager.EmbeddedRelicType;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.monster.EntityMob;
 import net.minecraft.entity.passive.EntityAnimal;
@@ -17,22 +17,22 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
 /**
- * 嵌入诅咒效果处理器
+ * 嵌入遗物效果处理器
  *
- * 七咒之戒的七项诅咒与对应的嵌入饰品：
+ * 七咒之戒的七项诅咒与对应的七圣遗物：
  *
- * 1. 受到伤害加倍 → 虚无之眸 (VOID_GAZE) 抵消
- * 2. 中立生物主动攻击 → 饕餮指骨 (GLUTTONOUS_PHALANX) 抵消
- * 3. 护甲效力降低30% → 荆棘碎片 (THORN_SHARD) 抵消
- * 4. 对怪物伤害降低50% → 怨念结晶 (CRYSTALLIZED_RESENTMENT) 抵消
- * 5. 着火永燃 → 绞王之索 (NOOSE_OF_HANGED_KING) 抵消
- * 6. 死亡灵魂破碎 → 第五幕剧本 (SCRIPT_OF_FIFTH_ACT) 抵消
- * 7. 失眠症 → 需要嵌入任意3个饰品后解除
+ * 1. 受到伤害加倍 → 圣光之心 (SACRED_HEART) 抵消
+ * 2. 中立生物主动攻击 → 和平徽章 (PEACE_EMBLEM) 抵消
+ * 3. 护甲效力降低30% → 守护鳞片 (GUARDIAN_SCALE) 抵消
+ * 4. 对怪物伤害降低50% → 勇气之刃 (COURAGE_BLADE) 抵消
+ * 5. 着火永燃 → 霜华之露 (FROST_DEW) 抵消
+ * 6. 死亡灵魂破碎 → 灵魂锚点 (SOUL_ANCHOR) 抵消
+ * 7. 失眠症 → 安眠香囊 (SLUMBER_SACHET) 抵消
  */
 @Mod.EventBusSubscriber(modid = "moremod")
 public class EmbeddedCurseEffectHandler {
 
-    // ========== 1. 受到伤害加倍 → 虚无之眸抵消 ==========
+    // ========== 1. 受到伤害加倍 → 圣光之心抵消 ==========
 
     @SubscribeEvent(priority = EventPriority.HIGH)
     public static void onPlayerHurt(LivingHurtEvent event) {
@@ -44,17 +44,16 @@ public class EmbeddedCurseEffectHandler {
         // 检查是否有七咒之戒
         if (!CurseDeathHook.hasCursedRing(player)) return;
 
-        // 检查是否嵌入了虚无之眸
-        if (EmbeddedCurseManager.hasEmbeddedCurse(player, EmbeddedCurseType.VOID_GAZE)) {
+        // 检查是否嵌入了圣光之心
+        if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SACRED_HEART)) {
             // 七咒会让伤害翻倍，嵌入后抵消这个效果
             // 如果伤害被翻倍了，我们减半恢复原值
-            // 注意：这是在七咒效果之后执行的，所以我们需要将伤害减半
             float currentDamage = event.getAmount();
             event.setAmount(currentDamage * 0.5f);
         }
     }
 
-    // ========== 2. 中立生物主动攻击 → 饕餮指骨抵消 ==========
+    // ========== 2. 中立生物主动攻击 → 和平徽章抵消 ==========
 
     @SubscribeEvent(priority = EventPriority.HIGH)
     public static void onSetAttackTarget(LivingSetAttackTargetEvent event) {
@@ -66,8 +65,8 @@ public class EmbeddedCurseEffectHandler {
         // 检查是否有七咒之戒
         if (!CurseDeathHook.hasCursedRing(player)) return;
 
-        // 检查是否嵌入了饕餮指骨
-        if (EmbeddedCurseManager.hasEmbeddedCurse(player, EmbeddedCurseType.GLUTTONOUS_PHALANX)) {
+        // 检查是否嵌入了和平徽章
+        if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.PEACE_EMBLEM)) {
             // 如果是中立生物（非敌对怪物），取消攻击目标
             if (!(event.getEntityLiving() instanceof EntityMob)) {
                 if (event.getEntityLiving() instanceof EntityAnimal ||
@@ -78,11 +77,11 @@ public class EmbeddedCurseEffectHandler {
         }
     }
 
-    // ========== 3. 护甲效力降低30% → 荆棘碎片抵消 ==========
+    // ========== 3. 护甲效力降低30% → 守护鳞片抵消 ==========
     // 这个效果通过属性修改实现，需要在佩戴检测中处理
-    // 荆棘碎片嵌入后，护甲效力恢复正常
+    // 守护鳞片嵌入后，护甲效力恢复正常
 
-    // ========== 4. 对怪物伤害降低50% → 怨念结晶抵消 ==========
+    // ========== 4. 对怪物伤害降低50% → 勇气之刃抵消 ==========
 
     @SubscribeEvent(priority = EventPriority.HIGH)
     public static void onPlayerAttack(LivingHurtEvent event) {
@@ -97,8 +96,8 @@ public class EmbeddedCurseEffectHandler {
         // 检查目标是否是怪物
         if (!(event.getEntityLiving() instanceof EntityMob)) return;
 
-        // 检查是否嵌入了怨念结晶
-        if (EmbeddedCurseManager.hasEmbeddedCurse(player, EmbeddedCurseType.CRYSTALLIZED_RESENTMENT)) {
+        // 检查是否嵌入了勇气之刃
+        if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.COURAGE_BLADE)) {
             // 七咒会让对怪物伤害减半，嵌入后抵消这个效果
             // 将伤害恢复（乘以2）
             float currentDamage = event.getAmount();
@@ -106,7 +105,7 @@ public class EmbeddedCurseEffectHandler {
         }
     }
 
-    // ========== 5. 着火永燃 → 绞王之索抵消 ==========
+    // ========== 5. 着火永燃 → 霜华之露抵消 ==========
 
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
@@ -118,19 +117,19 @@ public class EmbeddedCurseEffectHandler {
         // 检查是否有七咒之戒
         if (!CurseDeathHook.hasCursedRing(player)) return;
 
-        // 检查是否嵌入了绞王之索
-        if (EmbeddedCurseManager.hasEmbeddedCurse(player, EmbeddedCurseType.NOOSE_OF_HANGED_KING)) {
+        // 检查是否嵌入了霜华之露
+        if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.FROST_DEW)) {
             // 如果玩家着火，正常熄灭（抵消永燃效果）
             // 七咒会阻止火焰自然熄灭，嵌入后恢复正常
             // 这里我们不需要特别处理，因为嵌入后七咒的永燃效果应该被抵消
         }
     }
 
-    // ========== 6. 死亡灵魂破碎 → 第五幕剧本抵消 ==========
+    // ========== 6. 死亡灵魂破碎 → 灵魂锚点抵消 ==========
     // 这个效果需要在死亡事件中处理
-    // 第五幕剧本嵌入后，死亡不会导致额外的惩罚
+    // 灵魂锚点嵌入后，死亡不会导致额外的惩罚
 
-    // ========== 7. 失眠症 → 嵌入3个以上饰品解除 ==========
+    // ========== 7. 失眠症 → 安眠香囊抵消 ==========
 
     @SubscribeEvent(priority = EventPriority.HIGH)
     public static void onPlayerSleep(PlayerSleepInBedEvent event) {
@@ -140,13 +139,10 @@ public class EmbeddedCurseEffectHandler {
         // 检查是否有七咒之戒
         if (!CurseDeathHook.hasCursedRing(player)) return;
 
-        // 检查嵌入数量
-        int embeddedCount = EmbeddedCurseManager.getEmbeddedCount(player);
-
-        // 嵌入3个以上饰品可以解除失眠
-        if (embeddedCount >= 3) {
+        // 检查是否嵌入了安眠香囊
+        if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SLUMBER_SACHET)) {
+            // 安眠香囊可以直接解除失眠症
             // 允许睡觉（不做任何阻止）
-            // 七咒的失眠效果在其他地方实现，这里只是说明嵌入后可以抵消
         }
     }
 
@@ -158,15 +154,13 @@ public class EmbeddedCurseEffectHandler {
     public static int getCounteredCurseCount(EntityPlayer player) {
         int count = 0;
 
-        if (EmbeddedCurseManager.hasEmbeddedCurse(player, EmbeddedCurseType.VOID_GAZE)) count++;
-        if (EmbeddedCurseManager.hasEmbeddedCurse(player, EmbeddedCurseType.GLUTTONOUS_PHALANX)) count++;
-        if (EmbeddedCurseManager.hasEmbeddedCurse(player, EmbeddedCurseType.THORN_SHARD)) count++;
-        if (EmbeddedCurseManager.hasEmbeddedCurse(player, EmbeddedCurseType.CRYSTALLIZED_RESENTMENT)) count++;
-        if (EmbeddedCurseManager.hasEmbeddedCurse(player, EmbeddedCurseType.NOOSE_OF_HANGED_KING)) count++;
-        if (EmbeddedCurseManager.hasEmbeddedCurse(player, EmbeddedCurseType.SCRIPT_OF_FIFTH_ACT)) count++;
-
-        // 失眠症需要3个饰品
-        if (EmbeddedCurseManager.getEmbeddedCount(player) >= 3) count++;
+        if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SACRED_HEART)) count++;
+        if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.PEACE_EMBLEM)) count++;
+        if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.GUARDIAN_SCALE)) count++;
+        if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.COURAGE_BLADE)) count++;
+        if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.FROST_DEW)) count++;
+        if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SOUL_ANCHOR)) count++;
+        if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SLUMBER_SACHET)) count++;
 
         return count;
     }
@@ -176,13 +170,13 @@ public class EmbeddedCurseEffectHandler {
      */
     public static String[] getCurseStatus(EntityPlayer player) {
         return new String[] {
-            "1.伤害加倍: " + (EmbeddedCurseManager.hasEmbeddedCurse(player, EmbeddedCurseType.VOID_GAZE) ? "§a已抵消" : "§c生效中"),
-            "2.中立生物攻击: " + (EmbeddedCurseManager.hasEmbeddedCurse(player, EmbeddedCurseType.GLUTTONOUS_PHALANX) ? "§a已抵消" : "§c生效中"),
-            "3.护甲降低30%: " + (EmbeddedCurseManager.hasEmbeddedCurse(player, EmbeddedCurseType.THORN_SHARD) ? "§a已抵消" : "§c生效中"),
-            "4.伤害降低50%: " + (EmbeddedCurseManager.hasEmbeddedCurse(player, EmbeddedCurseType.CRYSTALLIZED_RESENTMENT) ? "§a已抵消" : "§c生效中"),
-            "5.永燃: " + (EmbeddedCurseManager.hasEmbeddedCurse(player, EmbeddedCurseType.NOOSE_OF_HANGED_KING) ? "§a已抵消" : "§c生效中"),
-            "6.灵魂破碎: " + (EmbeddedCurseManager.hasEmbeddedCurse(player, EmbeddedCurseType.SCRIPT_OF_FIFTH_ACT) ? "§a已抵消" : "§c生效中"),
-            "7.失眠症: " + (EmbeddedCurseManager.getEmbeddedCount(player) >= 3 ? "§a已抵消" : "§c生效中")
+            "1.伤害加倍: " + (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SACRED_HEART) ? "§a已抵消" : "§c生效中"),
+            "2.中立生物攻击: " + (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.PEACE_EMBLEM) ? "§a已抵消" : "§c生效中"),
+            "3.护甲降低30%: " + (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.GUARDIAN_SCALE) ? "§a已抵消" : "§c生效中"),
+            "4.伤害降低50%: " + (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.COURAGE_BLADE) ? "§a已抵消" : "§c生效中"),
+            "5.永燃: " + (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.FROST_DEW) ? "§a已抵消" : "§c生效中"),
+            "6.灵魂破碎: " + (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SOUL_ANCHOR) ? "§a已抵消" : "§c生效中"),
+            "7.失眠症: " + (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SLUMBER_SACHET) ? "§a已抵消" : "§c生效中")
         };
     }
 }

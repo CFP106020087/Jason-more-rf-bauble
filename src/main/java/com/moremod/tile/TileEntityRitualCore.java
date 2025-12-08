@@ -3,7 +3,7 @@ package com.moremod.tile;
 import com.moremod.core.CurseDeathHook;
 import com.moremod.entity.EntityRitualSeat;
 import com.moremod.entity.curse.EmbeddedCurseManager;
-import com.moremod.entity.curse.EmbeddedCurseManager.EmbeddedCurseType;
+import com.moremod.entity.curse.EmbeddedCurseManager.EmbeddedRelicType;
 import com.moremod.ritual.AltarTier;
 import com.moremod.ritual.RitualInfusionAPI;
 import com.moremod.ritual.RitualInfusionRecipe;
@@ -501,17 +501,17 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             return false;
         }
 
-        // 3. 输入槽必须有可嵌入的诅咒饰品
+        // 3. 输入槽必须有可嵌入的七圣遗物
         ItemStack inputStack = inv.getStackInSlot(0);
-        if (!EmbeddedCurseManager.isEmbeddableCurseAccessory(inputStack)) {
+        if (!EmbeddedCurseManager.isEmbeddableSacredRelic(inputStack)) {
             return false;
         }
 
-        // 4. 玩家还没有嵌入这个类型的饰品
-        EmbeddedCurseType type = EmbeddedCurseManager.getTypeFromItem(inputStack);
+        // 4. 玩家还没有嵌入这个类型的遗物
+        EmbeddedRelicType type = EmbeddedCurseManager.getTypeFromItem(inputStack);
         if (type == null) return false;
 
-        if (EmbeddedCurseManager.hasEmbeddedCurse(player, type)) {
+        if (EmbeddedCurseManager.hasEmbeddedRelic(player, type)) {
             return false;
         }
 
@@ -523,12 +523,12 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
      */
     private void performEmbedding(EntityPlayer player) {
         ItemStack inputStack = inv.getStackInSlot(0);
-        EmbeddedCurseType type = EmbeddedCurseManager.getTypeFromItem(inputStack);
+        EmbeddedRelicType type = EmbeddedCurseManager.getTypeFromItem(inputStack);
 
         if (type == null) return;
 
-        // 嵌入诅咒
-        boolean success = EmbeddedCurseManager.embedCurse(player, type);
+        // 嵌入遗物
+        boolean success = EmbeddedCurseManager.embedRelic(player, type);
 
         if (success) {
             // 消耗物品
@@ -573,16 +573,16 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
 
         // 检查输入槽
         ItemStack inputStack = inv.getStackInSlot(0);
-        if (!EmbeddedCurseManager.isEmbeddableCurseAccessory(inputStack)) {
+        if (!EmbeddedCurseManager.isEmbeddableSacredRelic(inputStack)) {
             player.sendMessage(new TextComponentString(
-                TextFormatting.RED + "请先在祭坛上放置诅咒饰品！"
+                TextFormatting.RED + "请先在祭坛上放置七圣遗物！"
             ));
             return false;
         }
 
         // 检查是否已嵌入
-        EmbeddedCurseType type = EmbeddedCurseManager.getTypeFromItem(inputStack);
-        if (type != null && EmbeddedCurseManager.hasEmbeddedCurse(player, type)) {
+        EmbeddedRelicType type = EmbeddedCurseManager.getTypeFromItem(inputStack);
+        if (type != null && EmbeddedCurseManager.hasEmbeddedRelic(player, type)) {
             player.sendMessage(new TextComponentString(
                 TextFormatting.RED + "你已经嵌入了 " + type.getDisplayName() + "！"
             ));
@@ -602,7 +602,7 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
      */
     private void notifyEmbeddingStart(EntityPlayer player) {
         ItemStack inputStack = inv.getStackInSlot(0);
-        EmbeddedCurseType type = EmbeddedCurseManager.getTypeFromItem(inputStack);
+        EmbeddedRelicType type = EmbeddedCurseManager.getTypeFromItem(inputStack);
 
         player.sendMessage(new TextComponentString(
             TextFormatting.DARK_PURPLE + "════════════════════════════════"

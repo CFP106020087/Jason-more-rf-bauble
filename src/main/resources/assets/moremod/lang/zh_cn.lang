@@ -445,3 +445,13 @@ item.moremod.fabric_remover.name=织布拆解器
 item.moremod.fabric_remover.desc=从盔甲上拆除织入的布料，并返还材料。
 item.moremod.fabric_remover.usage=丢在地上与织有布料的盔甲接触即可拆除
 item.moremod.fabric_remover.uses=剩余使用次数
+
+# ===== 七圣遗物 (Sacred Relics) =====
+# 用于在三阶祭坛嵌入体内，抵消七咒之戒的诅咒
+item.moremod.sacred_heart.name=圣光之心
+item.moremod.peace_emblem.name=和平徽章
+item.moremod.guardian_scale.name=守护鳞片
+item.moremod.courage_blade.name=勇气之刃
+item.moremod.frost_dew.name=霜华之露
+item.moremod.soul_anchor.name=灵魂锚点
+item.moremod.slumber_sachet.name=安眠香囊

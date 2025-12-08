@@ -43,6 +43,8 @@ import com.moremod.item.ItemTowel;
 import com.moremod.item.ItemFabricRemover;
 // 📦 添加结构胶囊导入
 import com.moremod.item.ItemStructureCapsule;
+// ✨ 七圣遗物
+import com.moremod.item.curse.ItemSacredRelic;
 
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.item.Item.ToolMaterial;
@@ -114,6 +116,15 @@ public final class ModItems {
     public static Item CRYSTALLIZED_RESENTMENT; // 💎 怨念结晶（七咒联动）
     public static Item NOOSE_OF_HANGED_KING;    // 🪢 缢王之索（七咒联动）
     public static Item SCRIPT_OF_FIFTH_ACT;     // 📜 第五幕剧本（七咒联动）
+
+    // ✨ 七圣遗物（嵌入抵消七咒）
+    public static Item SACRED_HEART;            // 圣光之心 - 抵消受伤加倍
+    public static Item PEACE_EMBLEM;            // 和平徽章 - 抵消中立生物攻击
+    public static Item GUARDIAN_SCALE;          // 守护鳞片 - 抵消护甲降低
+    public static Item COURAGE_BLADE;           // 勇气之刃 - 抵消伤害降低
+    public static Item FROST_DEW;               // 霜华之露 - 抵消永燃
+    public static Item SOUL_ANCHOR;             // 灵魂锚点 - 抵消灵魂破碎
+    public static Item SLUMBER_SACHET;          // 安眠香囊 - 抵消失眠症
 
     // 🗡️ 武器系列
     public static ItemSwordChengYue SWORD_CHENGYUE;      // 澄月 - 成长性终极武器
@@ -233,6 +244,16 @@ public final class ModItems {
         // 📜 注册第五幕剧本
         SCRIPT_OF_FIFTH_ACT = reg(e, new com.moremod.item.curse.ItemScriptOfFifthAct());
         System.out.println("[MoreMod] 📜 第五幕剧本已注册");
+
+        // ✨ 注册七圣遗物
+        SACRED_HEART = reg(e, new ItemSacredRelic(ItemSacredRelic.RelicType.SACRED_HEART));
+        PEACE_EMBLEM = reg(e, new ItemSacredRelic(ItemSacredRelic.RelicType.PEACE_EMBLEM));
+        GUARDIAN_SCALE = reg(e, new ItemSacredRelic(ItemSacredRelic.RelicType.GUARDIAN_SCALE));
+        COURAGE_BLADE = reg(e, new ItemSacredRelic(ItemSacredRelic.RelicType.COURAGE_BLADE));
+        FROST_DEW = reg(e, new ItemSacredRelic(ItemSacredRelic.RelicType.FROST_DEW));
+        SOUL_ANCHOR = reg(e, new ItemSacredRelic(ItemSacredRelic.RelicType.SOUL_ANCHOR));
+        SLUMBER_SACHET = reg(e, new ItemSacredRelic(ItemSacredRelic.RelicType.SLUMBER_SACHET));
+        System.out.println("[MoreMod] ✨ 七圣遗物已注册 (7种)");
 
         // 🗡️ 注册澄月剑
         SWORD_CHENGYUE = (ItemSwordChengYue) reg(e, new ItemSwordChengYue());
@@ -374,6 +395,16 @@ public final class ModItems {
         // 📜 绑定第五幕剧本模型
         bindModel(SCRIPT_OF_FIFTH_ACT, "script_of_fifth_act");
         System.out.println("[MoreMod] 📜 第五幕剧本模型已注册");
+
+        // ✨ 绑定七圣遗物模型
+        bindModel(SACRED_HEART, "sacred_heart");
+        bindModel(PEACE_EMBLEM, "peace_emblem");
+        bindModel(GUARDIAN_SCALE, "guardian_scale");
+        bindModel(COURAGE_BLADE, "courage_blade");
+        bindModel(FROST_DEW, "frost_dew");
+        bindModel(SOUL_ANCHOR, "soul_anchor");
+        bindModel(SLUMBER_SACHET, "slumber_sachet");
+        System.out.println("[MoreMod] ✨ 七圣遗物模型已注册");
 
         // 🗡️ 绑定澄月剑模型
         bindModel(SWORD_CHENGYUE, "sword_chengyue");
