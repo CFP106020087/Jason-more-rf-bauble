@@ -489,4 +489,192 @@ public class TierRitualHandler {
             player.sendMessage(new TextComponentString(color + message));
         }
     }
+
+    // ========== 織印強化儀式系統 ==========
+
+    // NBT標籤
+    private static final String TAG_WOVEN_FABRIC = "WovenFabric";
+    private static final String TAG_FABRIC_POWER = "FabricPower";
+    private static final String TAG_FABRIC_TIER_BONUS = "FabricTierBonus";
+    private static final String TAG_FABRIC_ENERGY_MULT = "FabricEnergyMult";
+    private static final String TAG_FABRIC_ABILITY_MULT = "FabricAbilityMult";
+
+    /**
+     * 檢查物品是否有織印
+     */
+    public static boolean hasFabricWeave(ItemStack armor) {
+        if (armor.isEmpty() || !armor.hasTagCompound()) return false;
+        return armor.getTagCompound().hasKey(TAG_WOVEN_FABRIC);
+    }
+
+    /**
+     * 檢查是否可以進行織印強化儀式
+     * 條件：織印盔甲 + 強化材料（龍息/終界之眼/地獄之星）
+     */
+    public static boolean canEnhanceFabric(ItemStack armor, List<ItemStack> pedestalItems, AltarTier tier) {
+        if (!hasFabricWeave(armor)) return false;
+
+        // 檢查是否已達到當前階層上限
+        NBTTagCompound fabricData = armor.getTagCompound().getCompoundTag(TAG_WOVEN_FABRIC);
+        int currentTierBonus = fabricData.getInteger(TAG_FABRIC_TIER_BONUS);
+        if (currentTierBonus >= tier.getLevel()) {
+            return false; // 已達到當前階層上限
+        }
+
+        // 需要強化材料
+        boolean hasEnhanceMaterial = false;
+        for (ItemStack stack : pedestalItems) {
+            if (isFabricEnhanceMaterial(stack)) {
+                hasEnhanceMaterial = true;
+                break;
+            }
+        }
+
+        return hasEnhanceMaterial;
+    }
+
+    /**
+     * 執行織印強化
+     * @param armor 織印盔甲
+     * @param tier 祭壇階層
+     * @return 強化結果
+     */
+    public static FabricEnhanceResult enhanceFabric(ItemStack armor, AltarTier tier, World world, BlockPos pos) {
+        if (!hasFabricWeave(armor)) {
+            return new FabricEnhanceResult(false, 0, 0, "物品沒有織印");
+        }
+
+        NBTTagCompound armorTag = armor.getTagCompound();
+        NBTTagCompound fabricData = armorTag.getCompoundTag(TAG_WOVEN_FABRIC);
+
+        int currentTierBonus = fabricData.getInteger(TAG_FABRIC_TIER_BONUS);
+        if (currentTierBonus >= tier.getLevel()) {
+            return new FabricEnhanceResult(false, 0, 0, "已達到當前祭壇階層上限");
+        }
+
+        // 根據階層設置加成
+        float energyMult = 1.0f;
+        float abilityMult = 1.0f;
+        int newPower = 100;
+
+        switch (tier.getLevel()) {
+            case 1:
+                energyMult = 1.25f;  // 能量+25%
+                abilityMult = 1.15f; // 能力+15%
+                newPower = 125;
+                break;
+            case 2:
+                energyMult = 1.5f;   // 能量+50%
+                abilityMult = 1.3f;  // 能力+30%
+                newPower = 150;
+                break;
+            case 3:
+                energyMult = 2.0f;   // 能量+100%
+                abilityMult = 1.5f;  // 能力+50%
+                newPower = 200;
+                break;
+        }
+
+        // 更新織印數據
+        fabricData.setInteger(TAG_FABRIC_POWER, newPower);
+        fabricData.setInteger(TAG_FABRIC_TIER_BONUS, tier.getLevel());
+        fabricData.setFloat(TAG_FABRIC_ENERGY_MULT, energyMult);
+        fabricData.setFloat(TAG_FABRIC_ABILITY_MULT, abilityMult);
+
+        armorTag.setTag(TAG_WOVEN_FABRIC, fabricData);
+
+        // 播放效果
+        spawnFabricEnhanceEffects(world, pos);
+
+        return new FabricEnhanceResult(true, energyMult, abilityMult, null);
+    }
+
+    /**
+     * 獲取織印能量倍率
+     */
+    public static float getFabricEnergyMultiplier(ItemStack armor) {
+        if (!hasFabricWeave(armor)) return 1.0f;
+
+        NBTTagCompound fabricData = armor.getTagCompound().getCompoundTag(TAG_WOVEN_FABRIC);
+        float mult = fabricData.getFloat(TAG_FABRIC_ENERGY_MULT);
+        return mult > 0 ? mult : 1.0f;
+    }
+
+    /**
+     * 獲取織印能力倍率
+     */
+    public static float getFabricAbilityMultiplier(ItemStack armor) {
+        if (!hasFabricWeave(armor)) return 1.0f;
+
+        NBTTagCompound fabricData = armor.getTagCompound().getCompoundTag(TAG_WOVEN_FABRIC);
+        float mult = fabricData.getFloat(TAG_FABRIC_ABILITY_MULT);
+        return mult > 0 ? mult : 1.0f;
+    }
+
+    /**
+     * 獲取織印強化等級
+     */
+    public static int getFabricTierBonus(ItemStack armor) {
+        if (!hasFabricWeave(armor)) return 0;
+
+        NBTTagCompound fabricData = armor.getTagCompound().getCompoundTag(TAG_WOVEN_FABRIC);
+        return fabricData.getInteger(TAG_FABRIC_TIER_BONUS);
+    }
+
+    /**
+     * 檢查是否為織印強化材料
+     */
+    private static boolean isFabricEnhanceMaterial(ItemStack stack) {
+        if (stack.isEmpty()) return false;
+
+        // 龍息
+        if (stack.getItem() == Items.DRAGON_BREATH) return true;
+        // 終界之眼
+        if (stack.getItem() == Items.ENDER_EYE) return true;
+        // 地獄之星
+        if (stack.getItem() == Items.NETHER_STAR) return true;
+        // 海晶碎片
+        if (stack.getItem() == Items.PRISMARINE_SHARD) return true;
+        // 烈焰粉
+        if (stack.getItem() == Items.BLAZE_POWDER) return true;
+
+        return false;
+    }
+
+    private static void spawnFabricEnhanceEffects(World world, BlockPos pos) {
+        if (!(world instanceof WorldServer)) return;
+        WorldServer ws = (WorldServer) world;
+
+        // 織印強化粒子
+        ws.spawnParticle(EnumParticleTypes.SPELL_WITCH,
+            pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
+            40, 0.5, 0.8, 0.5, 0.1);
+
+        ws.spawnParticle(EnumParticleTypes.ENCHANTMENT_TABLE,
+            pos.getX() + 0.5, pos.getY() + 1.0, pos.getZ() + 0.5,
+            30, 1.0, 0.5, 1.0, 0.0);
+
+        ws.spawnParticle(EnumParticleTypes.TOTEM,
+            pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
+            20, 0.3, 0.5, 0.3, 0.2);
+
+        world.playSound(null, pos, SoundEvents.BLOCK_ENCHANTMENT_TABLE_USE,
+            SoundCategory.BLOCKS, 1.0f, 1.2f);
+        world.playSound(null, pos, SoundEvents.ENTITY_PLAYER_LEVELUP,
+            SoundCategory.BLOCKS, 0.8f, 0.8f);
+    }
+
+    public static class FabricEnhanceResult {
+        public final boolean success;
+        public final float energyMultiplier;
+        public final float abilityMultiplier;
+        public final String errorMessage;
+
+        public FabricEnhanceResult(boolean success, float energyMult, float abilityMult, String error) {
+            this.success = success;
+            this.energyMultiplier = energyMult;
+            this.abilityMultiplier = abilityMult;
+            this.errorMessage = error;
+        }
+    }
 }

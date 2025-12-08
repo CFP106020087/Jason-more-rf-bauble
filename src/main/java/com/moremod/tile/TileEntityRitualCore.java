@@ -127,6 +127,11 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     private static final int MURAMASA_BOOST_TIME = 150; // 7.5秒
     private static final int MURAMASA_BOOST_DURATION = 12000; // 10分鐘效果
 
+    // 織印強化儀式系統 (Fabric Enhancement Ritual)
+    private boolean fabricEnhanceActive = false;
+    private int fabricEnhanceProgress = 0;
+    private static final int FABRIC_ENHANCE_TIME = 200; // 10秒
+
     // 用於客戶端平滑渲染的緩存變量
     public float clientRotation = 0;
     public float lastClientRotation = 0;
@@ -203,6 +208,11 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
 
         // 0.13 检测村正攻擊提升儀式
         if (updateMuramasaBoostRitual()) {
+            return;
+        }
+
+        // 0.14 检测織印強化儀式
+        if (updateFabricEnhanceRitual()) {
             return;
         }
 
@@ -2449,5 +2459,112 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
                 color + ritualName + "進行中... " + TextFormatting.GOLD + secondsLeft + "秒"
             ), true);
         }
+    }
+
+    // ========== 織印強化儀式系統 ==========
+
+    /**
+     * 更新織印強化儀式
+     * 織印盔甲 + 強化材料（龍息/終界之眼/地獄之星）
+     */
+    private boolean updateFabricEnhanceRitual() {
+        ItemStack centerItem = inv.getStackInSlot(0);
+        if (centerItem.isEmpty() || !TierRitualHandler.hasFabricWeave(centerItem)) {
+            if (fabricEnhanceActive) resetFabricEnhance();
+            return false;
+        }
+
+        List<ItemStack> pedestalItems = collectPedestalItems();
+
+        if (!TierRitualHandler.canEnhanceFabric(centerItem, pedestalItems, currentTier)) {
+            if (fabricEnhanceActive) resetFabricEnhance();
+            return false;
+        }
+
+        if (!fabricEnhanceActive) {
+            fabricEnhanceActive = true;
+            fabricEnhanceProgress = 0;
+            notifyRitualStart("織印強化", TextFormatting.LIGHT_PURPLE);
+
+            // 顯示當前階層加成預覽
+            String bonusInfo = "";
+            switch (currentTier.getLevel()) {
+                case 1: bonusInfo = "能量+25% / 能力+15%"; break;
+                case 2: bonusInfo = "能量+50% / 能力+30%"; break;
+                case 3: bonusInfo = "能量+100% / 能力+50%"; break;
+            }
+            TierRitualHandler.notifyPlayers(world, pos,
+                "預期加成: " + bonusInfo, TextFormatting.AQUA);
+        }
+
+        fabricEnhanceProgress++;
+
+        if (fabricEnhanceProgress % 20 == 0) {
+            int seconds = (FABRIC_ENHANCE_TIME - fabricEnhanceProgress) / 20;
+            notifyRitualProgress("織印強化", seconds, TextFormatting.LIGHT_PURPLE);
+            spawnFabricEnhanceParticles();
+        }
+
+        if (fabricEnhanceProgress >= FABRIC_ENHANCE_TIME) {
+            performFabricEnhance(centerItem);
+            resetFabricEnhance();
+        }
+
+        return true;
+    }
+
+    private void resetFabricEnhance() {
+        fabricEnhanceActive = false;
+        fabricEnhanceProgress = 0;
+    }
+
+    private void performFabricEnhance(ItemStack armor) {
+        TierRitualHandler.FabricEnhanceResult result =
+            TierRitualHandler.enhanceFabric(armor, currentTier, world, pos);
+
+        if (result.success) {
+            TierRitualHandler.notifyPlayers(world, pos,
+                "★ 織印強化成功！", TextFormatting.GOLD);
+            TierRitualHandler.notifyPlayers(world, pos,
+                "能量倍率: x" + result.energyMultiplier +
+                " / 能力倍率: x" + result.abilityMultiplier, TextFormatting.GREEN);
+
+            // 消耗強化材料
+            consumeOnePedestalItem(stack ->
+                stack.getItem() == Items.DRAGON_BREATH ||
+                stack.getItem() == Items.ENDER_EYE ||
+                stack.getItem() == Items.NETHER_STAR ||
+                stack.getItem() == Items.PRISMARINE_SHARD ||
+                stack.getItem() == Items.BLAZE_POWDER);
+
+            world.playSound(null, pos, SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.BLOCKS, 1.0f, 1.0f);
+        } else {
+            TierRitualHandler.notifyPlayers(world, pos,
+                "✗ " + result.errorMessage, TextFormatting.RED);
+        }
+
+        syncToClient();
+        markDirty();
+    }
+
+    private void spawnFabricEnhanceParticles() {
+        if (!(world instanceof WorldServer)) return;
+        WorldServer ws = (WorldServer) world;
+
+        // 織印強化粒子
+        for (int i = 0; i < 8; i++) {
+            double angle = i * Math.PI / 4 + (fabricEnhanceProgress * 0.05);
+            double radius = 1.5;
+            double x = pos.getX() + 0.5 + Math.cos(angle) * radius;
+            double z = pos.getZ() + 0.5 + Math.sin(angle) * radius;
+
+            ws.spawnParticle(EnumParticleTypes.SPELL_WITCH,
+                x, pos.getY() + 1.2, z,
+                3, 0.1, 0.1, 0.1, 0.0);
+        }
+
+        ws.spawnParticle(EnumParticleTypes.ENCHANTMENT_TABLE,
+            pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
+            10, 0.5, 0.3, 0.5, 0.0);
     }
 }
