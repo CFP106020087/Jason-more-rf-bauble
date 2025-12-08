@@ -478,3 +478,8 @@ tile.moremod.enchanting_booster.soul_library.name=灵魂图书馆
 
 # ===== 渔网 (Fishing Net) =====
 tile.moremod.fishing_net.name=渔网
+
+# ===== 实用方块 (Utility Blocks) =====
+tile.moremod.compost_bin.name=堆肥桶
+tile.moremod.animal_feeder.name=动物喂食器
+tile.moremod.bio_generator.name=生物质发电机

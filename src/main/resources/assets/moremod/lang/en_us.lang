@@ -70,3 +70,8 @@ tile.moremod.enchanting_booster.soul_library.name=Soul Library
 
 # Fishing Net
 tile.moremod.fishing_net.name=Fishing Net
+
+# Utility Blocks
+tile.moremod.compost_bin.name=Compost Bin
+tile.moremod.animal_feeder.name=Animal Feeder
+tile.moremod.bio_generator.name=Bio Generator

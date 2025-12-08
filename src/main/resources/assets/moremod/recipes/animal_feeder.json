@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "P P",
+    "PPP",
+    "S S"
+  ],
+  "key": {
+    "P": {
+      "item": "minecraft:planks",
+      "data": 32767
+    },
+    "S": {
+      "item": "minecraft:stick"
+    }
+  },
+  "result": {
+    "item": "moremod:animal_feeder",
+    "count": 1
+  }
+}

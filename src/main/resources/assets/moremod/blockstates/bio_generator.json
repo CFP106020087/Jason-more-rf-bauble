@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "active=false": { "model": "moremod:bio_generator" },
+    "active=true": { "model": "moremod:bio_generator_active" }
+  }
+}
