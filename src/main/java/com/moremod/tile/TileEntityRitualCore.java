@@ -8,11 +8,16 @@ import com.moremod.ritual.AltarTier;
 import com.moremod.ritual.RitualInfusionAPI;
 import com.moremod.ritual.RitualInfusionRecipe;
 import net.minecraft.block.state.IBlockState;
+import net.minecraft.enchantment.Enchantment;
+import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.init.Items;
 import net.minecraft.init.SoundEvents;
+import net.minecraft.item.ItemEnchantedBook;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
 import net.minecraft.network.NetworkManager;
 import net.minecraft.network.play.server.SPacketUpdateTileEntity;
 import net.minecraft.tileentity.TileEntity;
@@ -31,7 +36,9 @@ import net.minecraftforge.items.ItemStackHandler;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class TileEntityRitualCore extends TileEntity implements ITickable {
 
@@ -65,6 +72,12 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     private boolean embeddingRitualActive = false;
     private int embeddingProgress = 0;
     private static final int EMBEDDING_TIME = 100; // 5秒嵌入时间
+
+    // 注魔仪式系统 (Enchantment Infusion Ritual)
+    private boolean enchantInfusionActive = false;
+    private int enchantInfusionProgress = 0;
+    private static final int ENCHANT_INFUSION_TIME = 200; // 10秒注魔时间
+    private static final float ENCHANT_SUCCESS_RATE = 0.10f; // 10%成功率
 
     // 用於客戶端平滑渲染的緩存變量
     public float clientRotation = 0;
@@ -104,6 +117,11 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
 
         // 0.5 检测嵌入仪式（七咒玩家坐在祭坛上）
         updateEmbeddingRitual();
+
+        // 0.6 检测注魔仪式（三阶祭坛+附魔书）
+        if (updateEnchantInfusionRitual()) {
+            return; // 注魔仪式进行中，跳过普通配方处理
+        }
 
         // 1. 查找有效基座 (必須有物品)
         List<TileEntityPedestal> peds = findValidPedestals();
@@ -675,6 +693,320 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             SoundCategory.PLAYERS, 1.0f, 0.5f);
     }
 
+    // ========== 注魔仪式系统 (Enchantment Infusion) ==========
+
+    /**
+     * 更新注魔仪式
+     * 三阶祭坛 + 中心物品 + 周围全是附魔书 = 注魔仪式
+     * @return true 如果正在进行注魔仪式
+     */
+    private boolean updateEnchantInfusionRitual() {
+        // 必须是三阶祭坛
+        if (currentTier != AltarTier.TIER_3) {
+            if (enchantInfusionActive) {
+                enchantInfusionActive = false;
+                enchantInfusionProgress = 0;
+            }
+            return false;
+        }
+
+        // 检查是否满足注魔条件
+        List<TileEntityPedestal> bookPedestals = findEnchantedBookPedestals();
+        ItemStack coreItem = inv.getStackInSlot(0);
+
+        if (bookPedestals.isEmpty() || coreItem.isEmpty()) {
+            if (enchantInfusionActive) {
+                enchantInfusionActive = false;
+                enchantInfusionProgress = 0;
+            }
+            return false;
+        }
+
+        // 需要至少3本附魔书才能启动仪式
+        if (bookPedestals.size() < 3) {
+            return false;
+        }
+
+        // 开始/继续注魔仪式
+        if (!enchantInfusionActive) {
+            enchantInfusionActive = true;
+            enchantInfusionProgress = 0;
+            notifyEnchantInfusionStart(coreItem, bookPedestals.size());
+        }
+
+        enchantInfusionProgress++;
+
+        // 进度效果
+        if (enchantInfusionProgress % 20 == 0) {
+            int seconds = (ENCHANT_INFUSION_TIME - enchantInfusionProgress) / 20;
+            notifyEnchantInfusionProgress(seconds, bookPedestals.size());
+            spawnEnchantInfusionParticles();
+        }
+
+        // 完成注魔
+        if (enchantInfusionProgress >= ENCHANT_INFUSION_TIME) {
+            performEnchantInfusion(coreItem, bookPedestals);
+            enchantInfusionActive = false;
+            enchantInfusionProgress = 0;
+        }
+
+        return true;
+    }
+
+    /**
+     * 查找所有放着附魔书的基座
+     */
+    private List<TileEntityPedestal> findEnchantedBookPedestals() {
+        List<TileEntityPedestal> list = new ArrayList<>();
+        for (BlockPos off : OFFS8) {
+            TileEntity te = world.getTileEntity(pos.add(off));
+            if (te instanceof TileEntityPedestal) {
+                TileEntityPedestal ped = (TileEntityPedestal) te;
+                ItemStack stack = ped.getInv().getStackInSlot(0);
+                if (!stack.isEmpty() && stack.getItem() == Items.ENCHANTED_BOOK) {
+                    list.add(ped);
+                }
+            }
+        }
+        return list;
+    }
+
+    /**
+     * 执行注魔仪式
+     */
+    private void performEnchantInfusion(ItemStack coreItem, List<TileEntityPedestal> bookPedestals) {
+        // 计算成功率 (基础10%)
+        float successRate = ENCHANT_SUCCESS_RATE;
+
+        // 判定成功/失败
+        boolean success = world.rand.nextFloat() < successRate;
+
+        if (success) {
+            // 成功：收集所有附魔并应用到物品
+            Map<Enchantment, Integer> existingEnchants = EnchantmentHelper.getEnchantments(coreItem);
+            Map<Enchantment, Integer> newEnchants = new HashMap<>(existingEnchants);
+
+            int totalEnchants = 0;
+            for (TileEntityPedestal ped : bookPedestals) {
+                ItemStack bookStack = ped.getInv().getStackInSlot(0);
+                Map<Enchantment, Integer> bookEnchants = EnchantmentHelper.getEnchantments(bookStack);
+
+                for (Map.Entry<Enchantment, Integer> entry : bookEnchants.entrySet()) {
+                    Enchantment ench = entry.getKey();
+                    int level = entry.getValue();
+
+                    // 加法形式：叠加等级
+                    if (newEnchants.containsKey(ench)) {
+                        int existingLevel = newEnchants.get(ench);
+                        newEnchants.put(ench, existingLevel + level);
+                    } else {
+                        newEnchants.put(ench, level);
+                    }
+                    totalEnchants++;
+                }
+
+                // 消耗附魔书
+                ped.consumeOne();
+            }
+
+            // 应用所有附魔到物品
+            EnchantmentHelper.setEnchantments(newEnchants, coreItem);
+
+            // 通知成功
+            notifyEnchantInfusionSuccess(coreItem, totalEnchants);
+            spawnEnchantSuccessEffects();
+
+        } else {
+            // 失败：爆炸，可能损坏物品
+            doEnchantFailExplosion();
+
+            // 50%概率毁掉中心物品
+            if (world.rand.nextFloat() < 0.5f) {
+                inv.setStackInSlot(0, ItemStack.EMPTY);
+                notifyEnchantInfusionFailDestroyed();
+            } else {
+                notifyEnchantInfusionFail();
+            }
+
+            // 消耗所有附魔书
+            for (TileEntityPedestal ped : bookPedestals) {
+                ped.consumeOne();
+            }
+        }
+
+        syncToClient();
+        markDirty();
+    }
+
+    /**
+     * 注魔失败爆炸
+     */
+    private void doEnchantFailExplosion() {
+        world.createExplosion(null, pos.getX() + 0.5, pos.getY() + 1, pos.getZ() + 0.5, 3.0F, true);
+    }
+
+    /**
+     * 通知注魔开始
+     */
+    private void notifyEnchantInfusionStart(ItemStack item, int bookCount) {
+        AxisAlignedBB area = new AxisAlignedBB(pos).grow(10);
+        List<EntityPlayer> players = world.getEntitiesWithinAABB(EntityPlayer.class, area);
+        for (EntityPlayer player : players) {
+            player.sendMessage(new TextComponentString(
+                TextFormatting.LIGHT_PURPLE + "════════════════════════════════"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.AQUA + "✦ 注魔仪式开始 ✦"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.GRAY + "目标: " + TextFormatting.WHITE + item.getDisplayName()
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.GRAY + "附魔书: " + TextFormatting.GOLD + bookCount + " 本"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.RED + "⚠ 成功率: " + TextFormatting.YELLOW + "10%"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.LIGHT_PURPLE + "════════════════════════════════"
+            ));
+        }
+
+        world.playSound(null, pos, SoundEvents.BLOCK_ENCHANTMENT_TABLE_USE,
+            SoundCategory.BLOCKS, 1.0f, 0.8f);
+    }
+
+    /**
+     * 通知注魔进度
+     */
+    private void notifyEnchantInfusionProgress(int secondsLeft, int bookCount) {
+        AxisAlignedBB area = new AxisAlignedBB(pos).grow(10);
+        List<EntityPlayer> players = world.getEntitiesWithinAABB(EntityPlayer.class, area);
+        for (EntityPlayer player : players) {
+            player.sendStatusMessage(new TextComponentString(
+                TextFormatting.LIGHT_PURPLE + "注魔仪式进行中... " +
+                TextFormatting.GOLD + secondsLeft + "秒 " +
+                TextFormatting.GRAY + "(" + bookCount + "本附魔书)"
+            ), true);
+        }
+
+        // 播放附魔音效
+        if (enchantInfusionProgress % 40 == 0) {
+            world.playSound(null, pos, SoundEvents.BLOCK_ENCHANTMENT_TABLE_USE,
+                SoundCategory.BLOCKS, 0.5f, 1.2f);
+        }
+    }
+
+    /**
+     * 通知注魔成功
+     */
+    private void notifyEnchantInfusionSuccess(ItemStack item, int enchantCount) {
+        AxisAlignedBB area = new AxisAlignedBB(pos).grow(10);
+        List<EntityPlayer> players = world.getEntitiesWithinAABB(EntityPlayer.class, area);
+        for (EntityPlayer player : players) {
+            player.sendMessage(new TextComponentString(
+                TextFormatting.GREEN + "═══════════════════════════════"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.GOLD + "★ 注魔成功！★"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.WHITE + item.getDisplayName() +
+                TextFormatting.GRAY + " 获得了 " +
+                TextFormatting.AQUA + enchantCount + " 个附魔效果！"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.YELLOW + "(附魔等级以加法形式叠加)"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.GREEN + "═══════════════════════════════"
+            ));
+        }
+    }
+
+    /**
+     * 通知注魔失败
+     */
+    private void notifyEnchantInfusionFail() {
+        AxisAlignedBB area = new AxisAlignedBB(pos).grow(10);
+        List<EntityPlayer> players = world.getEntitiesWithinAABB(EntityPlayer.class, area);
+        for (EntityPlayer player : players) {
+            player.sendMessage(new TextComponentString(
+                TextFormatting.RED + "✗ 注魔失败！祭坛爆炸！"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.GRAY + "物品幸免于难，但附魔书全部损毁..."
+            ));
+        }
+    }
+
+    /**
+     * 通知注魔失败且物品损毁
+     */
+    private void notifyEnchantInfusionFailDestroyed() {
+        AxisAlignedBB area = new AxisAlignedBB(pos).grow(10);
+        List<EntityPlayer> players = world.getEntitiesWithinAABB(EntityPlayer.class, area);
+        for (EntityPlayer player : players) {
+            player.sendMessage(new TextComponentString(
+                TextFormatting.DARK_RED + "✗ 注魔大失败！"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.RED + "物品在爆炸中被彻底毁灭！"
+            ));
+        }
+    }
+
+    /**
+     * 注魔粒子效果
+     */
+    private void spawnEnchantInfusionParticles() {
+        if (!(world instanceof WorldServer)) return;
+        WorldServer ws = (WorldServer) world;
+
+        // 附魔符文粒子从基座飞向中心
+        for (BlockPos off : OFFS8) {
+            TileEntity te = world.getTileEntity(pos.add(off));
+            if (te instanceof TileEntityPedestal) {
+                TileEntityPedestal ped = (TileEntityPedestal) te;
+                if (!ped.isEmpty() && ped.getInv().getStackInSlot(0).getItem() == Items.ENCHANTED_BOOK) {
+                    BlockPos pedPos = pos.add(off);
+                    ws.spawnParticle(EnumParticleTypes.ENCHANTMENT_TABLE,
+                        pedPos.getX() + 0.5, pedPos.getY() + 1.5, pedPos.getZ() + 0.5,
+                        3, 0.2, 0.2, 0.2, 0.0);
+                }
+            }
+        }
+
+        // 中心光柱效果
+        ws.spawnParticle(EnumParticleTypes.PORTAL,
+            pos.getX() + 0.5, pos.getY() + 1.0, pos.getZ() + 0.5,
+            15, 0.3, 0.5, 0.3, 0.1);
+    }
+
+    /**
+     * 注魔成功特效
+     */
+    private void spawnEnchantSuccessEffects() {
+        if (!(world instanceof WorldServer)) return;
+        WorldServer ws = (WorldServer) world;
+
+        // 金色烟花效果
+        ws.spawnParticle(EnumParticleTypes.TOTEM,
+            pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
+            150, 0.5, 1.0, 0.5, 0.8);
+
+        // 附魔符文爆发
+        ws.spawnParticle(EnumParticleTypes.ENCHANTMENT_TABLE,
+            pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
+            100, 1.0, 1.0, 1.0, 0.5);
+
+        // 音效
+        world.playSound(null, pos, SoundEvents.UI_TOAST_CHALLENGE_COMPLETE,
+            SoundCategory.BLOCKS, 1.0f, 1.2f);
+        world.playSound(null, pos, SoundEvents.ENTITY_PLAYER_LEVELUP,
+            SoundCategory.BLOCKS, 1.0f, 0.8f);
+    }
+
     // --- 標準 Getters & Setters ---
     public boolean isActive() { return isActive; }
     public int getProgress() { return process; }
@@ -684,6 +1016,8 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     public AltarTier getCurrentTier() { return currentTier; }
     public boolean isEmbeddingActive() { return embeddingRitualActive; }
     public int getEmbeddingProgress() { return embeddingProgress; }
+    public boolean isEnchantInfusionActive() { return enchantInfusionActive; }
+    public int getEnchantInfusionProgress() { return enchantInfusionProgress; }
 
     // --- 渲染關鍵優化 ---
 
