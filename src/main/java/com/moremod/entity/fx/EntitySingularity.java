@@ -154,7 +154,7 @@ public class EntitySingularity extends Entity {
 
         // 脉冲音效
         if (ticksExisted % 20 == 0) {
-            world.playSound(null, posX, posY, posZ, SoundEvents.BLOCK_BEACON_AMBIENT,
+            world.playSound(null, posX, posY, posZ, SoundEvents.BLOCK_PORTAL_AMBIENT,
                     SoundCategory.PLAYERS, 1.0F, 0.3F);
         }
     }
