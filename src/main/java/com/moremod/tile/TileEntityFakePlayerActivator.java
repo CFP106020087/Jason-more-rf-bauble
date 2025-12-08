@@ -224,10 +224,19 @@ public class TileEntityFakePlayerActivator extends TileEntity implements ITickab
      * 获取当前工具
      */
     private ItemStack getCurrentTool() {
+        int maxSlot = inventory.getSlots();
+        // 确保 currentToolSlot 在有效范围内
+        if (currentToolSlot >= maxSlot) {
+            currentToolSlot = Math.min(1, maxSlot - 1);
+        }
+        if (currentToolSlot < 1 || currentToolSlot >= maxSlot) {
+            return ItemStack.EMPTY;
+        }
+
         ItemStack tool = inventory.getStackInSlot(currentToolSlot);
         if (tool.isEmpty()) {
             // 自动切换到下一个有物品的槽位
-            for (int i = 1; i < 10; i++) {
+            for (int i = 1; i < maxSlot; i++) {
                 ItemStack stack = inventory.getStackInSlot(i);
                 if (!stack.isEmpty()) {
                     currentToolSlot = i;
@@ -242,10 +251,16 @@ public class TileEntityFakePlayerActivator extends TileEntity implements ITickab
      * 更新当前工具
      */
     private void updateCurrentTool(ItemStack newTool) {
+        int maxSlot = inventory.getSlots();
+        // 确保 currentToolSlot 在有效范围内
+        if (currentToolSlot < 1 || currentToolSlot >= maxSlot) {
+            return;
+        }
+
         if (newTool.isEmpty() || newTool.getItemDamage() >= newTool.getMaxDamage()) {
             inventory.setStackInSlot(currentToolSlot, ItemStack.EMPTY);
             // 切换到下一个工具
-            for (int i = 1; i < 10; i++) {
+            for (int i = 1; i < maxSlot; i++) {
                 if (!inventory.getStackInSlot(i).isEmpty()) {
                     currentToolSlot = i;
                     break;
@@ -383,12 +398,14 @@ public class TileEntityFakePlayerActivator extends TileEntity implements ITickab
         AxisAlignedBB collectBox = new AxisAlignedBB(pos).grow(3);
         List<EntityItem> items = world.getEntitiesWithinAABB(EntityItem.class, collectBox);
 
+        int maxSlot = inventory.getSlots(); // 安全获取实际槽位数量
+
         for (EntityItem entityItem : items) {
             if (entityItem.isDead) continue;
 
             ItemStack stack = entityItem.getItem();
-            // 尝试放入库存
-            for (int i = 1; i < 10; i++) {
+            // 尝试放入库存（从槽位1开始，槽位0是核心）
+            for (int i = 1; i < maxSlot; i++) {
                 ItemStack slotStack = inventory.getStackInSlot(i);
                 if (slotStack.isEmpty()) {
                     inventory.setStackInSlot(i, stack.copy());
