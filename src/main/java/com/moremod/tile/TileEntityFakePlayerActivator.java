@@ -325,7 +325,7 @@ public class TileEntityFakePlayerActivator extends TileEntity implements ITickab
      * 攻击生物
      */
     private boolean performAttack(ModFakePlayer fakePlayer, BlockPos targetPos) {
-        AxisAlignedBB searchBox = new AxisAlignedBB(targetPos).grow(2.0);
+        AxisAlignedBB searchBox = new AxisAlignedBB(targetPos).grow(8.0); // 16x16 范围
         List<EntityLivingBase> entities = world.getEntitiesWithinAABB(
             EntityLivingBase.class, searchBox,
             e -> e != null && e.isEntityAlive() && !(e instanceof EntityPlayer)
@@ -395,7 +395,7 @@ public class TileEntityFakePlayerActivator extends TileEntity implements ITickab
      * 收集掉落物
      */
     private void collectDroppedItems(ModFakePlayer fakePlayer) {
-        AxisAlignedBB collectBox = new AxisAlignedBB(pos).grow(3);
+        AxisAlignedBB collectBox = new AxisAlignedBB(pos).grow(8); // 16x16 范围
         List<EntityItem> items = world.getEntitiesWithinAABB(EntityItem.class, collectBox);
 
         int maxSlot = inventory.getSlots(); // 安全获取实际槽位数量
