@@ -77,6 +77,9 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     private boolean embeddingRitualActive = false;
     private int embeddingProgress = 0;
     private static final int EMBEDDING_TIME = 100; // 5秒嵌入时间
+    private int embeddingFailFeedbackCooldown = 0; // 防止重复发送失败消息
+    private int embeddingFailCounter = 0; // 持续失败计数器，用于自动下马
+    private static final int EMBEDDING_FAIL_DISMOUNT_TIME = 100; // 5秒后自动下马
 
     // 注魔仪式系统 (Enchantment Infusion Ritual)
     private boolean enchantInfusionActive = false;
@@ -464,26 +467,62 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
      * 检测是否有七咒玩家坐在祭坛上，并且祭坛上有诅咒饰品
      */
     private void updateEmbeddingRitual() {
+        // 冷却计数器递减
+        if (embeddingFailFeedbackCooldown > 0) {
+            embeddingFailFeedbackCooldown--;
+        }
+
         // 找到坐在祭坛上的玩家
         EntityPlayer seatedPlayer = findSeatedPlayer();
 
         if (seatedPlayer == null) {
-            // 没有玩家坐着，重置嵌入进度
+            // 没有玩家坐着，重置所有嵌入相关状态
             if (embeddingRitualActive) {
                 embeddingRitualActive = false;
                 embeddingProgress = 0;
             }
+            embeddingFailCounter = 0;
             return;
         }
 
-        // 检查是否满足嵌入条件
-        if (!canPerformEmbedding(seatedPlayer)) {
+        // 检查是否满足嵌入条件，获取失败原因
+        String failReason = checkEmbeddingConditions(seatedPlayer);
+
+        if (failReason != null) {
+            // 条件不满足
             if (embeddingRitualActive) {
                 embeddingRitualActive = false;
                 embeddingProgress = 0;
             }
+
+            // 增加失败计数
+            embeddingFailCounter++;
+
+            // 每秒发送一次反馈消息（不要太频繁）
+            if (embeddingFailFeedbackCooldown <= 0) {
+                seatedPlayer.sendStatusMessage(new TextComponentString(
+                    TextFormatting.RED + failReason
+                ), true);
+                embeddingFailFeedbackCooldown = 20; // 1秒冷却
+            }
+
+            // 如果持续失败超过5秒，自动让玩家下马
+            if (embeddingFailCounter >= EMBEDDING_FAIL_DISMOUNT_TIME) {
+                seatedPlayer.sendMessage(new TextComponentString(
+                    TextFormatting.RED + "嵌入条件无法满足，仪式已取消。"
+                ));
+                seatedPlayer.sendMessage(new TextComponentString(
+                    TextFormatting.GRAY + "原因: " + failReason
+                ));
+                seatedPlayer.dismountRidingEntity();
+                embeddingFailCounter = 0;
+            }
+
             return;
         }
+
+        // 条件满足，重置失败计数
+        embeddingFailCounter = 0;
 
         // 开始/继续嵌入仪式
         if (!embeddingRitualActive) {
@@ -536,31 +575,46 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
      * 检查是否可以进行嵌入仪式
      */
     private boolean canPerformEmbedding(EntityPlayer player) {
+        return checkEmbeddingConditions(player) == null;
+    }
+
+    /**
+     * 检查嵌入条件，返回失败原因（如果条件满足则返回null）
+     */
+    @Nullable
+    private String checkEmbeddingConditions(EntityPlayer player) {
         // 1. 必须是三阶祭坛
         if (currentTier != AltarTier.TIER_3) {
-            return false;
+            return "需要三阶大师祭坛！当前: " + currentTier.getDisplayName();
         }
 
         // 2. 玩家必须有七咒之戒
         if (!CurseDeathHook.hasCursedRing(player)) {
-            return false;
+            return "需要佩戴七咒之戒！";
         }
 
         // 3. 输入槽必须有可嵌入的七圣遗物
         ItemStack inputStack = inv.getStackInSlot(0);
+        if (inputStack.isEmpty()) {
+            return "请在祭坛上放置七圣遗物！";
+        }
+
         if (!EmbeddedCurseManager.isEmbeddableSacredRelic(inputStack)) {
-            return false;
+            return "祭坛上的物品不是可嵌入的七圣遗物！";
         }
 
-        // 4. 玩家还没有嵌入这个类型的遗物
+        // 4. 检查遗物类型
         EmbeddedRelicType type = EmbeddedCurseManager.getTypeFromItem(inputStack);
-        if (type == null) return false;
-
-        if (EmbeddedCurseManager.hasEmbeddedRelic(player, type)) {
-            return false;
+        if (type == null) {
+            return "无法识别遗物类型！";
         }
 
-        return true;
+        // 5. 玩家还没有嵌入这个类型的遗物
+        if (EmbeddedCurseManager.hasEmbeddedRelic(player, type)) {
+            return "你已经嵌入了 " + type.getDisplayName() + "！";
+        }
+
+        return null; // 所有条件满足
     }
 
     /**
