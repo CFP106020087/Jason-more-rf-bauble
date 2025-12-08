@@ -15,10 +15,12 @@ import net.minecraft.util.SoundCategory;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
+import net.minecraftforge.fml.common.ObfuscationReflectionHelper;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 import javax.annotation.Nullable;
+import java.lang.reflect.Field;
 import java.util.List;
 
 /**
@@ -64,9 +66,22 @@ public class ItemFateApple extends ItemFood {
             EntityPlayer player = (EntityPlayer) entityLiving;
 
             if (!worldIn.isRemote) {
-                // 重置附魔种子
-                int oldSeed = player.xpSeed;
-                player.xpSeed = worldIn.rand.nextInt();
+                // 使用反射重置附魔种子
+                try {
+                    // xpSeed 在混淆环境中的名称是 "field_175152_f"
+                    Field xpSeedField = ObfuscationReflectionHelper.findField(EntityPlayer.class, "field_175152_f");
+                    int oldSeed = xpSeedField.getInt(player);
+                    xpSeedField.setInt(player, worldIn.rand.nextInt());
+                } catch (Exception e) {
+                    // 如果反射失败，尝试直接使用字段名
+                    try {
+                        Field xpSeedField = EntityPlayer.class.getDeclaredField("xpSeed");
+                        xpSeedField.setAccessible(true);
+                        xpSeedField.setInt(player, worldIn.rand.nextInt());
+                    } catch (Exception ex) {
+                        System.err.println("[MoreMod] Failed to reset xpSeed: " + ex.getMessage());
+                    }
+                }
 
                 // 通知玩家
                 player.sendMessage(new TextComponentString(
