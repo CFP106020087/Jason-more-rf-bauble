@@ -169,17 +169,23 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     }
 
     private void finishRitual(List<TileEntityPedestal> peds) {
+        // 先保存配方引用，因为后续操作可能触发reset()
+        RitualInfusionRecipe recipe = activeRecipe;
+
+        // 标记为非活动状态，防止onContentsChanged触发reset
+        isActive = false;
+
         // 失敗判定 (Risk mechanics)
-        if (activeRecipe.getFailChance() > 0 && world.rand.nextFloat() < activeRecipe.getFailChance()) {
+        if (recipe.getFailChance() > 0 && world.rand.nextFloat() < recipe.getFailChance()) {
             System.out.println("[Ritual] Failed! Explosion!");
             doFailExplosion();
         } else {
             // 成功：產生產物
-            ItemStack output = activeRecipe.getOutput();
+            ItemStack output = recipe.getOutput();
             System.out.println("[Ritual] Recipe output: " + output + " isEmpty=" + output.isEmpty());
 
             if (output.isEmpty()) {
-                System.err.println("[Ritual] ERROR: Output is empty! Recipe class: " + activeRecipe.getClass().getSimpleName());
+                System.err.println("[Ritual] ERROR: Output is empty! Recipe class: " + recipe.getClass().getSimpleName());
             } else {
                 ItemStack outputCopy = output.copy();
                 System.out.println("[Ritual] Setting output slot to: " + outputCopy.getDisplayName());
@@ -187,8 +193,8 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             }
         }
 
-        // 無論成功失敗，消耗原材料
-        consumeIngredients(peds);
+        // 消耗原材料（使用保存的配方引用）
+        consumeIngredientsWithRecipe(peds, recipe);
 
         // 視覺通知
         IBlockState state = world.getBlockState(pos);
@@ -196,17 +202,17 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         markDirty();
     }
 
-    private void consumeIngredients(List<TileEntityPedestal> peds) {
+    private void consumeIngredientsWithRecipe(List<TileEntityPedestal> peds, RitualInfusionRecipe recipe) {
         inv.extractItem(0, 1, false); // 消耗核心
         System.out.println("[Ritual] Core item consumed from slot 0");
 
         // 安全检查
-        if (activeRecipe == null) {
-            System.err.println("[Ritual] Warning: activeRecipe is null in consumeIngredients!");
+        if (recipe == null) {
+            System.err.println("[Ritual] Warning: recipe is null in consumeIngredients!");
             return;
         }
 
-        List<net.minecraft.item.crafting.Ingredient> pedestalItems = activeRecipe.getPedestalItems();
+        List<net.minecraft.item.crafting.Ingredient> pedestalItems = recipe.getPedestalItems();
         System.out.println("[Ritual] Pedestal items to consume: " + (pedestalItems != null ? pedestalItems.size() : "null"));
 
         if (pedestalItems == null || pedestalItems.isEmpty()) {
