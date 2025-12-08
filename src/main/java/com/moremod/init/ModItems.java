@@ -41,6 +41,8 @@ import com.moremod.item.ItemBioStabilizer;
 import com.moremod.item.ItemTowel;
 // 🧵 添加织布拆解器导入
 import com.moremod.item.ItemFabricRemover;
+// 📦 添加结构胶囊导入
+import com.moremod.item.ItemStructureCapsule;
 
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.item.Item.ToolMaterial;
@@ -127,6 +129,12 @@ public final class ModItems {
     public static Item NEURAL_SYNCHRONIZER;     // 神经同步器
     public static Item BIO_STABILIZER;          // 生物稳定剂
     public static Item TOWEL;                   // 毛巾
+
+    // 📦 结构胶囊系列
+    public static ItemStructureCapsule STRUCTURE_CAPSULE_SMALL;   // 小型结构胶囊 3×3×3
+    public static ItemStructureCapsule STRUCTURE_CAPSULE_MEDIUM;  // 中型结构胶囊 7×7×7
+    public static ItemStructureCapsule STRUCTURE_CAPSULE_LARGE;   // 大型结构胶囊 15×15×15
+
     //新模块(屎山包装)
 
 
@@ -258,6 +266,13 @@ public final class ModItems {
 
         TOWEL = reg(e, new ItemTowel());
         System.out.println("[MoreMod] 🧴 毛巾已注册");
+
+        // 📦 注册结构胶囊
+        STRUCTURE_CAPSULE_SMALL = (ItemStructureCapsule) reg(e, new ItemStructureCapsule("structure_capsule_small", 3));
+        STRUCTURE_CAPSULE_MEDIUM = (ItemStructureCapsule) reg(e, new ItemStructureCapsule("structure_capsule_medium", 7));
+        STRUCTURE_CAPSULE_LARGE = (ItemStructureCapsule) reg(e, new ItemStructureCapsule("structure_capsule_large", 15));
+        System.out.println("[MoreMod] 📦 结构胶囊已注册 (3种尺寸)");
+
         //新模块系统
     }
 
@@ -390,6 +405,12 @@ public final class ModItems {
 
         bindModel(TOWEL, "towel");
         System.out.println("[MoreMod] 🧴 毛巾模型已注册");
+
+        // 📦 绑定结构胶囊模型
+        bindModel(STRUCTURE_CAPSULE_SMALL, "structure_capsule_small");
+        bindModel(STRUCTURE_CAPSULE_MEDIUM, "structure_capsule_medium");
+        bindModel(STRUCTURE_CAPSULE_LARGE, "structure_capsule_large");
+        System.out.println("[MoreMod] 📦 结构胶囊模型已注册");
     }
 
     @SideOnly(Side.CLIENT)
