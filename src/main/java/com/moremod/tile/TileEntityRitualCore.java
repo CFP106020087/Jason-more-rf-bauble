@@ -199,7 +199,19 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     private void consumeIngredients(List<TileEntityPedestal> peds) {
         inv.extractItem(0, 1, false); // 消耗核心
 
-        List<net.minecraft.item.crafting.Ingredient> needed = new ArrayList<>(activeRecipe.getPedestalItems());
+        // 安全检查
+        if (activeRecipe == null) {
+            System.err.println("[Ritual] Warning: activeRecipe is null in consumeIngredients!");
+            return;
+        }
+
+        List<net.minecraft.item.crafting.Ingredient> pedestalItems = activeRecipe.getPedestalItems();
+        if (pedestalItems == null || pedestalItems.isEmpty()) {
+            System.err.println("[Ritual] Warning: Recipe has null/empty pedestal items!");
+            return;
+        }
+
+        List<net.minecraft.item.crafting.Ingredient> needed = new ArrayList<>(pedestalItems);
         // 簡單的匹配消耗邏輯
         for (TileEntityPedestal ped : peds) {
             ItemStack stack = ped.getInv().getStackInSlot(0);
