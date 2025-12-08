@@ -118,14 +118,35 @@ public class UniversalFabricRituals {
             Item spindle = Item.getByNameOrId("moremod:void_spindle");
 
             if (fabric == null || spindle == null) {
-                System.err.println("[Fabric Ritual] Failed to create pedestal ingredients");
-                return Arrays.asList(Ingredient.EMPTY, Ingredient.EMPTY);
+                System.err.println("[Fabric Ritual] Failed to create pedestal ingredients for: " + fabricId);
+                // 返回空列表而不是包含EMPTY的列表
+                return new ArrayList<>();
             }
 
             return Arrays.asList(
                     Ingredient.fromStacks(new ItemStack(fabric)),
                     Ingredient.fromStacks(new ItemStack(spindle))
             );
+        }
+
+        // 重写以确保返回有效列表
+        @Override
+        public List<Ingredient> getPedestalItems() {
+            List<Ingredient> items = super.getPedestalItems();
+            if (items == null || items.isEmpty()) {
+                // 延迟创建基座材料
+                Item fabric = getFabricItem();
+                Item spindle = getSpindleItem();
+                if (fabric != null && spindle != null) {
+                    this.pedestalItems = Arrays.asList(
+                            Ingredient.fromStacks(new ItemStack(fabric)),
+                            Ingredient.fromStacks(new ItemStack(spindle))
+                    );
+                    return this.pedestalItems;
+                }
+                return new ArrayList<>();
+            }
+            return items;
         }
 
         /**
@@ -321,14 +342,31 @@ public class UniversalFabricRituals {
             Item fabric = Item.getByNameOrId(fabricId);
 
             if (fabric == null) {
-                System.err.println("[Basic Fabric Ritual] Failed to create pedestal ingredients");
-                return Arrays.asList(Ingredient.EMPTY);
+                System.err.println("[Basic Fabric Ritual] Failed to create pedestal ingredients for: " + fabricId);
+                // 返回空列表而不是null
+                return new ArrayList<>();
             }
 
             // 只需要布料，不需要虚空纺锤
             return Arrays.asList(
                     Ingredient.fromStacks(new ItemStack(fabric))
             );
+        }
+
+        // 重写以确保返回有效列表
+        @Override
+        public List<Ingredient> getPedestalItems() {
+            List<Ingredient> items = super.getPedestalItems();
+            if (items == null || items.isEmpty()) {
+                // 延迟创建基座材料
+                Item fabric = getFabricItem();
+                if (fabric != null) {
+                    this.pedestalItems = Arrays.asList(Ingredient.fromStacks(new ItemStack(fabric)));
+                    return this.pedestalItems;
+                }
+                return new ArrayList<>();
+            }
+            return items;
         }
 
         @Override
