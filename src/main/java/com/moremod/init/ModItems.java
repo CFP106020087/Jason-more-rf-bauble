@@ -1,6 +1,7 @@
 package com.moremod.init;
 
 import com.moremod.item.ItemMaterial;
+import com.moremod.item.ItemBasicFabric;
 // 🏪 添加村民胶囊导入
 import com.moremod.item.ItemVillagerCapsule;
 // 🌌 添加虚空背包链接导入
@@ -40,6 +41,16 @@ import com.moremod.item.ItemBioStabilizer;
 import com.moremod.item.ItemTowel;
 // 🧵 添加织布拆解器导入
 import com.moremod.item.ItemFabricRemover;
+// 📦 添加结构胶囊导入
+import com.moremod.item.ItemStructureCapsule;
+// ✨ 七圣遗物
+import com.moremod.item.curse.ItemSacredRelic;
+// 🎲 仪式道具
+import com.moremod.item.ritual.ItemFateApple;
+import com.moremod.item.ritual.ItemVoidEssence;
+import com.moremod.item.ritual.ItemCursedMirror;
+import com.moremod.item.ritual.ItemSoulFruit;
+import com.moremod.item.ritual.ItemFakePlayerCore;
 
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.item.Item.ToolMaterial;
@@ -85,12 +96,12 @@ public final class ModItems {
     public static Item ABYSSAL_FABRIC;          // 深渊布料
     public static Item VOID_SPINDLE;            // 虚空纺锤
 
-    // —— 基础织布（便宜版） ——
-    public static Item RESILIENT_FIBER;         // 坚韧纤维
-    public static Item VITAL_THREAD;            // 活力丝线
-    public static Item LIGHT_WEAVE;             // 轻盈织物
-    public static Item PREDATOR_CLOTH;          // 掠食者布料
-    public static Item SIPHON_WRAP;             // 吸魂织带
+    // —— 基础织布（可合成） ——
+    public static Item RESILIENT_FIBER;         // 弹性纤维 - 减伤
+    public static Item VITAL_THREAD;            // 生机丝线 - 生命回复
+    public static Item LIGHT_WEAVE;             // 轻盈织物 - 速度/跳跃
+    public static Item PREDATOR_CLOTH;          // 掠食者布料 - 攻击增强
+    public static Item SIPHON_WRAP;             // 虹吸包裹 - 生命偷取
 
     // —— 织布工具 ——
     public static Item FABRIC_REMOVER;          // 织布拆解器
@@ -112,6 +123,22 @@ public final class ModItems {
     public static Item NOOSE_OF_HANGED_KING;    // 🪢 缢王之索（七咒联动）
     public static Item SCRIPT_OF_FIFTH_ACT;     // 📜 第五幕剧本（七咒联动）
 
+    // ✨ 七圣遗物（嵌入抵消七咒）
+    public static Item SACRED_HEART;            // 圣光之心 - 抵消受伤加倍
+    public static Item PEACE_EMBLEM;            // 和平徽章 - 抵消中立生物攻击
+    public static Item GUARDIAN_SCALE;          // 守护鳞片 - 抵消护甲降低
+    public static Item COURAGE_BLADE;           // 勇气之刃 - 抵消伤害降低
+    public static Item FROST_DEW;               // 霜华之露 - 抵消永燃
+    public static Item SOUL_ANCHOR;             // 灵魂锚点 - 抵消灵魂破碎
+    public static Item SLUMBER_SACHET;          // 安眠香囊 - 抵消失眠症
+
+    // 🎲 仪式道具（三阶祭坛特殊制品）
+    public static Item FATE_APPLE;              // 命运苹果 - 重置附魔种子
+    public static Item VOID_ESSENCE;            // 虚空精华 - 仪式催化剂
+    public static Item CURSED_MIRROR;           // 诅咒之镜 - 复制仪式核心
+    public static Item SOUL_FRUIT;              // 灵魂果实 - 强力临时增益
+    public static Item FAKE_PLAYER_CORE;        // 假玩家核心 - 从玩家头颅仪式创建
+
     // 🗡️ 武器系列
     public static ItemSwordChengYue SWORD_CHENGYUE;      // 澄月 - 成长性终极武器
     public static Item SWORD_BEAM_TESTER;                // 🌟 剑气测试器 - 用于测试剑气渲染
@@ -126,6 +153,12 @@ public final class ModItems {
     public static Item NEURAL_SYNCHRONIZER;     // 神经同步器
     public static Item BIO_STABILIZER;          // 生物稳定剂
     public static Item TOWEL;                   // 毛巾
+
+    // 📦 结构胶囊系列
+    public static ItemStructureCapsule STRUCTURE_CAPSULE_SMALL;   // 小型结构胶囊 3×3×3
+    public static ItemStructureCapsule STRUCTURE_CAPSULE_MEDIUM;  // 中型结构胶囊 7×7×7
+    public static ItemStructureCapsule STRUCTURE_CAPSULE_LARGE;   // 大型结构胶囊 15×15×15
+
     //新模块(屎山包装)
 
 
@@ -162,12 +195,13 @@ public final class ModItems {
         ABYSSAL_FABRIC           = reg(e, new ItemMaterial("abyssal_fabric",         EnumRarity.RARE,     true,  "item.moremod.abyssal_fabric.desc"));
         VOID_SPINDLE             = reg(e, new ItemMaterial("void_spindle",           EnumRarity.RARE,     true,  "item.moremod.void_spindle.desc"));
 
-        // 基础织布（便宜版）
-        RESILIENT_FIBER  = reg(e, new ItemMaterial("resilient_fiber",  EnumRarity.COMMON, false, "item.moremod.resilient_fiber.desc"));
-        VITAL_THREAD     = reg(e, new ItemMaterial("vital_thread",     EnumRarity.COMMON, false, "item.moremod.vital_thread.desc"));
-        LIGHT_WEAVE      = reg(e, new ItemMaterial("light_weave",      EnumRarity.COMMON, false, "item.moremod.light_weave.desc"));
-        PREDATOR_CLOTH   = reg(e, new ItemMaterial("predator_cloth",   EnumRarity.COMMON, false, "item.moremod.predator_cloth.desc"));
-        SIPHON_WRAP      = reg(e, new ItemMaterial("siphon_wrap",      EnumRarity.COMMON, false, "item.moremod.siphon_wrap.desc"));
+        // 🧵 注册基础织布
+        RESILIENT_FIBER = reg(e, new ItemBasicFabric("resilient_fiber", EnumRarity.UNCOMMON));
+        VITAL_THREAD    = reg(e, new ItemBasicFabric("vital_thread",    EnumRarity.UNCOMMON));
+        LIGHT_WEAVE     = reg(e, new ItemBasicFabric("light_weave",     EnumRarity.UNCOMMON));
+        PREDATOR_CLOTH  = reg(e, new ItemBasicFabric("predator_cloth",  EnumRarity.UNCOMMON));
+        SIPHON_WRAP     = reg(e, new ItemBasicFabric("siphon_wrap",     EnumRarity.UNCOMMON));
+        System.out.println("[MoreMod] 🧵 基础织布已注册 (5种)");
 
         // 🧵 注册织布拆解器
         FABRIC_REMOVER = reg(e, new ItemFabricRemover());
@@ -224,6 +258,24 @@ public final class ModItems {
         SCRIPT_OF_FIFTH_ACT = reg(e, new com.moremod.item.curse.ItemScriptOfFifthAct());
         System.out.println("[MoreMod] 📜 第五幕剧本已注册");
 
+        // ✨ 注册七圣遗物
+        SACRED_HEART = reg(e, new ItemSacredRelic(ItemSacredRelic.RelicType.SACRED_HEART));
+        PEACE_EMBLEM = reg(e, new ItemSacredRelic(ItemSacredRelic.RelicType.PEACE_EMBLEM));
+        GUARDIAN_SCALE = reg(e, new ItemSacredRelic(ItemSacredRelic.RelicType.GUARDIAN_SCALE));
+        COURAGE_BLADE = reg(e, new ItemSacredRelic(ItemSacredRelic.RelicType.COURAGE_BLADE));
+        FROST_DEW = reg(e, new ItemSacredRelic(ItemSacredRelic.RelicType.FROST_DEW));
+        SOUL_ANCHOR = reg(e, new ItemSacredRelic(ItemSacredRelic.RelicType.SOUL_ANCHOR));
+        SLUMBER_SACHET = reg(e, new ItemSacredRelic(ItemSacredRelic.RelicType.SLUMBER_SACHET));
+        System.out.println("[MoreMod] ✨ 七圣遗物已注册 (7种)");
+
+        // 🎲 注册仪式道具
+        FATE_APPLE = reg(e, new ItemFateApple());
+        VOID_ESSENCE = reg(e, new ItemVoidEssence());
+        CURSED_MIRROR = reg(e, new ItemCursedMirror());
+        SOUL_FRUIT = reg(e, new ItemSoulFruit());
+        FAKE_PLAYER_CORE = reg(e, new ItemFakePlayerCore());
+        System.out.println("[MoreMod] 🎲 仪式道具已注册 (5种)");
+
         // 🗡️ 注册澄月剑
         SWORD_CHENGYUE = (ItemSwordChengYue) reg(e, new ItemSwordChengYue());
         System.out.println("[MoreMod] ✨ 澄月剑已注册");
@@ -256,6 +308,13 @@ public final class ModItems {
 
         TOWEL = reg(e, new ItemTowel());
         System.out.println("[MoreMod] 🧴 毛巾已注册");
+
+        // 📦 注册结构胶囊
+        STRUCTURE_CAPSULE_SMALL = (ItemStructureCapsule) reg(e, new ItemStructureCapsule("structure_capsule_small", 3));
+        STRUCTURE_CAPSULE_MEDIUM = (ItemStructureCapsule) reg(e, new ItemStructureCapsule("structure_capsule_medium", 7));
+        STRUCTURE_CAPSULE_LARGE = (ItemStructureCapsule) reg(e, new ItemStructureCapsule("structure_capsule_large", 15));
+        System.out.println("[MoreMod] 📦 结构胶囊已注册 (3种尺寸)");
+
         //新模块系统
     }
 
@@ -295,12 +354,13 @@ public final class ModItems {
         bindModel(ABYSSAL_FABRIC,          "abyssal_fabric");
         bindModel(VOID_SPINDLE,            "void_spindle");
 
-        // 基础织布模型
-        bindModel(RESILIENT_FIBER,  "resilient_fiber");
-        bindModel(VITAL_THREAD,     "vital_thread");
-        bindModel(LIGHT_WEAVE,      "light_weave");
-        bindModel(PREDATOR_CLOTH,   "predator_cloth");
-        bindModel(SIPHON_WRAP,      "siphon_wrap");
+        // 🧵 绑定基础织布模型
+        bindModel(RESILIENT_FIBER, "resilient_fiber");
+        bindModel(VITAL_THREAD,    "vital_thread");
+        bindModel(LIGHT_WEAVE,     "light_weave");
+        bindModel(PREDATOR_CLOTH,  "predator_cloth");
+        bindModel(SIPHON_WRAP,     "siphon_wrap");
+        System.out.println("[MoreMod] 🧵 基础织布模型已注册");
 
         // 🧵 绑定织布拆解器模型
         bindModel(FABRIC_REMOVER, "fabric_remover");
@@ -357,6 +417,24 @@ public final class ModItems {
         bindModel(SCRIPT_OF_FIFTH_ACT, "script_of_fifth_act");
         System.out.println("[MoreMod] 📜 第五幕剧本模型已注册");
 
+        // ✨ 绑定七圣遗物模型
+        bindModel(SACRED_HEART, "sacred_heart");
+        bindModel(PEACE_EMBLEM, "peace_emblem");
+        bindModel(GUARDIAN_SCALE, "guardian_scale");
+        bindModel(COURAGE_BLADE, "courage_blade");
+        bindModel(FROST_DEW, "frost_dew");
+        bindModel(SOUL_ANCHOR, "soul_anchor");
+        bindModel(SLUMBER_SACHET, "slumber_sachet");
+        System.out.println("[MoreMod] ✨ 七圣遗物模型已注册");
+
+        // 🎲 绑定仪式道具模型
+        bindModel(FATE_APPLE, "fate_apple");
+        bindModel(VOID_ESSENCE, "void_essence");
+        bindModel(CURSED_MIRROR, "cursed_mirror");
+        bindModel(SOUL_FRUIT, "soul_fruit");
+        bindModel(FAKE_PLAYER_CORE, "fake_player_core");
+        System.out.println("[MoreMod] 🎲 仪式道具模型已注册");
+
         // 🗡️ 绑定澄月剑模型
         bindModel(SWORD_CHENGYUE, "sword_chengyue");
         System.out.println("[MoreMod] ✨ 澄月剑模型已注册");
@@ -387,6 +465,12 @@ public final class ModItems {
 
         bindModel(TOWEL, "towel");
         System.out.println("[MoreMod] 🧴 毛巾模型已注册");
+
+        // 📦 绑定结构胶囊模型
+        bindModel(STRUCTURE_CAPSULE_SMALL, "structure_capsule_small");
+        bindModel(STRUCTURE_CAPSULE_MEDIUM, "structure_capsule_medium");
+        bindModel(STRUCTURE_CAPSULE_LARGE, "structure_capsule_large");
+        System.out.println("[MoreMod] 📦 结构胶囊模型已注册");
     }
 
     @SideOnly(Side.CLIENT)

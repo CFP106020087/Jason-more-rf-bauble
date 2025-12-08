@@ -37,3 +37,44 @@ item.moremod.fabric_remover.name=Fabric Remover
 item.moremod.fabric_remover.desc=Removes woven fabric from armor and returns the material.
 item.moremod.fabric_remover.usage=Right-click to auto-detect and remove fabric from one armor piece.
 item.moremod.fabric_remover.uses=Uses remaining
+
+# Sacred Relics (Seven Holy Relics)
+# Embed into body at Tier 3 altar to counter Cursed Ring effects
+item.moremod.sacred_heart.name=Sacred Heart
+item.moremod.peace_emblem.name=Peace Emblem
+item.moremod.guardian_scale.name=Guardian Scale
+item.moremod.courage_blade.name=Courage Blade
+item.moremod.frost_dew.name=Frost Dew
+item.moremod.soul_anchor.name=Soul Anchor
+item.moremod.slumber_sachet.name=Slumber Sachet
+
+# Ritual Special Items
+item.moremod.fate_apple.name=Fate Apple
+item.moremod.fate_apple.desc=Changes your enchanting luck by resetting enchantment seed
+item.moremod.void_essence.name=Void Essence
+item.moremod.void_essence.desc=Catalyst for the duplication ritual
+item.moremod.cursed_mirror.name=Cursed Mirror
+item.moremod.cursed_mirror.desc=An eerie mirror capable of storing items
+item.moremod.cursed_mirror.stored=Stored Item: %s
+item.moremod.cursed_mirror.empty=Empty
+item.moremod.soul_fruit.name=Soul Fruit
+item.moremod.soul_fruit.desc=Consume 5 levels for powerful temporary buffs
+item.moremod.fake_player_core.name=Fake Player Core
+item.moremod.fake_player_core.desc=A mysterious core containing a player's soul, used for automation
+
+# Enchanting Booster Blocks
+tile.moremod.enchanting_booster.arcane_stone.name=Arcane Stone
+tile.moremod.enchanting_booster.enchanted_bookshelf.name=Enchanted Bookshelf
+tile.moremod.enchanting_booster.knowledge_crystal.name=Knowledge Crystal
+tile.moremod.enchanting_booster.soul_library.name=Soul Library
+
+# Fishing Net
+tile.moremod.fishing_net.name=Fishing Net
+
+# Utility Blocks
+tile.moremod.compost_bin.name=Compost Bin
+tile.moremod.animal_feeder.name=Animal Feeder
+tile.moremod.bio_generator.name=Bio Generator
+
+# Fake Player System
+tile.moremod.fake_player_activator.name=Fake Player Activator

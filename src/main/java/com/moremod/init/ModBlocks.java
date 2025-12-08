@@ -17,6 +17,13 @@ import com.moremod.block.BlockSimpleWisdomShrine;
 import com.moremod.block.BlockExtractionStation;  // ⭐ 添加提取台导入
 import com.moremod.block.BlockPurificationAltar;  // 🔮 添加提纯祭坛导入
 import com.moremod.block.BlockTransferStation;    // 🎨 添加转移台导入
+import com.moremod.block.BlockEnchantingBooster;  // ✨ 附魔增强方块
+import com.moremod.block.ItemBlockEnchantingBooster;
+import com.moremod.block.BlockFishingNet;         // 🎣 渔网
+import com.moremod.block.BlockCompostBin;         // 堆肥桶
+import com.moremod.block.BlockAnimalFeeder;       // 动物喂食器
+import com.moremod.block.BlockBioGenerator;       // 生物质发电机
+import com.moremod.block.BlockFakePlayerActivator; // 假玩家激活器
 
 // 🗡️ 两个版本的剑升级台方块
 import com.moremod.block.BlockSwordUpgradeStation;
@@ -37,6 +44,11 @@ import com.moremod.tile.TileEntitySimpleWisdomShrine;
 import com.moremod.tile.TileEntityExtractionStation;  // ⭐ 添加提取台 TE 导入
 import com.moremod.tile.TileEntityPurificationAltar;  // 🔮 添加提纯祭坛 TE 导入
 import com.moremod.tile.TileEntityTransferStation;    // 🎨 添加转移台 TE 导入
+import com.moremod.tile.TileEntityFishingNet;         // 🎣 渔网 TE
+import com.moremod.tile.TileEntityCompostBin;         // 堆肥桶 TE
+import com.moremod.tile.TileEntityAnimalFeeder;       // 动物喂食器 TE
+import com.moremod.tile.TileEntityBioGenerator;       // 生物质发电机 TE
+import com.moremod.tile.TileEntityFakePlayerActivator; // 假玩家激活器 TE
 
 // 🗡️ 两个版本的剑升级台 TE
 import com.moremod.tile.TileEntitySwordUpgradeStation;
@@ -90,6 +102,24 @@ public class ModBlocks {
     // 🗡️ 剑升级台（两个版本并存）
     public static Block SWORD_UPGRADE_STATION;
     public static Block SWORD_UPGRADE_STATION_MATERIAL;
+
+    // ✨ 附魔增强方块
+    public static BlockEnchantingBooster ENCHANTING_BOOSTER;
+
+    // 🎣 渔网方块
+    public static Block FISHING_NET;
+
+    // 堆肥桶方块
+    public static Block COMPOST_BIN;
+
+    // 动物喂食器方块
+    public static Block ANIMAL_FEEDER;
+
+    // 生物质发电机方块
+    public static Block BIO_GENERATOR;
+
+    // 假玩家激活器方块
+    public static Block FAKE_PLAYER_ACTIVATOR;
 
     @SubscribeEvent
     public static void registerBlocks(RegistryEvent.Register<Block> event) {
@@ -164,6 +194,36 @@ public class ModBlocks {
         event.getRegistry().register(SWORD_UPGRADE_STATION_MATERIAL);
         System.out.println("[MoreMod] 劍升級台(material) 方塊已註冊");
 
+        // ✨ 注册附魔增强方块
+        ENCHANTING_BOOSTER = new BlockEnchantingBooster();
+        event.getRegistry().register(ENCHANTING_BOOSTER);
+        System.out.println("[MoreMod] ✨ 附魔增強方塊已註冊 (4種類型)");
+
+        // 🎣 注册渔网方块
+        FISHING_NET = new BlockFishingNet();
+        event.getRegistry().register(FISHING_NET);
+        System.out.println("[MoreMod] 🎣 漁網方塊已註冊");
+
+        // 堆肥桶方块
+        COMPOST_BIN = new BlockCompostBin();
+        event.getRegistry().register(COMPOST_BIN);
+        System.out.println("[MoreMod] 堆肥桶方塊已註冊");
+
+        // 动物喂食器方块
+        ANIMAL_FEEDER = new BlockAnimalFeeder();
+        event.getRegistry().register(ANIMAL_FEEDER);
+        System.out.println("[MoreMod] 動物餵食器方塊已註冊");
+
+        // 生物质发电机方块
+        BIO_GENERATOR = new BlockBioGenerator();
+        event.getRegistry().register(BIO_GENERATOR);
+        System.out.println("[MoreMod] 生物質發電機方塊已註冊");
+
+        // 假玩家激活器方块
+        FAKE_PLAYER_ACTIVATOR = new BlockFakePlayerActivator();
+        event.getRegistry().register(FAKE_PLAYER_ACTIVATOR);
+        System.out.println("[MoreMod] 假玩家激活器方塊已註冊");
+
         // ---- TileEntity 注册 ----
         GameRegistry.registerTileEntity(TileEntityDimensionLoom.class,
                 new ResourceLocation(moremod.MODID, "dimension_loom"));
@@ -205,6 +265,31 @@ public class ModBlocks {
         GameRegistry.registerTileEntity(TileEntitySwordUpgradeStationMaterial.class,
                 new ResourceLocation(moremod.MODID, "sword_upgrade_station_material"));
         System.out.println("[MoreMod] 劍升級台 TileEntity（legacy+material）已註冊");
+
+        // 🎣 渔网 TileEntity
+        GameRegistry.registerTileEntity(TileEntityFishingNet.class,
+                new ResourceLocation(moremod.MODID, "fishing_net"));
+        System.out.println("[MoreMod] 🎣 漁網 TileEntity 已註冊");
+
+        // 堆肥桶 TileEntity
+        GameRegistry.registerTileEntity(TileEntityCompostBin.class,
+                new ResourceLocation(moremod.MODID, "compost_bin"));
+        System.out.println("[MoreMod] 堆肥桶 TileEntity 已註冊");
+
+        // 动物喂食器 TileEntity
+        GameRegistry.registerTileEntity(TileEntityAnimalFeeder.class,
+                new ResourceLocation(moremod.MODID, "animal_feeder"));
+        System.out.println("[MoreMod] 動物餵食器 TileEntity 已註冊");
+
+        // 生物质发电机 TileEntity
+        GameRegistry.registerTileEntity(TileEntityBioGenerator.class,
+                new ResourceLocation(moremod.MODID, "bio_generator"));
+        System.out.println("[MoreMod] 生物質發電機 TileEntity 已註冊");
+
+        // 假玩家激活器 TileEntity
+        GameRegistry.registerTileEntity(TileEntityFakePlayerActivator.class,
+                new ResourceLocation(moremod.MODID, "fake_player_activator"));
+        System.out.println("[MoreMod] 假玩家激活器 TileEntity 已註冊");
     }
 
     @SubscribeEvent
@@ -281,6 +366,48 @@ public class ModBlocks {
                     .setRegistryName(SWORD_UPGRADE_STATION_MATERIAL.getRegistryName()));
             System.out.println("[MoreMod] 劍升級台(material) ItemBlock已註冊");
         }
+
+        // ✨ 附魔增强方块 ItemBlock (支持多变体)
+        if (ENCHANTING_BOOSTER != null) {
+            event.getRegistry().register(new ItemBlockEnchantingBooster(ENCHANTING_BOOSTER)
+                    .setRegistryName(ENCHANTING_BOOSTER.getRegistryName()));
+            System.out.println("[MoreMod] ✨ 附魔增強方塊 ItemBlock 已註冊");
+        }
+
+        // 🎣 渔网 ItemBlock
+        if (FISHING_NET != null) {
+            event.getRegistry().register(new ItemBlock(FISHING_NET)
+                    .setRegistryName(FISHING_NET.getRegistryName()));
+            System.out.println("[MoreMod] 🎣 漁網 ItemBlock 已註冊");
+        }
+
+        // 堆肥桶 ItemBlock
+        if (COMPOST_BIN != null) {
+            event.getRegistry().register(new ItemBlock(COMPOST_BIN)
+                    .setRegistryName(COMPOST_BIN.getRegistryName()));
+            System.out.println("[MoreMod] 堆肥桶 ItemBlock 已註冊");
+        }
+
+        // 动物喂食器 ItemBlock
+        if (ANIMAL_FEEDER != null) {
+            event.getRegistry().register(new ItemBlock(ANIMAL_FEEDER)
+                    .setRegistryName(ANIMAL_FEEDER.getRegistryName()));
+            System.out.println("[MoreMod] 動物餵食器 ItemBlock 已註冊");
+        }
+
+        // 生物质发电机 ItemBlock
+        if (BIO_GENERATOR != null) {
+            event.getRegistry().register(new ItemBlock(BIO_GENERATOR)
+                    .setRegistryName(BIO_GENERATOR.getRegistryName()));
+            System.out.println("[MoreMod] 生物質發電機 ItemBlock 已註冊");
+        }
+
+        // 假玩家激活器 ItemBlock
+        if (FAKE_PLAYER_ACTIVATOR != null) {
+            event.getRegistry().register(new ItemBlock(FAKE_PLAYER_ACTIVATOR)
+                    .setRegistryName(FAKE_PLAYER_ACTIVATOR.getRegistryName()));
+            System.out.println("[MoreMod] 假玩家激活器 ItemBlock 已註冊");
+        }
     }
 
     @SideOnly(Side.CLIENT)
@@ -331,6 +458,48 @@ public class ModBlocks {
         if (SWORD_UPGRADE_STATION_MATERIAL != null) {
             registerBlockModel(SWORD_UPGRADE_STATION_MATERIAL);
             System.out.println("[MoreMod] 劍升級台(material) 模型已註冊");
+        }
+
+        // ✨ 附魔增强方块模型 (4个变体)
+        if (ENCHANTING_BOOSTER != null) {
+            for (BlockEnchantingBooster.BoosterType type : BlockEnchantingBooster.BoosterType.values()) {
+                ModelLoader.setCustomModelResourceLocation(
+                    Item.getItemFromBlock(ENCHANTING_BOOSTER),
+                    type.getMeta(),
+                    new ModelResourceLocation("moremod:enchanting_booster_" + type.getName(), "inventory")
+                );
+            }
+            System.out.println("[MoreMod] ✨ 附魔增強方塊模型已註冊 (4種)");
+        }
+
+        // 🎣 渔网模型
+        if (FISHING_NET != null) {
+            registerBlockModel(FISHING_NET);
+            System.out.println("[MoreMod] 🎣 漁網模型已註冊");
+        }
+
+        // 堆肥桶模型
+        if (COMPOST_BIN != null) {
+            registerBlockModel(COMPOST_BIN);
+            System.out.println("[MoreMod] 堆肥桶模型已註冊");
+        }
+
+        // 动物喂食器模型
+        if (ANIMAL_FEEDER != null) {
+            registerBlockModel(ANIMAL_FEEDER);
+            System.out.println("[MoreMod] 動物餵食器模型已註冊");
+        }
+
+        // 生物质发电机模型
+        if (BIO_GENERATOR != null) {
+            registerBlockModel(BIO_GENERATOR);
+            System.out.println("[MoreMod] 生物質發電機模型已註冊");
+        }
+
+        // 假玩家激活器模型
+        if (FAKE_PLAYER_ACTIVATOR != null) {
+            registerBlockModel(FAKE_PLAYER_ACTIVATOR);
+            System.out.println("[MoreMod] 假玩家激活器模型已註冊");
         }
     }
 

@@ -1,0 +1,15 @@
+{
+  "required": false,
+  "package": "com.moremod.mixin.fermiummixins",
+  "refmap": "mixins.moremod.refmap.json",
+  "compatibilityLevel": "JAVA_8",
+  "target": "@env(DEFAULT)",
+  "minVersion": "0.8",
+  "priority": 2000,
+  "mixins": [
+    "MixinFakePlayerBypassDetection"
+  ],
+  "injectors": {
+    "maxShiftBy": 10
+  }
+}

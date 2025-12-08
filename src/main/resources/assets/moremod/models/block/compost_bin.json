@@ -1,0 +1,80 @@
+{
+  "parent": "block/block",
+  "textures": {
+    "particle": "moremod:blocks/compost_bin_side",
+    "bottom": "moremod:blocks/compost_bin_bottom",
+    "top": "moremod:blocks/compost_bin_top",
+    "side": "moremod:blocks/compost_bin_side"
+  },
+  "elements": [
+    {
+      "comment": "Bottom",
+      "from": [1, 0, 1],
+      "to": [15, 1, 15],
+      "faces": {
+        "down":  { "texture": "#bottom", "cullface": "down" },
+        "up":    { "texture": "#bottom" }
+      }
+    },
+    {
+      "comment": "North Wall",
+      "from": [1, 1, 1],
+      "to": [15, 14, 2],
+      "faces": {
+        "north": { "texture": "#side", "cullface": "north" },
+        "south": { "texture": "#side" },
+        "west":  { "texture": "#side" },
+        "east":  { "texture": "#side" },
+        "up":    { "texture": "#side" },
+        "down":  { "texture": "#side" }
+      }
+    },
+    {
+      "comment": "South Wall",
+      "from": [1, 1, 14],
+      "to": [15, 14, 15],
+      "faces": {
+        "north": { "texture": "#side" },
+        "south": { "texture": "#side", "cullface": "south" },
+        "west":  { "texture": "#side" },
+        "east":  { "texture": "#side" },
+        "up":    { "texture": "#side" },
+        "down":  { "texture": "#side" }
+      }
+    },
+    {
+      "comment": "West Wall",
+      "from": [1, 1, 2],
+      "to": [2, 14, 14],
+      "faces": {
+        "north": { "texture": "#side" },
+        "south": { "texture": "#side" },
+        "west":  { "texture": "#side", "cullface": "west" },
+        "east":  { "texture": "#side" },
+        "up":    { "texture": "#side" },
+        "down":  { "texture": "#side" }
+      }
+    },
+    {
+      "comment": "East Wall",
+      "from": [14, 1, 2],
+      "to": [15, 14, 14],
+      "faces": {
+        "north": { "texture": "#side" },
+        "south": { "texture": "#side" },
+        "west":  { "texture": "#side" },
+        "east":  { "texture": "#side", "cullface": "east" },
+        "up":    { "texture": "#side" },
+        "down":  { "texture": "#side" }
+      }
+    },
+    {
+      "comment": "Inner Compost",
+      "from": [2, 1, 2],
+      "to": [14, 8, 14],
+      "faces": {
+        "up": { "texture": "#top" }
+      }
+    }
+  ]
+}

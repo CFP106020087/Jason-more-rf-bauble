@@ -418,20 +418,71 @@ item.intel_statistics_book.name=情报整合统计书
 # 七咒之戒联动饰品 (Cursed Ring Synergy Accessories)
 item.gluttonous_phalanx.name=饕餮指骨
 item.crystallized_resentment.name=怨念结晶
+
 # 基础织布
-item.moremod.resilient_fiber.name=坚韧纤维
-item.moremod.resilient_fiber.desc=坚固耐用的纤维，增加护甲值。
-item.moremod.vital_thread.name=活力丝线
-item.moremod.vital_thread.desc=蕴含生命力的丝线，增加最大生命值。
+item.moremod.resilient_fiber.name=弹性纤维
+item.moremod.resilient_fiber.desc=以皮革与铁铸就的坚韧织物
+item.moremod.resilient_fiber.effect=§7织入效果：§b+2护甲/件，4件套+10%击退抗性
+
+item.moremod.vital_thread.name=生机丝线
+item.moremod.vital_thread.desc=蕴含自然生命力的翠绿丝线
+item.moremod.vital_thread.effect=§7织入效果：§a+1最大生命/件，4件套每5秒回1血
+
 item.moremod.light_weave.name=轻盈织物
-item.moremod.light_weave.desc=轻如羽毛的织物，增加移动速度。
+item.moremod.light_weave.desc=如羽毛般轻盈的神奇织物
+item.moremod.light_weave.effect=§7织入效果：§f+5%移动速度/件，4件套减25%摔落伤害
+
 item.moremod.predator_cloth.name=掠食者布料
-item.moremod.predator_cloth.desc=染血的猎者布料，增加攻击伤害。
-item.moremod.siphon_wrap.name=吸魂织带
-item.moremod.siphon_wrap.desc=汲取灵魂的织带，击杀回复饥饿值。
+item.moremod.predator_cloth.desc=燃烧着战意的血红织物
+item.moremod.predator_cloth.effect=§7织入效果：§c+5%攻击伤害/件，4件套10%触发流血
+
+item.moremod.siphon_wrap.name=虹吸包裹
+item.moremod.siphon_wrap.desc=汲取生命精华的暗紫织物
+item.moremod.siphon_wrap.effect=§7织入效果：§5击杀回复1饥饿值，4件套10%额外经验
 
 # 织布工具
 item.moremod.fabric_remover.name=织布拆解器
 item.moremod.fabric_remover.desc=从盔甲上拆除织入的布料，并返还材料。
-item.moremod.fabric_remover.usage=右键使用，自动检测并移除一件盔甲的织布。
+item.moremod.fabric_remover.usage=丢在地上与织有布料的盔甲接触即可拆除
 item.moremod.fabric_remover.uses=剩余使用次数
+
+# ===== 七圣遗物 (Sacred Relics) =====
+# 用于在三阶祭坛嵌入体内，抵消七咒之戒的诅咒
+item.moremod.sacred_heart.name=圣光之心
+item.moremod.peace_emblem.name=和平徽章
+item.moremod.guardian_scale.name=守护鳞片
+item.moremod.courage_blade.name=勇气之刃
+item.moremod.frost_dew.name=霜华之露
+item.moremod.soul_anchor.name=灵魂锚点
+item.moremod.slumber_sachet.name=安眠香囊
+
+# ===== 仪式特殊道具 (Ritual Special Items) =====
+item.moremod.fate_apple.name=命运苹果
+item.moremod.fate_apple.desc=改变你的附魔运势，重置附魔种子
+item.moremod.void_essence.name=虚空精华
+item.moremod.void_essence.desc=复制仪式的催化剂
+item.moremod.cursed_mirror.name=诅咒之镜
+item.moremod.cursed_mirror.desc=能够存储物品的诡异镜子
+item.moremod.cursed_mirror.stored=存储物品：%s
+item.moremod.cursed_mirror.empty=空
+item.moremod.soul_fruit.name=灵魂果实
+item.moremod.soul_fruit.desc=消耗5级经验获得强大的临时增益
+item.moremod.fake_player_core.name=假玩家核心
+item.moremod.fake_player_core.desc=封印了玩家灵魂的神秘核心，可用于自动化设备模拟玩家操作
+
+# ===== 附魔增强方块 (Enchanting Booster Blocks) =====
+tile.moremod.enchanting_booster.arcane_stone.name=奥术石
+tile.moremod.enchanting_booster.enchanted_bookshelf.name=附魔书架
+tile.moremod.enchanting_booster.knowledge_crystal.name=知识水晶
+tile.moremod.enchanting_booster.soul_library.name=灵魂图书馆
+
+# ===== 渔网 (Fishing Net) =====
+tile.moremod.fishing_net.name=渔网
+
+# ===== 实用方块 (Utility Blocks) =====
+tile.moremod.compost_bin.name=堆肥桶
+tile.moremod.animal_feeder.name=动物喂食器
+tile.moremod.bio_generator.name=生物质发电机
+
+# ===== 假玩家系统 (Fake Player System) =====
+tile.moremod.fake_player_activator.name=假玩家激活器

@@ -384,6 +384,9 @@ public class TileEntityWisdomFountain extends TileEntity implements ITickable {
             }
         }
 
+        // 清除potioncore的potion_sickness（使用反射避免硬依赖）
+        removePotionCoreSickness(player);
+
         // 如果需要清除所有负面效果
         if (all) {
             for (Potion effect : severeNegativeEffects) {
@@ -401,6 +404,38 @@ public class TileEntityWisdomFountain extends TileEntity implements ITickable {
                     player.removePotionEffect(potion);
                 }
             }
+        }
+    }
+
+    /**
+     * 使用反射移除potioncore模组的potion_sickness效果
+     * 避免硬依赖potioncore模组
+     */
+    private static Potion cachedPotionSickness = null;
+    private static boolean potionSicknessChecked = false;
+
+    private void removePotionCoreSickness(EntityPlayer player) {
+        try {
+            // 只检查一次，缓存结果
+            if (!potionSicknessChecked) {
+                potionSicknessChecked = true;
+
+                // 尝试通过注册表名获取potion_sickness
+                net.minecraft.util.ResourceLocation potionRL =
+                    new net.minecraft.util.ResourceLocation("potioncore", "potion_sickness");
+                cachedPotionSickness = net.minecraftforge.fml.common.registry.ForgeRegistries.POTIONS.getValue(potionRL);
+
+                if (cachedPotionSickness != null) {
+                    System.out.println("[MoreMod] 检测到potioncore模组，已启用potion_sickness免疫");
+                }
+            }
+
+            // 如果找到了potion_sickness效果，移除它
+            if (cachedPotionSickness != null && player.isPotionActive(cachedPotionSickness)) {
+                player.removePotionEffect(cachedPotionSickness);
+            }
+        } catch (Exception e) {
+            // 忽略错误，potioncore模组可能未安装
         }
     }
 

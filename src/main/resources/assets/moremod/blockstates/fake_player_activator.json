@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "active=false,facing=down": { "model": "moremod:fake_player_activator", "x": 90 },
+    "active=false,facing=up": { "model": "moremod:fake_player_activator", "x": 270 },
+    "active=false,facing=north": { "model": "moremod:fake_player_activator" },
+    "active=false,facing=south": { "model": "moremod:fake_player_activator", "y": 180 },
+    "active=false,facing=west": { "model": "moremod:fake_player_activator", "y": 270 },
+    "active=false,facing=east": { "model": "moremod:fake_player_activator", "y": 90 },
+    "active=true,facing=down": { "model": "moremod:fake_player_activator_active", "x": 90 },
+    "active=true,facing=up": { "model": "moremod:fake_player_activator_active", "x": 270 },
+    "active=true,facing=north": { "model": "moremod:fake_player_activator_active" },
+    "active=true,facing=south": { "model": "moremod:fake_player_activator_active", "y": 180 },
+    "active=true,facing=west": { "model": "moremod:fake_player_activator_active", "y": 270 },
+    "active=true,facing=east": { "model": "moremod:fake_player_activator_active", "y": 90 }
+  }
+}
