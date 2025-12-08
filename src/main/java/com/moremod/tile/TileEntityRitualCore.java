@@ -198,6 +198,7 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
 
     private void consumeIngredients(List<TileEntityPedestal> peds) {
         inv.extractItem(0, 1, false); // 消耗核心
+        System.out.println("[Ritual] Core item consumed from slot 0");
 
         // 安全检查
         if (activeRecipe == null) {
@@ -206,8 +207,20 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         }
 
         List<net.minecraft.item.crafting.Ingredient> pedestalItems = activeRecipe.getPedestalItems();
+        System.out.println("[Ritual] Pedestal items to consume: " + (pedestalItems != null ? pedestalItems.size() : "null"));
+
         if (pedestalItems == null || pedestalItems.isEmpty()) {
             System.err.println("[Ritual] Warning: Recipe has null/empty pedestal items!");
+            // 仍然尝试消耗基座上的物品（每个基座消耗1个）
+            int consumed = 0;
+            for (TileEntityPedestal ped : peds) {
+                if (!ped.isEmpty()) {
+                    ped.consumeOne();
+                    consumed++;
+                    if (consumed >= 2) break; // 最多消耗2个基座的物品
+                }
+            }
+            System.out.println("[Ritual] Fallback: consumed " + consumed + " pedestal items");
             return;
         }
 
@@ -215,10 +228,14 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         // 簡單的匹配消耗邏輯
         for (TileEntityPedestal ped : peds) {
             ItemStack stack = ped.getInv().getStackInSlot(0);
+            System.out.println("[Ritual] Checking pedestal with: " + stack.getDisplayName());
             for (int i = 0; i < needed.size(); i++) {
-                if (needed.get(i).apply(stack)) {
+                boolean matches = needed.get(i).apply(stack);
+                System.out.println("[Ritual]   - Ingredient " + i + " matches: " + matches);
+                if (matches) {
                     ped.consumeOne();
                     needed.remove(i);
+                    System.out.println("[Ritual]   - Consumed! Remaining needed: " + needed.size());
                     break;
                 }
             }
