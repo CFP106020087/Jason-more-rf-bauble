@@ -59,3 +59,5 @@ item.moremod.cursed_mirror.stored=Stored Item: %s
 item.moremod.cursed_mirror.empty=Empty
 item.moremod.soul_fruit.name=Soul Fruit
 item.moremod.soul_fruit.desc=Consume 5 levels for powerful temporary buffs
+item.moremod.fake_player_core.name=Fake Player Core
+item.moremod.fake_player_core.desc=A mysterious core containing a player's soul, used for automation

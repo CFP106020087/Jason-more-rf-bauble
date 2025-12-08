@@ -50,6 +50,7 @@ import com.moremod.item.ritual.ItemFateApple;
 import com.moremod.item.ritual.ItemVoidEssence;
 import com.moremod.item.ritual.ItemCursedMirror;
 import com.moremod.item.ritual.ItemSoulFruit;
+import com.moremod.item.ritual.ItemFakePlayerCore;
 
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.item.Item.ToolMaterial;
@@ -136,6 +137,7 @@ public final class ModItems {
     public static Item VOID_ESSENCE;            // 虚空精华 - 仪式催化剂
     public static Item CURSED_MIRROR;           // 诅咒之镜 - 复制仪式核心
     public static Item SOUL_FRUIT;              // 灵魂果实 - 强力临时增益
+    public static Item FAKE_PLAYER_CORE;        // 假玩家核心 - 从玩家头颅仪式创建
 
     // 🗡️ 武器系列
     public static ItemSwordChengYue SWORD_CHENGYUE;      // 澄月 - 成长性终极武器
@@ -271,7 +273,8 @@ public final class ModItems {
         VOID_ESSENCE = reg(e, new ItemVoidEssence());
         CURSED_MIRROR = reg(e, new ItemCursedMirror());
         SOUL_FRUIT = reg(e, new ItemSoulFruit());
-        System.out.println("[MoreMod] 🎲 仪式道具已注册 (4种)");
+        FAKE_PLAYER_CORE = reg(e, new ItemFakePlayerCore());
+        System.out.println("[MoreMod] 🎲 仪式道具已注册 (5种)");
 
         // 🗡️ 注册澄月剑
         SWORD_CHENGYUE = (ItemSwordChengYue) reg(e, new ItemSwordChengYue());
@@ -429,6 +432,7 @@ public final class ModItems {
         bindModel(VOID_ESSENCE, "void_essence");
         bindModel(CURSED_MIRROR, "cursed_mirror");
         bindModel(SOUL_FRUIT, "soul_fruit");
+        bindModel(FAKE_PLAYER_CORE, "fake_player_core");
         System.out.println("[MoreMod] 🎲 仪式道具模型已注册");
 
         // 🗡️ 绑定澄月剑模型

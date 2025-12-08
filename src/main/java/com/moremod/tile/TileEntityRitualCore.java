@@ -18,7 +18,9 @@ import net.minecraft.item.ItemEnchantedBook;
 import net.minecraft.item.ItemStack;
 import com.moremod.item.ritual.ItemCursedMirror;
 import com.moremod.item.ritual.ItemVoidEssence;
+import com.moremod.item.ritual.ItemFakePlayerCore;
 import com.moremod.init.ModItems;
+import com.mojang.authlib.GameProfile;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.network.NetworkManager;
@@ -88,6 +90,12 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     private static final int DUPLICATION_TIME = 300; // 15秒复制时间
     private static final float DUPLICATION_SUCCESS_RATE = 0.01f; // 1%成功率
 
+    // 灵魂绑定仪式系统 (Soul Binding Ritual) - 从玩家头颅创建假玩家核心
+    private boolean soulBindingActive = false;
+    private int soulBindingProgress = 0;
+    private static final int SOUL_BINDING_TIME = 400; // 20秒绑定时间
+    private static final float SOUL_BINDING_SUCCESS_RATE = 0.50f; // 50%成功率
+
     // 用於客戶端平滑渲染的緩存變量
     public float clientRotation = 0;
     public float lastClientRotation = 0;
@@ -135,6 +143,11 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         // 0.7 检测复制仪式（诅咒之镜+虚空精华）
         if (updateDuplicationRitual()) {
             return; // 复制仪式进行中，跳过普通配方处理
+        }
+
+        // 0.8 检测灵魂绑定仪式（玩家头颅+灵魂材料 = 假玩家核心）
+        if (updateSoulBindingRitual()) {
+            return; // 灵魂绑定仪式进行中，跳过普通配方处理
         }
 
         // 1. 查找有效基座 (必須有物品)
@@ -1331,6 +1344,8 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     public int getEnchantInfusionProgress() { return enchantInfusionProgress; }
     public boolean isDuplicationActive() { return duplicationRitualActive; }
     public int getDuplicationProgress() { return duplicationProgress; }
+    public boolean isSoulBindingActive() { return soulBindingActive; }
+    public int getSoulBindingProgress() { return soulBindingProgress; }
 
     // --- 渲染關鍵優化 ---
 
@@ -1403,5 +1418,313 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             return CapabilityItemHandler.ITEM_HANDLER_CAPABILITY.cast(inv);
         }
         return super.getCapability(capability, facing);
+    }
+
+    // ========== 灵魂绑定仪式系统 (Soul Binding Ritual) ==========
+
+    /**
+     * 更新灵魂绑定仪式
+     * 三阶祭坛 + 玩家头颅 + 灵魂材料 = 假玩家核心
+     * @return true 如果正在进行灵魂绑定仪式
+     */
+    private boolean updateSoulBindingRitual() {
+        // 必须是三阶祭坛
+        if (currentTier != AltarTier.TIER_3) {
+            if (soulBindingActive) {
+                soulBindingActive = false;
+                soulBindingProgress = 0;
+            }
+            return false;
+        }
+
+        // 检查中心是否是玩家头颅(meta=3)
+        ItemStack coreItem = inv.getStackInSlot(0);
+        if (coreItem.isEmpty() || coreItem.getItem() != Items.SKULL || coreItem.getMetadata() != 3) {
+            if (soulBindingActive) {
+                soulBindingActive = false;
+                soulBindingProgress = 0;
+            }
+            return false;
+        }
+
+        // 获取头颅中的玩家信息
+        GameProfile skullProfile = ItemFakePlayerCore.getProfileFromSkull(coreItem);
+        if (skullProfile == null) {
+            return false;
+        }
+
+        // 检查周围基座是否有正确的灵魂材料
+        List<TileEntityPedestal> soulMaterialPedestals = findSoulMaterialPedestals();
+        if (soulMaterialPedestals.size() < 4) {
+            // 需要至少4个灵魂材料
+            return false;
+        }
+
+        // 开始/继续灵魂绑定仪式
+        if (!soulBindingActive) {
+            soulBindingActive = true;
+            soulBindingProgress = 0;
+            notifySoulBindingStart(skullProfile);
+        }
+
+        soulBindingProgress++;
+
+        // 进度效果
+        if (soulBindingProgress % 20 == 0) {
+            int seconds = (SOUL_BINDING_TIME - soulBindingProgress) / 20;
+            notifySoulBindingProgress(seconds, skullProfile);
+            spawnSoulBindingParticles();
+        }
+
+        // 完成灵魂绑定
+        if (soulBindingProgress >= SOUL_BINDING_TIME) {
+            performSoulBinding(coreItem, skullProfile, soulMaterialPedestals);
+            soulBindingActive = false;
+            soulBindingProgress = 0;
+        }
+
+        return true;
+    }
+
+    /**
+     * 查找所有放着灵魂材料的基座
+     * 灵魂材料：灵魂果实、虚空精华、凝视碎片、灵魂锚点等
+     */
+    private List<TileEntityPedestal> findSoulMaterialPedestals() {
+        List<TileEntityPedestal> list = new ArrayList<>();
+        for (BlockPos off : OFFS8) {
+            TileEntity te = world.getTileEntity(pos.add(off));
+            if (te instanceof TileEntityPedestal) {
+                TileEntityPedestal ped = (TileEntityPedestal) te;
+                ItemStack stack = ped.getInv().getStackInSlot(0);
+                if (!stack.isEmpty() && isSoulMaterial(stack)) {
+                    list.add(ped);
+                }
+            }
+        }
+        return list;
+    }
+
+    /**
+     * 判断是否是灵魂材料
+     */
+    private boolean isSoulMaterial(ItemStack stack) {
+        if (stack.isEmpty()) return false;
+        // 灵魂材料：灵魂果实、虚空精华、凝视碎片、灵魂锚点、幽影尘
+        return stack.getItem() == ModItems.SOUL_FRUIT ||
+               stack.getItem() == ModItems.VOID_ESSENCE ||
+               stack.getItem() == ModItems.GAZE_FRAGMENT ||
+               stack.getItem() == ModItems.SOUL_ANCHOR ||
+               stack.getItem() == ModItems.SPECTRAL_DUST ||
+               stack.getItem() == ModItems.ETHEREAL_SHARD;
+    }
+
+    /**
+     * 执行灵魂绑定仪式
+     */
+    private void performSoulBinding(ItemStack skullStack, GameProfile profile, List<TileEntityPedestal> materialPedestals) {
+        // 消耗所有灵魂材料
+        for (TileEntityPedestal ped : materialPedestals) {
+            ped.consumeOne();
+        }
+
+        // 判定成功/失败 (50%成功率)
+        boolean success = world.rand.nextFloat() < SOUL_BINDING_SUCCESS_RATE;
+
+        if (success) {
+            // 成功：消耗头颅，创建假玩家核心
+            inv.setStackInSlot(0, ItemStack.EMPTY);
+
+            // 创建假玩家核心
+            ItemStack fakePlayerCore = new ItemStack(ModItems.FAKE_PLAYER_CORE);
+            ItemFakePlayerCore.storeProfile(fakePlayerCore, profile);
+
+            // 放入输出槽或掉落
+            if (inv.getStackInSlot(1).isEmpty()) {
+                inv.setStackInSlot(1, fakePlayerCore);
+            } else {
+                net.minecraft.entity.item.EntityItem entityItem = new net.minecraft.entity.item.EntityItem(
+                    world, pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5, fakePlayerCore);
+                world.spawnEntity(entityItem);
+            }
+
+            notifySoulBindingSuccess(profile);
+            spawnSoulBindingSuccessEffects();
+
+        } else {
+            // 失败：头颅损毁，爆炸
+            inv.setStackInSlot(0, ItemStack.EMPTY);
+            doSoulBindingFailExplosion();
+            notifySoulBindingFail(profile);
+        }
+
+        syncToClient();
+        markDirty();
+    }
+
+    /**
+     * 灵魂绑定失败爆炸
+     */
+    private void doSoulBindingFailExplosion() {
+        world.createExplosion(null, pos.getX() + 0.5, pos.getY() + 1, pos.getZ() + 0.5, 2.5F, false);
+    }
+
+    /**
+     * 通知灵魂绑定开始
+     */
+    private void notifySoulBindingStart(GameProfile profile) {
+        String playerName = profile.getName() != null ? profile.getName() : "Unknown";
+        AxisAlignedBB area = new AxisAlignedBB(pos).grow(10);
+        List<EntityPlayer> players = world.getEntitiesWithinAABB(EntityPlayer.class, area);
+        for (EntityPlayer player : players) {
+            player.sendMessage(new TextComponentString(
+                TextFormatting.DARK_PURPLE + "════════════════════════════════"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.LIGHT_PURPLE + "☠ 灵魂绑定仪式开始 ☠"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.GRAY + "目标灵魂: " + TextFormatting.GOLD + playerName
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.RED + "⚠ 成功率: " + TextFormatting.YELLOW + "50%"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.DARK_GRAY + "失败将毁掉头颅！"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.DARK_PURPLE + "════════════════════════════════"
+            ));
+        }
+
+        world.playSound(null, pos, SoundEvents.ENTITY_WITHER_AMBIENT,
+            SoundCategory.BLOCKS, 0.5f, 0.3f);
+    }
+
+    /**
+     * 通知灵魂绑定进度
+     */
+    private void notifySoulBindingProgress(int secondsLeft, GameProfile profile) {
+        String playerName = profile.getName() != null ? profile.getName() : "Unknown";
+        AxisAlignedBB area = new AxisAlignedBB(pos).grow(10);
+        List<EntityPlayer> players = world.getEntitiesWithinAABB(EntityPlayer.class, area);
+        for (EntityPlayer player : players) {
+            player.sendStatusMessage(new TextComponentString(
+                TextFormatting.LIGHT_PURPLE + "灵魂绑定: " +
+                TextFormatting.GOLD + playerName +
+                TextFormatting.GRAY + " - " +
+                TextFormatting.RED + secondsLeft + "秒"
+            ), true);
+        }
+
+        // 播放灵魂音效
+        if (soulBindingProgress % 80 == 0) {
+            world.playSound(null, pos, SoundEvents.ENTITY_GHAST_AMBIENT,
+                SoundCategory.BLOCKS, 0.3f, 0.5f);
+        }
+    }
+
+    /**
+     * 通知灵魂绑定成功
+     */
+    private void notifySoulBindingSuccess(GameProfile profile) {
+        String playerName = profile.getName() != null ? profile.getName() : "Unknown";
+        AxisAlignedBB area = new AxisAlignedBB(pos).grow(10);
+        List<EntityPlayer> players = world.getEntitiesWithinAABB(EntityPlayer.class, area);
+        for (EntityPlayer player : players) {
+            player.sendMessage(new TextComponentString(
+                TextFormatting.GOLD + "═══════════════════════════════"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.GREEN + "★ 灵魂绑定成功！★"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.LIGHT_PURPLE + playerName + TextFormatting.WHITE + " 的灵魂已被封印！"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.GRAY + "获得: " + TextFormatting.GOLD + "假玩家核心"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.GOLD + "═══════════════════════════════"
+            ));
+        }
+    }
+
+    /**
+     * 通知灵魂绑定失败
+     */
+    private void notifySoulBindingFail(GameProfile profile) {
+        String playerName = profile.getName() != null ? profile.getName() : "Unknown";
+        AxisAlignedBB area = new AxisAlignedBB(pos).grow(10);
+        List<EntityPlayer> players = world.getEntitiesWithinAABB(EntityPlayer.class, area);
+        for (EntityPlayer player : players) {
+            player.sendMessage(new TextComponentString(
+                TextFormatting.DARK_RED + "✗ 灵魂绑定失败！"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.RED + playerName + " 的灵魂逃脱了！头颅被毁..."
+            ));
+        }
+    }
+
+    /**
+     * 灵魂绑定粒子效果
+     */
+    private void spawnSoulBindingParticles() {
+        if (!(world instanceof WorldServer)) return;
+        WorldServer ws = (WorldServer) world;
+
+        // 灵魂漩涡粒子
+        for (int i = 0; i < 8; i++) {
+            double angle = i * Math.PI / 4 + (soulBindingProgress * 0.05);
+            double radius = 2.0 - (soulBindingProgress / (float) SOUL_BINDING_TIME);
+            double x = pos.getX() + 0.5 + Math.cos(angle) * radius;
+            double z = pos.getZ() + 0.5 + Math.sin(angle) * radius;
+
+            ws.spawnParticle(EnumParticleTypes.SPELL_WITCH,
+                x, pos.getY() + 1.5 + Math.sin(angle * 2) * 0.3, z,
+                3, 0.05, 0.05, 0.05, 0.0);
+        }
+
+        // 中心灵魂粒子
+        ws.spawnParticle(EnumParticleTypes.PORTAL,
+            pos.getX() + 0.5, pos.getY() + 1.0, pos.getZ() + 0.5,
+            10, 0.2, 0.3, 0.2, 0.0);
+
+        // 头骨效果
+        if (soulBindingProgress % 40 == 0) {
+            ws.spawnParticle(EnumParticleTypes.SPELL_MOB,
+                pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
+                20, 0.3, 0.3, 0.3, 0.0);
+        }
+    }
+
+    /**
+     * 灵魂绑定成功特效
+     */
+    private void spawnSoulBindingSuccessEffects() {
+        if (!(world instanceof WorldServer)) return;
+        WorldServer ws = (WorldServer) world;
+
+        // 大量紫色粒子爆发
+        ws.spawnParticle(EnumParticleTypes.SPELL_WITCH,
+            pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
+            100, 1.0, 1.5, 1.0, 0.5);
+
+        // 灵魂绿火
+        ws.spawnParticle(EnumParticleTypes.FLAME,
+            pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
+            50, 0.5, 0.8, 0.5, 0.05);
+
+        // 金色烟花
+        ws.spawnParticle(EnumParticleTypes.TOTEM,
+            pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
+            80, 0.5, 1.0, 0.5, 0.5);
+
+        // 音效
+        world.playSound(null, pos, SoundEvents.ENTITY_WITHER_DEATH,
+            SoundCategory.BLOCKS, 0.5f, 1.5f);
+        world.playSound(null, pos, SoundEvents.UI_TOAST_CHALLENGE_COMPLETE,
+            SoundCategory.BLOCKS, 1.0f, 1.0f);
     }
 }

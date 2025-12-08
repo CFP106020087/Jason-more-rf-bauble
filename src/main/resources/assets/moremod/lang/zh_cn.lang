@@ -467,3 +467,5 @@ item.moremod.cursed_mirror.stored=存储物品：%s
 item.moremod.cursed_mirror.empty=空
 item.moremod.soul_fruit.name=灵魂果实
 item.moremod.soul_fruit.desc=消耗5级经验获得强大的临时增益
+item.moremod.fake_player_core.name=假玩家核心
+item.moremod.fake_player_core.desc=封印了玩家灵魂的神秘核心，可用于自动化设备模拟玩家操作
