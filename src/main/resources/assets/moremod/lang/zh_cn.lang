@@ -455,3 +455,15 @@ item.moremod.courage_blade.name=勇气之刃
 item.moremod.frost_dew.name=霜华之露
 item.moremod.soul_anchor.name=灵魂锚点
 item.moremod.slumber_sachet.name=安眠香囊
+
+# ===== 仪式特殊道具 (Ritual Special Items) =====
+item.moremod.fate_apple.name=命运苹果
+item.moremod.fate_apple.desc=改变你的附魔运势，重置附魔种子
+item.moremod.void_essence.name=虚空精华
+item.moremod.void_essence.desc=复制仪式的催化剂
+item.moremod.cursed_mirror.name=诅咒之镜
+item.moremod.cursed_mirror.desc=能够存储物品的诡异镜子
+item.moremod.cursed_mirror.stored=存储物品：%s
+item.moremod.cursed_mirror.empty=空
+item.moremod.soul_fruit.name=灵魂果实
+item.moremod.soul_fruit.desc=消耗5级经验获得强大的临时增益

@@ -47,3 +47,15 @@ item.moremod.courage_blade.name=Courage Blade
 item.moremod.frost_dew.name=Frost Dew
 item.moremod.soul_anchor.name=Soul Anchor
 item.moremod.slumber_sachet.name=Slumber Sachet
+
+# Ritual Special Items
+item.moremod.fate_apple.name=Fate Apple
+item.moremod.fate_apple.desc=Changes your enchanting luck by resetting enchantment seed
+item.moremod.void_essence.name=Void Essence
+item.moremod.void_essence.desc=Catalyst for the duplication ritual
+item.moremod.cursed_mirror.name=Cursed Mirror
+item.moremod.cursed_mirror.desc=An eerie mirror capable of storing items
+item.moremod.cursed_mirror.stored=Stored Item: %s
+item.moremod.cursed_mirror.empty=Empty
+item.moremod.soul_fruit.name=Soul Fruit
+item.moremod.soul_fruit.desc=Consume 5 levels for powerful temporary buffs

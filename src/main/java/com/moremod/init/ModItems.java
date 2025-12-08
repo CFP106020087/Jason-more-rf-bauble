@@ -45,6 +45,11 @@ import com.moremod.item.ItemFabricRemover;
 import com.moremod.item.ItemStructureCapsule;
 // ✨ 七圣遗物
 import com.moremod.item.curse.ItemSacredRelic;
+// 🎲 仪式道具
+import com.moremod.item.ritual.ItemFateApple;
+import com.moremod.item.ritual.ItemVoidEssence;
+import com.moremod.item.ritual.ItemCursedMirror;
+import com.moremod.item.ritual.ItemSoulFruit;
 
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.item.Item.ToolMaterial;
@@ -125,6 +130,12 @@ public final class ModItems {
     public static Item FROST_DEW;               // 霜华之露 - 抵消永燃
     public static Item SOUL_ANCHOR;             // 灵魂锚点 - 抵消灵魂破碎
     public static Item SLUMBER_SACHET;          // 安眠香囊 - 抵消失眠症
+
+    // 🎲 仪式道具（三阶祭坛特殊制品）
+    public static Item FATE_APPLE;              // 命运苹果 - 重置附魔种子
+    public static Item VOID_ESSENCE;            // 虚空精华 - 仪式催化剂
+    public static Item CURSED_MIRROR;           // 诅咒之镜 - 复制仪式核心
+    public static Item SOUL_FRUIT;              // 灵魂果实 - 强力临时增益
 
     // 🗡️ 武器系列
     public static ItemSwordChengYue SWORD_CHENGYUE;      // 澄月 - 成长性终极武器
@@ -254,6 +265,13 @@ public final class ModItems {
         SOUL_ANCHOR = reg(e, new ItemSacredRelic(ItemSacredRelic.RelicType.SOUL_ANCHOR));
         SLUMBER_SACHET = reg(e, new ItemSacredRelic(ItemSacredRelic.RelicType.SLUMBER_SACHET));
         System.out.println("[MoreMod] ✨ 七圣遗物已注册 (7种)");
+
+        // 🎲 注册仪式道具
+        FATE_APPLE = reg(e, new ItemFateApple());
+        VOID_ESSENCE = reg(e, new ItemVoidEssence());
+        CURSED_MIRROR = reg(e, new ItemCursedMirror());
+        SOUL_FRUIT = reg(e, new ItemSoulFruit());
+        System.out.println("[MoreMod] 🎲 仪式道具已注册 (4种)");
 
         // 🗡️ 注册澄月剑
         SWORD_CHENGYUE = (ItemSwordChengYue) reg(e, new ItemSwordChengYue());
@@ -405,6 +423,13 @@ public final class ModItems {
         bindModel(SOUL_ANCHOR, "soul_anchor");
         bindModel(SLUMBER_SACHET, "slumber_sachet");
         System.out.println("[MoreMod] ✨ 七圣遗物模型已注册");
+
+        // 🎲 绑定仪式道具模型
+        bindModel(FATE_APPLE, "fate_apple");
+        bindModel(VOID_ESSENCE, "void_essence");
+        bindModel(CURSED_MIRROR, "cursed_mirror");
+        bindModel(SOUL_FRUIT, "soul_fruit");
+        System.out.println("[MoreMod] 🎲 仪式道具模型已注册");
 
         // 🗡️ 绑定澄月剑模型
         bindModel(SWORD_CHENGYUE, "sword_chengyue");

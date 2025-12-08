@@ -16,6 +16,9 @@ import net.minecraft.init.Items;
 import net.minecraft.init.SoundEvents;
 import net.minecraft.item.ItemEnchantedBook;
 import net.minecraft.item.ItemStack;
+import com.moremod.item.ritual.ItemCursedMirror;
+import com.moremod.item.ritual.ItemVoidEssence;
+import com.moremod.init.ModItems;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.network.NetworkManager;
@@ -79,6 +82,12 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     private static final int ENCHANT_INFUSION_TIME = 200; // 10秒注魔时间
     private static final float ENCHANT_SUCCESS_RATE = 0.10f; // 10%成功率
 
+    // 复制仪式系统 (Duplication Ritual)
+    private boolean duplicationRitualActive = false;
+    private int duplicationProgress = 0;
+    private static final int DUPLICATION_TIME = 300; // 15秒复制时间
+    private static final float DUPLICATION_SUCCESS_RATE = 0.01f; // 1%成功率
+
     // 用於客戶端平滑渲染的緩存變量
     public float clientRotation = 0;
     public float lastClientRotation = 0;
@@ -121,6 +130,11 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         // 0.6 检测注魔仪式（三阶祭坛+附魔书）
         if (updateEnchantInfusionRitual()) {
             return; // 注魔仪式进行中，跳过普通配方处理
+        }
+
+        // 0.7 检测复制仪式（诅咒之镜+虚空精华）
+        if (updateDuplicationRitual()) {
+            return; // 复制仪式进行中，跳过普通配方处理
         }
 
         // 1. 查找有效基座 (必須有物品)
@@ -1007,6 +1021,303 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             SoundCategory.BLOCKS, 1.0f, 0.8f);
     }
 
+    // ========== 复制仪式系统 (Duplication Ritual) ==========
+
+    /**
+     * 更新复制仪式
+     * 三阶祭坛 + 诅咒之镜(含存储物品) + 8个虚空精华 = 复制仪式
+     * @return true 如果正在进行复制仪式
+     */
+    private boolean updateDuplicationRitual() {
+        // 必须是三阶祭坛
+        if (currentTier != AltarTier.TIER_3) {
+            if (duplicationRitualActive) {
+                duplicationRitualActive = false;
+                duplicationProgress = 0;
+            }
+            return false;
+        }
+
+        // 检查中心是否是诅咒之镜且有存储物品
+        ItemStack coreItem = inv.getStackInSlot(0);
+        if (coreItem.isEmpty() || !(coreItem.getItem() instanceof ItemCursedMirror)) {
+            if (duplicationRitualActive) {
+                duplicationRitualActive = false;
+                duplicationProgress = 0;
+            }
+            return false;
+        }
+
+        if (!ItemCursedMirror.hasStoredItem(coreItem)) {
+            return false;
+        }
+
+        // 检查周围是否全是虚空精华
+        List<TileEntityPedestal> essencePedestals = findVoidEssencePedestals();
+        if (essencePedestals.size() < 8) {
+            if (duplicationRitualActive) {
+                duplicationRitualActive = false;
+                duplicationProgress = 0;
+            }
+            return false;
+        }
+
+        // 开始/继续复制仪式
+        if (!duplicationRitualActive) {
+            duplicationRitualActive = true;
+            duplicationProgress = 0;
+            ItemStack storedItem = ItemCursedMirror.getStoredItem(coreItem);
+            notifyDuplicationStart(storedItem);
+        }
+
+        duplicationProgress++;
+
+        // 进度效果
+        if (duplicationProgress % 20 == 0) {
+            int seconds = (DUPLICATION_TIME - duplicationProgress) / 20;
+            notifyDuplicationProgress(seconds);
+            spawnDuplicationParticles();
+        }
+
+        // 完成复制
+        if (duplicationProgress >= DUPLICATION_TIME) {
+            performDuplication(coreItem, essencePedestals);
+            duplicationRitualActive = false;
+            duplicationProgress = 0;
+        }
+
+        return true;
+    }
+
+    /**
+     * 查找所有放着虚空精华的基座
+     */
+    private List<TileEntityPedestal> findVoidEssencePedestals() {
+        List<TileEntityPedestal> list = new ArrayList<>();
+        for (BlockPos off : OFFS8) {
+            TileEntity te = world.getTileEntity(pos.add(off));
+            if (te instanceof TileEntityPedestal) {
+                TileEntityPedestal ped = (TileEntityPedestal) te;
+                ItemStack stack = ped.getInv().getStackInSlot(0);
+                if (!stack.isEmpty() && stack.getItem() == ModItems.VOID_ESSENCE) {
+                    list.add(ped);
+                }
+            }
+        }
+        return list;
+    }
+
+    /**
+     * 执行复制仪式
+     */
+    private void performDuplication(ItemStack mirrorStack, List<TileEntityPedestal> essencePedestals) {
+        ItemStack storedItem = ItemCursedMirror.getStoredItem(mirrorStack);
+        if (storedItem.isEmpty()) return;
+
+        // 消耗所有虚空精华
+        for (TileEntityPedestal ped : essencePedestals) {
+            ped.consumeOne();
+        }
+
+        // 判定成功/失败 (1%成功率)
+        boolean success = world.rand.nextFloat() < DUPLICATION_SUCCESS_RATE;
+
+        if (success) {
+            // 成功：复制物品，保留原物品
+            ItemStack duplicated = storedItem.copy();
+
+            // 将复制品放入输出槽或掉落
+            if (inv.getStackInSlot(1).isEmpty()) {
+                inv.setStackInSlot(1, duplicated);
+            } else {
+                // 掉落在祭坛上方
+                net.minecraft.entity.item.EntityItem entityItem = new net.minecraft.entity.item.EntityItem(
+                    world, pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5, duplicated);
+                world.spawnEntity(entityItem);
+            }
+
+            // 镜子损耗
+            mirrorStack.damageItem(1, null);
+
+            notifyDuplicationSuccess(storedItem);
+            spawnDuplicationSuccessEffects();
+
+        } else {
+            // 失败：毁掉镜中物品
+            ItemCursedMirror.clearStoredItem(mirrorStack);
+
+            // 镜子损耗更大
+            mirrorStack.damageItem(3, null);
+
+            // 爆炸
+            doDuplicationFailExplosion();
+            notifyDuplicationFail(storedItem);
+        }
+
+        // 如果镜子损坏，从槽位移除
+        if (mirrorStack.getItemDamage() >= mirrorStack.getMaxDamage()) {
+            inv.setStackInSlot(0, ItemStack.EMPTY);
+            notifyMirrorDestroyed();
+        }
+
+        syncToClient();
+        markDirty();
+    }
+
+    /**
+     * 复制失败爆炸
+     */
+    private void doDuplicationFailExplosion() {
+        world.createExplosion(null, pos.getX() + 0.5, pos.getY() + 1, pos.getZ() + 0.5, 4.0F, true);
+    }
+
+    /**
+     * 通知复制开始
+     */
+    private void notifyDuplicationStart(ItemStack item) {
+        AxisAlignedBB area = new AxisAlignedBB(pos).grow(10);
+        List<EntityPlayer> players = world.getEntitiesWithinAABB(EntityPlayer.class, area);
+        for (EntityPlayer player : players) {
+            player.sendMessage(new TextComponentString(
+                TextFormatting.DARK_PURPLE + "════════════════════════════════"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.DARK_RED + "☠ 禁忌复制仪式开始 ☠"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.GRAY + "目标: " + TextFormatting.WHITE + item.getDisplayName()
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.RED + "⚠ 成功率: " + TextFormatting.DARK_RED + "1%"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.DARK_GRAY + "失败将毁掉镜中物品！"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.DARK_PURPLE + "════════════════════════════════"
+            ));
+        }
+
+        world.playSound(null, pos, SoundEvents.ENTITY_WITHER_SPAWN,
+            SoundCategory.BLOCKS, 0.5f, 0.5f);
+    }
+
+    /**
+     * 通知复制进度
+     */
+    private void notifyDuplicationProgress(int secondsLeft) {
+        AxisAlignedBB area = new AxisAlignedBB(pos).grow(10);
+        List<EntityPlayer> players = world.getEntitiesWithinAABB(EntityPlayer.class, area);
+        for (EntityPlayer player : players) {
+            player.sendStatusMessage(new TextComponentString(
+                TextFormatting.DARK_PURPLE + "禁忌仪式进行中... " +
+                TextFormatting.RED + secondsLeft + "秒"
+            ), true);
+        }
+
+        // 播放不祥音效
+        if (duplicationProgress % 60 == 0) {
+            world.playSound(null, pos, SoundEvents.ENTITY_ENDERDRAGON_GROWL,
+                SoundCategory.BLOCKS, 0.3f, 0.5f);
+        }
+    }
+
+    /**
+     * 通知复制成功
+     */
+    private void notifyDuplicationSuccess(ItemStack item) {
+        AxisAlignedBB area = new AxisAlignedBB(pos).grow(10);
+        List<EntityPlayer> players = world.getEntitiesWithinAABB(EntityPlayer.class, area);
+        for (EntityPlayer player : players) {
+            player.sendMessage(new TextComponentString(
+                TextFormatting.GOLD + "═══════════════════════════════"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.GOLD + "★★★ 奇迹发生！复制成功！★★★"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.WHITE + item.getDisplayName() +
+                TextFormatting.GREEN + " 被完美复制！"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.GOLD + "═══════════════════════════════"
+            ));
+        }
+    }
+
+    /**
+     * 通知复制失败
+     */
+    private void notifyDuplicationFail(ItemStack item) {
+        AxisAlignedBB area = new AxisAlignedBB(pos).grow(10);
+        List<EntityPlayer> players = world.getEntitiesWithinAABB(EntityPlayer.class, area);
+        for (EntityPlayer player : players) {
+            player.sendMessage(new TextComponentString(
+                TextFormatting.DARK_RED + "✗ 复制失败！禁忌之力失控！"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.RED + item.getDisplayName() + " 在虚空中消散..."
+            ));
+        }
+    }
+
+    /**
+     * 通知镜子损毁
+     */
+    private void notifyMirrorDestroyed() {
+        AxisAlignedBB area = new AxisAlignedBB(pos).grow(10);
+        List<EntityPlayer> players = world.getEntitiesWithinAABB(EntityPlayer.class, area);
+        for (EntityPlayer player : players) {
+            player.sendMessage(new TextComponentString(
+                TextFormatting.DARK_GRAY + "诅咒之镜碎裂了..."
+            ));
+        }
+    }
+
+    /**
+     * 复制粒子效果
+     */
+    private void spawnDuplicationParticles() {
+        if (!(world instanceof WorldServer)) return;
+        WorldServer ws = (WorldServer) world;
+
+        // 黑色粒子漩涡
+        for (int i = 0; i < 8; i++) {
+            double angle = i * Math.PI / 4 + (duplicationProgress * 0.1);
+            double radius = 2.0;
+            double x = pos.getX() + 0.5 + Math.cos(angle) * radius;
+            double z = pos.getZ() + 0.5 + Math.sin(angle) * radius;
+
+            ws.spawnParticle(EnumParticleTypes.PORTAL,
+                x, pos.getY() + 1.0, z,
+                5, 0.1, 0.3, 0.1, 0.0);
+        }
+
+        // 中心黑暗粒子
+        ws.spawnParticle(EnumParticleTypes.SMOKE_LARGE,
+            pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
+            10, 0.3, 0.5, 0.3, 0.02);
+    }
+
+    /**
+     * 复制成功特效
+     */
+    private void spawnDuplicationSuccessEffects() {
+        if (!(world instanceof WorldServer)) return;
+        WorldServer ws = (WorldServer) world;
+
+        // 金色爆发
+        ws.spawnParticle(EnumParticleTypes.TOTEM,
+            pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
+            200, 1.0, 1.5, 1.0, 1.0);
+
+        // 音效
+        world.playSound(null, pos, SoundEvents.UI_TOAST_CHALLENGE_COMPLETE,
+            SoundCategory.BLOCKS, 1.0f, 0.8f);
+        world.playSound(null, pos, SoundEvents.ENTITY_PLAYER_LEVELUP,
+            SoundCategory.BLOCKS, 1.0f, 0.5f);
+    }
+
     // --- 標準 Getters & Setters ---
     public boolean isActive() { return isActive; }
     public int getProgress() { return process; }
@@ -1018,6 +1329,8 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     public int getEmbeddingProgress() { return embeddingProgress; }
     public boolean isEnchantInfusionActive() { return enchantInfusionActive; }
     public int getEnchantInfusionProgress() { return enchantInfusionProgress; }
+    public boolean isDuplicationActive() { return duplicationRitualActive; }
+    public int getDuplicationProgress() { return duplicationProgress; }
 
     // --- 渲染關鍵優化 ---
 
