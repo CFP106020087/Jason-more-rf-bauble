@@ -22,20 +22,56 @@ import java.util.List;
 @ZenRegister
 public class RitualCraftTweaker {
 
+    /**
+     * 添加仪式配方（完整参数版，包含阶层要求）
+     * @param output 输出物品
+     * @param core 核心物品
+     * @param time 时间（tick）
+     * @param energy 每基座能量消耗
+     * @param failChance 失败率 (0.0-1.0)
+     * @param requiredTier 所需祭坛阶层 (1-3)
+     * @param pedestals 基座物品数组
+     */
     @ZenMethod
     public static void addRecipe(IItemStack output, IIngredient core, int time, int energy,
-                                 float failChance, IIngredient[] pedestals) {
+                                 float failChance, int requiredTier, IIngredient[] pedestals) {
         if (pedestals.length < 1 || pedestals.length > 8) {
             CraftTweakerAPI.logError("Ritual recipe must have 1-8 pedestal items");
             return;
         }
+        if (requiredTier < 1 || requiredTier > 3) {
+            CraftTweakerAPI.logError("Ritual tier must be 1-3, got: " + requiredTier);
+            return;
+        }
 
-        CraftTweakerAPI.apply(new AddRitualAction(output, core, time, energy, failChance, pedestals));
+        CraftTweakerAPI.apply(new AddRitualAction(output, core, time, energy, failChance, requiredTier, pedestals));
     }
 
+    /**
+     * 添加仪式配方（带失败率，默认一阶）
+     */
+    @ZenMethod
+    public static void addRecipe(IItemStack output, IIngredient core, int time, int energy,
+                                 float failChance, IIngredient[] pedestals) {
+        addRecipe(output, core, time, energy, failChance, 1, pedestals);
+    }
+
+    /**
+     * 添加仪式配方（简化版，无失败率，默认一阶）
+     */
     @ZenMethod
     public static void addRecipe(IItemStack output, IIngredient core, int time, int energy, IIngredient[] pedestals) {
-        addRecipe(output, core, time, energy, 0.0f, pedestals);
+        addRecipe(output, core, time, energy, 0.0f, 1, pedestals);
+    }
+
+    /**
+     * 添加仅限特定阶层的仪式配方
+     * @param tier 1=基础祭坛, 2=进阶祭坛, 3=大师祭坛
+     */
+    @ZenMethod
+    public static void addTieredRecipe(int tier, IItemStack output, IIngredient core, int time, int energy,
+                                       float failChance, IIngredient[] pedestals) {
+        addRecipe(output, core, time, energy, failChance, tier, pedestals);
     }
 
     @ZenMethod
@@ -59,15 +95,17 @@ public class RitualCraftTweaker {
         private final int time;
         private final int energy;
         private final float failChance;
+        private final int requiredTier;
         private final List<Ingredient> pedestalItems;
 
         public AddRitualAction(IItemStack output, IIngredient core, int time, int energy,
-                               float failChance, IIngredient[] pedestals) {
+                               float failChance, int requiredTier, IIngredient[] pedestals) {
             this.output = CraftTweakerMC.getItemStack(output);
             this.core = CraftTweakerMC.getIngredient(core);
             this.time = time;
             this.energy = energy;
             this.failChance = failChance;
+            this.requiredTier = requiredTier;
             this.pedestalItems = new ArrayList<>();
             for (IIngredient pedestal : pedestals) {
                 this.pedestalItems.add(CraftTweakerMC.getIngredient(pedestal));
@@ -77,14 +115,15 @@ public class RitualCraftTweaker {
         @Override
         public void apply() {
             RitualInfusionRecipe recipe = new RitualInfusionRecipe(
-                    core, pedestalItems, output, time, energy, failChance
+                    core, pedestalItems, output, time, energy, failChance, requiredTier
             );
             RitualInfusionAPI.RITUAL_RECIPES.add(recipe);
         }
 
         @Override
         public String describe() {
-            return "Adding Ritual recipe for " + output.getDisplayName();
+            String tierName = requiredTier == 1 ? "基础" : (requiredTier == 2 ? "进阶" : "大师");
+            return "Adding Ritual recipe for " + output.getDisplayName() + " (requires " + tierName + " altar)";
         }
     }
 

@@ -39,6 +39,12 @@ public class BlockRitualCore extends BlockContainer {
         if (world.isRemote) return true;
 
         TileEntityRitualCore core = (TileEntityRitualCore) te;
+
+        // 蹲下右键 = 尝试坐上祭坛进行嵌入仪式
+        if (player.isSneaking() && hand == EnumHand.MAIN_HAND) {
+            return core.seatPlayer(player);
+        }
+
         IItemHandler handler = core.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, facing);
         if (handler == null) return false;
 

@@ -455,6 +455,22 @@ public class moremod {
         );
         System.out.println("[moremod] 🌀 奇点实体注册成功 (ID: " + (nextEntityId - 1) + ")");
         // ========================================
+
+        // ========================================
+        // 新增：仪式座椅实体（七咒嵌入系统）
+        // ========================================
+        EntityRegistry.registerModEntity(
+                new ResourceLocation(MODID, "ritual_seat"),
+                EntityRitualSeat.class,
+                "ritual_seat",
+                nextEntityId++,        // 14
+                INSTANCE,
+                32,                    // 追踪范围
+                20,                    // 更新频率（较低，因为不需要频繁更新）
+                false                  // 不发送速度更新
+        );
+        System.out.println("[moremod] 🪑 仪式座椅实体注册成功 (ID: " + (nextEntityId - 1) + ")");
+        // ========================================
     }
 
     /**
