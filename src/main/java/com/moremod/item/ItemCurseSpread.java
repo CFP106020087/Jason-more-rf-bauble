@@ -293,6 +293,21 @@ public class ItemCurseSpread extends Item implements IBauble {
 
         long currentTime = player.world.getTotalWorldTime();
 
+        // 調試：每5秒輸出一次範圍內實體數量
+        if (player.ticksExisted % 100 == 0 && !entities.isEmpty()) {
+            int count = 0;
+            for (EntityLivingBase e : entities) {
+                if (!(e instanceof EntityPlayer) && !e.isOnSameTeam(player)) {
+                    count++;
+                }
+            }
+            if (count > 0) {
+                player.sendMessage(new net.minecraft.util.text.TextComponentString(
+                        String.format("§5[蔓延詛咒] 範圍 %.1f 格內有 %d 個敵人被詛咒 (等級 %d)", range, count, curseAmount)
+                ));
+            }
+        }
+
         for (EntityLivingBase entity : entities) {
             // 排除玩家
             if (entity instanceof EntityPlayer)
@@ -314,6 +329,11 @@ public class ItemCurseSpread extends Item implements IBauble {
             if (!entity.world.isRemote) {
                 if (oldLevel != curseAmount) {
                     applyArmorReduction(entity, curseAmount);
+
+                    // 調試輸出
+                    double armorReduction = getArmorReductionPercent(curseAmount);
+                    System.out.println(String.format("[CurseSpread] 對 %s 應用護甲削弱: %.0f%%",
+                            entity.getName(), armorReduction * 100));
                 }
             }
         }
