@@ -67,20 +67,22 @@ public class CurseSpreadHandler {
         }
 
         // 2. 如果受害者被诅咒蔓延影响，增加其受到的伤害
+        // ✅ 修复：直接获取詛咒等級，避免重複調用 isCursedBySpread 導致的競態條件
         if (!(victim instanceof EntityPlayer)) {
-            if (ItemCurseSpread.isCursedBySpread(victim)) {
-                int curseLevel = ItemCurseSpread.getCurseSpreadLevel(victim);
-                double damageMultiplier = ItemCurseSpread.getDamageAmplificationMultiplier(curseLevel);
+            int victimCurseLevel = ItemCurseSpread.getCurseSpreadLevel(victim);
+            if (victimCurseLevel >= 7) {
+                double damageMultiplier = ItemCurseSpread.getDamageAmplificationMultiplier(victimCurseLevel);
 
                 // 从原始伤害重新计算，避免双重乘算
                 float victimModifiedDamage = originalDamage;
 
                 // 如果攻击者也被诅咒了，先应用攻击者的削弱
-                if (attacker != null && !(attacker instanceof EntityPlayer) &&
-                        ItemCurseSpread.isCursedBySpread(attacker)) {
+                if (attacker != null && !(attacker instanceof EntityPlayer)) {
                     int attackerCurseLevel = ItemCurseSpread.getCurseSpreadLevel(attacker);
-                    double attackerMultiplier = ItemCurseSpread.getDamageReductionMultiplier(attackerCurseLevel);
-                    victimModifiedDamage *= attackerMultiplier;
+                    if (attackerCurseLevel >= 7) {
+                        double attackerMultiplier = ItemCurseSpread.getDamageReductionMultiplier(attackerCurseLevel);
+                        victimModifiedDamage *= attackerMultiplier;
+                    }
                 }
 
                 // 然后应用受害者的增伤
@@ -92,7 +94,7 @@ public class CurseSpreadHandler {
                     EntityPlayer player = (EntityPlayer) attacker;
                     player.sendMessage(new TextComponentString(
                             String.format("§c目标被诅咒影响: %d级诅咒, 伤害 %.1f -> %.1f (×%.1f)",
-                                    curseLevel, originalDamage, modifiedDamage, damageMultiplier)
+                                    victimCurseLevel, originalDamage, modifiedDamage, damageMultiplier)
                     ));
                 }
             }
