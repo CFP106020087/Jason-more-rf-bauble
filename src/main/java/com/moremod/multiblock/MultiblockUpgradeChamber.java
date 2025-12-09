@@ -11,10 +11,10 @@ import net.minecraft.world.World;
  *
  * 結構設計 (3x3x3):
  *
- * 第0層 (地板 - 核心層):
- *   I I I
- *   I C I    C = 升級艙核心, I = 鐵塊
- *   I I I
+ * 第0層 (地板 - 核心層) - 四角框架，中間開放供管道連接:
+ *   I . I
+ *   . C .    C = 升級艙核心, I = 鐵塊, . = 任意(管道空間)
+ *   I . I
  *
  * 第1層 (中間 - 玩家站立):
  *   I . I
@@ -48,8 +48,8 @@ public class MultiblockUpgradeChamber {
     }
 
     /**
-     * 第0層 - 地板層
-     * 中心是核心，周圍8格是鐵塊
+     * 第0層 - 地板層（四角框架，中間開放供管道連接）
+     * 中心是核心，四角是框架，四邊可接管道
      */
     private static boolean checkFloorLayer(World world, BlockPos centerPos) {
         for (int x = -1; x <= 1; x++) {
@@ -62,12 +62,13 @@ public class MultiblockUpgradeChamber {
                     if (block != ModBlocks.UPGRADE_CHAMBER_CORE) {
                         return false;
                     }
-                } else {
-                    // 周圍必須是鐵塊
+                } else if (Math.abs(x) == 1 && Math.abs(z) == 1) {
+                    // 四角必須是框架方塊
                     if (!isValidFrameBlock(block)) {
                         return false;
                     }
                 }
+                // 四邊（十字位置）可以是任意方塊，供管道連接
             }
         }
         return true;
@@ -173,13 +174,13 @@ public class MultiblockUpgradeChamber {
         guide.append("§b=== 模組升級艙建造指南 ===§r\n\n");
 
         guide.append("§e第0層（地板）:§r\n");
-        guide.append("  I I I\n");
-        guide.append("  I C I\n");
-        guide.append("  I I I\n\n");
+        guide.append("  I . I\n");
+        guide.append("  . C .  ← 管道連接處\n");
+        guide.append("  I . I\n\n");
 
         guide.append("§e第1層（中間）:§r\n");
         guide.append("  I . I\n");
-        guide.append("  . . .\n");
+        guide.append("  . . .  ← 玩家進入\n");
         guide.append("  I . I\n\n");
 
         guide.append("§e第2層（天花板）:§r\n");
@@ -188,13 +189,13 @@ public class MultiblockUpgradeChamber {
         guide.append("  I I I\n\n");
 
         guide.append("§6圖例:§r\n");
-        guide.append("C = 升級艙核心（接受能量輸入）\n");
-        guide.append("I = 框架方塊（鐵塊/金塊/鑽石塊/綠寶石塊）\n");
-        guide.append(". = 空氣（玩家進入空間）\n\n");
+        guide.append("C = 升級艙核心\n");
+        guide.append("I = 框架方塊（鐵/金/鑽石/綠寶石塊）\n");
+        guide.append(". = 空氣/管道\n\n");
 
         guide.append("§a使用方法:§r\n");
         guide.append("1. 將升級模組放入核心\n");
-        guide.append("2. 對核心供電（需要充滿能量）\n");
+        guide.append("2. 用管道輸入能量\n");
         guide.append("3. 裝備機械核心，走進升級艙\n");
         guide.append("4. 等待升級完成\n\n");
 
