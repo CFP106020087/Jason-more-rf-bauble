@@ -56,6 +56,11 @@ import com.moremod.tile.TileEntityChargingStation;
 // 📖 Synergy 协同手册GUI导入
 import com.moremod.synergy.gui.GuiSynergyGuide;
 
+// ⛏️ 量子採石場GUI導入
+import com.moremod.quarry.gui.ContainerQuantumQuarry;
+import com.moremod.quarry.gui.GuiQuantumQuarry;
+import com.moremod.quarry.tile.TileQuantumQuarry;
+
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumHand;
@@ -106,6 +111,9 @@ public class GuiHandler implements IGuiHandler {
 
     // ⚡ 充能站
     public static final int CHARGING_STATION_GUI = 32;
+
+    // ⛏️ 量子採石場
+    public static final int QUANTUM_QUARRY_GUI = 100;
 
     // ---------------- Server ----------------
     @Override
@@ -193,6 +201,10 @@ public class GuiHandler implements IGuiHandler {
                 }
                 case CHARGING_STATION_GUI: { // ⚡ ID=32
                     result = createChargingStationContainer(player, world, x, y, z);
+                    break;
+                }
+                case QUANTUM_QUARRY_GUI: { // ⛏️ ID=100
+                    result = createQuantumQuarryContainer(player, world, x, y, z);
                     break;
                 }
                 default:
@@ -292,6 +304,10 @@ public class GuiHandler implements IGuiHandler {
                 }
                 case CHARGING_STATION_GUI: { // ⚡ ID=32
                     result = createChargingStationGui(player, world, x, y, z);
+                    break;
+                }
+                case QUANTUM_QUARRY_GUI: { // ⛏️ ID=100
+                    result = createQuantumQuarryGui(player, world, x, y, z);
                     break;
                 }
                 default:
@@ -599,7 +615,8 @@ public class GuiHandler implements IGuiHandler {
                 guiId == PURIFICATION_ALTAR_GUI ||               // 🔮 提纯祭坛
                 guiId == TRANSFER_STATION_GUI ||                 // 🎨 转移台
                 guiId == SYNERGY_STATION_GUI ||                  // ⚡ Synergy 链结站
-                guiId == CHARGING_STATION_GUI;                   // ⚡ 充能站
+                guiId == CHARGING_STATION_GUI ||                 // ⚡ 充能站
+                guiId == QUANTUM_QUARRY_GUI;                     // ⛏️ 量子採石場
     }
 
     public static boolean isItemBasedGui(int guiId) {
@@ -658,6 +675,32 @@ public class GuiHandler implements IGuiHandler {
             return new GuiChargingStation(player.inventory, (TileEntityChargingStation) te);
         }
         System.out.println("[GuiHandler] ❌ 未识别的充能站 TE(客户端): " + (te == null ? "null" : te.getClass().getName()));
+        return null;
+    }
+
+    // ====== ⛏️ ID=100：量子採石場 ======
+    private Object createQuantumQuarryContainer(EntityPlayer player, World world, int x, int y, int z) {
+        BlockPos pos = new BlockPos(x, y, z);
+        TileEntity te = world.getTileEntity(pos);
+
+        if (te instanceof TileQuantumQuarry) {
+            System.out.println("[GuiHandler] 打开量子採石場 Container");
+            return new ContainerQuantumQuarry(player.inventory, (TileQuantumQuarry) te);
+        }
+        System.out.println("[GuiHandler] ❌ 未识别的量子採石場 TE: " + (te == null ? "null" : te.getClass().getName()));
+        return null;
+    }
+
+    @SideOnly(Side.CLIENT)
+    private Object createQuantumQuarryGui(EntityPlayer player, World world, int x, int y, int z) {
+        BlockPos pos = new BlockPos(x, y, z);
+        TileEntity te = world.getTileEntity(pos);
+
+        if (te instanceof TileQuantumQuarry) {
+            System.out.println("[GuiHandler] 打开量子採石場 GUI");
+            return new GuiQuantumQuarry(player.inventory, (TileQuantumQuarry) te);
+        }
+        System.out.println("[GuiHandler] ❌ 未识别的量子採石場 TE(客户端): " + (te == null ? "null" : te.getClass().getName()));
         return null;
     }
 }
