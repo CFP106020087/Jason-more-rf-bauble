@@ -25,8 +25,17 @@ import java.util.Map;
 /**
  * 统一升级处理器（分级模块版）
  * ✅ 修复：确保所有升级路径都记录 OriginalMax
+ *
+ * ⚙️ 配置开关：
+ * - ENABLE_RIGHT_CLICK_UPGRADE: 是否允许右键升级（设为 false 时只能使用多方块升级倉）
  */
 public class SmartUpgradeHandler {
+
+    // ════════════════════════════════════════════════════════════════
+    // ⚙️ 主开关：设为 false 禁用右键升级，玩家必须使用多方块升级倉
+    // ════════════════════════════════════════════════════════════════
+    public static boolean ENABLE_RIGHT_CLICK_UPGRADE = false;
+    // ════════════════════════════════════════════════════════════════
 
     // ✅ 添加常量
     private static final String K_ORIGINAL_MAX = "OriginalMax_";
@@ -42,6 +51,17 @@ public class SmartUpgradeHandler {
         if (!(heldItem.getItem() instanceof ItemUpgradeComponent)) return;
 
         event.setCanceled(true);
+
+        // ⚙️ 检查开关：禁用右键升级时，引导玩家使用多方块升级倉
+        if (!ENABLE_RIGHT_CLICK_UPGRADE) {
+            player.sendMessage(new TextComponentString(
+                    TextFormatting.YELLOW + "⚠ 右键升级已禁用！" +
+                    TextFormatting.WHITE + " 请使用" +
+                    TextFormatting.AQUA + "多方块升级倉" +
+                    TextFormatting.WHITE + "来安装升级模块。"
+            ));
+            return;
+        }
 
         ItemStack coreStack = ItemMechanicalCore.findEquippedMechanicalCore(player);
         if (!ItemMechanicalCore.isMechanicalCore(coreStack)) {

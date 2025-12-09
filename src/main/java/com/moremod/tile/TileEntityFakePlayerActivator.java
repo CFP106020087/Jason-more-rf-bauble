@@ -249,6 +249,7 @@ public class TileEntityFakePlayerActivator extends TileEntity implements ITickab
 
     /**
      * 更新当前工具
+     * ✅ 修复：只有真正损坏的可损坏物品才会被清除
      */
     private void updateCurrentTool(ItemStack newTool) {
         int maxSlot = inventory.getSlots();
@@ -257,7 +258,17 @@ public class TileEntityFakePlayerActivator extends TileEntity implements ITickab
             return;
         }
 
-        if (newTool.isEmpty() || newTool.getItemDamage() >= newTool.getMaxDamage()) {
+        // ✅ 修复判断逻辑：
+        // 1. 物品为空 -> 清除槽位
+        // 2. 物品可损坏且耐久耗尽 -> 清除槽位
+        // 3. 其他情况（包括不可损坏物品）-> 保留物品
+        boolean shouldClear = newTool.isEmpty();
+        if (!shouldClear && newTool.isItemStackDamageable()) {
+            // 只有可损坏物品才检查耐久
+            shouldClear = newTool.getItemDamage() >= newTool.getMaxDamage();
+        }
+
+        if (shouldClear) {
             inventory.setStackInSlot(currentToolSlot, ItemStack.EMPTY);
             // 切换到下一个工具
             for (int i = 1; i < maxSlot; i++) {
@@ -301,23 +312,35 @@ public class TileEntityFakePlayerActivator extends TileEntity implements ITickab
 
     /**
      * 使用物品
+     * ✅ 修复：避免双重消耗，正确处理物品使用逻辑
      */
     private boolean performUseItem(ModFakePlayer fakePlayer, BlockPos targetPos, EnumFacing facing) {
         ItemStack tool = fakePlayer.getHeldItemMainhand();
         if (tool.isEmpty()) return false;
+
+        // 记录使用前的数量，用于检测是否已消耗
+        int countBefore = tool.getCount();
 
         EnumActionResult result = tool.getItem().onItemUse(
             fakePlayer, world, targetPos, EnumHand.MAIN_HAND,
             facing.getOpposite(), 0.5F, 0.5F, 0.5F
         );
 
+        ItemStack afterUse = fakePlayer.getHeldItemMainhand();
+
         if (result == EnumActionResult.SUCCESS) {
-            updateCurrentTool(fakePlayer.getHeldItemMainhand());
+            updateCurrentTool(afterUse);
             return true;
         }
 
-        tool.getItem().onItemRightClick(world, fakePlayer, EnumHand.MAIN_HAND);
-        updateCurrentTool(fakePlayer.getHeldItemMainhand());
+        // ✅ 修复：只有在 onItemUse 没有消耗物品时才尝试 onItemRightClick
+        // 避免双重消耗
+        if (!afterUse.isEmpty() && afterUse.getCount() >= countBefore) {
+            tool.getItem().onItemRightClick(world, fakePlayer, EnumHand.MAIN_HAND);
+            afterUse = fakePlayer.getHeldItemMainhand();
+        }
+
+        updateCurrentTool(afterUse);
         return true;
     }
 
