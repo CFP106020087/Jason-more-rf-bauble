@@ -57,6 +57,9 @@ import com.moremod.item.energy.ItemOilProspector;
 import com.moremod.item.energy.ItemOilBucket;
 import com.moremod.item.energy.ItemPlantOilBucket;
 
+// 📖 綜合指南書
+import com.moremod.item.ItemModGuide;
+
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.item.Item.ToolMaterial;
 import net.minecraft.item.EnumRarity;
@@ -168,6 +171,9 @@ public final class ModItems {
     public static Item OIL_PROSPECTOR;       // 石油探測器
     public static Item CRUDE_OIL_BUCKET;     // 原油桶
     public static Item PLANT_OIL_BUCKET;     // 植物油桶
+
+    // 📖 綜合指南書
+    public static Item MOREMOD_GUIDE;        // MoreMod 綜合指南
 
     //新模块(屎山包装)
 
@@ -335,6 +341,10 @@ public final class ModItems {
         PLANT_OIL_BUCKET = reg(e, new ItemPlantOilBucket());
         System.out.println("[MoreMod] ⛽ 植物油桶已註冊");
 
+        // 📖 註冊綜合指南書
+        MOREMOD_GUIDE = reg(e, new ItemModGuide());
+        System.out.println("[MoreMod] 📖 MoreMod 綜合指南已註冊");
+
         //新模块系统
     }
 
@@ -497,6 +507,10 @@ public final class ModItems {
         bindModel(CRUDE_OIL_BUCKET, "crude_oil_bucket");
         bindModel(PLANT_OIL_BUCKET, "plant_oil_bucket");
         System.out.println("[MoreMod] ⛽ 能源系統物品模型已註冊");
+
+        // 📖 綁定指南書模型
+        bindModel(MOREMOD_GUIDE, "moremod_guide");
+        System.out.println("[MoreMod] 📖 綜合指南書模型已註冊");
     }
 
     @SideOnly(Side.CLIENT)
