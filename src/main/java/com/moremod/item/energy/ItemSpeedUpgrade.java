@@ -4,9 +4,13 @@ import com.moremod.moremod;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.creativetab.CreativeTabs;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.EnumRarity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.EnumActionResult;
+import net.minecraft.util.EnumHand;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -48,5 +52,14 @@ public class ItemSpeedUpgrade extends Item {
         tooltip.add("");
         tooltip.add("§a效果: §f+50% 發電速度");
         tooltip.add("§b最多: §f4個 (300%總效率)");
+    }
+
+    /**
+     * 覆寫右鍵行為，防止被 FluidUtil 誤判為液體容器
+     */
+    @Override
+    public ActionResult<ItemStack> onItemRightClick(World worldIn, EntityPlayer playerIn, EnumHand handIn) {
+        // 不做任何事，直接返回 PASS 避免其他系統誤處理
+        return new ActionResult<>(EnumActionResult.PASS, playerIn.getHeldItem(handIn));
     }
 }
