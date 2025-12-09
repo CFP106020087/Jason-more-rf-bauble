@@ -1,46 +1,28 @@
 package com.moremod.multiblock;
 
 import com.moremod.init.ModBlocks;
-import net.minecraft.block.Block;
+import net.minecraft.block.*;
 import net.minecraft.init.Blocks;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 /**
- * 抽油機多方塊結構驗證器
+ * 抽油機多方塊結構驗證器 (美學增強版)
  *
  * 結構設計 (3x3x4 高):
+ * 支持使用 樓梯、半磚、柵欄、圍牆 進行裝飾
  *
- * 第0層 (地基) - 四角框架，中間開放供管道連接:
- *   I . I
- *   . C .    C = 抽油機核心, I = 鐵塊, . = 任意(管道空間)
- *   I . I
- *
- * 第1層 (機體):
- *   I . I
- *   . P .    P = 活塞（管道）, . = 空氣
- *   I . I
- *
- * 第2層 (機體):
- *   I . I
- *   . P .
- *   I . I
- *
- * 第3層 (頂部):
- *   I I I
- *   I I I
- *   I I I
+ * 第0層 (地基): 四角支柱 + 中心核心
+ * 第1-2層 (機體): 四角支柱(可鏤空) + 中心活塞
+ * 第3層 (頂部): 封頂(可用半磚/樓梯)
  */
 public class MultiblockOilExtractor {
 
-    /**
-     * 檢查多方塊結構是否完整
-     */
     public static boolean checkStructure(World world, BlockPos corePos) {
         // 第0層 - 地基
         if (!checkBaseLayer(world, corePos)) return false;
 
-        // 第1-2層 - 機體
+        // 第1-2層 - 機體 (中間是活塞)
         if (!checkMiddleLayer(world, corePos.up())) return false;
         if (!checkMiddleLayer(world, corePos.up(2))) return false;
 
@@ -50,9 +32,8 @@ public class MultiblockOilExtractor {
         return true;
     }
 
-    /**
-     * 第0層 - 地基（四角框架，中間開放供管道連接）
-     */
+    // === 結構檢查邏輯 ===
+
     private static boolean checkBaseLayer(World world, BlockPos centerPos) {
         for (int x = -1; x <= 1; x++) {
             for (int z = -1; z <= 1; z++) {
@@ -60,108 +41,107 @@ public class MultiblockOilExtractor {
                 Block block = world.getBlockState(checkPos).getBlock();
 
                 if (x == 0 && z == 0) {
-                    // 中心必須是抽油機核心
-                    if (block != ModBlocks.OIL_EXTRACTOR_CORE) {
-                        return false;
-                    }
+                    // 中心必須是核心
+                    if (block != ModBlocks.OIL_EXTRACTOR_CORE) return false;
                 } else if (Math.abs(x) == 1 && Math.abs(z) == 1) {
-                    // 四角必須是框架方塊
-                    if (!isValidFrameBlock(block)) {
-                        return false;
-                    }
+                    // 四角必須是結構方塊 (允許樓梯/圍牆等)
+                    if (!isValidStructuralBlock(world, checkPos)) return false;
                 }
-                // 四邊（十字位置）可以是任意方塊，供管道連接
             }
         }
         return true;
     }
 
-    /**
-     * 第1-2層 - 機體（四角鐵塊，中心活塞或鐵塊）
-     */
     private static boolean checkMiddleLayer(World world, BlockPos centerPos) {
         for (int x = -1; x <= 1; x++) {
             for (int z = -1; z <= 1; z++) {
                 BlockPos checkPos = centerPos.add(x, 0, z);
                 Block block = world.getBlockState(checkPos).getBlock();
 
-                // 四角必須是鐵塊
-                if (Math.abs(x) == 1 && Math.abs(z) == 1) {
-                    if (!isValidFrameBlock(block)) {
-                        return false;
-                    }
-                } else if (x == 0 && z == 0) {
-                    // 中心必須是活塞或鐵塊（作為管道）
-                    if (block != Blocks.PISTON && block != Blocks.STICKY_PISTON && !isValidFrameBlock(block)) {
-                        return false;
-                    }
+                if (x == 0 && z == 0) {
+                    // 中心必須是活塞 (動力源)
+                    if (block != Blocks.PISTON && block != Blocks.STICKY_PISTON) return false;
+                } else if (Math.abs(x) == 1 && Math.abs(z) == 1) {
+                    // 四角支柱 (允許柵欄/鐵柵欄透視)
+                    if (!isValidStructuralBlock(world, checkPos)) return false;
                 }
-                // 其他位置（十字）可以是空氣或任何方塊
+                // 十字位置允許空氣
             }
         }
         return true;
     }
 
-    /**
-     * 第3層 - 頂部（全部鐵塊）
-     */
     private static boolean checkTopLayer(World world, BlockPos centerPos) {
         for (int x = -1; x <= 1; x++) {
             for (int z = -1; z <= 1; z++) {
                 BlockPos checkPos = centerPos.add(x, 0, z);
-                Block block = world.getBlockState(checkPos).getBlock();
-
-                if (!isValidFrameBlock(block)) {
-                    return false;
-                }
+                // 頂部全覆蓋檢查 (允許半磚/樓梯做造型)
+                if (!isValidStructuralBlock(world, checkPos)) return false;
             }
         }
         return true;
     }
 
+    // === 核心判斷邏輯 ===
+
     /**
-     * 有效的框架方塊
+     * 判斷是否為合法的結構方塊 (美學核心)
+     * 允許：貴重金屬塊、圍牆、柵欄、樓梯、半磚、鐵柵欄
      */
-    private static boolean isValidFrameBlock(Block block) {
-        return block == Blocks.IRON_BLOCK ||
-               block == Blocks.GOLD_BLOCK ||
-               block == Blocks.DIAMOND_BLOCK;
+    private static boolean isValidStructuralBlock(World world, BlockPos pos) {
+        Block block = world.getBlockState(pos).getBlock();
+
+        // 1. 基礎框架 (鐵/金/鑽石)
+        if (isValidFrameBlock(block)) return true;
+
+        // 2. 工業風裝飾
+        if (block == Blocks.IRON_BARS) return true; // 鐵柵欄
+        if (block == Blocks.OBSIDIAN) return true;  // 黑曜石
+        if (block instanceof BlockWall) return true; // 圓石牆等
+        if (block instanceof BlockFence) return true; // 柵欄
+        if (block instanceof BlockStairs) return true; // 樓梯
+        if (block instanceof BlockSlab) return true; // 半磚
+
+        return false;
     }
 
     /**
-     * 獲取建造指南
+     * 用於計算等級的方塊 (只統計貴重金屬)
      */
+    private static boolean isValidFrameBlock(Block block) {
+        return block == Blocks.IRON_BLOCK ||
+                block == Blocks.GOLD_BLOCK ||
+                block == Blocks.DIAMOND_BLOCK ||
+                block == Blocks.EMERALD_BLOCK; // 如果有的話
+    }
+
+    /**
+     * 獲取結構等級 (只掃描貴重金屬塊數量)
+     */
+    public static int getFrameTier(World world, BlockPos corePos) {
+        int ironCount = 0, goldCount = 0, diamondCount = 0;
+
+        // 掃描範圍 3x3x4
+        for (int y = 0; y <= 3; y++) {
+            for (int x = -1; x <= 1; x++) {
+                for (int z = -1; z <= 1; z++) {
+                    if (y == 0 && x == 0 && z == 0) continue;
+                    BlockPos pos = corePos.add(x, y, z);
+                    Block block = world.getBlockState(pos).getBlock();
+
+                    if (block == Blocks.IRON_BLOCK) ironCount++;
+                    else if (block == Blocks.GOLD_BLOCK) goldCount++;
+                    else if (block == Blocks.DIAMOND_BLOCK) diamondCount++;
+                }
+            }
+        }
+
+        if (diamondCount >= 4) return 3; // 只要有4個鑽石塊就算T3
+        if (goldCount >= 8) return 2;
+        return 1; // 默認T1
+    }
+
     public static String getBuildGuide() {
-        StringBuilder guide = new StringBuilder();
-        guide.append("§b=== 抽油機建造指南 ===§r\n\n");
-
-        guide.append("§e第0層（地基）:§r\n");
-        guide.append("  I . I\n");
-        guide.append("  . C .  ← 管道連接處\n");
-        guide.append("  I . I\n\n");
-
-        guide.append("§e第1-2層（機體）:§r\n");
-        guide.append("  I . I\n");
-        guide.append("  . P .\n");
-        guide.append("  I . I\n\n");
-
-        guide.append("§e第3層（頂部）:§r\n");
-        guide.append("  I I I\n");
-        guide.append("  I I I\n");
-        guide.append("  I I I\n\n");
-
-        guide.append("§6圖例:§r\n");
-        guide.append("C = 抽油機核心\n");
-        guide.append("I = 鐵塊/金塊/鑽石塊\n");
-        guide.append("P = 活塞（管道）\n");
-        guide.append(". = 空氣/管道\n\n");
-
-        guide.append("§a使用方法:§r\n");
-        guide.append("1. 在有石油的區塊建造\n");
-        guide.append("2. 用管道輸入能量\n");
-        guide.append("3. 用管道抽取液體\n");
-        guide.append("   或空手右鍵取桶\n");
-
-        return guide.toString();
+        return "§b結構: 3x3x4\n§7支柱可用: 牆/柵欄/鐵柵欄/樓梯\n§e等級取決於鐵/金/鑽石塊數量";
     }
 }

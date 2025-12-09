@@ -85,6 +85,10 @@ tile.upgrade_chamber_core.name=Upgrade Chamber Core
 # ===== Respawn Chamber System =====
 tile.respawn_chamber_core.name=Respawn Chamber Core
 
+# ===== Quantum Quarry System =====
+tile.moremod.quantum_quarry.name=Quantum Quarry
+tile.moremod.quarry_actuator.name=Quarry Actuator
+
 # ===== Energy System =====
 # Blocks
 tile.oil_extractor_core.name=Oil Extractor Core

@@ -48,6 +48,9 @@ import com.moremod.network.PacketCreateEnchantedBook;
 import com.moremod.network.PacketHandler;
 import com.moremod.network.NetworkHandler;
 import com.moremod.proxy.CommonProxy;
+import com.moremod.quarry.QuarryRegistry;
+import com.moremod.quarry.tile.TileQuantumQuarry;
+import com.moremod.quarry.tile.TileQuarryActuator;
 import com.moremod.recipe.DimensionLoomRecipeLoader;
 import com.moremod.ritual.RitualRecipeLoader;
 import com.moremod.ritual.fabric.UniversalFabricRituals;
@@ -555,20 +558,20 @@ public class moremod {
     public void init(FMLInitializationEvent event) {
 // 在主模组类或ClientProxy中
 
-            // 注册事件处理器
-            MinecraftForge.EVENT_BUS.register(new FleshRejectionEnvironmentHandler());
-            MinecraftForge.EVENT_BUS.register(new FleshRejectionEventSystem());
-            MinecraftForge.EVENT_BUS.register(new RejectionSleepDecaySystem());
-            MinecraftForge.EVENT_BUS.register(new RejectionPotionPenaltySystem());
-            MinecraftForge.EVENT_BUS.register(new FleshRejectionFirstAidHooks());
+        // 注册事件处理器
+        MinecraftForge.EVENT_BUS.register(new FleshRejectionEnvironmentHandler());
+        MinecraftForge.EVENT_BUS.register(new FleshRejectionEventSystem());
+        MinecraftForge.EVENT_BUS.register(new RejectionSleepDecaySystem());
+        MinecraftForge.EVENT_BUS.register(new RejectionPotionPenaltySystem());
+        MinecraftForge.EVENT_BUS.register(new FleshRejectionFirstAidHooks());
 
-            // 客户端注册
-            if (event.getSide().isClient()) {
-                MinecraftForge.EVENT_BUS.register(new EventHUDOverlay());
-                MinecraftForge.EVENT_BUS.register(new SmartRejectionGuide());
-                MinecraftForge.EVENT_BUS.register(com.moremod.client.gui.HumanityHUD.class);
-                System.out.println("[moremod] ✅ 人性值HUD注册完成");
-            }
+        // 客户端注册
+        if (event.getSide().isClient()) {
+            MinecraftForge.EVENT_BUS.register(new EventHUDOverlay());
+            MinecraftForge.EVENT_BUS.register(new SmartRejectionGuide());
+            MinecraftForge.EVENT_BUS.register(com.moremod.client.gui.HumanityHUD.class);
+            System.out.println("[moremod] ✅ 人性值HUD注册完成");
+        }
 
         System.out.println("[moremod] ========== 开始初始化 ==========");
         UnlockableSlotsInit.init(event);
@@ -614,6 +617,13 @@ public class moremod {
             RenderHandler.registerLayers();
             System.out.println("[moremod] ✅ 喷气背包渲染层注册完成");
         }
+        GameRegistry.registerTileEntity(TileQuantumQuarry.class,
+                new ResourceLocation("moremod", "quantum_quarry"));
+        GameRegistry.registerTileEntity(TileQuarryActuator.class,
+                new ResourceLocation("moremod", "quarry_actuator"));
+
+        // 注册 GUI Handler
+        NetworkRegistry.INSTANCE.registerGuiHandler(this, new QuarryRegistry.QuarryGuiHandler());
 
         /* ===== Ritual 多方块：配方注册 ===== */
         registerRitualRecipes();
@@ -678,7 +688,7 @@ public class moremod {
         }
         RitualRecipeLoader.loadRecipes();
         DimensionLoomRecipeLoader.loadRecipes();  // 织机配方
-     //   MinecraftForge.EVENT_BUS.register(new RenderDebugKeyHandler());
+        //   MinecraftForge.EVENT_BUS.register(new RenderDebugKeyHandler());
 
         ModIntegration.postInit();
 

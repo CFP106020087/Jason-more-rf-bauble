@@ -1,6 +1,5 @@
 package com.moremod.item;
 
-import com.moremod.Moremod;
 import com.moremod.client.gui.GuiHandler;
 import com.moremod.creativetab.moremodCreativeTab;
 import net.minecraft.client.util.ITooltipFlag;
