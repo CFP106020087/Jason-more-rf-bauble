@@ -517,3 +517,9 @@ item.moremod.speed_upgrade.name=發電機增速插件
 
 # ===== 綜合指南書 (Comprehensive Guide) =====
 item.moremod_guide.name=MoreMod 綜合指南
+
+# ===== 故障盔甲 (Glitch Armor) =====
+item.glitch_helmet.name=故障頭盔
+item.glitch_chestplate.name=故障胸甲
+item.glitch_leggings.name=故障護腿
+item.glitch_boots.name=故障靴子

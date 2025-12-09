@@ -3,7 +3,9 @@ package com.moremod.item;
 import com.moremod.item.upgrades.ItemUpgradeComponent;
 import com.moremod.item.upgrades.UpgradeItemsExtended;
 import com.moremod.items.BloodyThirstMask;
+import com.moremod.item.armor.ItemGlitchArmor;
 import com.moremod.item.battery.*;
+import net.minecraft.inventory.EntityEquipmentSlot;
 import com.moremod.item.broken.ItemBrokenHand;
 import com.moremod.item.broken.ItemBrokenHeart;
 import com.moremod.item.broken.ItemBrokenArm;
@@ -250,6 +252,12 @@ public class RegisterItem {
     public static Item SURVIVAL_PACKAGE;
     public static Item COMBAT_PACKAGE;
 
+    // 故障盔甲 (Glitch Armor)
+    public static Item GLITCH_HELMET;
+    public static Item GLITCH_CHESTPLATE;
+    public static Item GLITCH_LEGGINGS;
+    public static Item GLITCH_BOOTS;
+
     // —— 安全 new：避免因客户端类导致服务器崩溃 ——
     private static <T extends Item> T newSafe(Supplier<T> sup, String id) {
         try {
@@ -346,6 +354,12 @@ public class RegisterItem {
         ShambhalaItems.SHAMBHALA_PURIFY = (ItemShambhalaPurify) SHAMBHALA_PURIFY;
         ShambhalaItems.SHAMBHALA_VEIL = (ItemShambhalaVeil) SHAMBHALA_VEIL;
         ShambhalaItems.SHAMBHALA_SANCTUARY = (ItemShambhalaSanctuary) SHAMBHALA_SANCTUARY;
+
+        // 故障盔甲 (Glitch Armor)
+        GLITCH_HELMET = newSafe(() -> new ItemGlitchArmor(EntityEquipmentSlot.HEAD, "glitch_helmet"), "glitch_helmet");
+        GLITCH_CHESTPLATE = newSafe(() -> new ItemGlitchArmor(EntityEquipmentSlot.CHEST, "glitch_chestplate"), "glitch_chestplate");
+        GLITCH_LEGGINGS = newSafe(() -> new ItemGlitchArmor(EntityEquipmentSlot.LEGS, "glitch_leggings"), "glitch_leggings");
+        GLITCH_BOOTS = newSafe(() -> new ItemGlitchArmor(EntityEquipmentSlot.FEET, "glitch_boots"), "glitch_boots");
 
         // SimpleDifficulty（按需）
         initSimpleDifficultyItems();
@@ -503,7 +517,8 @@ public class RegisterItem {
                 ENCHANT_RING_T1,ENCHANT_RING_T2,ENCHANT_RING_T3,ENCHANT_RING_ULTIMATE,TIME_BLOCK,LIGHTING_BOLT,
                 SAGEBOOK,HOLY_WATER,
                 BROKEN_HAND, BROKEN_HEART, BROKEN_ARM, BROKEN_SHACKLES, BROKEN_PROJECTION, BROKEN_TERMINUS,
-                SHAMBHALA_CORE, SHAMBHALA_BASTION, SHAMBHALA_THORNS, SHAMBHALA_PURIFY, SHAMBHALA_VEIL, SHAMBHALA_SANCTUARY
+                SHAMBHALA_CORE, SHAMBHALA_BASTION, SHAMBHALA_THORNS, SHAMBHALA_PURIFY, SHAMBHALA_VEIL, SHAMBHALA_SANCTUARY,
+                GLITCH_HELMET, GLITCH_CHESTPLATE, GLITCH_LEGGINGS, GLITCH_BOOTS
         );
         if (SIMPLE_DIFFICULTY_LOADED) {
             addIfNotNull(itemsToRegister, TEMPERATURE_REGULATOR, THIRST_PROCESSOR);
