@@ -98,15 +98,39 @@ public class TileEntityOilGenerator extends TileEntity implements ITickable {
     private static final int FLUID_CAPACITY = 16000; // 16桶
     private final FluidTank fluidTank = new FluidTank(FLUID_CAPACITY) {
         @Override
-        public boolean canFillFluidType(FluidStack fluid) {
-            // 接受原油、植物油，以及其他模組的油類液體
-            if (fluid == null || fluid.getFluid() == null) return false;
-            String fluidName = fluid.getFluid().getName().toLowerCase();
-            return fluidName.contains("oil") ||           // 通用油類
-                   fluidName.contains("crude") ||         // 原油
-                   fluidName.contains("fuel") ||          // 燃料
-                   fluidName.contains("petroleum") ||     // 石油
-                   fluidName.equals("creosote");          // 木餾油
+        public int fill(FluidStack resource, boolean doFill) {
+            // 基本檢查
+            if (resource == null || resource.amount <= 0) return 0;
+            if (resource.getFluid() == null) return 0;
+
+            // 檢查液體是否是有效燃料
+            if (!isValidFluidFuel(resource)) return 0;
+
+            // 如果已有液體，檢查類型是否相同
+            if (fluid != null && !fluid.isFluidEqual(resource)) return 0;
+
+            // 計算可以填充的量
+            int currentAmount = (fluid == null) ? 0 : fluid.amount;
+            int space = capacity - currentAmount;
+            int toFill = Math.min(space, resource.amount);
+
+            if (toFill <= 0) return 0;
+
+            if (doFill) {
+                if (fluid == null) {
+                    fluid = new FluidStack(resource, toFill);
+                } else {
+                    fluid.amount += toFill;
+                }
+                onContentsChanged();
+            }
+
+            return toFill;
+        }
+
+        @Override
+        public boolean canFillFluidType(FluidStack fluidStack) {
+            return isValidFluidFuel(fluidStack);
         }
 
         @Override
@@ -122,8 +146,28 @@ public class TileEntityOilGenerator extends TileEntity implements ITickable {
         @Override
         protected void onContentsChanged() {
             markDirty();
+            syncToClient();
         }
     };
+
+    private void syncToClient() {
+        if (world != null && !world.isRemote) {
+            world.notifyBlockUpdate(pos, world.getBlockState(pos), world.getBlockState(pos), 3);
+        }
+    }
+
+    /**
+     * 檢查液體是否是有效燃料
+     */
+    private static boolean isValidFluidFuel(FluidStack fluid) {
+        if (fluid == null || fluid.getFluid() == null) return false;
+        String fluidName = fluid.getFluid().getName().toLowerCase();
+        return fluidName.contains("oil") ||           // 通用油類
+               fluidName.contains("crude") ||         // 原油
+               fluidName.contains("fuel") ||          // 燃料
+               fluidName.contains("petroleum") ||     // 石油
+               fluidName.equals("creosote");          // 木餾油
+    }
 
     // 燃燒狀態
     private int burnTime = 0;
