@@ -42,7 +42,7 @@ public class TileEntityOilGenerator extends TileEntity implements ITickable {
 
     // 配置
     private static final int ENERGY_CAPACITY = 1000000;    // 1M RF
-    private static final int BASE_RF_PER_TICK = 200;       // 基礎每tick產生 200 RF
+    private static final int BASE_RF_PER_TICK = 600;       // 基礎每tick產生 600 RF (3倍加速)
     private static final int UPGRADE_SLOTS = 4;            // 增速插件槽數量
     private static final float SPEED_PER_UPGRADE = 0.5f;   // 每個插件增加50%速度
 
