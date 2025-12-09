@@ -349,12 +349,26 @@ public class ItemCurseSpread extends Item implements IBauble {
 
     /**
      * 获取实体的诅咒等级
+     * ✅ 修复：独立检查诅咒等级，避免重复调用 isCursedBySpread 导致竞态条件
      */
     public static int getCurseSpreadLevel(EntityLivingBase entity) {
-        if (!isCursedBySpread(entity))
+        if (entity == null || entity.world == null)
             return 0;
 
-        return entity.getEntityData().getInteger(NBT_CURSE_SPREAD);
+        NBTTagCompound data = entity.getEntityData();
+        if (!data.hasKey(NBT_CURSE_SPREAD))
+            return 0;
+
+        // 检查是否过期
+        long expireTime = data.getLong(NBT_CURSE_EXPIRE);
+        long currentTime = entity.world.getTotalWorldTime();
+
+        if (currentTime > expireTime) {
+            // 过期了，清理数据（但不在这里清理，让定期更新处理）
+            return 0;
+        }
+
+        return data.getInteger(NBT_CURSE_SPREAD);
     }
 
     // ========== 辅助方法 ==========
