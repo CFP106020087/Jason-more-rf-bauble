@@ -88,12 +88,43 @@ public class BlockOilGenerator extends BlockContainer {
                     ));
                     return true;
                 }
+            }
+            // 放入增速插件 (槽位1-4)
+            else if (TileEntityOilGenerator.isValidUpgrade(heldItem)) {
+                // 嘗試找一個空的增速槽
+                for (int slot = 1; slot <= 4; slot++) {
+                    if (handler.getStackInSlot(slot).isEmpty()) {
+                        ItemStack toInsert = heldItem.copy();
+                        toInsert.setCount(1);
+                        ItemStack remainder = handler.insertItem(slot, toInsert, false);
+                        if (remainder.isEmpty()) {
+                            heldItem.shrink(1);
+                            int upgradeCount = 0;
+                            for (int i = 1; i <= 4; i++) {
+                                if (!handler.getStackInSlot(i).isEmpty()) upgradeCount++;
+                            }
+                            player.sendMessage(new TextComponentString(
+                                    TextFormatting.AQUA + "安裝增速插件! " + TextFormatting.YELLOW +
+                                    "(" + upgradeCount + "/4) " + TextFormatting.GREEN +
+                                    "+" + (upgradeCount * 50) + "% 發電速度"
+                            ));
+                            return true;
+                        }
+                    }
+                }
+                // 所有槽位已滿
+                player.sendMessage(new TextComponentString(
+                        TextFormatting.RED + "增速插件槽已滿! (最多4個)"
+                ));
             } else {
                 player.sendMessage(new TextComponentString(
-                        TextFormatting.RED + "此物品不是有效的燃料！"
+                        TextFormatting.RED + "此物品不是有效的燃料或增速插件！"
                 ));
                 player.sendMessage(new TextComponentString(
                         TextFormatting.GRAY + "有效燃料: 原油桶、植物油桶"
+                ));
+                player.sendMessage(new TextComponentString(
+                        TextFormatting.GRAY + "有效增速插件: 增速插件、紅石、螢石粉、烈焰粉、綠寶石"
                 ));
             }
         }
