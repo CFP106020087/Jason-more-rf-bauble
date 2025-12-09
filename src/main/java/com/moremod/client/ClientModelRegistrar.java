@@ -76,6 +76,37 @@ public final class ClientModelRegistrar {
             reg(up2);
         }
 
+        // 香巴拉終局飾品
+        reg(RegisterItem.SHAMBHALA_CORE);
+        reg(RegisterItem.SHAMBHALA_BASTION);
+        reg(RegisterItem.SHAMBHALA_THORNS);
+        reg(RegisterItem.SHAMBHALA_PURIFY);
+        reg(RegisterItem.SHAMBHALA_VEIL);
+        reg(RegisterItem.SHAMBHALA_SANCTUARY);
+
+        // 破碎之神終局飾品
+        reg(RegisterItem.BROKEN_HAND);
+        reg(RegisterItem.BROKEN_HEART);
+        reg(RegisterItem.BROKEN_ARM);
+        reg(RegisterItem.BROKEN_SHACKLES);
+        reg(RegisterItem.BROKEN_PROJECTION);
+        reg(RegisterItem.BROKEN_TERMINUS);
+
+        // 其他缺失物品
+        reg(RegisterItem.RIFTGUN);
+        reg(RegisterItem.DIMENSIONALRIPPER);
+        reg(RegisterItem.DIMENSIONALANCOR);
+        reg(RegisterItem.SPACETIME_SHARD);
+        reg(RegisterItem.ANCHORKEY);
+        reg(RegisterItem.ENCHANT_RING_T1);
+        reg(RegisterItem.ENCHANT_RING_T2);
+        reg(RegisterItem.ENCHANT_RING_T3);
+        reg(RegisterItem.ENCHANT_RING_ULTIMATE);
+        reg(RegisterItem.LIGHTING_BOLT);
+        reg(RegisterItem.SAGEBOOK);
+        reg(RegisterItem.HOLY_WATER);
+        reg(RegisterItem.IMMORTAL_AMULET);
+
         System.out.println("[moremod] ⚙️ 所有模型注册完成（包括7个电池）");
     }
 
