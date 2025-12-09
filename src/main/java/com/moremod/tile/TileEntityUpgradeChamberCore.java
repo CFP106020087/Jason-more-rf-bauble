@@ -51,6 +51,10 @@ public class TileEntityUpgradeChamberCore extends TileEntity implements ITickabl
     private static final int ENERGY_PER_LEVEL = 25000;    // 每級額外能量 25k RF
     private static final int UPGRADE_TICKS = 100;         // 升級時間 5秒 (100 ticks)
 
+    // 修復配置
+    private static final float REPAIR_ENERGY_RATIO = 0.5f;  // 修復消耗50%當前能量
+    private static final int REPAIR_TICKS = 60;             // 修復時間 3秒 (60 ticks)
+
     // 能量存儲（可接收但不可輸出）
     private final EnergyStorage energy = new EnergyStorage(BASE_CAPACITY, 10000, 0) {
         @Override
@@ -83,6 +87,10 @@ public class TileEntityUpgradeChamberCore extends TileEntity implements ITickabl
     private EntityPlayer upgradingPlayer = null;
     private int tickCounter = 0;
 
+    // 修復模式
+    private boolean isRepairing = false;
+    private int repairProgress = 0;
+
     // 冷卻時間（防止連續升級）
     private int cooldown = 0;
 
@@ -104,6 +112,10 @@ public class TileEntityUpgradeChamberCore extends TileEntity implements ITickabl
                 // 升級過程中繼續處理
                 processUpgrade();
             }
+            if (isRepairing) {
+                // 修復過程中繼續處理
+                processRepair();
+            }
             return;
         }
 
@@ -112,14 +124,8 @@ public class TileEntityUpgradeChamberCore extends TileEntity implements ITickabl
             if (isUpgrading) {
                 cancelUpgrade("結構被破壞！");
             }
-            return;
-        }
-
-        // 檢查是否有模組
-        ItemStack module = inventory.getStackInSlot(0);
-        if (module.isEmpty()) {
-            if (isUpgrading) {
-                cancelUpgrade("模組被移除！");
+            if (isRepairing) {
+                cancelRepair("結構被破壞！");
             }
             return;
         }
@@ -130,6 +136,9 @@ public class TileEntityUpgradeChamberCore extends TileEntity implements ITickabl
             if (isUpgrading) {
                 cancelUpgrade("玩家離開升級艙！");
             }
+            if (isRepairing) {
+                cancelRepair("玩家離開升級艙！");
+            }
             return;
         }
 
@@ -138,7 +147,11 @@ public class TileEntityUpgradeChamberCore extends TileEntity implements ITickabl
         if (!ItemMechanicalCore.isMechanicalCore(coreStack)) {
             if (isUpgrading) {
                 cancelUpgrade("未檢測到機械核心！");
-            } else if (tickCounter % 40 == 0) {
+            }
+            if (isRepairing) {
+                cancelRepair("未檢測到機械核心！");
+            }
+            if (tickCounter % 40 == 0) {
                 playerInChamber.sendMessage(new TextComponentString(
                         TextFormatting.RED + "請裝備機械核心到頭部飾品欄！"
                 ));
@@ -146,11 +159,32 @@ public class TileEntityUpgradeChamberCore extends TileEntity implements ITickabl
             return;
         }
 
-        // 開始或繼續升級
-        if (!isUpgrading) {
-            startUpgrade(playerInChamber, module, coreStack);
-        } else if (upgradingPlayer != playerInChamber) {
-            cancelUpgrade("升級中的玩家已改變！");
+        // 檢查是否有模組
+        ItemStack module = inventory.getStackInSlot(0);
+
+        if (module.isEmpty()) {
+            // 無模組時 -> 修復模式
+            if (isUpgrading) {
+                cancelUpgrade("模組被移除！");
+            }
+
+            // 檢查是否有可修復的模組
+            if (!isRepairing && hasDamagedModules(coreStack)) {
+                startRepair(playerInChamber, coreStack);
+            } else if (isRepairing && upgradingPlayer != playerInChamber) {
+                cancelRepair("修復中的玩家已改變！");
+            }
+        } else {
+            // 有模組時 -> 升級模式
+            if (isRepairing) {
+                cancelRepair("已放入升級模組，切換到升級模式！");
+            }
+
+            if (!isUpgrading) {
+                startUpgrade(playerInChamber, module, coreStack);
+            } else if (upgradingPlayer != playerInChamber) {
+                cancelUpgrade("升級中的玩家已改變！");
+            }
         }
     }
 
@@ -297,6 +331,268 @@ public class TileEntityUpgradeChamberCore extends TileEntity implements ITickabl
         isUpgrading = false;
         upgradingPlayer = null;
         upgradeProgress = 0;
+    }
+
+    // ===== 修復系統 =====
+
+    /**
+     * 檢查機械核心是否有損壞的模組
+     */
+    private boolean hasDamagedModules(ItemStack coreStack) {
+        NBTTagCompound nbt = coreStack.getTagCompound();
+        if (nbt == null) return false;
+
+        for (String key : nbt.getKeySet()) {
+            if (key.startsWith("OriginalMax_")) {
+                String moduleId = key.substring("OriginalMax_".length());
+                int originalMax = nbt.getInteger(key);
+                int ownedMax = getOwnedMaxValue(nbt, moduleId);
+
+                if (originalMax > 0 && ownedMax < originalMax) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private int getOwnedMaxValue(NBTTagCompound nbt, String moduleId) {
+        int max = 0;
+        max = Math.max(max, nbt.getInteger("OwnedMax_" + moduleId));
+        max = Math.max(max, nbt.getInteger("OwnedMax_" + moduleId.toUpperCase()));
+        max = Math.max(max, nbt.getInteger("OwnedMax_" + moduleId.toLowerCase()));
+        return max;
+    }
+
+    /**
+     * 開始修復
+     */
+    private void startRepair(EntityPlayer player, ItemStack coreStack) {
+        // 計算修復所需能量（50%當前能量）
+        int repairEnergy = (int)(energy.getEnergyStored() * REPAIR_ENERGY_RATIO);
+
+        if (repairEnergy < 10000) {
+            if (tickCounter % 40 == 0) {
+                player.sendMessage(new TextComponentString(
+                        TextFormatting.RED + "能量不足！需要至少 20,000 RF 進行修復"
+                ));
+            }
+            return;
+        }
+
+        // 開始修復
+        isRepairing = true;
+        upgradingPlayer = player;
+        repairProgress = 0;
+
+        player.sendMessage(new TextComponentString(
+                TextFormatting.AQUA + "⚡ 開始修復損壞的模組... (消耗 " + repairEnergy + " RF)"
+        ));
+
+        // 播放開始音效
+        world.playSound(null, pos, SoundEvents.BLOCK_ENCHANTMENT_TABLE_USE, SoundCategory.BLOCKS, 1.0F, 1.0F);
+    }
+
+    /**
+     * 處理修復進度
+     */
+    private void processRepair() {
+        if (!isRepairing || upgradingPlayer == null) return;
+
+        repairProgress++;
+
+        // 渲染粒子效果
+        if (repairProgress % 5 == 0) {
+            spawnRepairParticles();
+        }
+
+        // 播放進度音效
+        if (repairProgress % 15 == 0) {
+            world.playSound(null, pos, SoundEvents.BLOCK_ANVIL_USE, SoundCategory.BLOCKS, 0.3F, 1.2F);
+        }
+
+        // 檢查是否完成
+        if (repairProgress >= REPAIR_TICKS) {
+            completeRepair();
+        }
+    }
+
+    /**
+     * 完成修復
+     */
+    private void completeRepair() {
+        if (upgradingPlayer == null) return;
+
+        ItemStack coreStack = ItemMechanicalCore.findEquippedMechanicalCore(upgradingPlayer);
+        if (!ItemMechanicalCore.isMechanicalCore(coreStack)) {
+            cancelRepair("機械核心無效！");
+            return;
+        }
+
+        // 計算並消耗能量（50%）
+        int repairEnergy = (int)(energy.getEnergyStored() * REPAIR_ENERGY_RATIO);
+        if (repairEnergy < 10000) {
+            cancelRepair("能量不足！");
+            return;
+        }
+
+        energy.extractEnergy(repairEnergy, false);
+
+        // 執行修復
+        int repairedCount = performRepair(coreStack);
+
+        if (repairedCount > 0) {
+            // 成功效果
+            world.playSound(null, pos, SoundEvents.BLOCK_ANVIL_USE, SoundCategory.PLAYERS, 1.0F, 1.5F);
+            spawnSuccessParticles();
+
+            upgradingPlayer.sendMessage(new TextComponentString(
+                    TextFormatting.GREEN + "✓ 修復完成！已修復 " + repairedCount + " 個損壞的模組"
+            ));
+
+            // 同步核心
+            forceSyncCore(upgradingPlayer);
+        } else {
+            upgradingPlayer.sendMessage(new TextComponentString(
+                    TextFormatting.YELLOW + "沒有需要修復的模組"
+            ));
+        }
+
+        // 重置狀態
+        isRepairing = false;
+        upgradingPlayer = null;
+        repairProgress = 0;
+        cooldown = 40; // 2秒冷卻
+    }
+
+    /**
+     * 執行修復邏輯 - 將所有損壞模組恢復到原始等級
+     */
+    private int performRepair(ItemStack coreStack) {
+        NBTTagCompound nbt = UpgradeKeys.getOrCreate(coreStack);
+        int repairedCount = 0;
+
+        // 找出所有損壞的模組
+        java.util.Set<String> processed = new java.util.HashSet<>();
+
+        for (String key : new java.util.ArrayList<>(nbt.getKeySet())) {
+            if (!key.startsWith("OriginalMax_")) continue;
+
+            String moduleId = key.substring("OriginalMax_".length());
+
+            // 避免重複處理（大小寫變體）
+            String normalizedId = moduleId.toUpperCase();
+            if (processed.contains(normalizedId)) continue;
+            processed.add(normalizedId);
+
+            int originalMax = nbt.getInteger(key);
+            int ownedMax = getOwnedMaxValue(nbt, moduleId);
+
+            // 如果有損壞（ownedMax < originalMax）
+            if (originalMax > 0 && ownedMax < originalMax) {
+                // 恢復到原始等級
+                setOwnedMaxAll(nbt, moduleId, originalMax);
+
+                // 同時恢復當前等級
+                setLevelAll(coreStack, moduleId, originalMax);
+
+                // 清除損壞標記
+                nbt.removeTag("WasPunished_" + moduleId);
+                nbt.removeTag("WasPunished_" + moduleId.toUpperCase());
+                nbt.removeTag("WasPunished_" + moduleId.toLowerCase());
+
+                // 重置損壞計數
+                nbt.setInteger("DamageCount_" + moduleId, 0);
+                nbt.setInteger("DamageCount_" + moduleId.toUpperCase(), 0);
+                nbt.setInteger("DamageCount_" + moduleId.toLowerCase(), 0);
+
+                repairedCount++;
+
+                // 通知玩家
+                String displayName = getDisplayNameForModule(moduleId);
+                upgradingPlayer.sendMessage(new TextComponentString(
+                        TextFormatting.GREEN + "  ✓ " + displayName + " 已修復至 Lv." + originalMax
+                ));
+            }
+        }
+
+        return repairedCount;
+    }
+
+    private void setOwnedMaxAll(NBTTagCompound nbt, String moduleId, int value) {
+        nbt.setInteger("OwnedMax_" + moduleId, value);
+        nbt.setInteger("OwnedMax_" + moduleId.toUpperCase(), value);
+        nbt.setInteger("OwnedMax_" + moduleId.toLowerCase(), value);
+    }
+
+    private void setLevelAll(ItemStack coreStack, String moduleId, int value) {
+        NBTTagCompound nbt = UpgradeKeys.getOrCreate(coreStack);
+        nbt.setInteger("upgrade_" + moduleId, value);
+        nbt.setInteger("upgrade_" + moduleId.toUpperCase(), value);
+        nbt.setInteger("upgrade_" + moduleId.toLowerCase(), value);
+
+        try {
+            ItemMechanicalCoreExtended.setUpgradeLevel(coreStack, moduleId, value);
+        } catch (Throwable ignored) {}
+
+        try {
+            for (ItemMechanicalCore.UpgradeType t : ItemMechanicalCore.UpgradeType.values()) {
+                if (t.getKey().equalsIgnoreCase(moduleId) || t.name().equalsIgnoreCase(moduleId)) {
+                    ItemMechanicalCore.setUpgradeLevel(coreStack, t, value);
+                    break;
+                }
+            }
+        } catch (Throwable ignored) {}
+
+        try {
+            UpgradeKeys.setLevel(coreStack, moduleId, value);
+            UpgradeKeys.markOwnedActive(coreStack, moduleId, value);
+        } catch (Throwable ignored) {}
+    }
+
+    private String getDisplayNameForModule(String moduleId) {
+        try {
+            ItemMechanicalCoreExtended.UpgradeInfo info = ItemMechanicalCoreExtended.getUpgradeInfo(moduleId);
+            if (info != null && info.displayName != null) return info.displayName;
+        } catch (Throwable ignored) {}
+
+        try {
+            for (ItemMechanicalCore.UpgradeType t : ItemMechanicalCore.UpgradeType.values()) {
+                if (t.getKey().equalsIgnoreCase(moduleId) || t.name().equalsIgnoreCase(moduleId)) {
+                    return t.getDisplayName();
+                }
+            }
+        } catch (Throwable ignored) {}
+
+        return moduleId.replace("_", " ");
+    }
+
+    private void cancelRepair(String reason) {
+        if (upgradingPlayer != null) {
+            upgradingPlayer.sendMessage(new TextComponentString(
+                    TextFormatting.YELLOW + "⚠ 修復中斷: " + reason
+            ));
+        }
+
+        isRepairing = false;
+        upgradingPlayer = null;
+        repairProgress = 0;
+    }
+
+    private void spawnRepairParticles() {
+        BlockPos center = pos.up();
+        for (int i = 0; i < 8; i++) {
+            double angle = (Math.PI * 2) * i / 8;
+            double radius = 0.8;
+            double x = center.getX() + 0.5 + Math.cos(angle) * radius;
+            double z = center.getZ() + 0.5 + Math.sin(angle) * radius;
+            double y = center.getY() + 0.5 + (repairProgress / (float)REPAIR_TICKS) * 1.0;
+
+            world.spawnParticle(EnumParticleTypes.VILLAGER_HAPPY,
+                    x, y, z, 0, 0.05, 0);
+            world.spawnParticle(EnumParticleTypes.REDSTONE,
+                    x, y, z, 0.2, 0.8, 1.0); // 藍色
+        }
     }
 
     @Nullable
@@ -760,12 +1056,24 @@ public class TileEntityUpgradeChamberCore extends TileEntity implements ITickabl
         return isUpgrading;
     }
 
+    public boolean isRepairing() {
+        return isRepairing;
+    }
+
     public int getProgress() {
         return upgradeProgress;
     }
 
     public int getMaxProgress() {
         return UPGRADE_TICKS;
+    }
+
+    public int getRepairProgress() {
+        return repairProgress;
+    }
+
+    public int getMaxRepairProgress() {
+        return REPAIR_TICKS;
     }
 
     // ===== Capabilities =====
@@ -800,6 +1108,9 @@ public class TileEntityUpgradeChamberCore extends TileEntity implements ITickabl
         compound.setInteger("Progress", upgradeProgress);
         compound.setBoolean("IsUpgrading", isUpgrading);
         compound.setInteger("Cooldown", cooldown);
+        // 修復狀態
+        compound.setBoolean("IsRepairing", isRepairing);
+        compound.setInteger("RepairProgress", repairProgress);
         return compound;
     }
 
@@ -816,6 +1127,9 @@ public class TileEntityUpgradeChamberCore extends TileEntity implements ITickabl
         upgradeProgress = compound.getInteger("Progress");
         isUpgrading = compound.getBoolean("IsUpgrading");
         cooldown = compound.getInteger("Cooldown");
+        // 修復狀態
+        isRepairing = compound.getBoolean("IsRepairing");
+        repairProgress = compound.getInteger("RepairProgress");
     }
 
     // ===== 網絡同步 =====

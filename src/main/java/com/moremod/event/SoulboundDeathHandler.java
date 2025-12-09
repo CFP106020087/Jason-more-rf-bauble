@@ -46,6 +46,11 @@ public class SoulboundDeathHandler {
     private static final String K_DAMAGE_COUNT = "DamageCount_";
     private static final String K_WAS_PUNISHED = "WasPunished_";
 
+    // ===== 損壞上限配置 =====
+    // 模組最多只能損壞 3~5 級（隨機）
+    private static final int MIN_DAMAGE_CAP = 3;
+    private static final int MAX_DAMAGE_CAP = 5;
+
     // 发电模块保护列表
     private static final Set<String> GENERATORS = new HashSet<>(Arrays.asList(
             "SOLAR_GENERATOR","KINETIC_GENERATOR","THERMAL_GENERATOR","VOID_ENERGY","COMBAT_CHARGER"
@@ -309,37 +314,48 @@ public class SoulboundDeathHandler {
         nbt.setInteger("TotalDamageCount_" + target, totalDamageCount + 1);
         nbt.setInteger("TotalDamageCount_" + lowerId, totalDamageCount + 1);
 
-        // 5. 然后才降级（在记录之后）
-        int newOwnedMax = Math.max(0, currentOwnedMax - 1);
-        setOwnedMaxSafe(core, target, newOwnedMax);
+        // 5. 檢查損壞上限（模組最多只能損壞 3~5 級）
+        int originalMax = nbt.getInteger(K_ORIGINAL_MAX + upperId);
+        if (originalMax <= 0) originalMax = currentOwnedMax;
 
-        // 6. 验证 OriginalMax 是否被保留（静默校验，不输出日志）
-        int verifyOriginalMax = nbt.getInteger(K_ORIGINAL_MAX + upperId);
-        if (verifyOriginalMax != currentOwnedMax && verifyOriginalMax > 0) {
-            // 若不一致，这里保持静默（可在未来接入可开关的调试系统）
+        // 計算此模組的損壞上限（隨機3~5級）
+        int damageCap = MIN_DAMAGE_CAP + player.world.rand.nextInt(MAX_DAMAGE_CAP - MIN_DAMAGE_CAP + 1);
+        int minAllowedLevel = Math.max(0, originalMax - damageCap);
+
+        // 如果已經達到損壞上限，跳過此模組
+        if (currentOwnedMax <= minAllowedLevel) {
+            player.sendMessage(new TextComponentString(
+                    TextFormatting.YELLOW + "⚠ " + getDisplayName(target) +
+                    " 已達損壞上限，無法再降級 [" + currentOwnedMax + "/" + originalMax + "]"));
+            return;
         }
 
-        // 7. 调整当前等级
+        // 降級（但不能低於損壞上限）
+        int newOwnedMax = Math.max(minAllowedLevel, currentOwnedMax - 1);
+        setOwnedMaxSafe(core, target, newOwnedMax);
+
+        // 6. 调整当前等级
         if (currentLevel > newOwnedMax) {
             setLevelEverywhere(core, target, newOwnedMax);
         }
 
-        // 获取 OriginalMax 用于显示
-        int originalMax = nbt.getInteger(K_ORIGINAL_MAX + upperId);
-        if (originalMax <= 0) originalMax = currentOwnedMax;
-
-        // 发送消息
+        // 7. 发送消息
         player.sendMessage(new TextComponentString(TextFormatting.DARK_RED + "☠ 死亡惩罚"));
 
-        if (newOwnedMax == 0){
+        int levelsLost = currentOwnedMax - newOwnedMax;
+        int remainingDamage = newOwnedMax - minAllowedLevel;
+
+        if (newOwnedMax <= minAllowedLevel){
             player.sendMessage(new TextComponentString(
-                    TextFormatting.RED + "✗ " + getDisplayName(target) + " 完全损坏 [0/" + originalMax + "]" +
-                            TextFormatting.YELLOW + " (通过GUI修复)"));
+                    TextFormatting.RED + "✗ " + getDisplayName(target) +
+                            " 已達損壞上限 [" + newOwnedMax + "/" + originalMax + "]" +
+                            TextFormatting.YELLOW + " (可在升級艙修復)"));
         } else {
             player.sendMessage(new TextComponentString(
                     TextFormatting.YELLOW + "⚠ " + getDisplayName(target) +
-                            " 损坏至 Lv." + newOwnedMax + "/" + originalMax +
-                            TextFormatting.AQUA + " (可通过GUI修复)"));
+                            " 損壞至 Lv." + newOwnedMax + "/" + originalMax +
+                            TextFormatting.GRAY + " (還可損壞 " + remainingDamage + " 級)" +
+                            TextFormatting.AQUA + " (可在升級艙修復)"));
         }
 
         player.world.playSound(null, player.posX, player.posY, player.posZ,

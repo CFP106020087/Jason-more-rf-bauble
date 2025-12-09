@@ -182,6 +182,14 @@ public class BlockUpgradeChamberCore extends BlockContainer {
             player.sendMessage(new TextComponentString(
                     TextFormatting.GRAY + "模組: 無 (放入升級模組開始升級)"
             ));
+            // 顯示修復模式提示
+            int repairEnergy = (int)(energy * 0.5f);
+            player.sendMessage(new TextComponentString(
+                    TextFormatting.AQUA + "修復模式: 走進升級艙可修復損壞的模組"
+            ));
+            player.sendMessage(new TextComponentString(
+                    TextFormatting.GRAY + "修復消耗: " + repairEnergy + " RF (50%當前能量)"
+            ));
         }
 
         // 運行狀態
@@ -190,6 +198,13 @@ public class BlockUpgradeChamberCore extends BlockContainer {
             int maxProgress = core.getMaxProgress();
             player.sendMessage(new TextComponentString(
                     TextFormatting.LIGHT_PURPLE + "⚡ 升級中... " + progress + "/" + maxProgress
+            ));
+        }
+
+        // 修復狀態
+        if (core.isRepairing()) {
+            player.sendMessage(new TextComponentString(
+                    TextFormatting.AQUA + "⚡ 修復中..."
             ));
         }
     }

@@ -41,6 +41,11 @@ public class EnergyPunishmentSystem {
     private static final int DOT_DAMAGE_PER_TICK  = 1;
     private static final int DEGRADE_MODULE_COUNT = 2;
 
+    // ===== 損壞上限配置 =====
+    // 模組最多只能損壞 3~5 級（隨機）
+    private static final int MIN_DAMAGE_CAP = 3;
+    private static final int MAX_DAMAGE_CAP = 5;
+
     private static final long TICK_1S  = 20;
     private static final long TICK_5S  = 20 * 5;
     private static final long TICK_10S = 20 * 10;
@@ -258,8 +263,31 @@ public class EnergyPunishmentSystem {
             nbt.setBoolean(K_WAS_PUNISHED + moduleId, true);
             nbt.setBoolean(K_WAS_PUNISHED + lowerId, true);
 
-            // 降级
-            int newOwnedMax = Math.max(0, currentOwnedMax - 1);
+            // 獲取原始最大等級
+            int originalMax = Math.max(
+                    nbt.getInteger(K_ORIGINAL_MAX + upperId),
+                    Math.max(
+                            nbt.getInteger(K_ORIGINAL_MAX + moduleId),
+                            nbt.getInteger(K_ORIGINAL_MAX + lowerId)
+                    )
+            );
+            if (originalMax <= 0) originalMax = currentOwnedMax;
+
+            // 計算損壞上限（模組最多只能損壞 3~5 級）
+            int damageCap = MIN_DAMAGE_CAP + player.world.rand.nextInt(MAX_DAMAGE_CAP - MIN_DAMAGE_CAP + 1);
+            int minAllowedLevel = Math.max(0, originalMax - damageCap);
+
+            // 如果已達損壞上限，跳過此模組
+            if (currentOwnedMax <= minAllowedLevel) {
+                player.sendStatusMessage(new TextComponentString(
+                        TextFormatting.YELLOW + "⚠ " + getDisplayName(moduleId) +
+                        " 已達損壞上限 [" + currentOwnedMax + "/" + originalMax + "]"
+                ), true);
+                continue;
+            }
+
+            // 降级（但不能低於損壞上限）
+            int newOwnedMax = Math.max(minAllowedLevel, currentOwnedMax - 1);
             setOwnedMaxSafe(core, moduleId, newOwnedMax);
 
             // 增加损坏计数
@@ -280,26 +308,21 @@ public class EnergyPunishmentSystem {
                 setLevel(core, moduleId, newOwnedMax);
             }
 
-            // 获取原始最大等级用于显示
-            int originalMax = Math.max(
-                    nbt.getInteger(K_ORIGINAL_MAX + upperId),
-                    Math.max(
-                            nbt.getInteger(K_ORIGINAL_MAX + moduleId),
-                            nbt.getInteger(K_ORIGINAL_MAX + lowerId)
-                    )
-            );
+            // 計算剩餘可損壞次數
+            int remainingDamage = newOwnedMax - minAllowedLevel;
 
             // 通知
-            if (newOwnedMax <= 0) {
+            if (newOwnedMax <= minAllowedLevel) {
                 player.sendStatusMessage(new TextComponentString(
-                        TextFormatting.DARK_RED + "⚠ 模块损坏: " + getDisplayName(moduleId) +
-                                TextFormatting.YELLOW + " [0/" + originalMax + "] (可修复)"
+                        TextFormatting.DARK_RED + "⚠ 模組已達損壞上限: " + getDisplayName(moduleId) +
+                                TextFormatting.YELLOW + " [" + newOwnedMax + "/" + originalMax + "] (可在升級艙修復)"
                 ), true);
             } else {
                 player.sendStatusMessage(new TextComponentString(
-                        TextFormatting.RED + "⚠ 模块降级: " + getDisplayName(moduleId) +
+                        TextFormatting.RED + "⚠ 模組降級: " + getDisplayName(moduleId) +
                                 " [" + newOwnedMax + "/" + originalMax + "]" +
-                                TextFormatting.YELLOW + " (可修复)"
+                                TextFormatting.GRAY + " (還可損壞 " + remainingDamage + " 級)" +
+                                TextFormatting.YELLOW + " (可在升級艙修復)"
                 ), true);
             }
         }
