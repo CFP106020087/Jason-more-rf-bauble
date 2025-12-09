@@ -82,6 +82,9 @@ tile.moremod.fake_player_activator.name=Fake Player Activator
 # ===== Upgrade Chamber System =====
 tile.upgrade_chamber_core.name=Upgrade Chamber Core
 
+# ===== Respawn Chamber System =====
+tile.respawn_chamber_core.name=Respawn Chamber Core
+
 # ===== Energy System =====
 # Blocks
 tile.oil_extractor_core.name=Oil Extractor Core

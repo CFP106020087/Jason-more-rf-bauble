@@ -495,6 +495,9 @@ tile.moremod.fake_player_activator.name=假玩家激活器
 # ===== 升級艙系統 (Upgrade Chamber System) =====
 tile.upgrade_chamber_core.name=升級艙核心
 
+# ===== 重生倉系統 (Respawn Chamber System) =====
+tile.respawn_chamber_core.name=重生倉核心
+
 # ===== 能源系統 (Energy System) =====
 # 方塊
 tile.oil_extractor_core.name=抽油機核心
