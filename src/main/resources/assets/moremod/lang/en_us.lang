@@ -78,3 +78,18 @@ tile.moremod.bio_generator.name=Bio Generator
 
 # Fake Player System
 tile.moremod.fake_player_activator.name=Fake Player Activator
+
+# ===== Upgrade Chamber System =====
+tile.upgrade_chamber_core.name=Upgrade Chamber Core
+
+# ===== Energy System =====
+# Blocks
+tile.oil_extractor_core.name=Oil Extractor Core
+tile.plant_oil_press.name=Plant Oil Press
+tile.oil_generator.name=Oil Generator
+tile.charging_station.name=Charging Station
+
+# Items
+item.oil_prospector.name=Oil Prospector
+item.crude_oil_bucket.name=Crude Oil Bucket
+item.plant_oil_bucket.name=Plant Oil Bucket

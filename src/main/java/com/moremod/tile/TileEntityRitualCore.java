@@ -7,6 +7,7 @@ import com.moremod.entity.curse.EmbeddedCurseManager.EmbeddedRelicType;
 import com.moremod.ritual.AltarTier;
 import com.moremod.ritual.RitualInfusionAPI;
 import com.moremod.ritual.RitualInfusionRecipe;
+import com.moremod.ritual.TierRitualHandler;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.enchantment.EnchantmentHelper;
@@ -99,6 +100,38 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     private static final int SOUL_BINDING_TIME = 400; // 20秒绑定时间
     private static final float SOUL_BINDING_SUCCESS_RATE = 0.50f; // 50%成功率
 
+    // 詛咒淨化儀式系統 (Curse Purification Ritual) - 二階以上
+    private boolean cursePurificationActive = false;
+    private int cursePurificationProgress = 0;
+    private static final int CURSE_PURIFICATION_TIME = 200; // 10秒
+
+    // 附魔轉移儀式系統 (Enchantment Transfer Ritual) - 三階
+    private boolean enchantTransferActive = false;
+    private int enchantTransferProgress = 0;
+    private static final int ENCHANT_TRANSFER_TIME = 300; // 15秒
+
+    // 詛咒創造儀式系統 (Curse Creation Ritual)
+    private boolean curseCreationActive = false;
+    private int curseCreationProgress = 0;
+    private static final int CURSE_CREATION_TIME = 200; // 10秒
+
+    // 武器經驗加速儀式系統 (Weapon Exp Boost Ritual)
+    private boolean weaponExpBoostActive = false;
+    private int weaponExpBoostProgress = 0;
+    private static final int WEAPON_EXP_BOOST_TIME = 150; // 7.5秒
+    private static final int WEAPON_EXP_BOOST_DURATION = 12000; // 10分鐘效果
+
+    // 村正攻擊提升儀式系統 (Muramasa Boost Ritual)
+    private boolean muramasaBoostActive = false;
+    private int muramasaBoostProgress = 0;
+    private static final int MURAMASA_BOOST_TIME = 150; // 7.5秒
+    private static final int MURAMASA_BOOST_DURATION = 12000; // 10分鐘效果
+
+    // 織印強化儀式系統 (Fabric Enhancement Ritual)
+    private boolean fabricEnhanceActive = false;
+    private int fabricEnhanceProgress = 0;
+    private static final int FABRIC_ENHANCE_TIME = 200; // 10秒
+
     // 用於客戶端平滑渲染的緩存變量
     public float clientRotation = 0;
     public float lastClientRotation = 0;
@@ -151,6 +184,36 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         // 0.8 检测灵魂绑定仪式（玩家头颅+灵魂材料 = 假玩家核心）
         if (updateSoulBindingRitual()) {
             return; // 灵魂绑定仪式进行中，跳过普通配方处理
+        }
+
+        // 0.9 检测詛咒淨化儀式（二階+詛咒物品+聖水）
+        if (updateCursePurificationRitual()) {
+            return;
+        }
+
+        // 0.10 检测附魔轉移儀式（三階+附魔物品+目標物品）
+        if (updateEnchantTransferRitual()) {
+            return;
+        }
+
+        // 0.11 检测詛咒創造儀式（墨囊+紙+詛咒材料）
+        if (updateCurseCreationRitual()) {
+            return;
+        }
+
+        // 0.12 检测武器經驗加速儀式（澄月/勇者之劍/鉅刃劍+經驗材料）
+        if (updateWeaponExpBoostRitual()) {
+            return;
+        }
+
+        // 0.13 检测村正攻擊提升儀式
+        if (updateMuramasaBoostRitual()) {
+            return;
+        }
+
+        // 0.14 检测織印強化儀式
+        if (updateFabricEnhanceRitual()) {
+            return;
         }
 
         // 1. 查找有效基座 (必須有物品)
@@ -1835,5 +1898,673 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             SoundCategory.BLOCKS, 0.5f, 1.5f);
         world.playSound(null, pos, SoundEvents.UI_TOAST_CHALLENGE_COMPLETE,
             SoundCategory.BLOCKS, 1.0f, 1.0f);
+    }
+
+    // ========== 詛咒淨化儀式系統 (二階以上) ==========
+
+    /**
+     * 更新詛咒淨化儀式
+     * 二階以上 + 詛咒物品 + 聖水/金蘋果
+     */
+    private boolean updateCursePurificationRitual() {
+        // 需要二階以上
+        if (currentTier.getLevel() < 2) {
+            if (cursePurificationActive) {
+                cursePurificationActive = false;
+                cursePurificationProgress = 0;
+            }
+            return false;
+        }
+
+        ItemStack centerItem = inv.getStackInSlot(0);
+        if (centerItem.isEmpty()) {
+            if (cursePurificationActive) resetCursePurification();
+            return false;
+        }
+
+        // 收集基座物品
+        List<ItemStack> pedestalItems = collectPedestalItems();
+
+        if (!TierRitualHandler.canPurifyCurse(world, pos, centerItem, pedestalItems, currentTier)) {
+            if (cursePurificationActive) resetCursePurification();
+            return false;
+        }
+
+        // 開始/繼續儀式
+        if (!cursePurificationActive) {
+            cursePurificationActive = true;
+            cursePurificationProgress = 0;
+            notifyRitualStart("詛咒淨化", TextFormatting.YELLOW);
+        }
+
+        cursePurificationProgress++;
+
+        if (cursePurificationProgress % 20 == 0) {
+            int seconds = (CURSE_PURIFICATION_TIME - cursePurificationProgress) / 20;
+            notifyRitualProgress("詛咒淨化", seconds, TextFormatting.YELLOW);
+            spawnPurificationParticles();
+        }
+
+        if (cursePurificationProgress >= CURSE_PURIFICATION_TIME) {
+            performCursePurification(centerItem);
+            resetCursePurification();
+        }
+
+        return true;
+    }
+
+    private void resetCursePurification() {
+        cursePurificationActive = false;
+        cursePurificationProgress = 0;
+    }
+
+    private void performCursePurification(ItemStack centerItem) {
+        TierRitualHandler.PurificationResult result =
+            TierRitualHandler.performCursePurification(world, pos, centerItem, currentTier);
+
+        if (result.success) {
+            TierRitualHandler.notifyPlayers(world, pos,
+                "✓ 成功淨化 " + result.removedCount + " 個詛咒！", TextFormatting.GREEN);
+            consumeOnePedestalItem(stack -> isHolyItem(stack));
+        } else {
+            TierRitualHandler.notifyPlayers(world, pos,
+                "✗ " + result.errorMessage, TextFormatting.RED);
+        }
+
+        syncToClient();
+        markDirty();
+    }
+
+    private void spawnPurificationParticles() {
+        if (!(world instanceof WorldServer)) return;
+        WorldServer ws = (WorldServer) world;
+
+        ws.spawnParticle(EnumParticleTypes.VILLAGER_HAPPY,
+            pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
+            10, 0.5, 0.5, 0.5, 0.1);
+        ws.spawnParticle(EnumParticleTypes.END_ROD,
+            pos.getX() + 0.5, pos.getY() + 1.0, pos.getZ() + 0.5,
+            5, 0.3, 0.5, 0.3, 0.02);
+    }
+
+    // ========== 附魔轉移儀式系統 (三階) ==========
+
+    /**
+     * 更新附魔轉移儀式
+     * 三階 + 附魔物品（中心）+ 目標物品（基座）+ 青金石（基座）
+     */
+    private boolean updateEnchantTransferRitual() {
+        // 必須是三階
+        if (currentTier != AltarTier.TIER_3) {
+            if (enchantTransferActive) resetEnchantTransfer();
+            return false;
+        }
+
+        ItemStack centerItem = inv.getStackInSlot(0);
+        if (centerItem.isEmpty() || !centerItem.isItemEnchanted()) {
+            if (enchantTransferActive) resetEnchantTransfer();
+            return false;
+        }
+
+        List<ItemStack> pedestalItems = collectPedestalItems();
+
+        if (!TierRitualHandler.canTransferEnchantment(world, pos, centerItem, pedestalItems, currentTier)) {
+            if (enchantTransferActive) resetEnchantTransfer();
+            return false;
+        }
+
+        if (!enchantTransferActive) {
+            enchantTransferActive = true;
+            enchantTransferProgress = 0;
+            notifyRitualStart("附魔轉移", TextFormatting.AQUA);
+        }
+
+        enchantTransferProgress++;
+
+        if (enchantTransferProgress % 20 == 0) {
+            int seconds = (ENCHANT_TRANSFER_TIME - enchantTransferProgress) / 20;
+            notifyRitualProgress("附魔轉移", seconds, TextFormatting.AQUA);
+            spawnTransferParticles();
+        }
+
+        if (enchantTransferProgress >= ENCHANT_TRANSFER_TIME) {
+            performEnchantTransfer(centerItem);
+            resetEnchantTransfer();
+        }
+
+        return true;
+    }
+
+    private void resetEnchantTransfer() {
+        enchantTransferActive = false;
+        enchantTransferProgress = 0;
+    }
+
+    private void performEnchantTransfer(ItemStack sourceItem) {
+        // 找到目標物品
+        ItemStack targetItem = findTransferTarget();
+        if (targetItem.isEmpty()) {
+            TierRitualHandler.notifyPlayers(world, pos, "✗ 找不到目標物品！", TextFormatting.RED);
+            return;
+        }
+
+        int transferred = TierRitualHandler.performEnchantmentTransfer(sourceItem, targetItem, world, pos);
+
+        if (transferred > 0) {
+            TierRitualHandler.notifyPlayers(world, pos,
+                "★ 成功轉移 " + transferred + " 個附魔！", TextFormatting.GOLD);
+            consumeOnePedestalItem(stack ->
+                (stack.getItem() == Items.DYE && stack.getMetadata() == 4) ||
+                stack.getItem() == Items.DRAGON_BREATH);
+        } else {
+            TierRitualHandler.notifyPlayers(world, pos, "✗ 無法轉移附魔！", TextFormatting.RED);
+        }
+
+        syncToClient();
+        markDirty();
+    }
+
+    private ItemStack findTransferTarget() {
+        for (BlockPos off : OFFS8) {
+            TileEntity te = world.getTileEntity(pos.add(off));
+            if (te instanceof TileEntityPedestal) {
+                TileEntityPedestal ped = (TileEntityPedestal) te;
+                ItemStack stack = ped.getInv().getStackInSlot(0);
+                if (!stack.isEmpty() && !stack.isItemEnchanted() &&
+                    stack.getItem() != Items.DYE && stack.getItem() != Items.DRAGON_BREATH) {
+                    return stack;
+                }
+            }
+        }
+        return ItemStack.EMPTY;
+    }
+
+    private void spawnTransferParticles() {
+        if (!(world instanceof WorldServer)) return;
+        WorldServer ws = (WorldServer) world;
+
+        ws.spawnParticle(EnumParticleTypes.ENCHANTMENT_TABLE,
+            pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
+            20, 1.0, 0.5, 1.0, 0.0);
+    }
+
+    // ========== 詛咒創造儀式系統 ==========
+
+    /**
+     * 更新詛咒創造儀式
+     * 書 + 墨囊 + 腐肉/蜘蛛眼
+     */
+    private boolean updateCurseCreationRitual() {
+        ItemStack centerItem = inv.getStackInSlot(0);
+        if (centerItem.isEmpty() || centerItem.getItem() != Items.BOOK) {
+            if (curseCreationActive) resetCurseCreation();
+            return false;
+        }
+
+        List<ItemStack> pedestalItems = collectPedestalItems();
+
+        // 需要墨囊和詛咒材料
+        boolean hasInk = false;
+        int curseMaterials = 0;
+        for (ItemStack stack : pedestalItems) {
+            if (stack.getItem() == Items.DYE && stack.getMetadata() == 0) hasInk = true; // 墨囊
+            if (stack.getItem() == Items.ROTTEN_FLESH ||
+                stack.getItem() == Items.SPIDER_EYE ||
+                stack.getItem() == Items.FERMENTED_SPIDER_EYE) {
+                curseMaterials++;
+            }
+        }
+
+        if (!hasInk || curseMaterials < 1) {
+            if (curseCreationActive) resetCurseCreation();
+            return false;
+        }
+
+        if (!curseCreationActive) {
+            curseCreationActive = true;
+            curseCreationProgress = 0;
+            notifyRitualStart("詛咒創造", TextFormatting.DARK_PURPLE);
+        }
+
+        curseCreationProgress++;
+
+        if (curseCreationProgress % 20 == 0) {
+            int seconds = (CURSE_CREATION_TIME - curseCreationProgress) / 20;
+            notifyRitualProgress("詛咒創造", seconds, TextFormatting.DARK_PURPLE);
+            spawnCurseParticles();
+        }
+
+        if (curseCreationProgress >= CURSE_CREATION_TIME) {
+            performCurseCreation(Math.min(curseMaterials, 2));
+            resetCurseCreation();
+        }
+
+        return true;
+    }
+
+    private void resetCurseCreation() {
+        curseCreationActive = false;
+        curseCreationProgress = 0;
+    }
+
+    private void performCurseCreation(int curseCount) {
+        // 消耗書
+        inv.extractItem(0, 1, false);
+
+        // 創建虛假詛咒書
+        ItemStack curseBook = TierRitualHandler.createFakeCurseBook(curseCount);
+
+        // 放入輸出槽
+        if (inv.getStackInSlot(1).isEmpty()) {
+            inv.setStackInSlot(1, curseBook);
+        } else {
+            // 掉落
+            net.minecraft.entity.item.EntityItem entity = new net.minecraft.entity.item.EntityItem(
+                world, pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5, curseBook);
+            world.spawnEntity(entity);
+        }
+
+        // 消耗材料
+        consumeOnePedestalItem(stack -> stack.getItem() == Items.DYE && stack.getMetadata() == 0);
+        for (int i = 0; i < curseCount; i++) {
+            consumeOnePedestalItem(stack ->
+                stack.getItem() == Items.ROTTEN_FLESH ||
+                stack.getItem() == Items.SPIDER_EYE ||
+                stack.getItem() == Items.FERMENTED_SPIDER_EYE);
+        }
+
+        TierRitualHandler.notifyPlayers(world, pos,
+            "✦ 創造了帶有 " + curseCount + " 個偽詛咒的附魔書！", TextFormatting.DARK_PURPLE);
+
+        world.playSound(null, pos, SoundEvents.ENTITY_WITHER_SPAWN, SoundCategory.BLOCKS, 0.3f, 1.5f);
+        syncToClient();
+        markDirty();
+    }
+
+    private void spawnCurseParticles() {
+        if (!(world instanceof WorldServer)) return;
+        WorldServer ws = (WorldServer) world;
+
+        ws.spawnParticle(EnumParticleTypes.SPELL_WITCH,
+            pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
+            15, 0.5, 0.5, 0.5, 0.0);
+    }
+
+    // ========== 武器經驗加速儀式系統 ==========
+
+    /**
+     * 更新武器經驗加速儀式
+     * 澄月/勇者之劍/鉅刃劍 + 經驗瓶/附魔書
+     */
+    private boolean updateWeaponExpBoostRitual() {
+        ItemStack centerItem = inv.getStackInSlot(0);
+        if (centerItem.isEmpty() || !TierRitualHandler.isExpBoostableWeapon(centerItem)) {
+            if (weaponExpBoostActive) resetWeaponExpBoost();
+            return false;
+        }
+
+        List<ItemStack> pedestalItems = collectPedestalItems();
+
+        // 需要經驗瓶或附魔書
+        boolean hasExpMaterial = false;
+        for (ItemStack stack : pedestalItems) {
+            if (stack.getItem() == Items.EXPERIENCE_BOTTLE ||
+                stack.getItem() == Items.ENCHANTED_BOOK ||
+                stack.getItem() == Items.EMERALD) {
+                hasExpMaterial = true;
+                break;
+            }
+        }
+
+        if (!hasExpMaterial) {
+            if (weaponExpBoostActive) resetWeaponExpBoost();
+            return false;
+        }
+
+        if (!weaponExpBoostActive) {
+            weaponExpBoostActive = true;
+            weaponExpBoostProgress = 0;
+            notifyRitualStart("武器覺醒", TextFormatting.LIGHT_PURPLE);
+        }
+
+        weaponExpBoostProgress++;
+
+        if (weaponExpBoostProgress % 20 == 0) {
+            int seconds = (WEAPON_EXP_BOOST_TIME - weaponExpBoostProgress) / 20;
+            notifyRitualProgress("武器覺醒", seconds, TextFormatting.LIGHT_PURPLE);
+            spawnWeaponBoostParticles();
+        }
+
+        if (weaponExpBoostProgress >= WEAPON_EXP_BOOST_TIME) {
+            performWeaponExpBoost(centerItem);
+            resetWeaponExpBoost();
+        }
+
+        return true;
+    }
+
+    private void resetWeaponExpBoost() {
+        weaponExpBoostActive = false;
+        weaponExpBoostProgress = 0;
+    }
+
+    private void performWeaponExpBoost(ItemStack weapon) {
+        boolean success = TierRitualHandler.applyExpBoost(weapon, currentTier, WEAPON_EXP_BOOST_DURATION);
+
+        if (success) {
+            float mult = 1.0f;
+            switch (currentTier.getLevel()) {
+                case 1: mult = 1.5f; break;
+                case 2: mult = 2.0f; break;
+                case 3: mult = 3.0f; break;
+            }
+
+            TierRitualHandler.notifyPlayers(world, pos,
+                "★ " + weapon.getDisplayName() + " 獲得經驗加速 x" + mult + " (10分鐘)",
+                TextFormatting.GOLD);
+
+            consumeOnePedestalItem(stack ->
+                stack.getItem() == Items.EXPERIENCE_BOTTLE ||
+                stack.getItem() == Items.ENCHANTED_BOOK ||
+                stack.getItem() == Items.EMERALD);
+
+            world.playSound(null, pos, SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.BLOCKS, 1.0f, 1.0f);
+        }
+
+        syncToClient();
+        markDirty();
+    }
+
+    private void spawnWeaponBoostParticles() {
+        if (!(world instanceof WorldServer)) return;
+        WorldServer ws = (WorldServer) world;
+
+        ws.spawnParticle(EnumParticleTypes.TOTEM,
+            pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
+            10, 0.3, 0.5, 0.3, 0.1);
+    }
+
+    // ========== 村正攻擊提升儀式系統 ==========
+
+    /**
+     * 更新村正攻擊提升儀式
+     * 村正 + 凋零骷髏頭/烈焰粉
+     */
+    private boolean updateMuramasaBoostRitual() {
+        ItemStack centerItem = inv.getStackInSlot(0);
+        if (centerItem.isEmpty() || !TierRitualHandler.isMuramasa(centerItem)) {
+            if (muramasaBoostActive) resetMuramasaBoost();
+            return false;
+        }
+
+        List<ItemStack> pedestalItems = collectPedestalItems();
+
+        // 需要攻擊材料
+        boolean hasBoostMaterial = false;
+        for (ItemStack stack : pedestalItems) {
+            if ((stack.getItem() == Items.SKULL && stack.getMetadata() == 1) || // 凋零骷髏頭
+                stack.getItem() == Items.BLAZE_POWDER ||
+                stack.getItem() == Items.NETHER_STAR) {
+                hasBoostMaterial = true;
+                break;
+            }
+        }
+
+        if (!hasBoostMaterial) {
+            if (muramasaBoostActive) resetMuramasaBoost();
+            return false;
+        }
+
+        if (!muramasaBoostActive) {
+            muramasaBoostActive = true;
+            muramasaBoostProgress = 0;
+            notifyRitualStart("妖刀覺醒", TextFormatting.RED);
+        }
+
+        muramasaBoostProgress++;
+
+        if (muramasaBoostProgress % 20 == 0) {
+            int seconds = (MURAMASA_BOOST_TIME - muramasaBoostProgress) / 20;
+            notifyRitualProgress("妖刀覺醒", seconds, TextFormatting.RED);
+            spawnMuramasaParticles();
+        }
+
+        if (muramasaBoostProgress >= MURAMASA_BOOST_TIME) {
+            performMuramasaBoost(centerItem);
+            resetMuramasaBoost();
+        }
+
+        return true;
+    }
+
+    private void resetMuramasaBoost() {
+        muramasaBoostActive = false;
+        muramasaBoostProgress = 0;
+    }
+
+    private void performMuramasaBoost(ItemStack weapon) {
+        boolean success = TierRitualHandler.applyMuramasaBoost(weapon, currentTier, MURAMASA_BOOST_DURATION);
+
+        if (success) {
+            float boost = 0f;
+            switch (currentTier.getLevel()) {
+                case 1: boost = 2.0f; break;
+                case 2: boost = 5.0f; break;
+                case 3: boost = 10.0f; break;
+            }
+
+            TierRitualHandler.notifyPlayers(world, pos,
+                "⚔ 村正獲得攻擊加成 +" + boost + " (10分鐘)",
+                TextFormatting.RED);
+
+            consumeOnePedestalItem(stack ->
+                (stack.getItem() == Items.SKULL && stack.getMetadata() == 1) ||
+                stack.getItem() == Items.BLAZE_POWDER ||
+                stack.getItem() == Items.NETHER_STAR);
+
+            world.playSound(null, pos, SoundEvents.ENTITY_WITHER_AMBIENT, SoundCategory.BLOCKS, 0.5f, 0.5f);
+        }
+
+        syncToClient();
+        markDirty();
+    }
+
+    private void spawnMuramasaParticles() {
+        if (!(world instanceof WorldServer)) return;
+        WorldServer ws = (WorldServer) world;
+
+        ws.spawnParticle(EnumParticleTypes.REDSTONE,
+            pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
+            20, 0.5, 0.5, 0.5, 0.0);
+        ws.spawnParticle(EnumParticleTypes.SMOKE_LARGE,
+            pos.getX() + 0.5, pos.getY() + 1.0, pos.getZ() + 0.5,
+            5, 0.2, 0.2, 0.2, 0.02);
+    }
+
+    // ========== 輔助方法 ==========
+
+    /**
+     * 收集所有基座上的物品
+     */
+    private List<ItemStack> collectPedestalItems() {
+        List<ItemStack> items = new ArrayList<>();
+        for (BlockPos off : OFFS8) {
+            TileEntity te = world.getTileEntity(pos.add(off));
+            if (te instanceof TileEntityPedestal) {
+                TileEntityPedestal ped = (TileEntityPedestal) te;
+                ItemStack stack = ped.getInv().getStackInSlot(0);
+                if (!stack.isEmpty()) {
+                    items.add(stack);
+                }
+            }
+        }
+        return items;
+    }
+
+    /**
+     * 消耗一個符合條件的基座物品
+     */
+    private void consumeOnePedestalItem(java.util.function.Predicate<ItemStack> predicate) {
+        for (BlockPos off : OFFS8) {
+            TileEntity te = world.getTileEntity(pos.add(off));
+            if (te instanceof TileEntityPedestal) {
+                TileEntityPedestal ped = (TileEntityPedestal) te;
+                ItemStack stack = ped.getInv().getStackInSlot(0);
+                if (!stack.isEmpty() && predicate.test(stack)) {
+                    ped.consumeOne();
+                    return;
+                }
+            }
+        }
+    }
+
+    /**
+     * 檢查是否為聖潔物品
+     */
+    private boolean isHolyItem(ItemStack stack) {
+        if (stack.isEmpty()) return false;
+        return stack.getItem() == Items.GOLDEN_APPLE ||
+               stack.getItem() == Items.DRAGON_BREATH ||
+               stack.getItem() == Items.NETHER_STAR ||
+               stack.getItem().getRegistryName().toString().contains("holy_water");
+    }
+
+    /**
+     * 通用儀式開始通知
+     */
+    private void notifyRitualStart(String ritualName, TextFormatting color) {
+        AxisAlignedBB area = new AxisAlignedBB(pos).grow(10);
+        List<EntityPlayer> players = world.getEntitiesWithinAABB(EntityPlayer.class, area);
+        for (EntityPlayer player : players) {
+            player.sendMessage(new TextComponentString(
+                color + "════════════════════════════════"));
+            player.sendMessage(new TextComponentString(
+                color + "✦ " + ritualName + "儀式開始 ✦"));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.GRAY + "祭壇階層: " + currentTier.getDisplayName()));
+            player.sendMessage(new TextComponentString(
+                color + "════════════════════════════════"));
+        }
+        world.playSound(null, pos, SoundEvents.BLOCK_ENCHANTMENT_TABLE_USE, SoundCategory.BLOCKS, 1.0f, 0.8f);
+    }
+
+    /**
+     * 通用儀式進度通知
+     */
+    private void notifyRitualProgress(String ritualName, int secondsLeft, TextFormatting color) {
+        AxisAlignedBB area = new AxisAlignedBB(pos).grow(10);
+        List<EntityPlayer> players = world.getEntitiesWithinAABB(EntityPlayer.class, area);
+        for (EntityPlayer player : players) {
+            player.sendStatusMessage(new TextComponentString(
+                color + ritualName + "進行中... " + TextFormatting.GOLD + secondsLeft + "秒"
+            ), true);
+        }
+    }
+
+    // ========== 織印強化儀式系統 ==========
+
+    /**
+     * 更新織印強化儀式
+     * 織印盔甲 + 強化材料（龍息/終界之眼/地獄之星）
+     */
+    private boolean updateFabricEnhanceRitual() {
+        ItemStack centerItem = inv.getStackInSlot(0);
+        if (centerItem.isEmpty() || !TierRitualHandler.hasFabricWeave(centerItem)) {
+            if (fabricEnhanceActive) resetFabricEnhance();
+            return false;
+        }
+
+        List<ItemStack> pedestalItems = collectPedestalItems();
+
+        if (!TierRitualHandler.canEnhanceFabric(centerItem, pedestalItems, currentTier)) {
+            if (fabricEnhanceActive) resetFabricEnhance();
+            return false;
+        }
+
+        if (!fabricEnhanceActive) {
+            fabricEnhanceActive = true;
+            fabricEnhanceProgress = 0;
+            notifyRitualStart("織印強化", TextFormatting.LIGHT_PURPLE);
+
+            // 顯示當前階層加成預覽
+            String bonusInfo = "";
+            switch (currentTier.getLevel()) {
+                case 1: bonusInfo = "能量+25% / 能力+15%"; break;
+                case 2: bonusInfo = "能量+50% / 能力+30%"; break;
+                case 3: bonusInfo = "能量+100% / 能力+50%"; break;
+            }
+            TierRitualHandler.notifyPlayers(world, pos,
+                "預期加成: " + bonusInfo, TextFormatting.AQUA);
+        }
+
+        fabricEnhanceProgress++;
+
+        if (fabricEnhanceProgress % 20 == 0) {
+            int seconds = (FABRIC_ENHANCE_TIME - fabricEnhanceProgress) / 20;
+            notifyRitualProgress("織印強化", seconds, TextFormatting.LIGHT_PURPLE);
+            spawnFabricEnhanceParticles();
+        }
+
+        if (fabricEnhanceProgress >= FABRIC_ENHANCE_TIME) {
+            performFabricEnhance(centerItem);
+            resetFabricEnhance();
+        }
+
+        return true;
+    }
+
+    private void resetFabricEnhance() {
+        fabricEnhanceActive = false;
+        fabricEnhanceProgress = 0;
+    }
+
+    private void performFabricEnhance(ItemStack armor) {
+        TierRitualHandler.FabricEnhanceResult result =
+            TierRitualHandler.enhanceFabric(armor, currentTier, world, pos);
+
+        if (result.success) {
+            TierRitualHandler.notifyPlayers(world, pos,
+                "★ 織印強化成功！", TextFormatting.GOLD);
+            TierRitualHandler.notifyPlayers(world, pos,
+                "能量倍率: x" + result.energyMultiplier +
+                " / 能力倍率: x" + result.abilityMultiplier, TextFormatting.GREEN);
+
+            // 消耗強化材料
+            consumeOnePedestalItem(stack ->
+                stack.getItem() == Items.DRAGON_BREATH ||
+                stack.getItem() == Items.ENDER_EYE ||
+                stack.getItem() == Items.NETHER_STAR ||
+                stack.getItem() == Items.PRISMARINE_SHARD ||
+                stack.getItem() == Items.BLAZE_POWDER);
+
+            world.playSound(null, pos, SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.BLOCKS, 1.0f, 1.0f);
+        } else {
+            TierRitualHandler.notifyPlayers(world, pos,
+                "✗ " + result.errorMessage, TextFormatting.RED);
+        }
+
+        syncToClient();
+        markDirty();
+    }
+
+    private void spawnFabricEnhanceParticles() {
+        if (!(world instanceof WorldServer)) return;
+        WorldServer ws = (WorldServer) world;
+
+        // 織印強化粒子
+        for (int i = 0; i < 8; i++) {
+            double angle = i * Math.PI / 4 + (fabricEnhanceProgress * 0.05);
+            double radius = 1.5;
+            double x = pos.getX() + 0.5 + Math.cos(angle) * radius;
+            double z = pos.getZ() + 0.5 + Math.sin(angle) * radius;
+
+            ws.spawnParticle(EnumParticleTypes.SPELL_WITCH,
+                x, pos.getY() + 1.2, z,
+                3, 0.1, 0.1, 0.1, 0.0);
+        }
+
+        ws.spawnParticle(EnumParticleTypes.ENCHANTMENT_TABLE,
+            pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
+            10, 0.5, 0.3, 0.5, 0.0);
     }
 }

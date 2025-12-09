@@ -48,6 +48,11 @@ import com.moremod.synergy.station.TileEntitySynergyStation;
 import com.moremod.container.ContainerFakePlayerActivator;
 import com.moremod.tile.TileEntityFakePlayerActivator;
 
+// ⚡ 充能站GUI导入
+import com.moremod.container.ContainerChargingStation;
+import com.moremod.gui.GuiChargingStation;
+import com.moremod.tile.TileEntityChargingStation;
+
 // 📖 Synergy 协同手册GUI导入
 import com.moremod.synergy.gui.GuiSynergyGuide;
 
@@ -98,6 +103,9 @@ public class GuiHandler implements IGuiHandler {
 
     // 🤖 假玩家激活器
     public static final int FAKE_PLAYER_ACTIVATOR_GUI = 31;
+
+    // ⚡ 充能站
+    public static final int CHARGING_STATION_GUI = 32;
 
     // ---------------- Server ----------------
     @Override
@@ -181,6 +189,10 @@ public class GuiHandler implements IGuiHandler {
                 }
                 case FAKE_PLAYER_ACTIVATOR_GUI: { // 🤖 ID=31
                     result = createFakePlayerActivatorContainer(player, world, x, y, z);
+                    break;
+                }
+                case CHARGING_STATION_GUI: { // ⚡ ID=32
+                    result = createChargingStationContainer(player, world, x, y, z);
                     break;
                 }
                 default:
@@ -276,6 +288,10 @@ public class GuiHandler implements IGuiHandler {
                 }
                 case FAKE_PLAYER_ACTIVATOR_GUI: { // 🤖 ID=31
                     result = createFakePlayerActivatorGui(player, world, x, y, z);
+                    break;
+                }
+                case CHARGING_STATION_GUI: { // ⚡ ID=32
+                    result = createChargingStationGui(player, world, x, y, z);
                     break;
                 }
                 default:
@@ -582,7 +598,8 @@ public class GuiHandler implements IGuiHandler {
                 guiId == GEM_EXTRACTION_STATION_GUI ||           // 💎 提取台
                 guiId == PURIFICATION_ALTAR_GUI ||               // 🔮 提纯祭坛
                 guiId == TRANSFER_STATION_GUI ||                 // 🎨 转移台
-                guiId == SYNERGY_STATION_GUI;                    // ⚡ Synergy 链结站
+                guiId == SYNERGY_STATION_GUI ||                  // ⚡ Synergy 链结站
+                guiId == CHARGING_STATION_GUI;                   // ⚡ 充能站
     }
 
     public static boolean isItemBasedGui(int guiId) {
@@ -615,6 +632,32 @@ public class GuiHandler implements IGuiHandler {
             return new GuiFakePlayerActivator(player.inventory, (TileEntityFakePlayerActivator) te);
         }
         System.out.println("[GuiHandler] ❌ 未识别的假玩家激活器 TE(客户端): " + (te == null ? "null" : te.getClass().getName()));
+        return null;
+    }
+
+    // ====== ⚡ ID=32：充能站 ======
+    private Object createChargingStationContainer(EntityPlayer player, World world, int x, int y, int z) {
+        BlockPos pos = new BlockPos(x, y, z);
+        TileEntity te = world.getTileEntity(pos);
+
+        if (te instanceof TileEntityChargingStation) {
+            System.out.println("[GuiHandler] 打开充能站 Container");
+            return new ContainerChargingStation(player.inventory, (TileEntityChargingStation) te);
+        }
+        System.out.println("[GuiHandler] ❌ 未识别的充能站 TE: " + (te == null ? "null" : te.getClass().getName()));
+        return null;
+    }
+
+    @SideOnly(Side.CLIENT)
+    private Object createChargingStationGui(EntityPlayer player, World world, int x, int y, int z) {
+        BlockPos pos = new BlockPos(x, y, z);
+        TileEntity te = world.getTileEntity(pos);
+
+        if (te instanceof TileEntityChargingStation) {
+            System.out.println("[GuiHandler] 打开充能站 GUI");
+            return new GuiChargingStation(player.inventory, (TileEntityChargingStation) te);
+        }
+        System.out.println("[GuiHandler] ❌ 未识别的充能站 TE(客户端): " + (te == null ? "null" : te.getClass().getName()));
         return null;
     }
 }

@@ -1,0 +1,12 @@
+{
+    "parent": "block/cube",
+    "textures": {
+        "particle": "moremod:blocks/plant_oil_press_side",
+        "down": "moremod:blocks/plant_oil_press_bottom",
+        "up": "moremod:blocks/plant_oil_press_top",
+        "north": "moremod:blocks/plant_oil_press_front",
+        "south": "moremod:blocks/plant_oil_press_side",
+        "east": "moremod:blocks/plant_oil_press_side",
+        "west": "moremod:blocks/plant_oil_press_side"
+    }
+}
