@@ -292,8 +292,8 @@ public class TileEntityFakePlayerActivator extends TileEntity implements ITickab
             ItemStack tool = fakePlayer.getHeldItemMainhand();
             if (!tool.isEmpty()) {
                 EnumActionResult result = tool.getItem().onItemUse(
-                    fakePlayer, world, targetPos.offset(facing.getOpposite()), EnumHand.MAIN_HAND,
-                    facing, 0.5F, 0.5F, 0.5F
+                        fakePlayer, world, targetPos.offset(facing.getOpposite()), EnumHand.MAIN_HAND,
+                        facing, 0.5F, 0.5F, 0.5F
                 );
                 return result == EnumActionResult.SUCCESS;
             }
@@ -302,8 +302,8 @@ public class TileEntityFakePlayerActivator extends TileEntity implements ITickab
 
         try {
             return targetState.getBlock().onBlockActivated(
-                world, targetPos, targetState, fakePlayer, EnumHand.MAIN_HAND,
-                facing.getOpposite(), 0.5F, 0.5F, 0.5F
+                    world, targetPos, targetState, fakePlayer, EnumHand.MAIN_HAND,
+                    facing.getOpposite(), 0.5F, 0.5F, 0.5F
             );
         } catch (Exception e) {
             return false;
@@ -322,8 +322,8 @@ public class TileEntityFakePlayerActivator extends TileEntity implements ITickab
         int countBefore = tool.getCount();
 
         EnumActionResult result = tool.getItem().onItemUse(
-            fakePlayer, world, targetPos, EnumHand.MAIN_HAND,
-            facing.getOpposite(), 0.5F, 0.5F, 0.5F
+                fakePlayer, world, targetPos, EnumHand.MAIN_HAND,
+                facing.getOpposite(), 0.5F, 0.5F, 0.5F
         );
 
         ItemStack afterUse = fakePlayer.getHeldItemMainhand();
@@ -350,8 +350,8 @@ public class TileEntityFakePlayerActivator extends TileEntity implements ITickab
     private boolean performAttack(ModFakePlayer fakePlayer, BlockPos targetPos) {
         AxisAlignedBB searchBox = new AxisAlignedBB(targetPos).grow(8.0); // 16x16 范围
         List<EntityLivingBase> entities = world.getEntitiesWithinAABB(
-            EntityLivingBase.class, searchBox,
-            e -> e != null && e.isEntityAlive() && !(e instanceof EntityPlayer)
+                EntityLivingBase.class, searchBox,
+                e -> e != null && e.isEntityAlive() && !(e instanceof EntityPlayer)
         );
 
         if (entities.isEmpty()) return false;
@@ -435,7 +435,7 @@ public class TileEntityFakePlayerActivator extends TileEntity implements ITickab
                     entityItem.setDead();
                     break;
                 } else if (ItemStack.areItemsEqual(slotStack, stack) &&
-                           slotStack.getCount() < slotStack.getMaxStackSize()) {
+                        slotStack.getCount() < slotStack.getMaxStackSize()) {
                     int space = slotStack.getMaxStackSize() - slotStack.getCount();
                     int toAdd = Math.min(space, stack.getCount());
                     slotStack.grow(toAdd);
@@ -502,8 +502,8 @@ public class TileEntityFakePlayerActivator extends TileEntity implements ITickab
 
         try {
             chunkTicket = ForgeChunkManager.requestTicket(
-                net.minecraftforge.fml.common.Loader.instance().activeModContainer(),
-                world, Type.NORMAL
+                    net.minecraftforge.fml.common.Loader.instance().activeModContainer(),
+                    world, Type.NORMAL
             );
             if (chunkTicket != null) {
                 chunkTicket.getModData().setInteger("x", pos.getX());

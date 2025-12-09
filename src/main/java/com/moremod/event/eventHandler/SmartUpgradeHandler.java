@@ -56,9 +56,9 @@ public class SmartUpgradeHandler {
         if (!ENABLE_RIGHT_CLICK_UPGRADE) {
             player.sendMessage(new TextComponentString(
                     TextFormatting.YELLOW + "⚠ 右键升级已禁用！" +
-                    TextFormatting.WHITE + " 请使用" +
-                    TextFormatting.AQUA + "多方块升级倉" +
-                    TextFormatting.WHITE + "来安装升级模块。"
+                            TextFormatting.WHITE + " 请使用" +
+                            TextFormatting.AQUA + "多方块升级倉" +
+                            TextFormatting.WHITE + "来安装升级模块。"
             ));
             return;
         }
