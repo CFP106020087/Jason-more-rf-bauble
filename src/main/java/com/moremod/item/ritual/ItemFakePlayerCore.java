@@ -39,7 +39,7 @@ public class ItemFakePlayerCore extends Item {
 
     public ItemFakePlayerCore() {
         setRegistryName("moremod", "fake_player_core");
-        setUnlocalizedName("moremod.fake_player_core");
+        setTranslationKey("moremod.fake_player_core");
         setCreativeTab(CreativeTabs.MISC);
         setMaxStackSize(1);
         setMaxDamage(100); // 100次使用

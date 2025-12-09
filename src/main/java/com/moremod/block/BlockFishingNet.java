@@ -39,7 +39,7 @@ public class BlockFishingNet extends Block implements ITileEntityProvider {
     public BlockFishingNet() {
         super(Material.WOOD);
         setRegistryName("moremod", "fishing_net");
-        setUnlocalizedName("moremod.fishing_net");
+        setTranslationKey("moremod.fishing_net");
         setHarvestLevel("axe", 0);
         setHardness(0.5F);
         setResistance(3.0F);

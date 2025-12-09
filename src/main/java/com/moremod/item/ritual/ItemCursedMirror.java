@@ -1,6 +1,6 @@
 package com.moremod.item.ritual;
 
-import com.moremod.MoreMod;
+
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
@@ -30,9 +30,8 @@ import java.util.List;
 public class ItemCursedMirror extends Item {
 
     public ItemCursedMirror() {
-        setUnlocalizedName("moremod.cursed_mirror");
+        setTranslationKey("moremod.cursed_mirror");
         setRegistryName("cursed_mirror");
-        setCreativeTab(MoreMod.CREATIVE_TAB);
         setMaxStackSize(1);
         setMaxDamage(10); // 10次使用后损坏
     }

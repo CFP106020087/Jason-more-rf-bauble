@@ -223,7 +223,7 @@ public class TileEntityUpgradeChamberCore extends TileEntity implements ITickabl
         ));
 
         // 播放開始音效
-        world.playSound(null, pos, SoundEvents.BLOCK_BEACON_ACTIVATE, SoundCategory.BLOCKS, 1.0F, 1.0F);
+        world.playSound(null, pos, SoundEvents.BLOCK_PORTAL_TRIGGER, SoundCategory.BLOCKS, 1.0F, 1.0F);
     }
 
     private void processUpgrade() {
@@ -238,7 +238,7 @@ public class TileEntityUpgradeChamberCore extends TileEntity implements ITickabl
 
         // 播放進度音效
         if (upgradeProgress % 20 == 0) {
-            world.playSound(null, pos, SoundEvents.BLOCK_BEACON_AMBIENT, SoundCategory.BLOCKS, 0.5F, 1.0F + (upgradeProgress / 100.0F));
+            world.playSound(null, pos, SoundEvents.BLOCK_PORTAL_TRIGGER, SoundCategory.BLOCKS, 0.5F, 1.0F + (upgradeProgress / 100.0F));
         }
 
         // 檢查是否完成
