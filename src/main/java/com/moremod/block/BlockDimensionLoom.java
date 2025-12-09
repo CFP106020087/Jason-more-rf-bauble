@@ -40,7 +40,7 @@ public class BlockDimensionLoom extends Block implements ITileEntityProvider {
         if (!worldIn.isRemote) {
             TileEntity tileentity = worldIn.getTileEntity(pos);
             if (tileentity instanceof TileEntityDimensionLoom) {
-                playerIn.openGui(moremod.INSTANCE, GuiHandler.DIMENSION_LOOM_GUI, worldIn, pos.getX(), pos.getY(), pos.getZ());
+                playerIn.openGui(moremod.instance, GuiHandler.DIMENSION_LOOM_GUI, worldIn, pos.getX(), pos.getY(), pos.getZ());
             }
         }
         return true;

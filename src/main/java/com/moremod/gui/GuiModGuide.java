@@ -1,9 +1,13 @@
 package com.moremod.gui;
 
+import com.moremod.ritual.RitualInfusionAPI;
+import com.moremod.ritual.RitualInfusionRecipe;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.crafting.Ingredient;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraftforge.fml.relauncher.Side;
@@ -11,7 +15,9 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * MoreMod 綜合指南書 GUI (合併版)
@@ -32,7 +38,8 @@ public class GuiModGuide extends GuiScreen {
             "energy",        // 能源系統
             "module",        // 模組系統
             "synergy",       // 協同系統
-            "humanity"       // 人性系統
+            "humanity",      // 人性系統
+            "ritual"         // 仪式系统
     };
 
     private static final String[] CATEGORY_NAMES = {
@@ -41,7 +48,8 @@ public class GuiModGuide extends GuiScreen {
             "能源系統",
             "模組系統",
             "協同系統",
-            "人性系統"
+            "人性系統",
+            "儀式系統"
     };
 
     private final EntityPlayer player;
@@ -93,6 +101,9 @@ public class GuiModGuide extends GuiScreen {
                 break;
             case "humanity":
                 loadHumanityPages();
+                break;
+            case "ritual":
+                loadRitualPages();
                 break;
         }
 
@@ -862,6 +873,203 @@ public class GuiModGuide extends GuiScreen {
                         "- 注意崩解風險"
                 }
         ));
+    }
+
+    private void loadRitualPages() {
+        // 第1頁：儀式系統概述
+        currentPages.add(new GuidePageContent(
+                "儀式系統概述",
+                new String[]{
+                        "§e什麼是儀式系統？§r",
+                        "",
+                        "儀式系統允許你通過",
+                        "特殊的祭壇結構來",
+                        "製作強大的物品",
+                        "",
+                        "§6核心組件：§r",
+                        "- 儀式核心方塊",
+                        "- 基座方塊 (8個)",
+                        "- RF能量供應"
+                },
+                new String[]{
+                        "§a使用方法：§r",
+                        "",
+                        "1. 放置儀式核心",
+                        "2. 周圍放8個基座",
+                        "3. 在基座上放材料",
+                        "4. 在核心上放中心物品",
+                        "5. 對核心供電",
+                        "6. 右鍵核心開始儀式",
+                        "",
+                        "§c注意：§r 有失敗機率！"
+                }
+        ));
+
+        // 第2頁：祭壇結構圖
+        currentPages.add(new GuidePageContent(
+                "祭壇結構 (3x3)",
+                new String[]{
+                        "§e俯視圖 (Y+1層):§r",
+                        "",
+                        "  P . P",
+                        "  . C .",
+                        "  P . P",
+                        "",
+                        "§e俯視圖 (Y+0層):§r",
+                        "",
+                        "  P . P",
+                        "  . . .",
+                        "  P . P"
+                },
+                new String[]{
+                        "§6圖例：§r",
+                        "C = 儀式核心",
+                        "P = 基座 (Pedestal)",
+                        ". = 空氣",
+                        "",
+                        "§6總計材料：§r",
+                        "- 儀式核心 x1",
+                        "- 基座 x8",
+                        "",
+                        "§7基座圍繞核心",
+                        "呈對角線排列"
+                }
+        ));
+
+        // 動態加載儀式配方
+        List<RitualInfusionRecipe> recipes = RitualInfusionAPI.RITUAL_RECIPES;
+        if (recipes.isEmpty()) {
+            currentPages.add(new GuidePageContent(
+                    "可用儀式配方",
+                    new String[]{
+                            "§c暫無配方§r",
+                            "",
+                            "目前沒有註冊的",
+                            "儀式配方。",
+                            "",
+                            "§7配方可能在遊戲",
+                            "完全加載後出現"
+                    },
+                    new String[]{
+                            "§6提示：§r",
+                            "",
+                            "儀式配方可以通過",
+                            "JSON文件或",
+                            "CraftTweaker添加",
+                            "",
+                            "詳見模組配置"
+                    }
+            ));
+        } else {
+            // 每頁顯示一個配方
+            int recipeNum = 0;
+            for (RitualInfusionRecipe recipe : recipes) {
+                recipeNum++;
+                String[] leftContent = buildRecipeLeftContent(recipe, recipeNum);
+                String[] rightContent = buildRecipeRightContent(recipe);
+
+                String outputName = getItemDisplayName(recipe.getOutput());
+                currentPages.add(new GuidePageContent(
+                        "儀式 #" + recipeNum + ": " + outputName,
+                        leftContent,
+                        rightContent
+                ));
+            }
+        }
+    }
+
+    /**
+     * 構建配方左側內容（輸入材料）
+     */
+    private String[] buildRecipeLeftContent(RitualInfusionRecipe recipe, int num) {
+        List<String> lines = new ArrayList<>();
+
+        // 中心物品
+        lines.add("§e中心物品：§r");
+        ItemStack[] coreStacks = recipe.getCore().getMatchingStacks();
+        if (coreStacks.length > 0) {
+            lines.add("  " + getItemDisplayName(coreStacks[0]));
+        }
+        lines.add("");
+
+        // 基座物品
+        lines.add("§e基座物品：§r");
+        Map<String, Integer> pedestalCounts = new HashMap<>();
+        for (Ingredient ing : recipe.getPedestalItems()) {
+            ItemStack[] stacks = ing.getMatchingStacks();
+            if (stacks.length > 0) {
+                String name = getItemDisplayName(stacks[0]);
+                pedestalCounts.merge(name, 1, Integer::sum);
+            }
+        }
+
+        for (Map.Entry<String, Integer> entry : pedestalCounts.entrySet()) {
+            lines.add("  " + entry.getKey() + " x" + entry.getValue());
+        }
+
+        return lines.toArray(new String[0]);
+    }
+
+    /**
+     * 構建配方右側內容（輸出和統計）
+     */
+    private String[] buildRecipeRightContent(RitualInfusionRecipe recipe) {
+        List<String> lines = new ArrayList<>();
+
+        // 輸出
+        lines.add("§a產出：§r");
+        ItemStack output = recipe.getOutput();
+        String outputName = getItemDisplayName(output);
+        int count = output.getCount();
+        lines.add("  " + outputName + (count > 1 ? " x" + count : ""));
+        lines.add("");
+
+        // 統計資訊
+        lines.add("§6儀式資訊：§r");
+
+        int timeTicks = recipe.getTime();
+        float timeSeconds = timeTicks / 20.0f;
+        lines.add("  時間: " + String.format("%.1f", timeSeconds) + " 秒");
+
+        int energy = recipe.getEnergyPerPedestal();
+        int totalEnergy = energy * recipe.getPedestalCount();
+        lines.add("  能量: " + formatEnergy(totalEnergy) + " RF");
+
+        float failChance = recipe.getFailChance();
+        if (failChance > 0) {
+            lines.add("  §c失敗率: " + String.format("%.0f", failChance * 100) + "%§r");
+        } else {
+            lines.add("  §a失敗率: 0%§r");
+        }
+
+        int tier = recipe.getRequiredTier();
+        if (tier > 1) {
+            lines.add("  §d需要階層: " + tier + "§r");
+        }
+
+        return lines.toArray(new String[0]);
+    }
+
+    /**
+     * 獲取物品的顯示名稱
+     */
+    private String getItemDisplayName(ItemStack stack) {
+        if (stack.isEmpty()) {
+            return "§7(空)§r";
+        }
+        return stack.getDisplayName();
+    }
+
+    /**
+     * 格式化能量數值
+     */
+    private String formatEnergy(int energy) {
+        if (energy >= 1000000) {
+            return String.format("%.2fM", energy / 1000000.0);
+        } else if (energy >= 1000) {
+            return String.format("%.1fK", energy / 1000.0);
+        }
+        return String.valueOf(energy);
     }
 
     // ==================== 按鈕和繪製 ====================

@@ -68,7 +68,7 @@ public class ItemAccessoryBox extends Item {
                 case 3: guiId = 13; break;  // ACCESSORY_BOX_T3_GUI
                 default: guiId = 13; break; // 默认T3
             }
-            playerIn.openGui(moremod.INSTANCE, guiId, worldIn, 0, 0, 0);
+            playerIn.openGui(moremod.instance, guiId, worldIn, 0, 0, 0);
 
             // 播放音效
             worldIn.playSound(null, playerIn.posX, playerIn.posY, playerIn.posZ,

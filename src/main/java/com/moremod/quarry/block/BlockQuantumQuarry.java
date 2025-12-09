@@ -59,7 +59,7 @@ public class BlockQuantumQuarry extends Block implements ITileEntityProvider {
             }
 
             // 打开 GUI
-            playerIn.openGui(moremod.INSTANCE, QuarryRegistry.GUI_QUANTUM_QUARRY,
+            playerIn.openGui(moremod.instance, QuarryRegistry.GUI_QUANTUM_QUARRY,
                     worldIn, pos.getX(), pos.getY(), pos.getZ());
         }
 

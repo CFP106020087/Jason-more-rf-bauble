@@ -62,15 +62,16 @@ public class QuarryRegistry {
     
     /**
      * Init 阶段调用
+     * 注意：TileEntity 已在 moremod.java preInit 中注册，这里不再重复注册
      */
     public static void init(Object modInstance) {
-        // 注册 TileEntity
-        GameRegistry.registerTileEntity(TileQuantumQuarry.class, 
-            new ResourceLocation(MODID, "quantum_quarry"));
-        GameRegistry.registerTileEntity(TileQuarryActuator.class, 
-            new ResourceLocation(MODID, "quarry_actuator"));
-        
-        // 注册 GUI Handler
+        // TileEntity 注册已移至 moremod.java preInit，避免重复注册
+        // GameRegistry.registerTileEntity(TileQuantumQuarry.class,
+        //     new ResourceLocation(MODID, "quantum_quarry"));
+        // GameRegistry.registerTileEntity(TileQuarryActuator.class,
+        //     new ResourceLocation(MODID, "quarry_actuator"));
+
+        // GUI Handler 已整合到主 GuiHandler，不再单独注册
         // NetworkRegistry.INSTANCE.registerGuiHandler(modInstance, new QuarryGuiHandler());
     }
     
