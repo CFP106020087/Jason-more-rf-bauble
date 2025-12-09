@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "moremod:mega_chest", "y": 180 },
+    "facing=south": { "model": "moremod:mega_chest", "y": 0 },
+    "facing=west":  { "model": "moremod:mega_chest", "y": 90 },
+    "facing=east":  { "model": "moremod:mega_chest", "y": 270 }
+  }
+}

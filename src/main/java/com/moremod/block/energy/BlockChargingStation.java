@@ -67,6 +67,11 @@ public class BlockChargingStation extends Block implements ITileEntityProvider {
         return false;
     }
 
+    @Override
+    public boolean hasTileEntity(IBlockState state) {
+        return true;
+    }
+
     @Nullable
     @Override
     public TileEntity createNewTileEntity(World worldIn, int meta) {

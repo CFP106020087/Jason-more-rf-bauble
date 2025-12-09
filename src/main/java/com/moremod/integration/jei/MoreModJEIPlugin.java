@@ -118,10 +118,20 @@ public class MoreModJEIPlugin implements IModPlugin {
     public static class JEIRefreshHandler {
         @SubscribeEvent
         public void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
-            if (!hasRefreshed) {
-                hasRefreshed = true;
+            System.out.println("[MoreMod-JEI] Player logged in, checking for recipe refresh...");
+            System.out.println("[MoreMod-JEI] hasRefreshed=" + hasRefreshed + ", recipeRegistry=" + (recipeRegistry != null));
+
+            // 總是嘗試刷新（檢查是否有新配方）
+            if (recipeRegistry != null) {
+                int beforeCount = registeredSwordRecipes.size();
                 refreshAllRecipes();
+                int afterCount = registeredSwordRecipes.size();
+
+                if (afterCount > beforeCount) {
+                    System.out.println("[MoreMod-JEI] Added " + (afterCount - beforeCount) + " recipes during refresh");
+                }
             }
+            hasRefreshed = true;
         }
     }
 
@@ -150,28 +160,46 @@ public class MoreModJEIPlugin implements IModPlugin {
      * 刷新材質變化台配方
      */
     public static void refreshSwordUpgradeRecipes() {
-        if (recipeRegistry == null) return;
+        if (recipeRegistry == null) {
+            System.out.println("[MoreMod-JEI] Cannot refresh sword recipes - recipeRegistry is null");
+            return;
+        }
 
         List<SwordUpgradeRegistry.Recipe> currentRecipes = SwordUpgradeRegistry.viewAll();
+        System.out.println("[MoreMod-JEI] Found " + currentRecipes.size() + " sword upgrade recipes in registry");
         int addedCount = 0;
+        int skippedCount = 0;
+        int errorCount = 0;
 
         for (SwordUpgradeRegistry.Recipe recipe : currentRecipes) {
-            // 使用配方的唯一標識符避免重複
-            String recipeId = getRecipeId(recipe);
-            if (!registeredSwordRecipes.contains(recipeId)) {
-                try {
-                    recipeRegistry.addRecipe(new SwordUpgradeWrapper(recipe), SWORD_UPGRADE_UID);
-                    registeredSwordRecipes.add(recipeId);
-                    addedCount++;
-                } catch (Exception e) {
-                    System.err.println("[MoreMod-JEI] Failed to add sword upgrade recipe: " + e.getMessage());
+            try {
+                // 驗證配方有效性
+                if (recipe == null || recipe.targetSword == null) {
+                    System.err.println("[MoreMod-JEI] Skipping invalid recipe (null target)");
+                    errorCount++;
+                    continue;
                 }
+
+                // 使用配方的唯一標識符避免重複
+                String recipeId = getRecipeId(recipe);
+                if (registeredSwordRecipes.contains(recipeId)) {
+                    skippedCount++;
+                    continue;
+                }
+
+                SwordUpgradeWrapper wrapper = new SwordUpgradeWrapper(recipe);
+                recipeRegistry.addRecipe(wrapper, SWORD_UPGRADE_UID);
+                registeredSwordRecipes.add(recipeId);
+                addedCount++;
+            } catch (Exception e) {
+                System.err.println("[MoreMod-JEI] Failed to add sword upgrade recipe: " + e.getMessage());
+                e.printStackTrace();
+                errorCount++;
             }
         }
 
-        if (addedCount > 0) {
-            System.out.println("[MoreMod-JEI] Added " + addedCount + " new sword upgrade recipes to JEI");
-        }
+        System.out.println("[MoreMod-JEI] Sword recipes refresh complete: added=" + addedCount +
+                          ", skipped=" + skippedCount + ", errors=" + errorCount);
     }
 
     /**
@@ -207,12 +235,24 @@ public class MoreModJEIPlugin implements IModPlugin {
      */
     private static String getRecipeId(SwordUpgradeRegistry.Recipe recipe) {
         StringBuilder sb = new StringBuilder();
-        sb.append(recipe.inputRequirement.getItem().getRegistryName());
-        if (recipe.inputRequirement.hasTagCompound()) {
-            sb.append(recipe.inputRequirement.getTagCompound().getString("_upgrade_material"));
+        try {
+            if (recipe.inputRequirement != null && recipe.inputRequirement.getItem() != null) {
+                sb.append(recipe.inputRequirement.getItem().getRegistryName());
+            } else {
+                sb.append("null_input");
+            }
+            if (recipe.inputRequirement != null && recipe.inputRequirement.hasTagCompound()) {
+                sb.append("_").append(recipe.inputRequirement.getTagCompound().getString("_upgrade_material"));
+            }
+            sb.append("->");
+            if (recipe.targetSword != null) {
+                sb.append(recipe.targetSword.getRegistryName());
+            } else {
+                sb.append("null_output");
+            }
+        } catch (Exception e) {
+            sb.append("error_").append(System.identityHashCode(recipe));
         }
-        sb.append("->");
-        sb.append(recipe.targetSword.getRegistryName());
         return sb.toString();
     }
 

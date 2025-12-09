@@ -78,6 +78,10 @@ import com.moremod.upgrades.survival.SurvivalUpgradeManager;
 import com.moremod.block.BlockBottlingMachine;
 import com.moremod.tile.TileEntityBottlingMachine;
 
+// 超大容量箱子系统导入
+import com.moremod.block.BlockMegaChest;
+import com.moremod.tile.TileEntityMegaChest;
+
 import com.moremod.recipe.BottlingMachineRecipe;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.fluids.FluidRegistry;
@@ -172,6 +176,10 @@ public class moremod {
     public static Block BOTTLING_MACHINE_BLOCK;
     private static boolean enableAutoBottlingRecipes = true;  // 配置选项
     /* ========================================================== */
+
+    /* ===================== 超大容量箱子系统字段 ===================== */
+    public static Block MEGA_CHEST_BLOCK;
+    /* ============================================================= */
 
     /**
      * 构造阶段 - 加载可选的 Mixin 配置
@@ -295,6 +303,15 @@ public class moremod {
         GameRegistry.registerTileEntity(TileEntityBottlingMachine.class,
                 new ResourceLocation(MODID, "bottling_machine"));
         System.out.println("[moremod] ✅ 装瓶机 TileEntity 注册完成");
+
+        // ========== 超大容量箱子系统：创建实例和注册TileEntity ==========
+        System.out.println("[moremod] 📦 创建超大容量箱子实例...");
+        MEGA_CHEST_BLOCK = new BlockMegaChest();
+
+        // 注册超大容量箱子 TileEntity
+        GameRegistry.registerTileEntity(TileEntityMegaChest.class,
+                new ResourceLocation(MODID, "mega_chest"));
+        System.out.println("[moremod] ✅ 超大容量箱子 TileEntity 注册完成");
 
         // ========== 量子礦機系統：注册TileEntity ==========
         GameRegistry.registerTileEntity(TileQuantumQuarry.class,
@@ -531,6 +548,11 @@ public class moremod {
         System.out.println("[moremod] 🏭 注册装瓶机方块...");
         event.getRegistry().register(BOTTLING_MACHINE_BLOCK);
         System.out.println("[moremod] ✅ 装瓶机方块注册完成");
+
+        // 注册超大容量箱子方块
+        System.out.println("[moremod] 📦 注册超大容量箱子方块...");
+        event.getRegistry().register(MEGA_CHEST_BLOCK);
+        System.out.println("[moremod] ✅ 超大容量箱子方块注册完成");
     }
 
     /**
@@ -551,6 +573,13 @@ public class moremod {
                 new ItemBlock(BOTTLING_MACHINE_BLOCK).setRegistryName(BOTTLING_MACHINE_BLOCK.getRegistryName())
         );
         System.out.println("[moremod] ✅ 装瓶机方块物品注册完成");
+
+        // 注册超大容量箱子方块物品
+        System.out.println("[moremod] 📦 注册超大容量箱子方块物品...");
+        event.getRegistry().register(
+                new ItemBlock(MEGA_CHEST_BLOCK).setRegistryName(MEGA_CHEST_BLOCK.getRegistryName())
+        );
+        System.out.println("[moremod] ✅ 超大容量箱子方块物品注册完成");
     }
 
     /**
@@ -850,6 +879,12 @@ public class moremod {
                     Item.getItemFromBlock(BOTTLING_MACHINE_BLOCK), 0,
                     new ModelResourceLocation(BOTTLING_MACHINE_BLOCK.getRegistryName(), "inventory"));
             System.out.println("[moremod] 🏭 装瓶机物品模型已绑定");
+
+            // 绑定超大容量箱子模型
+            ModelLoader.setCustomModelResourceLocation(
+                    Item.getItemFromBlock(MEGA_CHEST_BLOCK), 0,
+                    new ModelResourceLocation(MEGA_CHEST_BLOCK.getRegistryName(), "inventory"));
+            System.out.println("[moremod] 📦 超大容量箱子物品模型已绑定");
         } catch (Throwable t) {
             System.err.println("[moremod] ⚠️ 模型绑定失败： " + t.getMessage());
         }

@@ -61,6 +61,10 @@ import com.moremod.quarry.gui.ContainerQuantumQuarry;
 import com.moremod.quarry.gui.GuiQuantumQuarry;
 import com.moremod.quarry.tile.TileQuantumQuarry;
 
+// 📦 超大容量箱子GUI導入
+import com.moremod.container.ContainerMegaChest;
+import com.moremod.tile.TileEntityMegaChest;
+
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumHand;
@@ -114,6 +118,9 @@ public class GuiHandler implements IGuiHandler {
 
     // ⛏️ 量子採石場
     public static final int QUANTUM_QUARRY_GUI = 100;
+
+    // 📦 超大容量箱子
+    public static final int MEGA_CHEST_GUI = 101;
 
     // ---------------- Server ----------------
     @Override
@@ -205,6 +212,10 @@ public class GuiHandler implements IGuiHandler {
                 }
                 case QUANTUM_QUARRY_GUI: { // ⛏️ ID=100
                     result = createQuantumQuarryContainer(player, world, x, y, z);
+                    break;
+                }
+                case MEGA_CHEST_GUI: { // 📦 ID=101
+                    result = createMegaChestContainer(player, world, x, y, z);
                     break;
                 }
                 default:
@@ -308,6 +319,10 @@ public class GuiHandler implements IGuiHandler {
                 }
                 case QUANTUM_QUARRY_GUI: { // ⛏️ ID=100
                     result = createQuantumQuarryGui(player, world, x, y, z);
+                    break;
+                }
+                case MEGA_CHEST_GUI: { // 📦 ID=101
+                    result = createMegaChestGui(player, world, x, y, z);
                     break;
                 }
                 default:
@@ -615,8 +630,10 @@ public class GuiHandler implements IGuiHandler {
                 guiId == PURIFICATION_ALTAR_GUI ||               // 🔮 提纯祭坛
                 guiId == TRANSFER_STATION_GUI ||                 // 🎨 转移台
                 guiId == SYNERGY_STATION_GUI ||                  // ⚡ Synergy 链结站
+                guiId == FAKE_PLAYER_ACTIVATOR_GUI ||            // 🤖 假玩家激活器
                 guiId == CHARGING_STATION_GUI ||                 // ⚡ 充能站
-                guiId == QUANTUM_QUARRY_GUI;                     // ⛏️ 量子採石場
+                guiId == QUANTUM_QUARRY_GUI ||                   // ⛏️ 量子採石場
+                guiId == MEGA_CHEST_GUI;                         // 📦 超大容量箱子
     }
 
     public static boolean isItemBasedGui(int guiId) {
@@ -701,6 +718,32 @@ public class GuiHandler implements IGuiHandler {
             return new GuiQuantumQuarry(player.inventory, (TileQuantumQuarry) te);
         }
         System.out.println("[GuiHandler] ❌ 未识别的量子採石場 TE(客户端): " + (te == null ? "null" : te.getClass().getName()));
+        return null;
+    }
+
+    // ====== 📦 ID=101：超大容量箱子 ======
+    private Object createMegaChestContainer(EntityPlayer player, World world, int x, int y, int z) {
+        BlockPos pos = new BlockPos(x, y, z);
+        TileEntity te = world.getTileEntity(pos);
+
+        if (te instanceof TileEntityMegaChest) {
+            System.out.println("[GuiHandler] 打开超大容量箱子 Container");
+            return new ContainerMegaChest(player.inventory, (TileEntityMegaChest) te);
+        }
+        System.out.println("[GuiHandler] ❌ 未识别的超大容量箱子 TE: " + (te == null ? "null" : te.getClass().getName()));
+        return null;
+    }
+
+    @SideOnly(Side.CLIENT)
+    private Object createMegaChestGui(EntityPlayer player, World world, int x, int y, int z) {
+        BlockPos pos = new BlockPos(x, y, z);
+        TileEntity te = world.getTileEntity(pos);
+
+        if (te instanceof TileEntityMegaChest) {
+            System.out.println("[GuiHandler] 打开超大容量箱子 GUI");
+            return new GuiMegaChest(player.inventory, (TileEntityMegaChest) te);
+        }
+        System.out.println("[GuiHandler] ❌ 未识别的超大容量箱子 TE(客户端): " + (te == null ? "null" : te.getClass().getName()));
         return null;
     }
 }
