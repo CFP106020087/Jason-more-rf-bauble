@@ -99,10 +99,19 @@ public class TileEntityOilGenerator extends TileEntity implements ITickable {
     private final FluidTank fluidTank = new FluidTank(FLUID_CAPACITY) {
         @Override
         public boolean canFillFluidType(FluidStack fluid) {
-            // 只接受原油和植物油
+            // 接受原油、植物油，以及其他模組的油類液體
             if (fluid == null || fluid.getFluid() == null) return false;
-            String fluidName = fluid.getFluid().getName();
-            return "crude_oil".equals(fluidName) || "plant_oil".equals(fluidName);
+            String fluidName = fluid.getFluid().getName().toLowerCase();
+            return fluidName.contains("oil") ||           // 通用油類
+                   fluidName.contains("crude") ||         // 原油
+                   fluidName.contains("fuel") ||          // 燃料
+                   fluidName.contains("petroleum") ||     // 石油
+                   fluidName.equals("creosote");          // 木餾油
+        }
+
+        @Override
+        public boolean canFill() {
+            return true; // 允許外部填充
         }
 
         @Override
@@ -236,15 +245,32 @@ public class TileEntityOilGenerator extends TileEntity implements ITickable {
 
     /**
      * 獲取燃料數據（液體）
+     * 支持本模組和其他模組的油類液體
      */
     @Nullable
     public static FuelData getFluidFuelData(Fluid fluid) {
         if (fluid == null) return null;
-        String name = fluid.getName();
-        if ("crude_oil".equals(name)) {
+        String name = fluid.getName().toLowerCase();
+
+        // 原油類（高效率）
+        if (name.equals("crude_oil") || name.contains("crude") || name.equals("oil") || name.contains("petroleum")) {
             return new FuelData(ItemOilBucket.BURN_TIME, ItemOilBucket.RF_PER_BUCKET / ItemOilBucket.BURN_TIME);
-        } else if ("plant_oil".equals(name)) {
+        }
+        // 植物油類（中等效率）
+        else if (name.equals("plant_oil") || name.contains("seed_oil") || name.contains("cooking")) {
             return new FuelData(ItemPlantOilBucket.BURN_TIME, ItemPlantOilBucket.RF_PER_BUCKET / ItemPlantOilBucket.BURN_TIME);
+        }
+        // 燃料類（高效率）
+        else if (name.contains("fuel") || name.contains("diesel") || name.contains("gasoline")) {
+            return new FuelData(ItemOilBucket.BURN_TIME * 2, (ItemOilBucket.RF_PER_BUCKET * 2) / (ItemOilBucket.BURN_TIME * 2));
+        }
+        // 木餾油（低效率）
+        else if (name.equals("creosote")) {
+            return new FuelData(ItemPlantOilBucket.BURN_TIME / 2, ItemPlantOilBucket.RF_PER_BUCKET / ItemPlantOilBucket.BURN_TIME / 2);
+        }
+        // 其他油類（通用效率）
+        else if (name.contains("oil")) {
+            return new FuelData(ItemOilBucket.BURN_TIME, ItemOilBucket.RF_PER_BUCKET / ItemOilBucket.BURN_TIME);
         }
         return null;
     }
