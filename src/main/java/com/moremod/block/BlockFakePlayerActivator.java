@@ -143,6 +143,11 @@ public class BlockFakePlayerActivator extends Block implements ITileEntityProvid
     }
 
     @Override
+    public boolean hasTileEntity(IBlockState state) {
+        return true;
+    }
+
+    @Override
     public int getLightValue(IBlockState state, IBlockAccess world, BlockPos pos) {
         return state.getValue(ACTIVE) ? 7 : 0;
     }
