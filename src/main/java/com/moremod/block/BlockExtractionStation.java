@@ -36,7 +36,7 @@ public class BlockExtractionStation extends Block implements ITileEntityProvider
                                    EntityPlayer player, EnumHand hand,
                                    EnumFacing facing, float hitX, float hitY, float hitZ) {
         if (!world.isRemote) {
-            player.openGui(moremod.INSTANCE, GUI_ID, world, pos.getX(), pos.getY(), pos.getZ());
+            player.openGui(moremod.instance, GUI_ID, world, pos.getX(), pos.getY(), pos.getZ());
         }
         return true;
     }

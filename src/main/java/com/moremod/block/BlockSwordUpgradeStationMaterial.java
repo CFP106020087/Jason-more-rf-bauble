@@ -44,7 +44,7 @@ public class BlockSwordUpgradeStationMaterial extends Block implements ITileEnti
                                     EntityPlayer playerIn, EnumHand hand, EnumFacing facing,
                                     float hitX, float hitY, float hitZ) {
         if (worldIn.isRemote) return true;
-        playerIn.openGui(moremod.INSTANCE, GuiHandler.SWORD_UPGRADE_STATION_MATERIAL_GUI,
+        playerIn.openGui(moremod.instance, GuiHandler.SWORD_UPGRADE_STATION_MATERIAL_GUI,
                 worldIn, pos.getX(), pos.getY(), pos.getZ());
         return true;
     }

@@ -48,7 +48,7 @@ public class BlockSynergyStation extends Block implements ITileEntityProvider {
             }
 
             // GUI ID 29 - 在 GuiHandler 中注册
-            playerIn.openGui(moremod.INSTANCE, GuiHandler.SYNERGY_STATION_GUI,
+            playerIn.openGui(moremod.instance, GuiHandler.SYNERGY_STATION_GUI,
                     worldIn, pos.getX(), pos.getY(), pos.getZ());
         }
         return true;

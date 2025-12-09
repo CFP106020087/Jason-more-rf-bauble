@@ -42,7 +42,7 @@ public class BlockPurificationAltar extends Block implements ITileEntityProvider
         if (!worldIn.isRemote) {
             TileEntity te = worldIn.getTileEntity(pos);
             if (te instanceof TileEntityPurificationAltar) {
-                playerIn.openGui(moremod.INSTANCE, GUI_ID, worldIn, 
+                playerIn.openGui(moremod.instance, GUI_ID, worldIn, 
                     pos.getX(), pos.getY(), pos.getZ());
             }
         }

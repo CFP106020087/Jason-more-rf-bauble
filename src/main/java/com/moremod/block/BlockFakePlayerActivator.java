@@ -102,7 +102,7 @@ public class BlockFakePlayerActivator extends Block implements ITileEntityProvid
         }
 
         // 打开 GUI
-        playerIn.openGui(moremod.INSTANCE, GuiHandler.FAKE_PLAYER_ACTIVATOR_GUI,
+        playerIn.openGui(moremod.instance, GuiHandler.FAKE_PLAYER_ACTIVATOR_GUI,
                 worldIn, pos.getX(), pos.getY(), pos.getZ());
         return true;
     }

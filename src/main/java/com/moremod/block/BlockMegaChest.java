@@ -70,7 +70,7 @@ public class BlockMegaChest extends Block implements ITileEntityProvider {
         if (!world.isRemote) {
             TileEntity te = world.getTileEntity(pos);
             if (te instanceof TileEntityMegaChest) {
-                player.openGui(moremod.INSTANCE, GuiHandler.MEGA_CHEST_GUI,
+                player.openGui(moremod.instance, GuiHandler.MEGA_CHEST_GUI,
                         world, pos.getX(), pos.getY(), pos.getZ());
             }
         }

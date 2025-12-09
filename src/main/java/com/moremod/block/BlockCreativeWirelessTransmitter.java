@@ -36,7 +36,7 @@ public class BlockCreativeWirelessTransmitter extends BlockNode {
 
     public BlockCreativeWirelessTransmitter() {
         super(BlockInfoBuilder
-                .forMod(moremod.INSTANCE, moremod.MODID, "creative_wireless_transmitter")
+                .forMod(moremod.instance, moremod.MODID, "creative_wireless_transmitter")
                 .tileEntity(TileCreativeWirelessTransmitter::new)
                 .create());
         setCreativeTab(moremodCreativeTab.moremod_TAB);
