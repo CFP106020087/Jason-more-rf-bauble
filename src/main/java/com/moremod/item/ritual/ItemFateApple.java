@@ -1,6 +1,4 @@
 package com.moremod.item.ritual;
-
-import com.moremod.MoreMod;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.EntityLivingBase;
@@ -35,7 +33,6 @@ public class ItemFateApple extends ItemFood {
         super(4, 0.5F, false);
         setTranslationKey("moremod.fate_apple");
         setRegistryName("fate_apple");
-        setCreativeTab(MoreMod.CREATIVE_TAB);
         setAlwaysEdible(); // 可以在饱食度满时食用
         setMaxStackSize(16);
     }

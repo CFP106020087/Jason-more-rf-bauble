@@ -26,6 +26,7 @@ public class moremodTransformer implements IClassTransformer {
     private static final boolean ENABLE_SHAMBHALA_DEATH     = true;
     private static final boolean ENABLE_TEMPORAL_DEATH      = true;  // 时序织印死亡回溯
     private static final boolean ENABLE_CURSE_DEATH         = true;  // 七咒之戒-虚无之眸死亡保护
+    public static final boolean ENABLE_RS_INFINITY_BOOSTER = true;
 
     public static Side side;
 
@@ -95,11 +96,296 @@ public class moremodTransformer implements IClassTransformer {
                 return transformEntityLivingBaseOnDeath(basicClass);
             }
 
+            // ============ RS Infinity Booster ============
+            if (ENABLE_RS_INFINITY_BOOSTER) {
+                if ("com.raoulvdberge.refinedstorage.apiimpl.network.node.NetworkNodeWirelessTransmitter".equals(transformedName)) {
+                    System.out.println("[moremodTransformer] Patching RS WirelessTransmitter...");
+                    return transformRSWirelessTransmitter(basicClass);
+                }
+
+                if ("com.raoulvdberge.refinedstorage.inventory.item.ItemHandlerUpgrade".equals(transformedName)) {
+                    System.out.println("[moremodTransformer] Patching RS ItemHandlerUpgrade...");
+                    return transformRSItemHandlerUpgrade(basicClass);
+                }
+
+                // 备选：补丁 ItemHandlerBase（父类）
+                if ("com.raoulvdberge.refinedstorage.inventory.item.ItemHandlerBase".equals(transformedName)) {
+                    System.out.println("[moremodTransformer] Patching RS ItemHandlerBase...");
+                    return transformRSItemHandlerBase(basicClass);
+                }
+
+                // ⭐ 修复：NetworkItemManager → NetworkItemHandler
+                if ("com.raoulvdberge.refinedstorage.apiimpl.network.item.NetworkItemHandler".equals(transformedName)) {
+                    System.out.println("[moremodTransformer] Patching RS NetworkItemHandler...");
+                    return transformRSNetworkItemHandler(basicClass);
+                }
+            }
+
         } catch (Throwable t) {
             System.err.println("[moremodTransformer] Fatal error transforming " + transformedName);
             t.printStackTrace();
         }
         return basicClass;
+    }
+
+    // ============================================================
+    // RS Infinity Booster 转换
+    // ============================================================
+
+    /**
+     * 转换 WirelessTransmitter
+     * - getRange(): 如果有 InfinityCard 返回 Integer.MAX_VALUE
+     * - getEnergyUsage(): 添加卡片能耗
+     */
+    private byte[] transformRSWirelessTransmitter(byte[] bytes) {
+        ClassNode cn = new ClassNode();
+        new ClassReader(bytes).accept(cn, ClassReader.EXPAND_FRAMES);
+        boolean modified = false;
+
+        for (MethodNode mn : cn.methods) {
+            // getRange
+            if ("getRange".equals(mn.name) && "()I".equals(mn.desc)) {
+                InsnList inject = new InsnList();
+                LabelNode continueLabel = new LabelNode();
+
+                // if (RSCardUtil.isInfinityCard(this.upgrades)) return Integer.MAX_VALUE;
+                inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                inject.add(new FieldInsnNode(Opcodes.GETFIELD,
+                        "com/raoulvdberge/refinedstorage/apiimpl/network/node/NetworkNodeWirelessTransmitter",
+                        "upgrades",
+                        "Lcom/raoulvdberge/refinedstorage/inventory/item/ItemHandlerUpgrade;"));
+                inject.add(new MethodInsnNode(Opcodes.INVOKESTATIC,
+                        "com/moremod/compat/rs/RSCardUtil",
+                        "isInfinityCard",
+                        "(Ljava/lang/Object;)Z",
+                        false));
+                inject.add(new JumpInsnNode(Opcodes.IFEQ, continueLabel));
+                inject.add(new LdcInsnNode(Integer.MAX_VALUE));
+                inject.add(new InsnNode(Opcodes.IRETURN));
+                inject.add(continueLabel);
+
+                mn.instructions.insert(inject);
+                modified = true;
+                System.out.println("[moremodTransformer]   + Patched getRange()");
+            }
+
+            // getEnergyUsage
+            if ("getEnergyUsage".equals(mn.name) && "()I".equals(mn.desc)) {
+                InsnList inject = new InsnList();
+                LabelNode checkInfinity = new LabelNode();
+                LabelNode checkDimension = new LabelNode();
+                LabelNode normalReturn = new LabelNode();
+
+                // if (RSCardUtil.isBothCards(upgrades)) return RSEnergyHelper.getBothCardsEnergy();
+                inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                inject.add(new FieldInsnNode(Opcodes.GETFIELD,
+                        "com/raoulvdberge/refinedstorage/apiimpl/network/node/NetworkNodeWirelessTransmitter",
+                        "upgrades",
+                        "Lcom/raoulvdberge/refinedstorage/inventory/item/ItemHandlerUpgrade;"));
+                inject.add(new MethodInsnNode(Opcodes.INVOKESTATIC,
+                        "com/moremod/compat/rs/RSCardUtil",
+                        "isBothCards",
+                        "(Ljava/lang/Object;)Z",
+                        false));
+                inject.add(new JumpInsnNode(Opcodes.IFEQ, checkInfinity));
+                inject.add(new MethodInsnNode(Opcodes.INVOKESTATIC,
+                        "com/moremod/compat/rs/RSEnergyHelper",
+                        "getBothCardsEnergy",
+                        "()I",
+                        false));
+                inject.add(new InsnNode(Opcodes.IRETURN));
+
+                // if (RSCardUtil.isInfinityCard(upgrades)) return RSEnergyHelper.getInfinityCardEnergy();
+                inject.add(checkInfinity);
+                inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                inject.add(new FieldInsnNode(Opcodes.GETFIELD,
+                        "com/raoulvdberge/refinedstorage/apiimpl/network/node/NetworkNodeWirelessTransmitter",
+                        "upgrades",
+                        "Lcom/raoulvdberge/refinedstorage/inventory/item/ItemHandlerUpgrade;"));
+                inject.add(new MethodInsnNode(Opcodes.INVOKESTATIC,
+                        "com/moremod/compat/rs/RSCardUtil",
+                        "isInfinityCard",
+                        "(Ljava/lang/Object;)Z",
+                        false));
+                inject.add(new JumpInsnNode(Opcodes.IFEQ, checkDimension));
+                inject.add(new MethodInsnNode(Opcodes.INVOKESTATIC,
+                        "com/moremod/compat/rs/RSEnergyHelper",
+                        "getInfinityCardEnergy",
+                        "()I",
+                        false));
+                inject.add(new InsnNode(Opcodes.IRETURN));
+
+                // if (RSCardUtil.isDimensionCard(upgrades)) return RSEnergyHelper.getDimensionCardEnergy();
+                inject.add(checkDimension);
+                inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                inject.add(new FieldInsnNode(Opcodes.GETFIELD,
+                        "com/raoulvdberge/refinedstorage/apiimpl/network/node/NetworkNodeWirelessTransmitter",
+                        "upgrades",
+                        "Lcom/raoulvdberge/refinedstorage/inventory/item/ItemHandlerUpgrade;"));
+                inject.add(new MethodInsnNode(Opcodes.INVOKESTATIC,
+                        "com/moremod/compat/rs/RSCardUtil",
+                        "isDimensionCard",
+                        "(Ljava/lang/Object;)Z",
+                        false));
+                inject.add(new JumpInsnNode(Opcodes.IFEQ, normalReturn));
+                inject.add(new MethodInsnNode(Opcodes.INVOKESTATIC,
+                        "com/moremod/compat/rs/RSEnergyHelper",
+                        "getDimensionCardEnergy",
+                        "()I",
+                        false));
+                inject.add(new InsnNode(Opcodes.IRETURN));
+
+                inject.add(normalReturn);
+
+                mn.instructions.insert(inject);
+                modified = true;
+                System.out.println("[moremodTransformer]   + Patched getEnergyUsage()");
+            }
+        }
+
+        if (!modified) return bytes;
+        ClassWriter cw = new SafeClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
+        cn.accept(cw);
+        return cw.toByteArray();
+    }
+
+    /**
+     * 转换 ItemHandlerUpgrade
+     * 注意：实际验证逻辑在父类 ItemHandlerBase.insertItem() 中
+     * 这里只是打印调试信息
+     */
+    private byte[] transformRSItemHandlerUpgrade(byte[] bytes) {
+        ClassNode cn = new ClassNode();
+        new ClassReader(bytes).accept(cn, ClassReader.EXPAND_FRAMES);
+
+        // 打印所有方法以便调试
+        System.out.println("[moremodTransformer]   Methods in ItemHandlerUpgrade:");
+        for (MethodNode mn : cn.methods) {
+            System.out.println("[moremodTransformer]     - " + mn.name + " " + mn.desc);
+        }
+
+        // 验证逻辑在父类 ItemHandlerBase，这里不需要修改
+        System.out.println("[moremodTransformer]   (Validation is in parent class ItemHandlerBase)");
+        return bytes;
+    }
+
+    /**
+     * 转换 ItemHandlerBase
+     * 允许我们的卡片放入升级槽
+     *
+     * 关键方法: insertItem(int slot, ItemStack stack, boolean simulate)
+     * 验证逻辑在这个方法里检查 validators 数组
+     */
+    private byte[] transformRSItemHandlerBase(byte[] bytes) {
+        ClassNode cn = new ClassNode();
+        new ClassReader(bytes).accept(cn, ClassReader.EXPAND_FRAMES);
+        boolean modified = false;
+
+        // 打印所有方法以便调试
+        System.out.println("[moremodTransformer]   Methods in ItemHandlerBase:");
+        for (MethodNode mn : cn.methods) {
+            System.out.println("[moremodTransformer]     - " + mn.name + " " + mn.desc);
+        }
+
+        for (MethodNode mn : cn.methods) {
+            // insertItem(int, ItemStack, boolean) -> ItemStack
+            if ("insertItem".equals(mn.name) &&
+                    "(ILnet/minecraft/item/ItemStack;Z)Lnet/minecraft/item/ItemStack;".equals(mn.desc)) {
+
+                InsnList inject = new InsnList();
+                LabelNode continueLabel = new LabelNode();
+
+                // if (RSCardUtil.isOurCard(stack)) return super.insertItem(slot, stack, simulate);
+                inject.add(new VarInsnNode(Opcodes.ALOAD, 2)); // stack 是第2个参数
+                inject.add(new MethodInsnNode(Opcodes.INVOKESTATIC,
+                        "com/moremod/compat/rs/RSCardUtil",
+                        "isOurCard",
+                        "(Lnet/minecraft/item/ItemStack;)Z",
+                        false));
+                inject.add(new JumpInsnNode(Opcodes.IFEQ, continueLabel));
+
+                // 调用父类 ItemStackHandler.insertItem(slot, stack, simulate)
+                inject.add(new VarInsnNode(Opcodes.ALOAD, 0));  // this
+                inject.add(new VarInsnNode(Opcodes.ILOAD, 1));  // slot
+                inject.add(new VarInsnNode(Opcodes.ALOAD, 2));  // stack
+                inject.add(new VarInsnNode(Opcodes.ILOAD, 3));  // simulate
+                inject.add(new MethodInsnNode(Opcodes.INVOKESPECIAL,
+                        "net/minecraftforge/items/ItemStackHandler",
+                        "insertItem",
+                        "(ILnet/minecraft/item/ItemStack;Z)Lnet/minecraft/item/ItemStack;",
+                        false));
+                inject.add(new InsnNode(Opcodes.ARETURN));
+
+                inject.add(continueLabel);
+
+                mn.instructions.insert(inject);
+                modified = true;
+                System.out.println("[moremodTransformer]   + Patched ItemHandlerBase.insertItem()");
+            }
+        }
+
+        if (!modified) {
+            System.out.println("[moremodTransformer]   WARNING: ItemHandlerBase.insertItem not found!");
+            return bytes;
+        }
+
+        ClassWriter cw = new SafeClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
+        cn.accept(cw);
+        return cw.toByteArray();
+    }
+
+    /**
+     * ⭐ 修复：转换 NetworkItemHandler (不是 NetworkItemManager!)
+     * 允许跨维度无线访问
+     *
+     * 原始 open 方法签名: open(EntityPlayer player, ItemStack stack, int slotId)
+     */
+    private byte[] transformRSNetworkItemHandler(byte[] bytes) {
+        ClassNode cn = new ClassNode();
+        new ClassReader(bytes).accept(cn, ClassReader.EXPAND_FRAMES);
+        boolean modified = false;
+
+        for (MethodNode mn : cn.methods) {
+            // open(EntityPlayer, ItemStack, int) - 注意有 3 个参数
+            if ("open".equals(mn.name) &&
+                    "(Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/item/ItemStack;I)V".equals(mn.desc)) {
+
+                System.out.println("[moremodTransformer]   Found open(EntityPlayer, ItemStack, int)");
+
+                InsnList inject = new InsnList();
+                LabelNode continueLabel = new LabelNode();
+
+                // if (RSNetworkItemHook.onOpen(this, player, stack, slotId)) return;
+                inject.add(new VarInsnNode(Opcodes.ALOAD, 0));  // this (NetworkItemHandler)
+                inject.add(new VarInsnNode(Opcodes.ALOAD, 1));  // player
+                inject.add(new VarInsnNode(Opcodes.ALOAD, 2));  // stack
+                inject.add(new VarInsnNode(Opcodes.ILOAD, 3));  // slotId (int)
+                inject.add(new MethodInsnNode(Opcodes.INVOKESTATIC,
+                        "com/moremod/compat/rs/RSNetworkItemHook",
+                        "onOpen",
+                        "(Ljava/lang/Object;Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/item/ItemStack;I)Z",
+                        false));
+                inject.add(new JumpInsnNode(Opcodes.IFEQ, continueLabel));
+                inject.add(new InsnNode(Opcodes.RETURN));
+                inject.add(continueLabel);
+
+                mn.instructions.insert(inject);
+                modified = true;
+                System.out.println("[moremodTransformer]   + Patched open()");
+            }
+        }
+
+        if (!modified) {
+            System.out.println("[moremodTransformer]   WARNING: open() method not found! Listing methods:");
+            for (MethodNode mn : cn.methods) {
+                System.out.println("[moremodTransformer]     - " + mn.name + " " + mn.desc);
+            }
+            return bytes;
+        }
+
+        ClassWriter cw = new SafeClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
+        cn.accept(cw);
+        return cw.toByteArray();
     }
 
     // ============================================================
@@ -325,7 +611,7 @@ public class moremodTransformer implements IClassTransformer {
                             System.out.println("[moremodTransformer]     - <init>: 14 -> " + capacity);
                         }
                     }}
-            }  // ✅ 只有一个 }
+            }
 
             // ⭐ 关键：修改所有方法中的硬编码 7
             else {
@@ -422,7 +708,7 @@ public class moremodTransformer implements IClassTransformer {
                         }
                         modified = true;
                     }
-            }}  // ✅ 只有一个 }
+                }}
 
             // 也处理 ICONST_0 到 ICONST_5 的情况（虽然 7 不会用这个）
             // 以及 ILOAD 后跟 getArrayLength 的模式
@@ -460,8 +746,6 @@ public class moremodTransformer implements IClassTransformer {
         return cw.toByteArray();
     }
 
-    // in com.moremod.core.moremodTransformer
-    // in com.moremod.core.moremodTransformer
     private void patchHasSlotDynamic(MethodNode mn) {
         // 生成纯内联的 hasSlot(int) 逻辑（无外部依赖）：
         // if (slotId < 0) return false;
@@ -566,9 +850,6 @@ public class moremodTransformer implements IClassTransformer {
 
         System.out.println("[moremodTransformer]   + replaced BaubleType.hasSlot(int) with inlined logic (TRINKET any, extras>=7 allowed)");
     }
-
-
-
 
     /**
      * ⭐ SetBonus 兼容版：把所有额外槽位都加到 TRINKET.validSlots
@@ -793,9 +1074,9 @@ public class moremodTransformer implements IClassTransformer {
                             break;
                         }
                     }
-                }  // ✅ 只有一个 }
+                }
             }
-        }  // ✅ for 循环结束
+        }
 
         if (!modified) {
             System.out.println("[moremodTransformer]   WARNING: Could not patch PotionFingers!");

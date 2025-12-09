@@ -59,7 +59,7 @@ public class BlockFakePlayerActivator extends Block implements ITileEntityProvid
 
     @Override
     public IBlockState getStateFromMeta(int meta) {
-        EnumFacing facing = EnumFacing.getFront(meta & 7);
+        EnumFacing facing = EnumFacing.byIndex(meta & 7);
         boolean active = (meta & 8) != 0;
         return getDefaultState().withProperty(FACING, facing).withProperty(ACTIVE, active);
     }

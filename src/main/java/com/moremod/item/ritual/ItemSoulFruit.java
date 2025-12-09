@@ -1,6 +1,6 @@
 package com.moremod.item.ritual;
 
-import com.moremod.MoreMod;
+
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
@@ -33,7 +33,6 @@ public class ItemSoulFruit extends ItemFood {
         super(2, 0.1F, false);
         setTranslationKey("moremod.soul_fruit");
         setRegistryName("soul_fruit");
-        setCreativeTab(MoreMod.CREATIVE_TAB);
         setAlwaysEdible();
         setMaxStackSize(8);
     }

@@ -1,8 +1,8 @@
 package com.moremod.block.energy;
 
-import com.moremod.Moremod;
 import com.moremod.client.gui.GuiHandler;
 import com.moremod.creativetab.moremodCreativeTab;
+import com.moremod.moremod;
 import com.moremod.tile.TileEntityChargingStation;
 import net.minecraft.block.Block;
 import net.minecraft.block.ITileEntityProvider;
@@ -46,7 +46,7 @@ public class BlockChargingStation extends Block implements ITileEntityProvider {
         if (!world.isRemote) {
             TileEntity te = world.getTileEntity(pos);
             if (te instanceof TileEntityChargingStation) {
-                player.openGui(Moremod.instance, GuiHandler.CHARGING_STATION_GUI, world, pos.getX(), pos.getY(), pos.getZ());
+                player.openGui(moremod.instance, GuiHandler.CHARGING_STATION_GUI, world, pos.getX(), pos.getY(), pos.getZ());
             }
         }
         return true;
