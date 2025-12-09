@@ -152,7 +152,10 @@ public class moremod {
     public static final String NAME = "More Mod";
     public static final String VERSION = "3.4.0";
 
-    @Instance(MODID)
+    @Mod.Instance(MODID)
+    public static moremod INSTANCE;
+
+    // 兼容性别名 - 指向同一个实例
     public static moremod instance;
 
     @SidedProxy(
@@ -160,9 +163,6 @@ public class moremod {
             serverSide = "com.moremod.proxy.CommonProxy"
     )
     public static CommonProxy proxy;
-
-    @Mod.Instance(MODID)
-    public static moremod INSTANCE;
 
     // GUI Handler
     private static final GuiHandler guiHandler = new GuiHandler();
@@ -222,6 +222,9 @@ public class moremod {
      */
     @EventHandler
     public void preInit(FMLPreInitializationEvent event) {
+        // 初始化兼容性别名
+        instance = INSTANCE;
+
         System.out.println("[moremod] ========== 开始预初始化 ==========");
 
         // 註冊液體（原油、植物油）
