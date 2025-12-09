@@ -11,10 +11,10 @@ import net.minecraft.world.World;
  *
  * 結構設計 (3x3x4 高):
  *
- * 第0層 (地基):
- *   I I I
- *   I C I    C = 抽油機核心, I = 鐵塊
- *   I I I
+ * 第0層 (地基) - 四角框架，中間開放供管道連接:
+ *   I . I
+ *   . C .    C = 抽油機核心, I = 鐵塊, . = 任意(管道空間)
+ *   I . I
  *
  * 第1層 (機體):
  *   I . I
@@ -51,7 +51,7 @@ public class MultiblockOilExtractor {
     }
 
     /**
-     * 第0層 - 地基（核心周圍是鐵塊）
+     * 第0層 - 地基（四角框架，中間開放供管道連接）
      */
     private static boolean checkBaseLayer(World world, BlockPos centerPos) {
         for (int x = -1; x <= 1; x++) {
@@ -64,12 +64,13 @@ public class MultiblockOilExtractor {
                     if (block != ModBlocks.OIL_EXTRACTOR_CORE) {
                         return false;
                     }
-                } else {
-                    // 周圍必須是鐵塊
+                } else if (Math.abs(x) == 1 && Math.abs(z) == 1) {
+                    // 四角必須是框架方塊
                     if (!isValidFrameBlock(block)) {
                         return false;
                     }
                 }
+                // 四邊（十字位置）可以是任意方塊，供管道連接
             }
         }
         return true;
@@ -135,9 +136,9 @@ public class MultiblockOilExtractor {
         guide.append("§b=== 抽油機建造指南 ===§r\n\n");
 
         guide.append("§e第0層（地基）:§r\n");
-        guide.append("  I I I\n");
-        guide.append("  I C I\n");
-        guide.append("  I I I\n\n");
+        guide.append("  I . I\n");
+        guide.append("  . C .  ← 管道連接處\n");
+        guide.append("  I . I\n\n");
 
         guide.append("§e第1-2層（機體）:§r\n");
         guide.append("  I . I\n");
@@ -153,12 +154,13 @@ public class MultiblockOilExtractor {
         guide.append("C = 抽油機核心\n");
         guide.append("I = 鐵塊/金塊/鑽石塊\n");
         guide.append("P = 活塞（管道）\n");
-        guide.append(". = 空氣\n\n");
+        guide.append(". = 空氣/管道\n\n");
 
         guide.append("§a使用方法:§r\n");
         guide.append("1. 在有石油的區塊建造\n");
-        guide.append("2. 對核心供電\n");
-        guide.append("3. 從核心提取石油桶\n");
+        guide.append("2. 用管道輸入能量\n");
+        guide.append("3. 用管道抽取液體\n");
+        guide.append("   或空手右鍵取桶\n");
 
         return guide.toString();
     }
