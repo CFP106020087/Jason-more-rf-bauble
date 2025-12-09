@@ -585,6 +585,11 @@ public class moremod {
         }
 
         System.out.println("[moremod] ========== 开始初始化 ==========");
+
+        // ========== 量子礦機系統：初始化 ==========
+        QuarryRegistry.init(INSTANCE);
+        System.out.println("[moremod] ⛏️ 量子礦機系統初始化完成");
+
         UnlockableSlotsInit.init(event);
         RuleChecker.initialize();
         GemSystemInit.init(event);
@@ -685,6 +690,11 @@ public class moremod {
     @EventHandler
     public void postInit(FMLPostInitializationEvent event) {
         System.out.println("[moremod] ========== 开始后初始化 ==========");
+
+        // ========== 量子礦機系統：後初始化 ==========
+        QuarryRegistry.postInit();
+        System.out.println("[moremod] ⛏️ 量子礦機模擬器初始化完成");
+
         JEIIntegrationManager.init(event);
 
         if (event.getSide().isClient()) {
