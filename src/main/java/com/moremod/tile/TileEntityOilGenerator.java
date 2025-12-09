@@ -1,5 +1,6 @@
 package com.moremod.tile;
 
+import com.moremod.init.ModFluids;
 import com.moremod.init.ModItems;
 import com.moremod.item.energy.ItemOilBucket;
 import com.moremod.item.energy.ItemPlantOilBucket;
@@ -15,6 +16,10 @@ import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.energy.CapabilityEnergy;
 import net.minecraftforge.energy.EnergyStorage;
 import net.minecraftforge.energy.IEnergyStorage;
+import net.minecraftforge.fluids.Fluid;
+import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.fluids.FluidTank;
+import net.minecraftforge.fluids.capability.CapabilityFluidHandler;
 import net.minecraftforge.items.CapabilityItemHandler;
 import net.minecraftforge.items.ItemStackHandler;
 
@@ -56,7 +61,7 @@ public class TileEntityOilGenerator extends TileEntity implements ITickable {
         }
     };
 
-    // 燃料槽
+    // 燃料槽（物品）
     private final ItemStackHandler inventory = new ItemStackHandler(1) {
         @Override
         protected void onContentsChanged(int slot) {
@@ -66,6 +71,28 @@ public class TileEntityOilGenerator extends TileEntity implements ITickable {
         @Override
         public boolean isItemValid(int slot, ItemStack stack) {
             return isValidFuel(stack);
+        }
+    };
+
+    // 液體燃料槽（支持管道輸入）
+    private static final int FLUID_CAPACITY = 16000; // 16桶
+    private final FluidTank fluidTank = new FluidTank(FLUID_CAPACITY) {
+        @Override
+        public boolean canFillFluidType(FluidStack fluid) {
+            // 只接受原油和植物油
+            if (fluid == null || fluid.getFluid() == null) return false;
+            String fluidName = fluid.getFluid().getName();
+            return "crude_oil".equals(fluidName) || "plant_oil".equals(fluidName);
+        }
+
+        @Override
+        public boolean canDrain() {
+            return false; // 不允許抽出
+        }
+
+        @Override
+        protected void onContentsChanged() {
+            markDirty();
         }
     };
 
@@ -101,6 +128,7 @@ public class TileEntityOilGenerator extends TileEntity implements ITickable {
 
         // 嘗試消耗新燃料
         if (burnTime <= 0 && energy.getEnergyStored() < energy.getMaxEnergyStored()) {
+            // 優先消耗物品燃料
             ItemStack fuel = inventory.getStackInSlot(0);
             if (!fuel.isEmpty() && isValidFuel(fuel)) {
                 FuelData fuelData = getFuelData(fuel);
@@ -111,6 +139,20 @@ public class TileEntityOilGenerator extends TileEntity implements ITickable {
                     fuel.shrink(1);
                     inventory.setStackInSlot(0, fuel);
                     markDirty();
+                }
+            }
+            // 如果沒有物品燃料，嘗試消耗液體燃料
+            else if (fluidTank.getFluidAmount() >= 1000) {
+                FluidStack fluidStack = fluidTank.getFluid();
+                if (fluidStack != null) {
+                    FuelData fuelData = getFluidFuelData(fluidStack.getFluid());
+                    if (fuelData != null) {
+                        fluidTank.drainInternal(1000, true); // 消耗1桶
+                        burnTime = fuelData.burnTime;
+                        maxBurnTime = fuelData.burnTime;
+                        currentRFPerTick = fuelData.rfPerTick;
+                        markDirty();
+                    }
                 }
             }
         }
@@ -159,13 +201,28 @@ public class TileEntityOilGenerator extends TileEntity implements ITickable {
     }
 
     /**
-     * 獲取燃料數據
+     * 獲取燃料數據（物品）
      */
     @Nullable
     public static FuelData getFuelData(ItemStack stack) {
         if (stack.getItem() == ModItems.CRUDE_OIL_BUCKET) {
             return new FuelData(ItemOilBucket.BURN_TIME, ItemOilBucket.RF_PER_BUCKET / ItemOilBucket.BURN_TIME);
         } else if (stack.getItem() == ModItems.PLANT_OIL_BUCKET) {
+            return new FuelData(ItemPlantOilBucket.BURN_TIME, ItemPlantOilBucket.RF_PER_BUCKET / ItemPlantOilBucket.BURN_TIME);
+        }
+        return null;
+    }
+
+    /**
+     * 獲取燃料數據（液體）
+     */
+    @Nullable
+    public static FuelData getFluidFuelData(Fluid fluid) {
+        if (fluid == null) return null;
+        String name = fluid.getName();
+        if ("crude_oil".equals(name)) {
+            return new FuelData(ItemOilBucket.BURN_TIME, ItemOilBucket.RF_PER_BUCKET / ItemOilBucket.BURN_TIME);
+        } else if ("plant_oil".equals(name)) {
             return new FuelData(ItemPlantOilBucket.BURN_TIME, ItemPlantOilBucket.RF_PER_BUCKET / ItemPlantOilBucket.BURN_TIME);
         }
         return null;
@@ -207,13 +264,34 @@ public class TileEntityOilGenerator extends TileEntity implements ITickable {
         return isBurning() ? currentRFPerTick : 0;
     }
 
+    // ===== Getters for fluid =====
+
+    public int getFluidAmount() {
+        return fluidTank.getFluidAmount();
+    }
+
+    public int getFluidCapacity() {
+        return FLUID_CAPACITY;
+    }
+
+    public FluidTank getFluidTank() {
+        return fluidTank;
+    }
+
     // ===== Capabilities =====
 
     @Override
     public boolean hasCapability(Capability<?> capability, @Nullable EnumFacing facing) {
-        return capability == CapabilityEnergy.ENERGY ||
-               capability == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY ||
-               super.hasCapability(capability, facing);
+        if (capability == CapabilityEnergy.ENERGY) {
+            return true;
+        }
+        if (capability == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY) {
+            return true;
+        }
+        if (capability == CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY) {
+            return true;
+        }
+        return super.hasCapability(capability, facing);
     }
 
     @SuppressWarnings("unchecked")
@@ -225,6 +303,9 @@ public class TileEntityOilGenerator extends TileEntity implements ITickable {
         }
         if (capability == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY) {
             return (T) inventory;
+        }
+        if (capability == CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY) {
+            return (T) fluidTank;
         }
         return super.getCapability(capability, facing);
     }
@@ -239,6 +320,8 @@ public class TileEntityOilGenerator extends TileEntity implements ITickable {
         compound.setInteger("BurnTime", burnTime);
         compound.setInteger("MaxBurnTime", maxBurnTime);
         compound.setInteger("RFPerTick", currentRFPerTick);
+        // 保存液體槽
+        fluidTank.writeToNBT(compound);
         return compound;
     }
 
@@ -253,6 +336,8 @@ public class TileEntityOilGenerator extends TileEntity implements ITickable {
         burnTime = compound.getInteger("BurnTime");
         maxBurnTime = compound.getInteger("MaxBurnTime");
         currentRFPerTick = compound.getInteger("RFPerTick");
+        // 讀取液體槽
+        fluidTank.readFromNBT(compound);
     }
 
     // ===== 網絡同步 =====

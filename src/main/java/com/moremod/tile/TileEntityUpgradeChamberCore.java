@@ -597,12 +597,12 @@ public class TileEntityUpgradeChamberCore extends TileEntity implements ITickabl
 
     @Nullable
     private EntityPlayer findPlayerInChamber() {
-        // 中間層的中心位置（玩家站立位置）
-        // 結構是3x3，中間有十字形空氣區域，需要覆蓋整個區域
+        // 玩家空間位置（第1-2層，共2格高）
+        // 結構是3x3x4，中間有十字形空氣區域，需要覆蓋整個2層高空間
         BlockPos chamberCenter = pos.up();
         AxisAlignedBB chamberBox = new AxisAlignedBB(
                 chamberCenter.getX() - 1, chamberCenter.getY(), chamberCenter.getZ() - 1,
-                chamberCenter.getX() + 2, chamberCenter.getY() + 2, chamberCenter.getZ() + 2
+                chamberCenter.getX() + 2, chamberCenter.getY() + 3, chamberCenter.getZ() + 2
         );
 
         List<EntityPlayer> players = world.getEntitiesWithinAABB(EntityPlayer.class, chamberBox);
