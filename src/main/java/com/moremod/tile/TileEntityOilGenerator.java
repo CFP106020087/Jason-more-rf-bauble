@@ -4,6 +4,7 @@ import com.moremod.init.ModFluids;
 import com.moremod.init.ModItems;
 import com.moremod.item.energy.ItemOilBucket;
 import com.moremod.item.energy.ItemPlantOilBucket;
+import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.network.NetworkManager;
@@ -20,6 +21,8 @@ import net.minecraftforge.fluids.Fluid;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidTank;
 import net.minecraftforge.fluids.capability.CapabilityFluidHandler;
+import net.minecraftforge.fluids.capability.IFluidHandler;
+import net.minecraftforge.fluids.capability.IFluidTankProperties;
 import net.minecraftforge.items.CapabilityItemHandler;
 import net.minecraftforge.items.ItemStackHandler;
 
@@ -32,12 +35,15 @@ import javax.annotation.Nullable;
  * - 燃燒石油或植物油
  * - 產生RF能量
  * - 自動輸出到相鄰機器
+ * - 支持增速插件（最多4個，每個+50%速度）
  */
 public class TileEntityOilGenerator extends TileEntity implements ITickable {
 
     // 配置
     private static final int ENERGY_CAPACITY = 1000000;    // 1M RF
-    private static final int RF_PER_TICK = 200;            // 每tick產生 200 RF
+    private static final int BASE_RF_PER_TICK = 200;       // 基礎每tick產生 200 RF
+    private static final int UPGRADE_SLOTS = 4;            // 增速插件槽數量
+    private static final float SPEED_PER_UPGRADE = 0.5f;   // 每個插件增加50%速度
 
     // 自訂能量存儲（對外只輸出，對內可添加）
     private final GeneratorEnergyStorage energy = new GeneratorEnergyStorage(ENERGY_CAPACITY, 10000);
@@ -81,18 +87,63 @@ public class TileEntityOilGenerator extends TileEntity implements ITickable {
         }
     }
 
-    // 燃料槽（物品）
-    private final ItemStackHandler inventory = new ItemStackHandler(1) {
+    // 物品槽：0=燃料槽, 1-4=增速插件槽
+    private final ItemStackHandler inventory = new ItemStackHandler(1 + UPGRADE_SLOTS) {
         @Override
         protected void onContentsChanged(int slot) {
             markDirty();
+            if (slot > 0) {
+                // 增速槽變更，重新計算速度倍率
+                cachedSpeedMultiplier = -1;
+            }
         }
 
         @Override
         public boolean isItemValid(int slot, ItemStack stack) {
-            return isValidFuel(stack);
+            if (slot == 0) {
+                return isValidFuel(stack);
+            } else {
+                // 增速插件槽：接受紅石、螢石粉、烈焰粉作為增速材料
+                return isValidUpgrade(stack);
+            }
+        }
+
+        @Override
+        public int getSlotLimit(int slot) {
+            if (slot == 0) return 64;
+            return 1; // 增速槽每格只能放1個
         }
     };
+
+    // 緩存的速度倍率
+    private float cachedSpeedMultiplier = -1;
+
+    /**
+     * 檢查物品是否是有效的增速材料
+     */
+    public static boolean isValidUpgrade(ItemStack stack) {
+        // 紅石=+50%, 螢石粉=+50%, 烈焰粉=+50%, 綠寶石=+50%
+        return stack.getItem() == Items.REDSTONE ||
+               stack.getItem() == Items.GLOWSTONE_DUST ||
+               stack.getItem() == Items.BLAZE_POWDER ||
+               stack.getItem() == Items.EMERALD;
+    }
+
+    /**
+     * 計算當前速度倍率
+     */
+    public float getSpeedMultiplier() {
+        if (cachedSpeedMultiplier < 0) {
+            int upgradeCount = 0;
+            for (int i = 1; i <= UPGRADE_SLOTS; i++) {
+                if (!inventory.getStackInSlot(i).isEmpty()) {
+                    upgradeCount++;
+                }
+            }
+            cachedSpeedMultiplier = 1.0f + (upgradeCount * SPEED_PER_UPGRADE);
+        }
+        return cachedSpeedMultiplier;
+    }
 
     // 液體燃料槽（支持管道輸入）
     private static final int FLUID_CAPACITY = 16000; // 16桶
@@ -187,15 +238,18 @@ public class TileEntityOilGenerator extends TileEntity implements ITickable {
         if (burnTime > 0) {
             burnTime--;
 
-            // 產生能量（使用內部添加方法）
+            // 產生能量（使用內部添加方法，考慮速度倍率）
             if (energy.getEnergyStored() < energy.getMaxEnergyStored()) {
-                int toAdd = Math.min(currentRFPerTick, energy.getMaxEnergyStored() - energy.getEnergyStored());
+                float speedMultiplier = getSpeedMultiplier();
+                int actualRFPerTick = (int)(currentRFPerTick * speedMultiplier);
+                int toAdd = Math.min(actualRFPerTick, energy.getMaxEnergyStored() - energy.getEnergyStored());
                 energy.addEnergyInternal(toAdd);
                 markDirty();
             }
 
-            // 粒子效果
-            if (tickCounter % 10 == 0) {
+            // 粒子效果（更多插件=更多粒子）
+            int particleInterval = Math.max(3, 10 - (int)(getSpeedMultiplier() * 2));
+            if (tickCounter % particleInterval == 0) {
                 spawnBurningParticles();
             }
         }
@@ -352,7 +406,22 @@ public class TileEntityOilGenerator extends TileEntity implements ITickable {
     }
 
     public int getRFPerTick() {
+        if (!isBurning()) return 0;
+        return (int)(currentRFPerTick * getSpeedMultiplier());
+    }
+
+    public int getBaseRFPerTick() {
         return isBurning() ? currentRFPerTick : 0;
+    }
+
+    public int getUpgradeCount() {
+        int count = 0;
+        for (int i = 1; i <= UPGRADE_SLOTS; i++) {
+            if (!inventory.getStackInSlot(i).isEmpty()) {
+                count++;
+            }
+        }
+        return count;
     }
 
     // ===== Getters for fluid =====
@@ -369,10 +438,37 @@ public class TileEntityOilGenerator extends TileEntity implements ITickable {
         return fluidTank;
     }
 
+    // ===== 液體處理器包裝（確保所有面都能輸入）=====
+
+    private final IFluidHandler fluidHandlerWrapper = new IFluidHandler() {
+        @Override
+        public IFluidTankProperties[] getTankProperties() {
+            return fluidTank.getTankProperties();
+        }
+
+        @Override
+        public int fill(FluidStack resource, boolean doFill) {
+            return fluidTank.fill(resource, doFill);
+        }
+
+        @Override
+        @Nullable
+        public FluidStack drain(FluidStack resource, boolean doDrain) {
+            return null; // 不允許抽出
+        }
+
+        @Override
+        @Nullable
+        public FluidStack drain(int maxDrain, boolean doDrain) {
+            return null; // 不允許抽出
+        }
+    };
+
     // ===== Capabilities =====
 
     @Override
     public boolean hasCapability(Capability<?> capability, @Nullable EnumFacing facing) {
+        // 所有面都支持所有 capability
         if (capability == CapabilityEnergy.ENERGY) {
             return true;
         }
@@ -380,7 +476,7 @@ public class TileEntityOilGenerator extends TileEntity implements ITickable {
             return true;
         }
         if (capability == CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY) {
-            return true;
+            return true; // 所有面都支持液體輸入
         }
         return super.hasCapability(capability, facing);
     }
@@ -396,7 +492,8 @@ public class TileEntityOilGenerator extends TileEntity implements ITickable {
             return (T) inventory;
         }
         if (capability == CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY) {
-            return (T) fluidTank;
+            // 使用包裝器確保所有面都能輸入
+            return (T) fluidHandlerWrapper;
         }
         return super.getCapability(capability, facing);
     }
