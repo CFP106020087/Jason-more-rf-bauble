@@ -47,11 +47,8 @@ public class ItemGlitchArmor extends ItemArmor {
 
     @Override
     public String getArmorTexture(ItemStack stack, Entity entity, EntityEquipmentSlot slot, String type) {
-        // 護腿使用 layer_2，其他使用 layer_1
-        if (slot == EntityEquipmentSlot.LEGS) {
-            return moremod.MODID + ":textures/models/armor/glitch_layer_2.png";
-        }
-        return moremod.MODID + ":textures/models/armor/glitch_layer_1.png";
+        // 所有部位統一使用同一張貼圖
+        return moremod.MODID + ":textures/models/armor/glitch_armor.png";
     }
 
     @Override
