@@ -308,7 +308,7 @@ public class KeyBindHandler {
     private static void handleOpenCoreGui(EntityPlayer player) {
         ItemStack coreStack = ItemMechanicalCore.findEquippedMechanicalCore(player);
         if (ItemMechanicalCore.isMechanicalCore(coreStack)) {
-            player.openGui("moremod", 0, player.world, 0, 0, 0);
+            player.openGui(com.moremod.moremod.INSTANCE, 0, player.world, 0, 0, 0);
         } else {
             player.sendStatusMessage(new TextComponentString(
                     TextFormatting.RED + "请先装备机械核心！"
