@@ -24,6 +24,7 @@ import com.moremod.block.BlockCompostBin;         // 堆肥桶
 import com.moremod.block.BlockAnimalFeeder;       // 动物喂食器
 import com.moremod.block.BlockBioGenerator;       // 生物质发电机
 import com.moremod.block.BlockFakePlayerActivator; // 假玩家激活器
+import com.moremod.block.BlockUpgradeChamberCore;  // 升級艙核心
 
 // 🗡️ 两个版本的剑升级台方块
 import com.moremod.block.BlockSwordUpgradeStation;
@@ -49,6 +50,7 @@ import com.moremod.tile.TileEntityCompostBin;         // 堆肥桶 TE
 import com.moremod.tile.TileEntityAnimalFeeder;       // 动物喂食器 TE
 import com.moremod.tile.TileEntityBioGenerator;       // 生物质发电机 TE
 import com.moremod.tile.TileEntityFakePlayerActivator; // 假玩家激活器 TE
+import com.moremod.tile.TileEntityUpgradeChamberCore;  // 升級艙核心 TE
 
 // 🗡️ 两个版本的剑升级台 TE
 import com.moremod.tile.TileEntitySwordUpgradeStation;
@@ -120,6 +122,9 @@ public class ModBlocks {
 
     // 假玩家激活器方块
     public static Block FAKE_PLAYER_ACTIVATOR;
+
+    // 升級艙核心方块
+    public static Block UPGRADE_CHAMBER_CORE;
 
     @SubscribeEvent
     public static void registerBlocks(RegistryEvent.Register<Block> event) {
@@ -224,6 +229,11 @@ public class ModBlocks {
         event.getRegistry().register(FAKE_PLAYER_ACTIVATOR);
         System.out.println("[MoreMod] 假玩家激活器方塊已註冊");
 
+        // 升級艙核心方块
+        UPGRADE_CHAMBER_CORE = new BlockUpgradeChamberCore();
+        event.getRegistry().register(UPGRADE_CHAMBER_CORE);
+        System.out.println("[MoreMod] 升級艙核心方塊已註冊");
+
         // ---- TileEntity 注册 ----
         GameRegistry.registerTileEntity(TileEntityDimensionLoom.class,
                 new ResourceLocation(moremod.MODID, "dimension_loom"));
@@ -290,6 +300,11 @@ public class ModBlocks {
         GameRegistry.registerTileEntity(TileEntityFakePlayerActivator.class,
                 new ResourceLocation(moremod.MODID, "fake_player_activator"));
         System.out.println("[MoreMod] 假玩家激活器 TileEntity 已註冊");
+
+        // 升級艙核心 TileEntity
+        GameRegistry.registerTileEntity(TileEntityUpgradeChamberCore.class,
+                new ResourceLocation(moremod.MODID, "upgrade_chamber_core"));
+        System.out.println("[MoreMod] 升級艙核心 TileEntity 已註冊");
     }
 
     @SubscribeEvent
@@ -408,6 +423,13 @@ public class ModBlocks {
                     .setRegistryName(FAKE_PLAYER_ACTIVATOR.getRegistryName()));
             System.out.println("[MoreMod] 假玩家激活器 ItemBlock 已註冊");
         }
+
+        // 升級艙核心 ItemBlock
+        if (UPGRADE_CHAMBER_CORE != null) {
+            event.getRegistry().register(new ItemBlock(UPGRADE_CHAMBER_CORE)
+                    .setRegistryName(UPGRADE_CHAMBER_CORE.getRegistryName()));
+            System.out.println("[MoreMod] 升級艙核心 ItemBlock 已註冊");
+        }
     }
 
     @SideOnly(Side.CLIENT)
@@ -500,6 +522,12 @@ public class ModBlocks {
         if (FAKE_PLAYER_ACTIVATOR != null) {
             registerBlockModel(FAKE_PLAYER_ACTIVATOR);
             System.out.println("[MoreMod] 假玩家激活器模型已註冊");
+        }
+
+        // 升級艙核心模型
+        if (UPGRADE_CHAMBER_CORE != null) {
+            registerBlockModel(UPGRADE_CHAMBER_CORE);
+            System.out.println("[MoreMod] 升級艙核心模型已註冊");
         }
     }
 
