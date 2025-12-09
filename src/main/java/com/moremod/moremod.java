@@ -35,6 +35,7 @@ import com.moremod.client.gui.GuiHandler;
 import com.moremod.fabric.handler.SpatialFabricFirstAidHandler;
 import com.moremod.fabric.sanity.CompleteSanitySystem;
 import com.moremod.init.GemSystemInit;
+import com.moremod.init.ModFluids;
 import com.moremod.init.RSNodeRegistryCompat;
 import com.moremod.init.SimpleReverseDeducer;
 import com.moremod.integration.ModIntegration;
@@ -135,6 +136,11 @@ import static com.dhanantry.scapeandrunparasites.SRPMain.network;
 @Mod.EventBusSubscriber(modid = moremod.MODID)
 public class moremod {
 
+    // 啟用 Universal Bucket 支持（必須在類載入時執行）
+    static {
+        FluidRegistry.enableUniversalBucket();
+    }
+
     public static final String MODID = "moremod";
     public static final String NAME = "More Mod";
     public static final String VERSION = "3.4.0";
@@ -206,6 +212,12 @@ public class moremod {
     @EventHandler
     public void preInit(FMLPreInitializationEvent event) {
         System.out.println("[moremod] ========== 开始预初始化 ==========");
+
+        // 註冊液體（原油、植物油）
+        System.out.println("[moremod] 🛢️ 註冊液體...");
+        ModFluids.registerFluids();
+        System.out.println("[moremod] ✅ 液體註冊完成");
+
         CompleteSanitySystem.registerRecipes();
         network.registerMessage(PacketCreateEnchantedBook.Handler.class,
                 PacketCreateEnchantedBook.class, 0, Side.SERVER);

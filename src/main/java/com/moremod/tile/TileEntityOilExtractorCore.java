@@ -1,5 +1,6 @@
 package com.moremod.tile;
 
+import com.moremod.init.ModFluids;
 import com.moremod.init.ModItems;
 import com.moremod.item.energy.ItemOilProspector;
 import com.moremod.multiblock.MultiblockOilExtractor;
@@ -15,6 +16,12 @@ import net.minecraft.util.math.ChunkPos;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.energy.CapabilityEnergy;
 import net.minecraftforge.energy.EnergyStorage;
+import net.minecraftforge.fluids.Fluid;
+import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.fluids.FluidTank;
+import net.minecraftforge.fluids.capability.CapabilityFluidHandler;
+import net.minecraftforge.fluids.capability.IFluidHandler;
+import net.minecraftforge.fluids.capability.IFluidTankProperties;
 
 import javax.annotation.Nullable;
 
@@ -47,8 +54,26 @@ public class TileEntityOilExtractorCore extends TileEntity implements ITickable 
         }
     };
 
-    // 石油儲存
-    private int storedOil = 0;           // 內部儲油量 (mB)
+    // 石油液體槽（支持管道抽取）
+    private final FluidTank fluidTank = new FluidTank(MAX_OIL_STORAGE) {
+        @Override
+        public boolean canFillFluidType(FluidStack fluid) {
+            return false; // 不接受外部輸入
+        }
+
+        @Override
+        public boolean canDrain() {
+            return true; // 允許抽取
+        }
+
+        @Override
+        protected void onContentsChanged() {
+            markDirty();
+        }
+    };
+
+    // 石油儲存（兼容舊版，實際使用 fluidTank）
+    private int storedOil = 0;           // 內部儲油量 (mB) - 僅用於遷移
     private int extractedTotal = 0;      // 已從礦脈提取的總量
     private boolean isRunning = false;
     private int tickCounter = 0;
@@ -64,7 +89,8 @@ public class TileEntityOilExtractorCore extends TileEntity implements ITickable 
             boolean structureValid = MultiblockOilExtractor.checkStructure(world, pos);
             boolean hasOil = hasOilInChunk();
             boolean hasEnergy = energy.getEnergyStored() >= ENERGY_PER_TICK;
-            boolean hasStorageSpace = storedOil < MAX_OIL_STORAGE;
+            int currentFluid = fluidTank.getFluidAmount();
+            boolean hasStorageSpace = currentFluid < MAX_OIL_STORAGE;
 
             isRunning = structureValid && hasOil && hasEnergy && hasStorageSpace && getRemainingOil() > 0;
         }
@@ -72,13 +98,18 @@ public class TileEntityOilExtractorCore extends TileEntity implements ITickable 
         if (isRunning) {
             // 消耗能量
             if (energy.extractEnergy(ENERGY_PER_TICK, false) >= ENERGY_PER_TICK) {
-                // 提取石油
-                int canExtract = Math.min(OIL_PER_TICK, MAX_OIL_STORAGE - storedOil);
+                // 提取石油到液體槽
+                int currentFluid = fluidTank.getFluidAmount();
+                int canExtract = Math.min(OIL_PER_TICK, MAX_OIL_STORAGE - currentFluid);
                 int remaining = getRemainingOil();
                 int actualExtract = Math.min(canExtract, remaining);
 
                 if (actualExtract > 0) {
-                    storedOil += actualExtract;
+                    // 填充液體槽
+                    Fluid crudeOil = ModFluids.getCrudeOil();
+                    if (crudeOil != null) {
+                        fluidTank.fillInternal(new FluidStack(crudeOil, actualExtract), true);
+                    }
                     extractedTotal += actualExtract;
                     markDirty();
 
@@ -116,19 +147,26 @@ public class TileEntityOilExtractorCore extends TileEntity implements ITickable 
      * 獲取可提取的桶數
      */
     public int getAvailableBuckets() {
-        return storedOil / MB_PER_BUCKET;
+        return fluidTank.getFluidAmount() / MB_PER_BUCKET;
     }
 
     /**
-     * 提取一桶石油
+     * 提取一桶石油（手動右鍵）
      */
     public ItemStack extractOilBucket() {
-        if (storedOil >= MB_PER_BUCKET) {
-            storedOil -= MB_PER_BUCKET;
+        if (fluidTank.getFluidAmount() >= MB_PER_BUCKET) {
+            fluidTank.drainInternal(MB_PER_BUCKET, true);
             markDirty();
             return new ItemStack(ModItems.CRUDE_OIL_BUCKET);
         }
         return ItemStack.EMPTY;
+    }
+
+    /**
+     * 獲取液體槽（供管道系統使用）
+     */
+    public FluidTank getFluidTank() {
+        return fluidTank;
     }
 
     private void spawnExtractionParticles() {
@@ -151,7 +189,7 @@ public class TileEntityOilExtractorCore extends TileEntity implements ITickable 
     }
 
     public int getStoredOil() {
-        return storedOil;
+        return fluidTank.getFluidAmount();
     }
 
     public int getMaxOilStorage() {
@@ -166,7 +204,13 @@ public class TileEntityOilExtractorCore extends TileEntity implements ITickable 
 
     @Override
     public boolean hasCapability(Capability<?> capability, @Nullable EnumFacing facing) {
-        return capability == CapabilityEnergy.ENERGY || super.hasCapability(capability, facing);
+        if (capability == CapabilityEnergy.ENERGY) {
+            return true;
+        }
+        if (capability == CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY) {
+            return true;
+        }
+        return super.hasCapability(capability, facing);
     }
 
     @SuppressWarnings("unchecked")
@@ -175,6 +219,9 @@ public class TileEntityOilExtractorCore extends TileEntity implements ITickable 
     public <T> T getCapability(Capability<T> capability, @Nullable EnumFacing facing) {
         if (capability == CapabilityEnergy.ENERGY) {
             return (T) energy;
+        }
+        if (capability == CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY) {
+            return (T) fluidTank;
         }
         return super.getCapability(capability, facing);
     }
@@ -185,9 +232,10 @@ public class TileEntityOilExtractorCore extends TileEntity implements ITickable 
     public NBTTagCompound writeToNBT(NBTTagCompound compound) {
         super.writeToNBT(compound);
         compound.setInteger("Energy", energy.getEnergyStored());
-        compound.setInteger("StoredOil", storedOil);
         compound.setInteger("ExtractedTotal", extractedTotal);
         compound.setBoolean("IsRunning", isRunning);
+        // 保存液體槽
+        fluidTank.writeToNBT(compound);
         return compound;
     }
 
@@ -196,9 +244,21 @@ public class TileEntityOilExtractorCore extends TileEntity implements ITickable 
         super.readFromNBT(compound);
         int fe = compound.getInteger("Energy");
         while (energy.getEnergyStored() < fe && energy.receiveEnergy(Integer.MAX_VALUE, false) > 0) {}
-        storedOil = compound.getInteger("StoredOil");
         extractedTotal = compound.getInteger("ExtractedTotal");
         isRunning = compound.getBoolean("IsRunning");
+        // 讀取液體槽
+        fluidTank.readFromNBT(compound);
+
+        // 兼容舊版：如果有 StoredOil，遷移到液體槽
+        if (compound.hasKey("StoredOil")) {
+            int oldOil = compound.getInteger("StoredOil");
+            if (oldOil > 0 && fluidTank.getFluidAmount() == 0) {
+                Fluid crudeOil = ModFluids.getCrudeOil();
+                if (crudeOil != null) {
+                    fluidTank.fillInternal(new FluidStack(crudeOil, oldOil), true);
+                }
+            }
+        }
     }
 
     // ===== 網絡同步 =====
