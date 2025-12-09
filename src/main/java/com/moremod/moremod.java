@@ -36,7 +36,6 @@ import com.moremod.fabric.handler.SpatialFabricFirstAidHandler;
 import com.moremod.fabric.sanity.CompleteSanitySystem;
 import com.moremod.init.GemSystemInit;
 import com.moremod.init.ModFluids;
-import com.moremod.init.RSNodeRegistryCompat;
 import com.moremod.init.SimpleReverseDeducer;
 import com.moremod.integration.ModIntegration;
 import com.moremod.integration.jei.JEIIntegrationManager;
@@ -236,7 +235,6 @@ public class moremod {
         network.registerMessage(PacketCreateEnchantedBook.Handler.class,
                 PacketCreateEnchantedBook.class, 0, Side.SERVER);
         ItemConfig.init(event);  // 第一行就初始化配置
-        RSNodeRegistryCompat.registerAll();
         UnlockableSlotsInit.preInit(event);
         AutoAttackCapabilityHandler.registerCapability();
         ChengYueCapabilityHandler.register();

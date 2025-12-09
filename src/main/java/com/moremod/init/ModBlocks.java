@@ -12,7 +12,6 @@ import com.moremod.block.BlockAncientCore;
 import com.moremod.block.BlockWisdomFountainCore;
 import com.moremod.block.ItemTransporter;
 import com.moremod.block.BlockTradingStation;
-import com.moremod.block.BlockCreativeWirelessTransmitter;
 import com.moremod.block.BlockSimpleWisdomShrine;
 import com.moremod.block.BlockExtractionStation;  // ⭐ 添加提取台导入
 import com.moremod.block.BlockPurificationAltar;  // 🔮 添加提纯祭坛导入
@@ -47,7 +46,6 @@ import com.moremod.tile.TileEntityTimeController;
 import com.moremod.tile.TileEntityWisdomFountain;
 import com.moremod.tile.TileEntityItemTransporter;
 import com.moremod.tile.TileTradingStation;
-import com.moremod.tile.TileCreativeWirelessTransmitter;
 import com.moremod.tile.TileEntitySimpleWisdomShrine;
 import com.moremod.tile.TileEntityExtractionStation;  // ⭐ 添加提取台 TE 导入
 import com.moremod.tile.TileEntityPurificationAltar;  // 🔮 添加提纯祭坛 TE 导入
@@ -103,7 +101,6 @@ public class ModBlocks {
     public static Block WISDOM_FOUNTAIN_CORE;
     public static Block ITEM_TRANSPORTER;
     public static Block TRADING_STATION;
-    public static Block CREATIVE_WIRELESS_TRANSMITTER;
     public static Block SIMPLE_WISDOM_SHRINE;
 
     // ⭐ 提取台方块
@@ -191,8 +188,6 @@ public class ModBlocks {
         TRADING_STATION = new BlockTradingStation();
         event.getRegistry().register(TRADING_STATION);
 
-        CREATIVE_WIRELESS_TRANSMITTER = new BlockCreativeWirelessTransmitter();
-        event.getRegistry().register(CREATIVE_WIRELESS_TRANSMITTER);
 
         SIMPLE_WISDOM_SHRINE = new BlockSimpleWisdomShrine();
         event.getRegistry().register(SIMPLE_WISDOM_SHRINE);
@@ -294,8 +289,6 @@ public class ModBlocks {
                 new ResourceLocation(moremod.MODID, "item_transporter"));
         GameRegistry.registerTileEntity(TileTradingStation.class,
                 new ResourceLocation(moremod.MODID, "trading_station"));
-        GameRegistry.registerTileEntity(TileCreativeWirelessTransmitter.class,
-                new ResourceLocation(moremod.MODID, "creative_wireless_transmitter"));
         GameRegistry.registerTileEntity(TileEntitySimpleWisdomShrine.class,
                 new ResourceLocation(moremod.MODID, "simple_wisdom_shrine"));
 
@@ -408,9 +401,6 @@ public class ModBlocks {
         }
         if (TRADING_STATION != null) {
             event.getRegistry().register(new ItemBlock(TRADING_STATION).setRegistryName(TRADING_STATION.getRegistryName()));
-        }
-        if (CREATIVE_WIRELESS_TRANSMITTER != null) {
-            event.getRegistry().register(new ItemBlock(CREATIVE_WIRELESS_TRANSMITTER).setRegistryName(CREATIVE_WIRELESS_TRANSMITTER.getRegistryName()));
         }
         if (SIMPLE_WISDOM_SHRINE != null) {
             event.getRegistry().register(new ItemBlock(SIMPLE_WISDOM_SHRINE).setRegistryName(SIMPLE_WISDOM_SHRINE.getRegistryName()));
@@ -547,7 +537,6 @@ public class ModBlocks {
         if (WISDOM_FOUNTAIN_CORE != null) registerBlockModel(WISDOM_FOUNTAIN_CORE);
         if (ITEM_TRANSPORTER != null) registerBlockModel(ITEM_TRANSPORTER);
         if (TRADING_STATION != null) registerBlockModel(TRADING_STATION);
-        if (CREATIVE_WIRELESS_TRANSMITTER != null) registerBlockModel(CREATIVE_WIRELESS_TRANSMITTER);
         if (SIMPLE_WISDOM_SHRINE != null) registerBlockModel(SIMPLE_WISDOM_SHRINE);
 
         // ⭐ 提取台模型
