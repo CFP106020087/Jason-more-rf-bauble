@@ -630,6 +630,7 @@ public class GuiHandler implements IGuiHandler {
                 guiId == PURIFICATION_ALTAR_GUI ||               // 🔮 提纯祭坛
                 guiId == TRANSFER_STATION_GUI ||                 // 🎨 转移台
                 guiId == SYNERGY_STATION_GUI ||                  // ⚡ Synergy 链结站
+                guiId == FAKE_PLAYER_ACTIVATOR_GUI ||            // 🤖 假玩家激活器
                 guiId == CHARGING_STATION_GUI ||                 // ⚡ 充能站
                 guiId == QUANTUM_QUARRY_GUI ||                   // ⛏️ 量子採石場
                 guiId == MEGA_CHEST_GUI;                         // 📦 超大容量箱子

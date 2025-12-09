@@ -158,7 +158,7 @@ public class GuiFakePlayerActivator extends GuiContainer {
     @Override
     protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
         // 标题
-        fontRenderer.drawString("假玩家激活器", 8, -10, 0x404040);
+        fontRenderer.drawString("假玩家激活器", 8, 6, 0x404040);
 
         // 状态指示
         String status = tile.isActive() ? "运行中" : "待机";
