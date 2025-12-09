@@ -32,8 +32,8 @@ public class SwordUpgradeWrapper implements IRecipeWrapper {
 
         // 解析配方數據
         NBTTagCompound reqTag = recipe.inputRequirement.hasTagCompound()
-            ? recipe.inputRequirement.getTagCompound()
-            : new NBTTagCompound();
+                ? recipe.inputRequirement.getTagCompound()
+                : new NBTTagCompound();
 
         // 檢查是否為通用配方（任意劍）
         this.isAnySword = reqTag.getBoolean("_any_sword");

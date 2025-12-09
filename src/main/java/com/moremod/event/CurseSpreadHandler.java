@@ -141,7 +141,7 @@ public class CurseSpreadHandler {
         // 30%概率清空掉落物
         if (RANDOM.nextDouble() < DROP_CANCEL_CHANCE) {
             event.getDrops().clear();
-            
+
             // Debug信息（可选）
             // 如果有玩家在附近，可以发送消息
             // EntityPlayer nearbyPlayer = entity.world.getClosestPlayerToEntity(entity, 32.0);

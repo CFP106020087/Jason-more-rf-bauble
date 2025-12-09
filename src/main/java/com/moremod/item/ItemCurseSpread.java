@@ -41,7 +41,7 @@ public class ItemCurseSpread extends Item implements IBauble {
     // 护甲削弱使用的 AttributeModifier UUID
     private static final UUID CURSE_ARMOR_DEBUFF_ID = UUID.fromString("b3b7cda0-2ed3-4ad3-8d20-2b10b914f9e1");
     private static final String CURSE_ARMOR_DEBUFF_NAME = "CurseSpreadArmorDebuff";
-    
+
     // 玩家生命值削弱使用的 AttributeModifier UUID
     private static final UUID CURSE_HEALTH_DEBUFF_ID = UUID.fromString("c4c8deb1-3fe4-5be4-9e31-3c21c925e0f2");
     private static final String CURSE_HEALTH_DEBUFF_NAME = "CurseSpreadHealthDebuff";
@@ -563,7 +563,7 @@ public class ItemCurseSpread extends Item implements IBauble {
         list.add(TextFormatting.RED + "敌人攻击力：" + String.format("%.0f%%", damageOut * 100));
         list.add(TextFormatting.YELLOW + "敌人护甲削弱：" + String.format("%.0f%%", armorReduction * 100));
         list.add(TextFormatting.DARK_RED + "敌人受到伤害：" + String.format("%.0f%%", damageIn * 100));
-        
+
         // 显示负面效果
         list.add("");
         list.add(TextFormatting.DARK_GRAY + "━━━━ " + TextFormatting.DARK_RED + "代价" + TextFormatting.DARK_GRAY + " ━━━━");
