@@ -321,6 +321,10 @@ public class moremod {
         // 註冊飾品盒事件處理器
         System.out.println("[moremod] 📦 飾品盒事件處理器注册成功");
 
+        // ========== 量子礦機系統：初始化網絡包 ==========
+        QuarryRegistry.preInit();
+        System.out.println("[moremod] ⛏️ 量子礦機網絡包初始化完成");
+
         proxy.preInit(event);
 
         System.out.println("[moremod] ========== 预初始化完成 ==========\n");
