@@ -66,7 +66,15 @@ public class ItemCurseSpread extends Item implements IBauble {
             return false;
 
         EntityPlayer p = (EntityPlayer) player;
-        return hasCursedRing(p);
+        boolean hasRing = hasCursedRing(p);
+
+        // 調試：輸出是否找到七咒之戒
+        if (!player.world.isRemote) {
+            System.out.println(String.format("[CurseSpread] canEquip 檢查 - 玩家: %s, 有七咒之戒: %s",
+                    p.getName(), hasRing));
+        }
+
+        return hasRing;
     }
 
     @Override
@@ -89,6 +97,16 @@ public class ItemCurseSpread extends Item implements IBauble {
 
     @Override
     public void onWornTick(ItemStack stack, EntityLivingBase livingPlayer) {
+        // 調試：每5秒輸出一次 onWornTick 被調用（在服務端）
+        if (!livingPlayer.world.isRemote && livingPlayer instanceof EntityPlayer) {
+            EntityPlayer p = (EntityPlayer) livingPlayer;
+            if (p.ticksExisted % 100 == 0) {
+                int curseAmt = getCurseAmount(p);
+                System.out.println(String.format("[CurseSpread] onWornTick 被調用 - 玩家: %s, 詛咒數: %d, 創造模式: %s",
+                        p.getName(), curseAmt, p.isCreative()));
+            }
+        }
+
         if (livingPlayer.world.isRemote || !(livingPlayer instanceof EntityPlayer))
             return;
 
@@ -102,6 +120,13 @@ public class ItemCurseSpread extends Item implements IBauble {
             return;
 
         int curseAmount = getCurseAmount(player);
+
+        // 調試：輸出詛咒數量（每2秒一次）
+        if (player.ticksExisted % 40 == 0) {
+            player.sendMessage(new net.minecraft.util.text.TextComponentString(
+                    String.format("§8[蔓延詛咒調試] 詛咒數量: %d (需要>=7)", curseAmount)
+            ));
+        }
 
         // 至少需要7个诅咒（来自七咒之戒）
         if (curseAmount < 7)
@@ -293,6 +318,21 @@ public class ItemCurseSpread extends Item implements IBauble {
 
         long currentTime = player.world.getTotalWorldTime();
 
+        // 調試：每5秒輸出一次範圍內實體數量
+        if (player.ticksExisted % 100 == 0 && !entities.isEmpty()) {
+            int count = 0;
+            for (EntityLivingBase e : entities) {
+                if (!(e instanceof EntityPlayer) && !e.isOnSameTeam(player)) {
+                    count++;
+                }
+            }
+            if (count > 0) {
+                player.sendMessage(new net.minecraft.util.text.TextComponentString(
+                        String.format("§5[蔓延詛咒] 範圍 %.1f 格內有 %d 個敵人被詛咒 (等級 %d)", range, count, curseAmount)
+                ));
+            }
+        }
+
         for (EntityLivingBase entity : entities) {
             // 排除玩家
             if (entity instanceof EntityPlayer)
@@ -314,6 +354,11 @@ public class ItemCurseSpread extends Item implements IBauble {
             if (!entity.world.isRemote) {
                 if (oldLevel != curseAmount) {
                     applyArmorReduction(entity, curseAmount);
+
+                    // 調試輸出
+                    double armorReduction = getArmorReductionPercent(curseAmount);
+                    System.out.println(String.format("[CurseSpread] 對 %s 應用護甲削弱: %.0f%%",
+                            entity.getName(), armorReduction * 100));
                 }
             }
         }
@@ -377,14 +422,35 @@ public class ItemCurseSpread extends Item implements IBauble {
      * 检查玩家是否佩戴七咒之戒
      */
     private static boolean hasCursedRing(EntityPlayer player) {
+        // 調試：每10秒輸出一次飾品槽內容
+        boolean shouldDebug = !player.world.isRemote && player.ticksExisted % 200 == 0;
+
+        if (shouldDebug) {
+            System.out.println("[CurseSpread] 檢查玩家 " + player.getName() + " 的飾品槽:");
+        }
+
         // 遍历所有饰品槽
         for (int i = 0; i < BaublesApi.getBaublesHandler(player).getSlots(); i++) {
             ItemStack bauble = BaublesApi.getBaubles(player).getStackInSlot(i);
+
+            if (shouldDebug && !bauble.isEmpty()) {
+                String regName = bauble.getItem().getRegistryName() != null ?
+                        bauble.getItem().getRegistryName().toString() : "null";
+                System.out.println(String.format("  槽位 %d: %s", i, regName));
+            }
+
             if (!bauble.isEmpty() &&
                     bauble.getItem().getRegistryName() != null &&
                     "cursed_ring".equals(bauble.getItem().getRegistryName().getPath())) {
+                if (shouldDebug) {
+                    System.out.println("  → 找到七咒之戒！");
+                }
                 return true;
             }
+        }
+
+        if (shouldDebug) {
+            System.out.println("  → 未找到七咒之戒 (需要 enigmaticlegacy:cursed_ring)");
         }
         return false;
     }

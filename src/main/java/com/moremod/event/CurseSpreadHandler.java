@@ -45,8 +45,8 @@ public class CurseSpreadHandler {
         float modifiedDamage = originalDamage;
         boolean damageModified = false;
 
-        // Debug用
-        boolean debug = false; // 设置为true开启调试信息
+        // Debug用 - 暫時開啟調試
+        boolean debug = true; // 設置為true開啟調試信息
 
         // 1. 如果攻击者被诅咒蔓延影响，减少其造成的伤害
         if (attacker != null && !(attacker instanceof EntityPlayer)) {
@@ -70,6 +70,15 @@ public class CurseSpreadHandler {
         // ✅ 修复：直接获取詛咒等級，避免重複調用 isCursedBySpread 導致的競態條件
         if (!(victim instanceof EntityPlayer)) {
             int victimCurseLevel = ItemCurseSpread.getCurseSpreadLevel(victim);
+
+            // 調試：輸出當前詛咒等級
+            if (debug && attacker instanceof EntityPlayer) {
+                EntityPlayer player = (EntityPlayer) attacker;
+                player.sendMessage(new TextComponentString(
+                        String.format("§7[Debug] 目標 %s 詛咒等級: %d", victim.getName(), victimCurseLevel)
+                ));
+            }
+
             if (victimCurseLevel >= 7) {
                 double damageMultiplier = ItemCurseSpread.getDamageAmplificationMultiplier(victimCurseLevel);
 
@@ -93,7 +102,7 @@ public class CurseSpreadHandler {
                 if (debug && attacker instanceof EntityPlayer) {
                     EntityPlayer player = (EntityPlayer) attacker;
                     player.sendMessage(new TextComponentString(
-                            String.format("§c目标被诅咒影响: %d级诅咒, 伤害 %.1f -> %.1f (×%.1f)",
+                            String.format("§c[易傷] 目標被詛咒影響: %d級詛咒, 傷害 %.1f -> %.1f (×%.1f)",
                                     victimCurseLevel, originalDamage, modifiedDamage, damageMultiplier)
                     ));
                 }
