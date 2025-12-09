@@ -66,7 +66,15 @@ public class ItemCurseSpread extends Item implements IBauble {
             return false;
 
         EntityPlayer p = (EntityPlayer) player;
-        return hasCursedRing(p);
+        boolean hasRing = hasCursedRing(p);
+
+        // 調試：輸出是否找到七咒之戒
+        if (!player.world.isRemote) {
+            System.out.println(String.format("[CurseSpread] canEquip 檢查 - 玩家: %s, 有七咒之戒: %s",
+                    p.getName(), hasRing));
+        }
+
+        return hasRing;
     }
 
     @Override
@@ -414,14 +422,35 @@ public class ItemCurseSpread extends Item implements IBauble {
      * 检查玩家是否佩戴七咒之戒
      */
     private static boolean hasCursedRing(EntityPlayer player) {
+        // 調試：每10秒輸出一次飾品槽內容
+        boolean shouldDebug = !player.world.isRemote && player.ticksExisted % 200 == 0;
+
+        if (shouldDebug) {
+            System.out.println("[CurseSpread] 檢查玩家 " + player.getName() + " 的飾品槽:");
+        }
+
         // 遍历所有饰品槽
         for (int i = 0; i < BaublesApi.getBaublesHandler(player).getSlots(); i++) {
             ItemStack bauble = BaublesApi.getBaubles(player).getStackInSlot(i);
+
+            if (shouldDebug && !bauble.isEmpty()) {
+                String regName = bauble.getItem().getRegistryName() != null ?
+                        bauble.getItem().getRegistryName().toString() : "null";
+                System.out.println(String.format("  槽位 %d: %s", i, regName));
+            }
+
             if (!bauble.isEmpty() &&
                     bauble.getItem().getRegistryName() != null &&
                     "cursed_ring".equals(bauble.getItem().getRegistryName().getPath())) {
+                if (shouldDebug) {
+                    System.out.println("  → 找到七咒之戒！");
+                }
                 return true;
             }
+        }
+
+        if (shouldDebug) {
+            System.out.println("  → 未找到七咒之戒 (需要 enigmaticlegacy:cursed_ring)");
         }
         return false;
     }
