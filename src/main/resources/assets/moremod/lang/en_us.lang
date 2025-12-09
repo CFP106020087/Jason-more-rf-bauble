@@ -93,6 +93,7 @@ tile.charging_station.name=Charging Station
 item.oil_prospector.name=Oil Prospector
 item.crude_oil_bucket.name=Crude Oil Bucket
 item.plant_oil_bucket.name=Plant Oil Bucket
+item.moremod.speed_upgrade.name=Generator Speed Upgrade
 
 # ===== Comprehensive Guide =====
 item.moremod_guide.name=MoreMod Comprehensive Guide

@@ -3,7 +3,9 @@ package com.moremod.tile;
 import com.moremod.init.ModFluids;
 import com.moremod.init.ModItems;
 import com.moremod.item.energy.ItemOilProspector;
+import com.moremod.item.energy.ItemSpeedUpgrade;
 import com.moremod.multiblock.MultiblockOilExtractor;
+import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.network.NetworkManager;
@@ -22,6 +24,8 @@ import net.minecraftforge.fluids.FluidTank;
 import net.minecraftforge.fluids.capability.CapabilityFluidHandler;
 import net.minecraftforge.fluids.capability.IFluidHandler;
 import net.minecraftforge.fluids.capability.IFluidTankProperties;
+import net.minecraftforge.items.CapabilityItemHandler;
+import net.minecraftforge.items.ItemStackHandler;
 
 import javax.annotation.Nullable;
 
@@ -32,15 +36,18 @@ import javax.annotation.Nullable;
  * - 消耗RF能量
  * - 從區塊石油礦脈中提取石油
  * - 儲存石油並轉換為石油桶
+ * - 支持增速插件（最多4個，每個+50%速度）
  */
 public class TileEntityOilExtractorCore extends TileEntity implements ITickable {
 
     // 配置
     private static final int ENERGY_CAPACITY = 500000;     // 500k RF
     private static final int ENERGY_PER_TICK = 100;        // 每tick消耗 100 RF
-    private static final int OIL_PER_TICK = 10;            // 每tick提取 10 mB
+    private static final int BASE_OIL_PER_TICK = 10;       // 基礎每tick提取 10 mB
     private static final int MAX_OIL_STORAGE = 16000;      // 內部儲油 16000 mB (16桶)
     private static final int MB_PER_BUCKET = 1000;         // 1桶 = 1000 mB
+    private static final int UPGRADE_SLOTS = 4;            // 增速插件槽數量
+    private static final float SPEED_PER_UPGRADE = 0.5f;   // 每個插件增加50%速度
 
     // 能量存儲 (maxExtract 需要 > 0 才能內部消耗能量)
     private final EnergyStorage energy = new EnergyStorage(ENERGY_CAPACITY, 10000, ENERGY_PER_TICK * 2) {
@@ -53,6 +60,57 @@ public class TileEntityOilExtractorCore extends TileEntity implements ITickable 
             return received;
         }
     };
+
+    // 增速插件槽
+    private final ItemStackHandler upgradeInventory = new ItemStackHandler(UPGRADE_SLOTS) {
+        @Override
+        protected void onContentsChanged(int slot) {
+            markDirty();
+            cachedSpeedMultiplier = -1; // 重新計算速度倍率
+        }
+
+        @Override
+        public boolean isItemValid(int slot, ItemStack stack) {
+            return isValidUpgrade(stack);
+        }
+
+        @Override
+        public int getSlotLimit(int slot) {
+            return 1; // 每格只能放1個
+        }
+    };
+
+    // 緩存的速度倍率
+    private float cachedSpeedMultiplier = -1;
+
+    /**
+     * 檢查物品是否是有效的增速材料
+     */
+    public static boolean isValidUpgrade(ItemStack stack) {
+        if (stack.getItem() instanceof ItemSpeedUpgrade) {
+            return true;
+        }
+        return stack.getItem() == Items.REDSTONE ||
+               stack.getItem() == Items.GLOWSTONE_DUST ||
+               stack.getItem() == Items.BLAZE_POWDER ||
+               stack.getItem() == Items.EMERALD;
+    }
+
+    /**
+     * 計算當前速度倍率
+     */
+    public float getSpeedMultiplier() {
+        if (cachedSpeedMultiplier < 0) {
+            int upgradeCount = 0;
+            for (int i = 0; i < UPGRADE_SLOTS; i++) {
+                if (!upgradeInventory.getStackInSlot(i).isEmpty()) {
+                    upgradeCount++;
+                }
+            }
+            cachedSpeedMultiplier = 1.0f + (upgradeCount * SPEED_PER_UPGRADE);
+        }
+        return cachedSpeedMultiplier;
+    }
 
     // 石油液體槽（支持管道抽取）
     private final FluidTank fluidTank = new FluidTank(MAX_OIL_STORAGE) {
@@ -96,11 +154,16 @@ public class TileEntityOilExtractorCore extends TileEntity implements ITickable 
         }
 
         if (isRunning) {
+            // 計算實際能量消耗（速度越快，消耗越多）
+            float speedMultiplier = getSpeedMultiplier();
+            int actualEnergyPerTick = (int)(ENERGY_PER_TICK * speedMultiplier);
+
             // 消耗能量
-            if (energy.extractEnergy(ENERGY_PER_TICK, false) >= ENERGY_PER_TICK) {
-                // 提取石油到液體槽
+            if (energy.extractEnergy(actualEnergyPerTick, false) >= actualEnergyPerTick) {
+                // 提取石油到液體槽（應用速度倍率）
                 int currentFluid = fluidTank.getFluidAmount();
-                int canExtract = Math.min(OIL_PER_TICK, MAX_OIL_STORAGE - currentFluid);
+                int oilPerTick = (int)(BASE_OIL_PER_TICK * speedMultiplier);
+                int canExtract = Math.min(oilPerTick, MAX_OIL_STORAGE - currentFluid);
                 int remaining = getRemainingOil();
                 int actualExtract = Math.min(canExtract, remaining);
 
@@ -113,8 +176,9 @@ public class TileEntityOilExtractorCore extends TileEntity implements ITickable 
                     extractedTotal += actualExtract;
                     markDirty();
 
-                    // 粒子效果
-                    if (tickCounter % 20 == 0) {
+                    // 粒子效果（速度越快，粒子越多）
+                    int particleInterval = Math.max(5, 20 - (int)(speedMultiplier * 5));
+                    if (tickCounter % particleInterval == 0) {
                         spawnExtractionParticles();
                     }
                 } else {
@@ -200,6 +264,20 @@ public class TileEntityOilExtractorCore extends TileEntity implements ITickable 
         return isRunning;
     }
 
+    public int getUpgradeCount() {
+        int count = 0;
+        for (int i = 0; i < UPGRADE_SLOTS; i++) {
+            if (!upgradeInventory.getStackInSlot(i).isEmpty()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    public int getOilPerTick() {
+        return (int)(BASE_OIL_PER_TICK * getSpeedMultiplier());
+    }
+
     // ===== Capabilities =====
 
     @Override
@@ -208,6 +286,9 @@ public class TileEntityOilExtractorCore extends TileEntity implements ITickable 
             return true;
         }
         if (capability == CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY) {
+            return true;
+        }
+        if (capability == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY) {
             return true;
         }
         return super.hasCapability(capability, facing);
@@ -223,6 +304,9 @@ public class TileEntityOilExtractorCore extends TileEntity implements ITickable 
         if (capability == CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY) {
             return (T) fluidTank;
         }
+        if (capability == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY) {
+            return (T) upgradeInventory;
+        }
         return super.getCapability(capability, facing);
     }
 
@@ -236,6 +320,8 @@ public class TileEntityOilExtractorCore extends TileEntity implements ITickable 
         compound.setBoolean("IsRunning", isRunning);
         // 保存液體槽
         fluidTank.writeToNBT(compound);
+        // 保存增速插件
+        compound.setTag("UpgradeInventory", upgradeInventory.serializeNBT());
         return compound;
     }
 
@@ -248,6 +334,11 @@ public class TileEntityOilExtractorCore extends TileEntity implements ITickable 
         isRunning = compound.getBoolean("IsRunning");
         // 讀取液體槽
         fluidTank.readFromNBT(compound);
+        // 讀取增速插件
+        if (compound.hasKey("UpgradeInventory")) {
+            upgradeInventory.deserializeNBT(compound.getCompoundTag("UpgradeInventory"));
+            cachedSpeedMultiplier = -1; // 重新計算
+        }
 
         // 兼容舊版：如果有 StoredOil，遷移到液體槽
         if (compound.hasKey("StoredOil")) {

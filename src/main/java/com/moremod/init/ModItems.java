@@ -56,6 +56,7 @@ import com.moremod.item.ritual.ItemFakePlayerCore;
 import com.moremod.item.energy.ItemOilProspector;
 import com.moremod.item.energy.ItemOilBucket;
 import com.moremod.item.energy.ItemPlantOilBucket;
+import com.moremod.item.energy.ItemSpeedUpgrade;
 
 // 📖 綜合指南書
 import com.moremod.item.ItemModGuide;
@@ -171,6 +172,7 @@ public final class ModItems {
     public static Item OIL_PROSPECTOR;       // 石油探測器
     public static Item CRUDE_OIL_BUCKET;     // 原油桶
     public static Item PLANT_OIL_BUCKET;     // 植物油桶
+    public static Item SPEED_UPGRADE;        // 發電機增速插件
 
     // 📖 綜合指南書
     public static Item MOREMOD_GUIDE;        // MoreMod 綜合指南
@@ -341,6 +343,9 @@ public final class ModItems {
         PLANT_OIL_BUCKET = reg(e, new ItemPlantOilBucket());
         System.out.println("[MoreMod] ⛽ 植物油桶已註冊");
 
+        SPEED_UPGRADE = reg(e, new ItemSpeedUpgrade());
+        System.out.println("[MoreMod] ⚡ 發電機增速插件已註冊");
+
         // 📖 註冊綜合指南書
         MOREMOD_GUIDE = reg(e, new ItemModGuide());
         System.out.println("[MoreMod] 📖 MoreMod 綜合指南已註冊");
@@ -506,6 +511,7 @@ public final class ModItems {
         bindModel(OIL_PROSPECTOR, "oil_prospector");
         bindModel(CRUDE_OIL_BUCKET, "crude_oil_bucket");
         bindModel(PLANT_OIL_BUCKET, "plant_oil_bucket");
+        bindModel(SPEED_UPGRADE, "speed_upgrade");
         System.out.println("[MoreMod] ⛽ 能源系統物品模型已註冊");
 
         // 📖 綁定指南書模型
