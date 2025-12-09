@@ -109,3 +109,9 @@ item.moremod_guide.name=MoreMod Comprehensive Guide
 jei.moremod.ritual_infusion=Ritual Infusion
 jei.moremod.dimension_loom=Dimension Loom
 jei.moremod.sword_upgrade_material=Material Change Station
+
+# ===== Glitch Armor =====
+item.glitch_helmet.name=Glitch Helmet
+item.glitch_chestplate.name=Glitch Chestplate
+item.glitch_leggings.name=Glitch Leggings
+item.glitch_boots.name=Glitch Boots
