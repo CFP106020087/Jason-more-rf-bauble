@@ -489,3 +489,15 @@ tile.moremod.fake_player_activator.name=假玩家激活器
 
 # ===== 升級艙系統 (Upgrade Chamber System) =====
 tile.upgrade_chamber_core.name=升級艙核心
+
+# ===== 能源系統 (Energy System) =====
+# 方塊
+tile.oil_extractor_core.name=抽油機核心
+tile.plant_oil_press.name=植物油壓榨機
+tile.oil_generator.name=石油發電機
+tile.charging_station.name=充能站
+
+# 物品
+item.oil_prospector.name=石油探測器
+item.crude_oil_bucket.name=原油桶
+item.plant_oil_bucket.name=植物油桶

@@ -1,0 +1,12 @@
+{
+    "parent": "block/cube",
+    "textures": {
+        "particle": "moremod:blocks/oil_extractor_core_side",
+        "down": "moremod:blocks/oil_extractor_core_bottom",
+        "up": "moremod:blocks/oil_extractor_core_top",
+        "north": "moremod:blocks/oil_extractor_core_side",
+        "south": "moremod:blocks/oil_extractor_core_side",
+        "east": "moremod:blocks/oil_extractor_core_side",
+        "west": "moremod:blocks/oil_extractor_core_side"
+    }
+}
