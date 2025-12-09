@@ -52,7 +52,7 @@ public class BlockBottlingMachine extends BlockContainer {
         }
 
         // 打开GUI
-        playerIn.openGui(moremod.instance, 21, worldIn, pos.getX(), pos.getY(), pos.getZ());
+        playerIn.openGui(moremod.INSTANCE, 21, worldIn, pos.getX(), pos.getY(), pos.getZ());
         return true;
     }
 

@@ -68,7 +68,7 @@ public class BlockTradingStation extends Block implements ITileEntityProvider {
             if (te instanceof TileTradingStation) {
                 System.out.println("[BlockTradingStation] 玩家 " + player.getName() + " 右鍵點擊交易機");
                 player.openGui(
-                        moremod.instance,
+                        moremod.INSTANCE,
                         GuiHandler.TRADING_STATION_GUI,
                         world, pos.getX(), pos.getY(), pos.getZ()
                 );

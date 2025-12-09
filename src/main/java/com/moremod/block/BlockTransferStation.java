@@ -71,7 +71,7 @@ public class BlockTransferStation extends Block implements ITileEntityProvider {
         if (te instanceof TileEntityTransferStation) {
             // 打开GUI（需要在GuiHandler中注册）
             playerIn.openGui(
-                moremod.instance,
+                moremod.INSTANCE,
                 GUI_ID, // GUI ID
                 worldIn,
                 pos.getX(),

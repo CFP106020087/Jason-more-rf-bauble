@@ -48,7 +48,7 @@ public class PacketOpenGui implements IMessage {
 
                 worldServer.addScheduledTask(() -> {
                     // 在服务器端打开GUI
-                    player.openGui(moremod.instance, message.guiId, player.world, 0, 0, 0);
+                    player.openGui(moremod.INSTANCE, message.guiId, player.world, 0, 0, 0);
                 });
             }
             return null;

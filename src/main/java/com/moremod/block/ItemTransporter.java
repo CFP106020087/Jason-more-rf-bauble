@@ -92,7 +92,7 @@ public class ItemTransporter extends Block implements ITileEntityProvider {
             if (te instanceof TileEntityItemTransporter) {
                 // 打开你的 GUI
                 playerIn.openGui(
-                        com.moremod.moremod.instance,
+                        com.moremod.moremod.INSTANCE,
                         com.moremod.client.gui.GuiHandler.ITEM_TRANSPORTER_GUI,
                         worldIn, pos.getX(), pos.getY(), pos.getZ()
                 );

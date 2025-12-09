@@ -54,7 +54,7 @@ public class PacketOpenVoidBackpack implements IMessage {
                     System.out.println("[MoreMod] 容量: " + size + " 格");
 
                     // 步骤3：检查模组实例
-                    if (moremod.instance == null) {
+                    if (moremod.INSTANCE == null) {
                         System.err.println("[MoreMod] ❌ 错误：模组实例为null！");
                         player.sendStatusMessage(new TextComponentString(
                                 TextFormatting.RED + "⚠ 服务器错误：模组实例未初始化"), true);
@@ -67,7 +67,7 @@ public class PacketOpenVoidBackpack implements IMessage {
                     System.out.println("[MoreMod] GUI ID: " + com.moremod.client.gui.GuiHandler.VOID_BACKPACK_GUI);
 
                     player.openGui(
-                            moremod.instance,  // ✅ 修正：使用正确的实例引用
+                            moremod.INSTANCE,  // ✅ 修正：使用正确的实例引用
                             com.moremod.client.gui.GuiHandler.VOID_BACKPACK_GUI,
                             player.world,
                             size,  // x = 容量

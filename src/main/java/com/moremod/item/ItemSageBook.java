@@ -34,7 +34,7 @@ public class ItemSageBook extends Item {
     public ActionResult<ItemStack> onItemRightClick(World world, EntityPlayer player, EnumHand hand) {
         if (!world.isRemote) {
             // 打开GUI - 但不消耗物品！
-            player.openGui(moremod.instance, GuiHandler.GUI_SAGE_BOOK, world,
+            player.openGui(moremod.INSTANCE, GuiHandler.GUI_SAGE_BOOK, world,
                     hand == EnumHand.MAIN_HAND ? 1 : 0,  // 传递手的信息
                     (int)player.posY,
                     (int)player.posZ);

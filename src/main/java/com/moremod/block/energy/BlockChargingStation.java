@@ -46,7 +46,7 @@ public class BlockChargingStation extends Block implements ITileEntityProvider {
         if (!world.isRemote) {
             TileEntity te = world.getTileEntity(pos);
             if (te instanceof TileEntityChargingStation) {
-                player.openGui(moremod.instance, GuiHandler.CHARGING_STATION_GUI, world, pos.getX(), pos.getY(), pos.getZ());
+                player.openGui(moremod.INSTANCE, GuiHandler.CHARGING_STATION_GUI, world, pos.getX(), pos.getY(), pos.getZ());
             }
         }
         return true;

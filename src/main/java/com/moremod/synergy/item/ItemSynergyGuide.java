@@ -41,7 +41,7 @@ public class ItemSynergyGuide extends Item {
 
         // 在客户端打开GUI
         if (world.isRemote) {
-            player.openGui(moremod.instance, GuiHandler.SYNERGY_GUIDE_GUI, world, 0, 0, 0);
+            player.openGui(moremod.INSTANCE, GuiHandler.SYNERGY_GUIDE_GUI, world, 0, 0, 0);
         }
 
         return new ActionResult<>(EnumActionResult.SUCCESS, stack);
