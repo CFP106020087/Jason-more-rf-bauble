@@ -9,7 +9,7 @@ import net.minecraftforge.fml.relauncher.Side;
  */
 public class PacketHandler {
     
-    public static final SimpleNetworkWrapper INSTANCE = NetworkRegistry.INSTANCE.newSimpleChannel("yourmod_quarry");
+    public static final SimpleNetworkWrapper INSTANCE = NetworkRegistry.INSTANCE.newSimpleChannel("moremod_quarry");
     
     private static int packetId = 0;
     

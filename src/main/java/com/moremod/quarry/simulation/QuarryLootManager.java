@@ -24,11 +24,11 @@ public class QuarryLootManager {
     private static QuarryLootManager INSTANCE;
     
     // 自定义战利品表
-    public static final ResourceLocation QUARRY_COMMON = new ResourceLocation("yourmod", "quarry/common");
-    public static final ResourceLocation QUARRY_RARE = new ResourceLocation("yourmod", "quarry/rare");
-    public static final ResourceLocation QUARRY_LEGENDARY = new ResourceLocation("yourmod", "quarry/legendary");
-    public static final ResourceLocation QUARRY_NETHER = new ResourceLocation("yourmod", "quarry/nether");
-    public static final ResourceLocation QUARRY_END = new ResourceLocation("yourmod", "quarry/end");
+    public static final ResourceLocation QUARRY_COMMON = new ResourceLocation("moremod", "quarry/common");
+    public static final ResourceLocation QUARRY_RARE = new ResourceLocation("moremod", "quarry/rare");
+    public static final ResourceLocation QUARRY_LEGENDARY = new ResourceLocation("moremod", "quarry/legendary");
+    public static final ResourceLocation QUARRY_NETHER = new ResourceLocation("moremod", "quarry/nether");
+    public static final ResourceLocation QUARRY_END = new ResourceLocation("moremod", "quarry/end");
     
     // 可用的战利品表及其权重
     private final Map<ResourceLocation, Integer> lootTableWeights = new LinkedHashMap<>();
@@ -108,7 +108,7 @@ public class QuarryLootManager {
      */
     private void setupCommonLootTable(LootTable table) {
         // 这个方法会在 JSON 不存在时被调用
-        // 你可以在 assets/yourmod/loot_tables/quarry/common.json 中定义
+        // 你可以在 assets/moremod/loot_tables/quarry/common.json 中定义
         // 或者在这里用代码添加
     }
     

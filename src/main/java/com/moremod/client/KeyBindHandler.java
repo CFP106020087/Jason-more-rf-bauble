@@ -25,6 +25,7 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.lwjgl.input.Keyboard;
 import com.moremod.client.gui.SmartRejectionGuide;
+import com.moremod.client.gui.MechanicalCoreGui;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -308,7 +309,8 @@ public class KeyBindHandler {
     private static void handleOpenCoreGui(EntityPlayer player) {
         ItemStack coreStack = ItemMechanicalCore.findEquippedMechanicalCore(player);
         if (ItemMechanicalCore.isMechanicalCore(coreStack)) {
-            player.openGui(com.moremod.moremod.INSTANCE, 0, player.world, 0, 0, 0);
+            // MechanicalCoreGui 是純客戶端 GUI，直接顯示
+            Minecraft.getMinecraft().displayGuiScreen(new MechanicalCoreGui(player));
         } else {
             player.sendStatusMessage(new TextComponentString(
                     TextFormatting.RED + "请先装备机械核心！"
