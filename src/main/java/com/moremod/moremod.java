@@ -483,6 +483,22 @@ public class moremod {
         );
         System.out.println("[moremod] 🪑 仪式座椅实体注册成功 (ID: " + (nextEntityId - 1) + ")");
         // ========================================
+
+        // ========================================
+        // 投掷胶囊实体注册
+        // ========================================
+        EntityRegistry.registerModEntity(
+                new ResourceLocation(MODID, "thrown_capsule"),
+                EntityThrownCapsule.class,
+                "thrown_capsule",
+                nextEntityId++,        // 15
+                INSTANCE,
+                64,                    // 追踪范围
+                3,                     // 更新频率
+                true                   // 发送速度更新
+        );
+        System.out.println("[moremod] 💊 投掷胶囊实体注册成功 (ID: " + (nextEntityId - 1) + ")");
+        // ========================================
     }
 
     /**
