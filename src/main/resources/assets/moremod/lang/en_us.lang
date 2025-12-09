@@ -82,6 +82,9 @@ tile.moremod.fake_player_activator.name=Fake Player Activator
 # ===== Upgrade Chamber System =====
 tile.upgrade_chamber_core.name=Upgrade Chamber Core
 
+# ===== Respawn Chamber System =====
+tile.respawn_chamber_core.name=Respawn Chamber Core
+
 # ===== Energy System =====
 # Blocks
 tile.oil_extractor_core.name=Oil Extractor Core
@@ -97,3 +100,8 @@ item.moremod.speed_upgrade.name=Generator Speed Upgrade
 
 # ===== Comprehensive Guide =====
 item.moremod_guide.name=MoreMod Comprehensive Guide
+
+# ===== JEI Integration =====
+jei.moremod.ritual_infusion=Ritual Infusion
+jei.moremod.dimension_loom=Dimension Loom
+jei.moremod.sword_upgrade_material=Material Change Station

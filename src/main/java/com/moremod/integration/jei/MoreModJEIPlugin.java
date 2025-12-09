@@ -3,6 +3,7 @@ package com.moremod.integration.jei;
 import com.moremod.init.ModBlocks;
 import com.moremod.moremod;
 import com.moremod.recipe.DimensionLoomRecipes;
+import com.moremod.recipe.SwordUpgradeRegistry;
 import com.moremod.ritual.RitualInfusionAPI;
 import com.moremod.ritual.RitualInfusionRecipe;
 import mezz.jei.api.*;
@@ -12,6 +13,7 @@ import mezz.jei.api.recipe.IRecipeWrapperFactory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -23,6 +25,7 @@ public class MoreModJEIPlugin implements IModPlugin {
     // 配方类别ID
     public static final String RITUAL_INFUSION_UID = "moremod.ritual_infusion";
     public static final String DIMENSION_LOOM_UID = "moremod.dimension_loom";
+    public static final String SWORD_UPGRADE_UID = "moremod.sword_upgrade_material";
 
 
     public ResourceLocation getPluginUid() {
@@ -47,6 +50,11 @@ public class MoreModJEIPlugin implements IModPlugin {
                 new DimensionLoomCategory(guiHelper)
         );
 
+        // 注册材質變化台类别
+        registration.addRecipeCategories(
+                new SwordUpgradeCategory(guiHelper)
+        );
+
         System.out.println("[MoreMod-JEI] Registered recipe categories");
     }
 
@@ -62,6 +70,9 @@ public class MoreModJEIPlugin implements IModPlugin {
 
         // ========== 维度织机系统 ==========
         registerDimensionLoom(registry);
+
+        // ========== 材質變化台系统 (CraftTweaker) ==========
+        registerSwordUpgrade(registry);
 
         System.out.println("[MoreMod-JEI] JEI registration complete!");
     }
@@ -157,5 +168,53 @@ public class MoreModJEIPlugin implements IModPlugin {
         //     28, 23,  // 箭头大小
         //     DIMENSION_LOOM_UID
         // );
+    }
+
+    /**
+     * 注册材質變化台配方 (CraftTweaker 定義)
+     */
+    private void registerSwordUpgrade(IModRegistry registry) {
+        // 1. 注册配方处理器
+        registry.handleRecipes(
+                SwordUpgradeRegistry.Recipe.class,
+                SwordUpgradeWrapper::new,
+                SWORD_UPGRADE_UID
+        );
+
+        // 2. 获取所有配方并添加
+        List<SwordUpgradeRegistry.Recipe> recipes = SwordUpgradeRegistry.viewAll();
+        if (!recipes.isEmpty()) {
+            // 创建配方列表的副本
+            List<SwordUpgradeRegistry.Recipe> recipeList = new ArrayList<>(recipes);
+            registry.addRecipes(recipeList, SWORD_UPGRADE_UID);
+            System.out.println("[MoreMod-JEI] Added " + recipeList.size() + " sword upgrade recipes");
+        } else {
+            System.out.println("[MoreMod-JEI] No sword upgrade recipes found (add via CraftTweaker)");
+        }
+
+        // 3. 添加催化剂
+        if (ModBlocks.SWORD_UPGRADE_STATION != null) {
+            registry.addRecipeCatalyst(
+                    new ItemStack(ModBlocks.SWORD_UPGRADE_STATION),
+                    SWORD_UPGRADE_UID
+            );
+        }
+
+        // 如果有材质变化台方块
+        if (ModBlocks.SWORD_UPGRADE_STATION_MATERIAL != null) {
+            registry.addRecipeCatalyst(
+                    new ItemStack(ModBlocks.SWORD_UPGRADE_STATION_MATERIAL),
+                    SWORD_UPGRADE_UID
+            );
+
+            // 添加物品描述
+            registry.addIngredientInfo(
+                    new ItemStack(ModBlocks.SWORD_UPGRADE_STATION_MATERIAL),
+                    ItemStack.class,
+                    "材質變化台\n" +
+                            "使用 CraftTweaker 定義配方。\n" +
+                            "將劍放入左側，材料放入中間，即可變化劍的材質。"
+            );
+        }
     }
 }

@@ -25,6 +25,7 @@ import com.moremod.block.BlockAnimalFeeder;       // 动物喂食器
 import com.moremod.block.BlockBioGenerator;       // 生物质发电机
 import com.moremod.block.BlockFakePlayerActivator; // 假玩家激活器
 import com.moremod.block.BlockUpgradeChamberCore;  // 升級艙核心
+import com.moremod.block.BlockRespawnChamberCore;  // 重生倉核心
 
 // ⛽ 能源系統方塊
 import com.moremod.block.BlockOilExtractorCore;
@@ -57,6 +58,7 @@ import com.moremod.tile.TileEntityAnimalFeeder;       // 动物喂食器 TE
 import com.moremod.tile.TileEntityBioGenerator;       // 生物质发电机 TE
 import com.moremod.tile.TileEntityFakePlayerActivator; // 假玩家激活器 TE
 import com.moremod.tile.TileEntityUpgradeChamberCore;  // 升級艙核心 TE
+import com.moremod.tile.TileEntityRespawnChamberCore;  // 重生倉核心 TE
 
 // ⛽ 能源系統 TileEntity
 import com.moremod.tile.TileEntityOilExtractorCore;
@@ -137,6 +139,9 @@ public class ModBlocks {
 
     // 升級艙核心方块
     public static Block UPGRADE_CHAMBER_CORE;
+
+    // 重生倉核心方块
+    public static Block RESPAWN_CHAMBER_CORE;
 
     // ⛽ 能源系統方塊
     public static Block OIL_EXTRACTOR_CORE;
@@ -252,6 +257,11 @@ public class ModBlocks {
         event.getRegistry().register(UPGRADE_CHAMBER_CORE);
         System.out.println("[MoreMod] 升級艙核心方塊已註冊");
 
+        // 重生倉核心方块
+        RESPAWN_CHAMBER_CORE = new BlockRespawnChamberCore();
+        event.getRegistry().register(RESPAWN_CHAMBER_CORE);
+        System.out.println("[MoreMod] 重生倉核心方塊已註冊");
+
         // ⛽ 能源系統方塊
         OIL_EXTRACTOR_CORE = new BlockOilExtractorCore();
         event.getRegistry().register(OIL_EXTRACTOR_CORE);
@@ -340,6 +350,11 @@ public class ModBlocks {
         GameRegistry.registerTileEntity(TileEntityUpgradeChamberCore.class,
                 new ResourceLocation(moremod.MODID, "upgrade_chamber_core"));
         System.out.println("[MoreMod] 升級艙核心 TileEntity 已註冊");
+
+        // 重生倉核心 TileEntity
+        GameRegistry.registerTileEntity(TileEntityRespawnChamberCore.class,
+                new ResourceLocation(moremod.MODID, "respawn_chamber_core"));
+        System.out.println("[MoreMod] 重生倉核心 TileEntity 已註冊");
 
         // ⛽ 能源系統 TileEntity
         GameRegistry.registerTileEntity(TileEntityOilExtractorCore.class,
@@ -483,6 +498,13 @@ public class ModBlocks {
             System.out.println("[MoreMod] 升級艙核心 ItemBlock 已註冊");
         }
 
+        // 重生倉核心 ItemBlock
+        if (RESPAWN_CHAMBER_CORE != null) {
+            event.getRegistry().register(new ItemBlock(RESPAWN_CHAMBER_CORE)
+                    .setRegistryName(RESPAWN_CHAMBER_CORE.getRegistryName()));
+            System.out.println("[MoreMod] 重生倉核心 ItemBlock 已註冊");
+        }
+
         // ⛽ 能源系統 ItemBlock
         if (OIL_EXTRACTOR_CORE != null) {
             event.getRegistry().register(new ItemBlock(OIL_EXTRACTOR_CORE)
@@ -602,6 +624,12 @@ public class ModBlocks {
         if (UPGRADE_CHAMBER_CORE != null) {
             registerBlockModel(UPGRADE_CHAMBER_CORE);
             System.out.println("[MoreMod] 升級艙核心模型已註冊");
+        }
+
+        // 重生倉核心模型
+        if (RESPAWN_CHAMBER_CORE != null) {
+            registerBlockModel(RESPAWN_CHAMBER_CORE);
+            System.out.println("[MoreMod] 重生倉核心模型已註冊");
         }
 
         // ⛽ 能源系統模型

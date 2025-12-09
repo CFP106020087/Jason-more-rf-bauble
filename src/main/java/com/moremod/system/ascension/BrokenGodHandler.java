@@ -275,26 +275,34 @@ public class BrokenGodHandler {
             }
         }
 
-        // 发送重启消息
-        player.sendMessage(new TextComponentString(
-                TextFormatting.GREEN + "═══════════════════════════════\n" +
-                TextFormatting.GREEN + "[ SYSTEM REBOOT COMPLETE ]\n" +
-                TextFormatting.GRAY + "所有系统已恢复运行\n" +
-                TextFormatting.GRAY + "核心状态: " + TextFormatting.GREEN + "在线\n" +
-                TextFormatting.GREEN + "═══════════════════════════════"
-        ));
+        // ========== 重生倉傳送邏輯 ==========
+        // 檢查是否有綁定的重生倉
+        boolean teleportedToChamber = false;
+        if (com.moremod.tile.TileEntityRespawnChamberCore.hasBoundChamber(playerId)) {
+            // 嘗試傳送到重生倉
+            teleportedToChamber = com.moremod.tile.TileEntityRespawnChamberCore.teleportPlayerToChamber(player);
+        }
 
-        // 重启音效 - 使用经验升级音效表示系统恢复
-        player.world.playSound(null, player.posX, player.posY, player.posZ,
-                net.minecraft.init.SoundEvents.ENTITY_PLAYER_LEVELUP,
-                net.minecraft.util.SoundCategory.PLAYERS, 0.8f, 1.2f);
+        // 若無綁定或傳送失敗，則隨機傳送到附近
+        if (!teleportedToChamber) {
+            com.moremod.tile.TileEntityRespawnChamberCore.teleportPlayerRandomly(player);
+        }
+        // ========== 重生倉傳送邏輯結束 ==========
 
-        // 粒子效果
-        if (player.world instanceof WorldServer) {
-            WorldServer world = (WorldServer) player.world;
-            world.spawnParticle(EnumParticleTypes.END_ROD,
-                    player.posX, player.posY + 1, player.posZ,
-                    30, 0.5, 1, 0.5, 0.1);
+        // 只有在未傳送到重生倉時才發送通用重啟消息（重生倉會發送自己的消息）
+        if (!teleportedToChamber) {
+            // 重启音效 - 使用经验升级音效表示系统恢复
+            player.world.playSound(null, player.posX, player.posY, player.posZ,
+                    net.minecraft.init.SoundEvents.ENTITY_PLAYER_LEVELUP,
+                    net.minecraft.util.SoundCategory.PLAYERS, 0.8f, 1.2f);
+
+            // 粒子效果
+            if (player.world instanceof WorldServer) {
+                WorldServer world = (WorldServer) player.world;
+                world.spawnParticle(EnumParticleTypes.END_ROD,
+                        player.posX, player.posY + 1, player.posZ,
+                        30, 0.5, 1, 0.5, 0.1);
+            }
         }
     }
 
