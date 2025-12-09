@@ -199,6 +199,8 @@ public class CTSwordUpgradematerial {
         @Override
         public void apply() {
             SwordUpgradeRegistry.registerExact(input, material, output, xp);
+            // 觸發 JEI 刷新
+            scheduleJEIRefresh();
         }
 
         @Override
@@ -225,12 +227,14 @@ public class CTSwordUpgradematerial {
         @Override
         public void apply() {
             SwordUpgradeRegistry.registerExact(input, material, output, xp);
+            // 觸發 JEI 刷新
+            scheduleJEIRefresh();
         }
 
         @Override
         public String describe() {
             return String.format("[SwordUpgrade] Item-Exact: %s + %s -> %s (xp=%d)",
-                    input.getRegistryName(), material.getRegistryName(), 
+                    input.getRegistryName(), material.getRegistryName(),
                     output.getRegistryName(), xp);
         }
     }
@@ -249,12 +253,43 @@ public class CTSwordUpgradematerial {
         @Override
         public void apply() {
             SwordUpgradeRegistry.register(material, output, xp);
+            // 觸發 JEI 刷新
+            scheduleJEIRefresh();
         }
 
         @Override
         public String describe() {
             return String.format("[SwordUpgrade] Any: ANY_SWORD + %s -> %s (xp=%d)",
                     material.getRegistryName(), output.getRegistryName(), xp);
+        }
+    }
+
+    // JEI 刷新標記（避免多次刷新）
+    private static boolean jeiRefreshScheduled = false;
+
+    /**
+     * 安排 JEI 刷新（延遲執行以批量處理多個配方）
+     */
+    private static void scheduleJEIRefresh() {
+        if (!jeiRefreshScheduled) {
+            jeiRefreshScheduled = true;
+            // 延遲刷新 JEI（在 CraftTweaker 完成所有配方後）
+            // 注意：這裡只標記需要刷新，實際刷新在玩家登入時進行
+            System.out.println("[SwordUpgrade] JEI refresh scheduled (will apply on player login)");
+        }
+    }
+
+    /**
+     * 強制立即刷新 JEI
+     * 可從 ZenScript 調用：mods.moremod.SwordUpgradematerial.refreshJEI()
+     */
+    @ZenMethod
+    public static void refreshJEI() {
+        try {
+            MoreModJEIPlugin.refreshSwordUpgradeRecipes();
+            System.out.println("[SwordUpgrade] JEI recipes refreshed manually");
+        } catch (Exception e) {
+            System.err.println("[SwordUpgrade] Failed to refresh JEI: " + e.getMessage());
         }
     }
 

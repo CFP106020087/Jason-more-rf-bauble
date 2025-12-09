@@ -1,0 +1,12 @@
+{
+  "parent": "block/cube",
+  "textures": {
+    "particle": "moremod:blocks/mega_chest_side",
+    "down": "moremod:blocks/mega_chest_bottom",
+    "up": "moremod:blocks/mega_chest_top",
+    "north": "moremod:blocks/mega_chest_front",
+    "south": "moremod:blocks/mega_chest_side",
+    "west": "moremod:blocks/mega_chest_side",
+    "east": "moremod:blocks/mega_chest_side"
+  }
+}
