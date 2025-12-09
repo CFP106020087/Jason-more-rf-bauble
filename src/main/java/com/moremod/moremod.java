@@ -296,6 +296,13 @@ public class moremod {
                 new ResourceLocation(MODID, "bottling_machine"));
         System.out.println("[moremod] ✅ 装瓶机 TileEntity 注册完成");
 
+        // ========== 量子礦機系統：注册TileEntity ==========
+        GameRegistry.registerTileEntity(TileQuantumQuarry.class,
+                new ResourceLocation(MODID, "quantum_quarry"));
+        GameRegistry.registerTileEntity(TileQuarryActuator.class,
+                new ResourceLocation(MODID, "quarry_actuator"));
+        System.out.println("[moremod] ✅ 量子礦機 TileEntity 注册完成");
+
         // ========== 客户端专用注册 ==========
         if (event.getSide().isClient()) {
             registerClientSystems();
@@ -617,12 +624,7 @@ public class moremod {
             RenderHandler.registerLayers();
             System.out.println("[moremod] ✅ 喷气背包渲染层注册完成");
         }
-        GameRegistry.registerTileEntity(TileQuantumQuarry.class,
-                new ResourceLocation("moremod", "quantum_quarry"));
-        GameRegistry.registerTileEntity(TileQuarryActuator.class,
-                new ResourceLocation("moremod", "quarry_actuator"));
-
-        // 注册 GUI Handler
+        // 注册量子礦機 GUI Handler (TileEntity已在preInit註冊)
         NetworkRegistry.INSTANCE.registerGuiHandler(this, new QuarryRegistry.QuarryGuiHandler());
 
         /* ===== Ritual 多方块：配方注册 ===== */
