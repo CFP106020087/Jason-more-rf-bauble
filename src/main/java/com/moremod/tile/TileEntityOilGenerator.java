@@ -4,6 +4,7 @@ import com.moremod.init.ModFluids;
 import com.moremod.init.ModItems;
 import com.moremod.item.energy.ItemOilBucket;
 import com.moremod.item.energy.ItemPlantOilBucket;
+import com.moremod.item.energy.ItemSpeedUpgrade;
 import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -122,7 +123,11 @@ public class TileEntityOilGenerator extends TileEntity implements ITickable {
      * 檢查物品是否是有效的增速材料
      */
     public static boolean isValidUpgrade(ItemStack stack) {
-        // 紅石=+50%, 螢石粉=+50%, 烈焰粉=+50%, 綠寶石=+50%
+        // 專用增速插件
+        if (stack.getItem() instanceof ItemSpeedUpgrade) {
+            return true;
+        }
+        // 備用材料：紅石、螢石粉、烈焰粉、綠寶石
         return stack.getItem() == Items.REDSTONE ||
                stack.getItem() == Items.GLOWSTONE_DUST ||
                stack.getItem() == Items.BLAZE_POWDER ||

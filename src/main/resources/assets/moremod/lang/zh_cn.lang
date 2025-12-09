@@ -501,6 +501,7 @@ tile.charging_station.name=充能站
 item.oil_prospector.name=石油探測器
 item.crude_oil_bucket.name=原油桶
 item.plant_oil_bucket.name=植物油桶
+item.moremod.speed_upgrade.name=發電機增速插件
 
 # ===== 綜合指南書 (Comprehensive Guide) =====
 item.moremod_guide.name=MoreMod 綜合指南
