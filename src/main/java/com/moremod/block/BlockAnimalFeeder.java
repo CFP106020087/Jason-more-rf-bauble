@@ -31,7 +31,7 @@ public class BlockAnimalFeeder extends Block implements ITileEntityProvider {
     public BlockAnimalFeeder() {
         super(Material.WOOD);
         setRegistryName("moremod", "animal_feeder");
-        setUnlocalizedName("moremod.animal_feeder");
+        setTranslationKey("moremod.animal_feeder");
         setHarvestLevel("axe", 0);
         setHardness(2.0F);
         setResistance(5.0F);

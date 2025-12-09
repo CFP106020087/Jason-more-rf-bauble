@@ -37,7 +37,7 @@ public class BlockCompostBin extends Block implements ITileEntityProvider {
     public BlockCompostBin() {
         super(Material.WOOD);
         setRegistryName("moremod", "compost_bin");
-        setUnlocalizedName("moremod.compost_bin");
+        setTranslationKey("moremod.compost_bin");
         setHarvestLevel("axe", 0);
         setHardness(1.5F);
         setResistance(5.0F);

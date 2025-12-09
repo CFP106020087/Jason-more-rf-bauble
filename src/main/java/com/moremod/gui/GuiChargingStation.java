@@ -182,14 +182,14 @@ public class GuiChargingStation extends GuiContainer {
     /**
      * 繪製垂直線
      */
-    private void drawVerticalLine(int x, int startY, int endY, int color) {
+    public void drawVerticalLine(int x, int startY, int endY, int color) {
         drawRect(x, startY, x + 1, endY, color);
     }
 
     /**
      * 繪製水平線
      */
-    private void drawHorizontalLine(int startX, int endX, int y, int color) {
+    public void drawHorizontalLine(int startX, int endX, int y, int color) {
         drawRect(startX, y, endX, y + 1, color);
     }
 }

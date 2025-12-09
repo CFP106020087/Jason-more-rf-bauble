@@ -37,7 +37,7 @@ public class BlockEnchantingBooster extends Block {
     public BlockEnchantingBooster() {
         super(Material.ROCK);
         setRegistryName("moremod", "enchanting_booster");
-        setUnlocalizedName("moremod.enchanting_booster");
+        setTranslationKey("moremod.enchanting_booster");
         setCreativeTab(CreativeTabs.DECORATIONS);
         setHardness(3.0F);
         setResistance(15.0F);

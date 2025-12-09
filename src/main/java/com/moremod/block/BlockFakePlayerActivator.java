@@ -42,7 +42,7 @@ public class BlockFakePlayerActivator extends Block implements ITileEntityProvid
 
     public BlockFakePlayerActivator() {
         super(Material.IRON);
-        setUnlocalizedName("moremod.fake_player_activator");
+        setTranslationKey("moremod.fake_player_activator");
         setRegistryName("fake_player_activator");
         setCreativeTab(CreativeTabs.REDSTONE);
         setHardness(3.5F);
@@ -59,7 +59,7 @@ public class BlockFakePlayerActivator extends Block implements ITileEntityProvid
 
     @Override
     public IBlockState getStateFromMeta(int meta) {
-        EnumFacing facing = EnumFacing.getFront(meta & 7);
+        EnumFacing facing = EnumFacing.byIndex(meta & 7);
         boolean active = (meta & 8) != 0;
         return getDefaultState().withProperty(FACING, facing).withProperty(ACTIVE, active);
     }

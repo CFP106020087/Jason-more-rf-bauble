@@ -37,7 +37,7 @@ public class BlockBioGenerator extends Block implements ITileEntityProvider {
     public BlockBioGenerator() {
         super(Material.IRON);
         setRegistryName("moremod", "bio_generator");
-        setUnlocalizedName("moremod.bio_generator");
+        setTranslationKey("moremod.bio_generator");
         setHarvestLevel("pickaxe", 1);
         setHardness(3.0F);
         setResistance(10.0F);
