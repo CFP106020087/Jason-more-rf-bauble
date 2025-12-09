@@ -498,6 +498,10 @@ tile.upgrade_chamber_core.name=升級艙核心
 # ===== 重生倉系統 (Respawn Chamber System) =====
 tile.respawn_chamber_core.name=重生倉核心
 
+# ===== 量子礦機系統 (Quantum Quarry System) =====
+tile.moremod.quantum_quarry.name=量子礦機
+tile.moremod.quarry_actuator.name=量子驅動器
+
 # ===== 能源系統 (Energy System) =====
 # 方塊
 tile.oil_extractor_core.name=抽油機核心

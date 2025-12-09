@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "facing=down":  { "model": "moremod:quarry_actuator" },
+    "facing=up":    { "model": "moremod:quarry_actuator", "x": 180 },
+    "facing=north": { "model": "moremod:quarry_actuator", "x": 90 },
+    "facing=south": { "model": "moremod:quarry_actuator", "x": 90, "y": 180 },
+    "facing=west":  { "model": "moremod:quarry_actuator", "x": 90, "y": 270 },
+    "facing=east":  { "model": "moremod:quarry_actuator", "x": 90, "y": 90 }
+  }
+}
