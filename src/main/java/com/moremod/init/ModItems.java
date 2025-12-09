@@ -52,6 +52,11 @@ import com.moremod.item.ritual.ItemCursedMirror;
 import com.moremod.item.ritual.ItemSoulFruit;
 import com.moremod.item.ritual.ItemFakePlayerCore;
 
+// ⛽ 能源系統物品
+import com.moremod.item.energy.ItemOilProspector;
+import com.moremod.item.energy.ItemOilBucket;
+import com.moremod.item.energy.ItemPlantOilBucket;
+
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.item.Item.ToolMaterial;
 import net.minecraft.item.EnumRarity;
@@ -158,6 +163,11 @@ public final class ModItems {
     public static ItemStructureCapsule STRUCTURE_CAPSULE_SMALL;   // 小型结构胶囊 3×3×3
     public static ItemStructureCapsule STRUCTURE_CAPSULE_MEDIUM;  // 中型结构胶囊 7×7×7
     public static ItemStructureCapsule STRUCTURE_CAPSULE_LARGE;   // 大型结构胶囊 15×15×15
+
+    // ⛽ 能源系統物品
+    public static Item OIL_PROSPECTOR;       // 石油探測器
+    public static Item CRUDE_OIL_BUCKET;     // 原油桶
+    public static Item PLANT_OIL_BUCKET;     // 植物油桶
 
     //新模块(屎山包装)
 
@@ -315,6 +325,16 @@ public final class ModItems {
         STRUCTURE_CAPSULE_LARGE = (ItemStructureCapsule) reg(e, new ItemStructureCapsule("structure_capsule_large", 15));
         System.out.println("[MoreMod] 📦 结构胶囊已注册 (3种尺寸)");
 
+        // ⛽ 注册能源系統物品
+        OIL_PROSPECTOR = reg(e, new ItemOilProspector());
+        System.out.println("[MoreMod] ⛽ 石油探測器已註冊");
+
+        CRUDE_OIL_BUCKET = reg(e, new ItemOilBucket());
+        System.out.println("[MoreMod] ⛽ 原油桶已註冊");
+
+        PLANT_OIL_BUCKET = reg(e, new ItemPlantOilBucket());
+        System.out.println("[MoreMod] ⛽ 植物油桶已註冊");
+
         //新模块系统
     }
 
@@ -471,6 +491,12 @@ public final class ModItems {
         bindModel(STRUCTURE_CAPSULE_MEDIUM, "structure_capsule_medium");
         bindModel(STRUCTURE_CAPSULE_LARGE, "structure_capsule_large");
         System.out.println("[MoreMod] 📦 结构胶囊模型已注册");
+
+        // ⛽ 綁定能源系統物品模型
+        bindModel(OIL_PROSPECTOR, "oil_prospector");
+        bindModel(CRUDE_OIL_BUCKET, "crude_oil_bucket");
+        bindModel(PLANT_OIL_BUCKET, "plant_oil_bucket");
+        System.out.println("[MoreMod] ⛽ 能源系統物品模型已註冊");
     }
 
     @SideOnly(Side.CLIENT)

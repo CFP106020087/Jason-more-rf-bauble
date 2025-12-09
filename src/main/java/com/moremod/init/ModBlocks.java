@@ -26,6 +26,12 @@ import com.moremod.block.BlockBioGenerator;       // 生物质发电机
 import com.moremod.block.BlockFakePlayerActivator; // 假玩家激活器
 import com.moremod.block.BlockUpgradeChamberCore;  // 升級艙核心
 
+// ⛽ 能源系統方塊
+import com.moremod.block.BlockOilExtractorCore;
+import com.moremod.block.BlockPlantOilPress;
+import com.moremod.block.BlockOilGenerator;
+import com.moremod.block.energy.BlockChargingStation;
+
 // 🗡️ 两个版本的剑升级台方块
 import com.moremod.block.BlockSwordUpgradeStation;
 import com.moremod.block.BlockSwordUpgradeStationMaterial;
@@ -51,6 +57,12 @@ import com.moremod.tile.TileEntityAnimalFeeder;       // 动物喂食器 TE
 import com.moremod.tile.TileEntityBioGenerator;       // 生物质发电机 TE
 import com.moremod.tile.TileEntityFakePlayerActivator; // 假玩家激活器 TE
 import com.moremod.tile.TileEntityUpgradeChamberCore;  // 升級艙核心 TE
+
+// ⛽ 能源系統 TileEntity
+import com.moremod.tile.TileEntityOilExtractorCore;
+import com.moremod.tile.TileEntityPlantOilPress;
+import com.moremod.tile.TileEntityOilGenerator;
+import com.moremod.tile.TileEntityChargingStation;
 
 // 🗡️ 两个版本的剑升级台 TE
 import com.moremod.tile.TileEntitySwordUpgradeStation;
@@ -125,6 +137,12 @@ public class ModBlocks {
 
     // 升級艙核心方块
     public static Block UPGRADE_CHAMBER_CORE;
+
+    // ⛽ 能源系統方塊
+    public static Block OIL_EXTRACTOR_CORE;
+    public static Block PLANT_OIL_PRESS;
+    public static Block OIL_GENERATOR;
+    public static Block CHARGING_STATION;
 
     @SubscribeEvent
     public static void registerBlocks(RegistryEvent.Register<Block> event) {
@@ -234,6 +252,23 @@ public class ModBlocks {
         event.getRegistry().register(UPGRADE_CHAMBER_CORE);
         System.out.println("[MoreMod] 升級艙核心方塊已註冊");
 
+        // ⛽ 能源系統方塊
+        OIL_EXTRACTOR_CORE = new BlockOilExtractorCore();
+        event.getRegistry().register(OIL_EXTRACTOR_CORE);
+        System.out.println("[MoreMod] ⛽ 抽油機核心方塊已註冊");
+
+        PLANT_OIL_PRESS = new BlockPlantOilPress();
+        event.getRegistry().register(PLANT_OIL_PRESS);
+        System.out.println("[MoreMod] ⛽ 植物油壓榨機方塊已註冊");
+
+        OIL_GENERATOR = new BlockOilGenerator();
+        event.getRegistry().register(OIL_GENERATOR);
+        System.out.println("[MoreMod] ⛽ 石油發電機方塊已註冊");
+
+        CHARGING_STATION = new BlockChargingStation();
+        event.getRegistry().register(CHARGING_STATION);
+        System.out.println("[MoreMod] ⚡ 充能站方塊已註冊");
+
         // ---- TileEntity 注册 ----
         GameRegistry.registerTileEntity(TileEntityDimensionLoom.class,
                 new ResourceLocation(moremod.MODID, "dimension_loom"));
@@ -305,6 +340,23 @@ public class ModBlocks {
         GameRegistry.registerTileEntity(TileEntityUpgradeChamberCore.class,
                 new ResourceLocation(moremod.MODID, "upgrade_chamber_core"));
         System.out.println("[MoreMod] 升級艙核心 TileEntity 已註冊");
+
+        // ⛽ 能源系統 TileEntity
+        GameRegistry.registerTileEntity(TileEntityOilExtractorCore.class,
+                new ResourceLocation(moremod.MODID, "oil_extractor_core"));
+        System.out.println("[MoreMod] ⛽ 抽油機核心 TileEntity 已註冊");
+
+        GameRegistry.registerTileEntity(TileEntityPlantOilPress.class,
+                new ResourceLocation(moremod.MODID, "plant_oil_press"));
+        System.out.println("[MoreMod] ⛽ 植物油壓榨機 TileEntity 已註冊");
+
+        GameRegistry.registerTileEntity(TileEntityOilGenerator.class,
+                new ResourceLocation(moremod.MODID, "oil_generator"));
+        System.out.println("[MoreMod] ⛽ 石油發電機 TileEntity 已註冊");
+
+        GameRegistry.registerTileEntity(TileEntityChargingStation.class,
+                new ResourceLocation(moremod.MODID, "charging_station"));
+        System.out.println("[MoreMod] ⚡ 充能站 TileEntity 已註冊");
     }
 
     @SubscribeEvent
@@ -430,6 +482,28 @@ public class ModBlocks {
                     .setRegistryName(UPGRADE_CHAMBER_CORE.getRegistryName()));
             System.out.println("[MoreMod] 升級艙核心 ItemBlock 已註冊");
         }
+
+        // ⛽ 能源系統 ItemBlock
+        if (OIL_EXTRACTOR_CORE != null) {
+            event.getRegistry().register(new ItemBlock(OIL_EXTRACTOR_CORE)
+                    .setRegistryName(OIL_EXTRACTOR_CORE.getRegistryName()));
+            System.out.println("[MoreMod] ⛽ 抽油機核心 ItemBlock 已註冊");
+        }
+        if (PLANT_OIL_PRESS != null) {
+            event.getRegistry().register(new ItemBlock(PLANT_OIL_PRESS)
+                    .setRegistryName(PLANT_OIL_PRESS.getRegistryName()));
+            System.out.println("[MoreMod] ⛽ 植物油壓榨機 ItemBlock 已註冊");
+        }
+        if (OIL_GENERATOR != null) {
+            event.getRegistry().register(new ItemBlock(OIL_GENERATOR)
+                    .setRegistryName(OIL_GENERATOR.getRegistryName()));
+            System.out.println("[MoreMod] ⛽ 石油發電機 ItemBlock 已註冊");
+        }
+        if (CHARGING_STATION != null) {
+            event.getRegistry().register(new ItemBlock(CHARGING_STATION)
+                    .setRegistryName(CHARGING_STATION.getRegistryName()));
+            System.out.println("[MoreMod] ⚡ 充能站 ItemBlock 已註冊");
+        }
     }
 
     @SideOnly(Side.CLIENT)
@@ -528,6 +602,24 @@ public class ModBlocks {
         if (UPGRADE_CHAMBER_CORE != null) {
             registerBlockModel(UPGRADE_CHAMBER_CORE);
             System.out.println("[MoreMod] 升級艙核心模型已註冊");
+        }
+
+        // ⛽ 能源系統模型
+        if (OIL_EXTRACTOR_CORE != null) {
+            registerBlockModel(OIL_EXTRACTOR_CORE);
+            System.out.println("[MoreMod] ⛽ 抽油機核心模型已註冊");
+        }
+        if (PLANT_OIL_PRESS != null) {
+            registerBlockModel(PLANT_OIL_PRESS);
+            System.out.println("[MoreMod] ⛽ 植物油壓榨機模型已註冊");
+        }
+        if (OIL_GENERATOR != null) {
+            registerBlockModel(OIL_GENERATOR);
+            System.out.println("[MoreMod] ⛽ 石油發電機模型已註冊");
+        }
+        if (CHARGING_STATION != null) {
+            registerBlockModel(CHARGING_STATION);
+            System.out.println("[MoreMod] ⚡ 充能站模型已註冊");
         }
     }
 
