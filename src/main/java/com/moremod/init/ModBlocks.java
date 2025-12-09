@@ -32,6 +32,9 @@ import com.moremod.block.BlockPlantOilPress;
 import com.moremod.block.BlockOilGenerator;
 import com.moremod.block.energy.BlockChargingStation;
 
+// 🩸 血液发电机
+import com.moremod.block.BlockBloodGenerator;
+
 // 🗡️ 两个版本的剑升级台方块
 import com.moremod.block.BlockSwordUpgradeStation;
 import com.moremod.block.BlockSwordUpgradeStationMaterial;
@@ -63,6 +66,9 @@ import com.moremod.tile.TileEntityOilExtractorCore;
 import com.moremod.tile.TileEntityPlantOilPress;
 import com.moremod.tile.TileEntityOilGenerator;
 import com.moremod.tile.TileEntityChargingStation;
+
+// 🩸 血液发电机 TileEntity
+import com.moremod.tile.TileEntityBloodGenerator;
 
 // 🗡️ 两个版本的剑升级台 TE
 import com.moremod.tile.TileEntitySwordUpgradeStation;
@@ -145,6 +151,9 @@ public class ModBlocks {
     public static Block PLANT_OIL_PRESS;
     public static Block OIL_GENERATOR;
     public static Block CHARGING_STATION;
+
+    // 🩸 血液发电机方块
+    public static Block BLOOD_GENERATOR;
 
     @SubscribeEvent
     public static void registerBlocks(RegistryEvent.Register<Block> event) {
@@ -274,6 +283,11 @@ public class ModBlocks {
         event.getRegistry().register(CHARGING_STATION);
         System.out.println("[MoreMod] ⚡ 充能站方塊已註冊");
 
+        // 🩸 血液发电机方块
+        BLOOD_GENERATOR = new BlockBloodGenerator();
+        event.getRegistry().register(BLOOD_GENERATOR);
+        System.out.println("[MoreMod] 🩸 血液發電機方塊已註冊");
+
         // ---- TileEntity 注册 ----
         GameRegistry.registerTileEntity(TileEntityDimensionLoom.class,
                 new ResourceLocation(moremod.MODID, "dimension_loom"));
@@ -365,6 +379,11 @@ public class ModBlocks {
         GameRegistry.registerTileEntity(TileEntityChargingStation.class,
                 new ResourceLocation(moremod.MODID, "charging_station"));
         System.out.println("[MoreMod] ⚡ 充能站 TileEntity 已註冊");
+
+        // 🩸 血液发电机 TileEntity
+        GameRegistry.registerTileEntity(TileEntityBloodGenerator.class,
+                new ResourceLocation(moremod.MODID, "blood_generator"));
+        System.out.println("[MoreMod] 🩸 血液發電機 TileEntity 已註冊");
     }
 
     @SubscribeEvent
@@ -516,6 +535,13 @@ public class ModBlocks {
                     .setRegistryName(CHARGING_STATION.getRegistryName()));
             System.out.println("[MoreMod] ⚡ 充能站 ItemBlock 已註冊");
         }
+
+        // 🩸 血液发电机 ItemBlock
+        if (BLOOD_GENERATOR != null) {
+            event.getRegistry().register(new ItemBlock(BLOOD_GENERATOR)
+                    .setRegistryName(BLOOD_GENERATOR.getRegistryName()));
+            System.out.println("[MoreMod] 🩸 血液發電機 ItemBlock 已註冊");
+        }
     }
 
     @SideOnly(Side.CLIENT)
@@ -637,6 +663,12 @@ public class ModBlocks {
         if (CHARGING_STATION != null) {
             registerBlockModel(CHARGING_STATION);
             System.out.println("[MoreMod] ⚡ 充能站模型已註冊");
+        }
+
+        // 🩸 血液发电机模型
+        if (BLOOD_GENERATOR != null) {
+            registerBlockModel(BLOOD_GENERATOR);
+            System.out.println("[MoreMod] 🩸 血液發電機模型已註冊");
         }
     }
 

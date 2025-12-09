@@ -65,6 +65,11 @@ import com.moremod.quarry.tile.TileQuantumQuarry;
 import com.moremod.container.ContainerMegaChest;
 import com.moremod.tile.TileEntityMegaChest;
 
+// 🩸 血液发电机GUI导入
+import com.moremod.container.ContainerBloodGenerator;
+import com.moremod.tile.TileEntityBloodGenerator;
+import com.moremod.client.gui.GuiBloodGenerator;
+
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumHand;
@@ -121,6 +126,9 @@ public class GuiHandler implements IGuiHandler {
 
     // 📦 超大容量箱子
     public static final int MEGA_CHEST_GUI = 101;
+
+    // 🩸 血液发电机
+    public static final int BLOOD_GENERATOR_GUI = 33;
 
     // ---------------- Server ----------------
     @Override
@@ -216,6 +224,10 @@ public class GuiHandler implements IGuiHandler {
                 }
                 case MEGA_CHEST_GUI: { // 📦 ID=101
                     result = createMegaChestContainer(player, world, x, y, z);
+                    break;
+                }
+                case BLOOD_GENERATOR_GUI: { // 🩸 ID=33
+                    result = createBloodGeneratorContainer(player, world, x, y, z);
                     break;
                 }
                 default:
@@ -323,6 +335,10 @@ public class GuiHandler implements IGuiHandler {
                 }
                 case MEGA_CHEST_GUI: { // 📦 ID=101
                     result = createMegaChestGui(player, world, x, y, z);
+                    break;
+                }
+                case BLOOD_GENERATOR_GUI: { // 🩸 ID=33
+                    result = createBloodGeneratorGui(player, world, x, y, z);
                     break;
                 }
                 default:
@@ -633,7 +649,8 @@ public class GuiHandler implements IGuiHandler {
                 guiId == FAKE_PLAYER_ACTIVATOR_GUI ||            // 🤖 假玩家激活器
                 guiId == CHARGING_STATION_GUI ||                 // ⚡ 充能站
                 guiId == QUANTUM_QUARRY_GUI ||                   // ⛏️ 量子採石場
-                guiId == MEGA_CHEST_GUI;                         // 📦 超大容量箱子
+                guiId == MEGA_CHEST_GUI ||                       // 📦 超大容量箱子
+                guiId == BLOOD_GENERATOR_GUI;                    // 🩸 血液发电机
     }
 
     public static boolean isItemBasedGui(int guiId) {
@@ -744,6 +761,32 @@ public class GuiHandler implements IGuiHandler {
             return new GuiMegaChest(player.inventory, (TileEntityMegaChest) te);
         }
         System.out.println("[GuiHandler] ❌ 未识别的超大容量箱子 TE(客户端): " + (te == null ? "null" : te.getClass().getName()));
+        return null;
+    }
+
+    // ====== 🩸 ID=33：血液发电机 ======
+    private Object createBloodGeneratorContainer(EntityPlayer player, World world, int x, int y, int z) {
+        BlockPos pos = new BlockPos(x, y, z);
+        TileEntity te = world.getTileEntity(pos);
+
+        if (te instanceof TileEntityBloodGenerator) {
+            System.out.println("[GuiHandler] 打开血液发电机 Container");
+            return new ContainerBloodGenerator(player.inventory, (TileEntityBloodGenerator) te);
+        }
+        System.out.println("[GuiHandler] ❌ 未识别的血液发电机 TE: " + (te == null ? "null" : te.getClass().getName()));
+        return null;
+    }
+
+    @SideOnly(Side.CLIENT)
+    private Object createBloodGeneratorGui(EntityPlayer player, World world, int x, int y, int z) {
+        BlockPos pos = new BlockPos(x, y, z);
+        TileEntity te = world.getTileEntity(pos);
+
+        if (te instanceof TileEntityBloodGenerator) {
+            System.out.println("[GuiHandler] 打开血液发电机 GUI");
+            return new GuiBloodGenerator(player.inventory, (TileEntityBloodGenerator) te);
+        }
+        System.out.println("[GuiHandler] ❌ 未识别的血液发电机 TE(客户端): " + (te == null ? "null" : te.getClass().getName()));
         return null;
     }
 }

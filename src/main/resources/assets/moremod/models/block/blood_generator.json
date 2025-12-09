@@ -1,0 +1,12 @@
+{
+  "parent": "block/cube",
+  "textures": {
+    "particle": "moremod:blocks/blood_generator_side",
+    "down": "moremod:blocks/blood_generator_bottom",
+    "up": "moremod:blocks/blood_generator_top",
+    "north": "moremod:blocks/blood_generator_front",
+    "south": "moremod:blocks/blood_generator_side",
+    "west": "moremod:blocks/blood_generator_side",
+    "east": "moremod:blocks/blood_generator_side"
+  }
+}
