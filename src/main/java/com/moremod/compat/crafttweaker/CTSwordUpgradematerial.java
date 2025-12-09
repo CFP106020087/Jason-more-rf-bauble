@@ -1,5 +1,6 @@
 package com.moremod.compat.crafttweaker;
 
+import com.moremod.integration.jei.MoreModJEIPlugin;
 import com.moremod.recipe.SwordUpgradeRegistry;
 import crafttweaker.CraftTweakerAPI;
 import crafttweaker.IAction;
@@ -15,11 +16,13 @@ import stanhebben.zenscript.annotations.ZenMethod;
 
 /**
  * CraftTweaker 剑升级配方接口 - 支持NBT匹配
- * 
+ *
  * 支持三种配方模式：
  * 1. NBT精确配方：addRecipe(带NBT的剑, 材料, 输出剑, XP)
  * 2. Item精确配方：addRecipe(不带NBT的剑, 材料, 输出剑, XP)
  * 3. 通用配方：add(材料, 输出剑, XP) - 任意剑适用
+ *
+ * JEI 集成：配方會自動顯示在 JEI 中（玩家進入世界時自動刷新）
  */
 @ZenRegister
 @ZenClass("mods.moremod.SwordUpgradematerial")

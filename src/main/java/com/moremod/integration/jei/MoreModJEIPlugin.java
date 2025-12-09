@@ -12,12 +12,21 @@ import mezz.jei.api.recipe.IRecipeWrapper;
 import mezz.jei.api.recipe.IRecipeWrapperFactory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
+import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.gameevent.PlayerEvent;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * JEI集成插件 - 支持多种配方系统
+ *
+ * 支持 CraftTweaker 動態配方：
+ * - 在遊戲加載完成後自動刷新 JEI 配方
+ * - 支持運行時添加/移除配方
  */
 @JEIPlugin
 public class MoreModJEIPlugin implements IModPlugin {
@@ -27,6 +36,16 @@ public class MoreModJEIPlugin implements IModPlugin {
     public static final String DIMENSION_LOOM_UID = "moremod.dimension_loom";
     public static final String SWORD_UPGRADE_UID = "moremod.sword_upgrade_material";
 
+    // JEI 運行時引用（用於動態配方註冊）
+    private static IRecipeRegistry recipeRegistry;
+    private static IJeiRuntime jeiRuntime;
+
+    // 追踪已註冊的配方（用於避免重複）
+    private static final Set<Object> registeredSwordRecipes = new HashSet<>();
+    private static final Set<Object> registeredRitualRecipes = new HashSet<>();
+
+    // 是否已完成首次刷新
+    private static boolean hasRefreshed = false;
 
     public ResourceLocation getPluginUid() {
         return new ResourceLocation("moremod", "jei_plugin");
@@ -78,6 +97,151 @@ public class MoreModJEIPlugin implements IModPlugin {
     }
 
     /**
+     * JEI 運行時可用時的回調
+     * 保存運行時引用以便後續動態添加配方
+     */
+    @Override
+    public void onRuntimeAvailable(IJeiRuntime runtime) {
+        jeiRuntime = runtime;
+        recipeRegistry = runtime.getRecipeRegistry();
+
+        // 註冊事件監聽器用於刷新配方
+        MinecraftForge.EVENT_BUS.register(new JEIRefreshHandler());
+
+        System.out.println("[MoreMod-JEI] Runtime available, dynamic recipe support enabled");
+    }
+
+    /**
+     * 事件處理器：在玩家進入世界時刷新 JEI 配方
+     * 這確保 CraftTweaker 腳本已經執行完畢
+     */
+    public static class JEIRefreshHandler {
+        @SubscribeEvent
+        public void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
+            if (!hasRefreshed) {
+                hasRefreshed = true;
+                refreshAllRecipes();
+            }
+        }
+    }
+
+    /**
+     * 刷新所有動態配方（CraftTweaker 配方）
+     * 可從外部調用以強制刷新
+     */
+    public static void refreshAllRecipes() {
+        if (recipeRegistry == null) {
+            System.out.println("[MoreMod-JEI] Cannot refresh recipes - JEI runtime not available");
+            return;
+        }
+
+        System.out.println("[MoreMod-JEI] Refreshing dynamic recipes...");
+
+        // 刷新材質變化台配方
+        refreshSwordUpgradeRecipes();
+
+        // 刷新儀式配方
+        refreshRitualRecipes();
+
+        System.out.println("[MoreMod-JEI] Dynamic recipe refresh complete!");
+    }
+
+    /**
+     * 刷新材質變化台配方
+     */
+    public static void refreshSwordUpgradeRecipes() {
+        if (recipeRegistry == null) return;
+
+        List<SwordUpgradeRegistry.Recipe> currentRecipes = SwordUpgradeRegistry.viewAll();
+        int addedCount = 0;
+
+        for (SwordUpgradeRegistry.Recipe recipe : currentRecipes) {
+            // 使用配方的唯一標識符避免重複
+            String recipeId = getRecipeId(recipe);
+            if (!registeredSwordRecipes.contains(recipeId)) {
+                try {
+                    recipeRegistry.addRecipe(new SwordUpgradeWrapper(recipe), SWORD_UPGRADE_UID);
+                    registeredSwordRecipes.add(recipeId);
+                    addedCount++;
+                } catch (Exception e) {
+                    System.err.println("[MoreMod-JEI] Failed to add sword upgrade recipe: " + e.getMessage());
+                }
+            }
+        }
+
+        if (addedCount > 0) {
+            System.out.println("[MoreMod-JEI] Added " + addedCount + " new sword upgrade recipes to JEI");
+        }
+    }
+
+    /**
+     * 刷新儀式配方
+     */
+    public static void refreshRitualRecipes() {
+        if (recipeRegistry == null) return;
+
+        List<RitualInfusionRecipe> currentRecipes = RitualInfusionAPI.RITUAL_RECIPES;
+        int addedCount = 0;
+
+        for (RitualInfusionRecipe recipe : currentRecipes) {
+            // 使用輸出物品作為簡單的唯一標識
+            String recipeId = recipe.output.toString();
+            if (!registeredRitualRecipes.contains(recipeId)) {
+                try {
+                    recipeRegistry.addRecipe(new RitualInfusionWrapper(recipe), RITUAL_INFUSION_UID);
+                    registeredRitualRecipes.add(recipeId);
+                    addedCount++;
+                } catch (Exception e) {
+                    System.err.println("[MoreMod-JEI] Failed to add ritual recipe: " + e.getMessage());
+                }
+            }
+        }
+
+        if (addedCount > 0) {
+            System.out.println("[MoreMod-JEI] Added " + addedCount + " new ritual recipes to JEI");
+        }
+    }
+
+    /**
+     * 生成配方的唯一標識符
+     */
+    private static String getRecipeId(SwordUpgradeRegistry.Recipe recipe) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(recipe.inputRequirement.getItem().getRegistryName());
+        if (recipe.inputRequirement.hasTagCompound()) {
+            sb.append(recipe.inputRequirement.getTagCompound().getString("_upgrade_material"));
+        }
+        sb.append("->");
+        sb.append(recipe.targetSword.getRegistryName());
+        return sb.toString();
+    }
+
+    /**
+     * 获取 JEI 運行時（供外部使用）
+     */
+    public static IJeiRuntime getJeiRuntime() {
+        return jeiRuntime;
+    }
+
+    /**
+     * 获取配方註冊表（供外部使用）
+     */
+    public static IRecipeRegistry getRecipeRegistry() {
+        return recipeRegistry;
+    }
+
+    /**
+     * 强制重置刷新状态（用于重新加载）
+     */
+    public static void resetRefreshState() {
+        hasRefreshed = false;
+        registeredSwordRecipes.clear();
+        registeredRitualRecipes.clear();
+    }
+
+    // ==================== 原有註冊方法 ====================
+
+    /**
      * 注册仪式注入配方
      */
     private void registerRitualInfusion(IModRegistry registry) {
@@ -93,10 +257,14 @@ public class MoreModJEIPlugin implements IModPlugin {
                 RITUAL_INFUSION_UID
         );
 
-        // 2. 添加配方
+        // 2. 添加配方（初始配方，CRT 配方會在運行時添加）
         List<RitualInfusionRecipe> ritualRecipes = RitualInfusionAPI.RITUAL_RECIPES;
         if (!ritualRecipes.isEmpty()) {
             registry.addRecipes(ritualRecipes, RITUAL_INFUSION_UID);
+            // 標記為已註冊
+            for (RitualInfusionRecipe recipe : ritualRecipes) {
+                registeredRitualRecipes.add(recipe.output.toString());
+            }
             System.out.println("[MoreMod-JEI] Added " + ritualRecipes.size() + " ritual infusion recipes");
         }
 
@@ -160,14 +328,6 @@ public class MoreModJEIPlugin implements IModPlugin {
                             "在周围放上注能台，提供注能台能量，以为核心道具注入其他物品。"
             );
         }
-
-        // 如果有GUI，添加点击区域
-        // registry.addRecipeClickArea(
-        //     GuiDimensionLoom.class,
-        //     88, 32,  // 箭头位置
-        //     28, 23,  // 箭头大小
-        //     DIMENSION_LOOM_UID
-        // );
     }
 
     /**
@@ -181,15 +341,18 @@ public class MoreModJEIPlugin implements IModPlugin {
                 SWORD_UPGRADE_UID
         );
 
-        // 2. 获取所有配方并添加
+        // 2. 获取所有配方并添加（初始配方）
         List<SwordUpgradeRegistry.Recipe> recipes = SwordUpgradeRegistry.viewAll();
         if (!recipes.isEmpty()) {
-            // 创建配方列表的副本
             List<SwordUpgradeRegistry.Recipe> recipeList = new ArrayList<>(recipes);
             registry.addRecipes(recipeList, SWORD_UPGRADE_UID);
+            // 標記為已註冊
+            for (SwordUpgradeRegistry.Recipe recipe : recipeList) {
+                registeredSwordRecipes.add(getRecipeId(recipe));
+            }
             System.out.println("[MoreMod-JEI] Added " + recipeList.size() + " sword upgrade recipes");
         } else {
-            System.out.println("[MoreMod-JEI] No sword upgrade recipes found (add via CraftTweaker)");
+            System.out.println("[MoreMod-JEI] No sword upgrade recipes found (will refresh after CraftTweaker loads)");
         }
 
         // 3. 添加催化剂
@@ -200,14 +363,12 @@ public class MoreModJEIPlugin implements IModPlugin {
             );
         }
 
-        // 如果有材质变化台方块
         if (ModBlocks.SWORD_UPGRADE_STATION_MATERIAL != null) {
             registry.addRecipeCatalyst(
                     new ItemStack(ModBlocks.SWORD_UPGRADE_STATION_MATERIAL),
                     SWORD_UPGRADE_UID
             );
 
-            // 添加物品描述
             registry.addIngredientInfo(
                     new ItemStack(ModBlocks.SWORD_UPGRADE_STATION_MATERIAL),
                     ItemStack.class,
