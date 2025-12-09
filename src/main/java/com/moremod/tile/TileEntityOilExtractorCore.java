@@ -35,8 +35,8 @@ public class TileEntityOilExtractorCore extends TileEntity implements ITickable 
     private static final int MAX_OIL_STORAGE = 16000;      // 內部儲油 16000 mB (16桶)
     private static final int MB_PER_BUCKET = 1000;         // 1桶 = 1000 mB
 
-    // 能量存儲
-    private final EnergyStorage energy = new EnergyStorage(ENERGY_CAPACITY, 10000, 0) {
+    // 能量存儲 (maxExtract 需要 > 0 才能內部消耗能量)
+    private final EnergyStorage energy = new EnergyStorage(ENERGY_CAPACITY, 10000, ENERGY_PER_TICK * 2) {
         @Override
         public int receiveEnergy(int maxReceive, boolean simulate) {
             int received = super.receiveEnergy(maxReceive, simulate);
