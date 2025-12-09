@@ -3,6 +3,7 @@ package com.moremod.tile;
 import com.moremod.multiblock.MultiblockRespawnChamber;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.init.SoundEvents;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.network.NetworkManager;
 import net.minecraft.network.play.server.SPacketUpdateTileEntity;
@@ -129,7 +130,7 @@ public class TileEntityRespawnChamberCore extends TileEntity implements ITickabl
 
         // 音效
         world.playSound(null, pos.getX(), pos.getY(), pos.getZ(),
-                net.minecraft.init.SoundEvents.BLOCK_BEACON_ACTIVATE,
+                SoundEvents.BLOCK_PORTAL_TRIGGER,
                 net.minecraft.util.SoundCategory.BLOCKS, 1.0f, 1.2f);
 
         return true;
