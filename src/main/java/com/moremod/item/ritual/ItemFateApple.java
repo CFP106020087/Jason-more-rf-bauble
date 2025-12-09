@@ -33,7 +33,7 @@ public class ItemFateApple extends ItemFood {
 
     public ItemFateApple() {
         super(4, 0.5F, false);
-        setUnlocalizedName("moremod.fate_apple");
+        setTranslationKey("moremod.fate_apple");
         setRegistryName("fate_apple");
         setCreativeTab(MoreMod.CREATIVE_TAB);
         setAlwaysEdible(); // 可以在饱食度满时食用

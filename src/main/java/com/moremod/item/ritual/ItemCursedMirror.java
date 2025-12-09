@@ -30,7 +30,7 @@ import java.util.List;
 public class ItemCursedMirror extends Item {
 
     public ItemCursedMirror() {
-        setUnlocalizedName("moremod.cursed_mirror");
+        setTranslationKey("moremod.cursed_mirror");
         setRegistryName("cursed_mirror");
         setCreativeTab(MoreMod.CREATIVE_TAB);
         setMaxStackSize(1);

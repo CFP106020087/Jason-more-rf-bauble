@@ -42,7 +42,7 @@ public class BlockFakePlayerActivator extends Block implements ITileEntityProvid
 
     public BlockFakePlayerActivator() {
         super(Material.IRON);
-        setUnlocalizedName("moremod.fake_player_activator");
+        setTranslationKey("moremod.fake_player_activator");
         setRegistryName("fake_player_activator");
         setCreativeTab(CreativeTabs.REDSTONE);
         setHardness(3.5F);

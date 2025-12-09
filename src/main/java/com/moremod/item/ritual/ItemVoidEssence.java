@@ -22,7 +22,7 @@ import java.util.List;
 public class ItemVoidEssence extends Item {
 
     public ItemVoidEssence() {
-        setUnlocalizedName("moremod.void_essence");
+        setTranslationKey("moremod.void_essence");
         setRegistryName("void_essence");
         setCreativeTab(MoreMod.CREATIVE_TAB);
         setMaxStackSize(64);

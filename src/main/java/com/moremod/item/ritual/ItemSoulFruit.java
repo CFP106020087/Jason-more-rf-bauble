@@ -31,7 +31,7 @@ public class ItemSoulFruit extends ItemFood {
 
     public ItemSoulFruit() {
         super(2, 0.1F, false);
-        setUnlocalizedName("moremod.soul_fruit");
+        setTranslationKey("moremod.soul_fruit");
         setRegistryName("soul_fruit");
         setCreativeTab(MoreMod.CREATIVE_TAB);
         setAlwaysEdible();
