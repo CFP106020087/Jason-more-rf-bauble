@@ -39,27 +39,47 @@ public class TileEntityOilGenerator extends TileEntity implements ITickable {
     private static final int ENERGY_CAPACITY = 1000000;    // 1M RF
     private static final int RF_PER_TICK = 200;            // 每tick產生 200 RF
 
-    // 能量存儲（可輸出但不接收）
-    private final EnergyStorage energy = new EnergyStorage(ENERGY_CAPACITY, 0, 10000) {
+    // 自訂能量存儲（對外只輸出，對內可添加）
+    private final GeneratorEnergyStorage energy = new GeneratorEnergyStorage(ENERGY_CAPACITY, 10000);
+
+    /**
+     * 發電機專用能量存儲 - 對外只允許輸出，內部可添加能量
+     */
+    private static class GeneratorEnergyStorage extends EnergyStorage {
+        public GeneratorEnergyStorage(int capacity, int maxExtract) {
+            super(capacity, 0, maxExtract); // maxReceive=0 防止外部輸入
+        }
+
         @Override
         public int extractEnergy(int maxExtract, boolean simulate) {
             int extracted = super.extractEnergy(maxExtract, simulate);
-            if (extracted > 0 && !simulate) {
-                markDirty();
-            }
             return extracted;
         }
 
-        // 允許內部添加能量
-        public int addEnergy(int amount, boolean simulate) {
-            int stored = getEnergyStored();
-            int toAdd = Math.min(amount, getMaxEnergyStored() - stored);
-            if (toAdd > 0 && !simulate) {
-                this.receiveEnergy(toAdd, false);
+        @Override
+        public boolean canReceive() {
+            return false; // 對外不接收
+        }
+
+        /**
+         * 內部添加能量（用於發電）
+         */
+        public int addEnergyInternal(int amount) {
+            int stored = this.energy;
+            int toAdd = Math.min(amount, capacity - stored);
+            if (toAdd > 0) {
+                this.energy += toAdd;
             }
             return toAdd;
         }
-    };
+
+        /**
+         * 設置能量值（用於NBT載入）
+         */
+        public void setEnergy(int amount) {
+            this.energy = Math.min(amount, capacity);
+        }
+    }
 
     // 燃料槽（物品）
     private final ItemStackHandler inventory = new ItemStackHandler(1) {
@@ -114,10 +134,11 @@ public class TileEntityOilGenerator extends TileEntity implements ITickable {
         if (burnTime > 0) {
             burnTime--;
 
-            // 產生能量
+            // 產生能量（使用內部添加方法）
             if (energy.getEnergyStored() < energy.getMaxEnergyStored()) {
                 int toAdd = Math.min(currentRFPerTick, energy.getMaxEnergyStored() - energy.getEnergyStored());
-                energy.receiveEnergy(toAdd, false);
+                energy.addEnergyInternal(toAdd);
+                markDirty();
             }
 
             // 粒子效果
@@ -331,8 +352,8 @@ public class TileEntityOilGenerator extends TileEntity implements ITickable {
         if (compound.hasKey("Inventory")) {
             inventory.deserializeNBT(compound.getCompoundTag("Inventory"));
         }
-        int fe = compound.getInteger("Energy");
-        while (energy.getEnergyStored() < fe && energy.receiveEnergy(Integer.MAX_VALUE, false) > 0) {}
+        // 使用直接設置方法載入能量
+        energy.setEnergy(compound.getInteger("Energy"));
         burnTime = compound.getInteger("BurnTime");
         maxBurnTime = compound.getInteger("MaxBurnTime");
         currentRFPerTick = compound.getInteger("RFPerTick");
