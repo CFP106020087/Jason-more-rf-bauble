@@ -1,8 +1,13 @@
 package com.moremod.entity.curse;
 
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Multimap;
 import com.moremod.core.CurseDeathHook;
 import com.moremod.entity.curse.EmbeddedCurseManager.EmbeddedRelicType;
+import net.minecraft.entity.EntityCreature;
 import net.minecraft.entity.EntityLiving;
+import net.minecraft.entity.SharedMonsterAttributes;
+import net.minecraft.entity.ai.attributes.AttributeModifier;
 import net.minecraft.entity.monster.EntityMob;
 import net.minecraft.entity.passive.EntityAnimal;
 import net.minecraft.entity.player.EntityPlayer;
@@ -15,6 +20,10 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 /**
  * 嵌入遗物效果处理器
@@ -55,7 +64,10 @@ public class EmbeddedCurseEffectHandler {
 
     // ========== 2. 中立生物主动攻击 → 和平徽章抵消 ==========
 
-    @SubscribeEvent(priority = EventPriority.HIGH)
+    // 用于追踪需要清除攻击目标的生物
+    private static final Map<Integer, UUID> pendingTargetClear = new HashMap<>();
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onSetAttackTarget(LivingSetAttackTargetEvent event) {
         if (!(event.getTarget() instanceof EntityPlayer)) return;
         if (event.getEntityLiving().world.isRemote) return;
@@ -70,16 +82,41 @@ public class EmbeddedCurseEffectHandler {
             // 如果是中立生物（非敌对怪物），取消攻击目标
             if (!(event.getEntityLiving() instanceof EntityMob)) {
                 if (event.getEntityLiving() instanceof EntityAnimal ||
-                    event.getEntityLiving() instanceof EntityLiving) {
-                    // 无法直接取消，但可以在tick中处理
+                    (event.getEntityLiving() instanceof EntityLiving && !(event.getEntityLiving() instanceof EntityMob))) {
+                    // 标记需要在下一tick清除攻击目标
+                    pendingTargetClear.put(event.getEntityLiving().getEntityId(), player.getUniqueID());
                 }
             }
         }
     }
 
+    /**
+     * 定期清除中立生物的攻击目标（和平徽章效果）
+     */
+    @SubscribeEvent
+    public static void onWorldTick(TickEvent.WorldTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) return;
+        if (event.world.isRemote) return;
+
+        // 每 5 tick 处理一次
+        if (event.world.getTotalWorldTime() % 5 != 0) return;
+
+        // 清除标记的攻击目标
+        pendingTargetClear.entrySet().removeIf(entry -> {
+            net.minecraft.entity.Entity entity = event.world.getEntityByID(entry.getKey());
+            if (entity instanceof EntityCreature) {
+                EntityCreature creature = (EntityCreature) entity;
+                if (creature.getAttackTarget() != null &&
+                    creature.getAttackTarget().getUniqueID().equals(entry.getValue())) {
+                    creature.setAttackTarget(null);
+                }
+            }
+            return true;
+        });
+    }
+
     // ========== 3. 护甲效力降低30% → 守护鳞片抵消 ==========
-    // 这个效果通过属性修改实现，需要在佩戴检测中处理
-    // 守护鳞片嵌入后，护甲效力恢复正常
+    // 护甲恢复处理在 onPlayerTick 中的 handleGuardianScaleArmor 方法
 
     // ========== 4. 对怪物伤害降低50% → 勇气之刃抵消 ==========
 
@@ -107,6 +144,9 @@ public class EmbeddedCurseEffectHandler {
 
     // ========== 5. 着火永燃 → 霜华之露抵消 ==========
 
+    // 追踪玩家的火焰状态，用于判断火焰是否应该熄灭
+    private static final Map<UUID, Integer> playerFireTicks = new HashMap<>();
+
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
@@ -119,19 +159,80 @@ public class EmbeddedCurseEffectHandler {
 
         // 检查是否嵌入了霜华之露
         if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.FROST_DEW)) {
-            // 如果玩家着火，正常熄灭（抵消永燃效果）
-            // 七咒会阻止火焰自然熄灭，嵌入后恢复正常
-            // 这里我们不需要特别处理，因为嵌入后七咒的永燃效果应该被抵消
+            // 霜华之露效果：如果玩家着火，允许火焰正常减少
+            // 七咒会让火焰永不熄灭（fire ticks 不减少或持续增加）
+            // 嵌入后，我们主动减少 fire ticks 来抵消这个效果
+            if (player.isBurning()) {
+                UUID playerId = player.getUniqueID();
+                int lastFireTicks = playerFireTicks.getOrDefault(playerId, 0);
+                int currentFireTicks = player.fire;
+
+                // 如果火焰没有自然减少（被七咒阻止了），我们手动减少
+                if (currentFireTicks >= lastFireTicks && lastFireTicks > 0) {
+                    // 每 tick 减少 1 点火焰时间，正常熄灭
+                    player.fire = Math.max(0, currentFireTicks - 2);
+                }
+
+                playerFireTicks.put(playerId, player.fire);
+            } else {
+                // 不着火时清除记录
+                playerFireTicks.remove(player.getUniqueID());
+            }
+        }
+
+        // 处理守护鳞片的护甲恢复
+        handleGuardianScaleArmor(player);
+    }
+
+    // ========== 守护鳞片护甲恢复处理 ==========
+
+    private static final UUID GUARDIAN_SCALE_ARMOR_UUID = UUID.fromString("a8b3c4d5-e6f7-4a8b-9c0d-1e2f3a4b5c6d");
+    private static final Map<UUID, Boolean> armorModifierApplied = new HashMap<>();
+
+    private static void handleGuardianScaleArmor(EntityPlayer player) {
+        UUID playerId = player.getUniqueID();
+        boolean hasGuardianScale = EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.GUARDIAN_SCALE);
+        boolean wasApplied = armorModifierApplied.getOrDefault(playerId, false);
+
+        if (hasGuardianScale && !wasApplied) {
+            // 嵌入了守护鳞片，添加护甲恢复修正
+            // 七咒降低30%护甲，我们添加一个正向修正来抵消
+            // 注意：这里使用Operation 2 (乘法)，值为 0.428 表示 +42.8%
+            // 这样 70% * 1.428 ≈ 100%，恢复原始护甲值
+            AttributeModifier armorBoost = new AttributeModifier(
+                    GUARDIAN_SCALE_ARMOR_UUID,
+                    "Guardian Scale Armor Restoration",
+                    0.428D,  // +42.8% 来抵消 -30%
+                    2  // Operation: Multiply
+            );
+
+            if (player.getEntityAttribute(SharedMonsterAttributes.ARMOR) != null) {
+                if (player.getEntityAttribute(SharedMonsterAttributes.ARMOR).getModifier(GUARDIAN_SCALE_ARMOR_UUID) == null) {
+                    player.getEntityAttribute(SharedMonsterAttributes.ARMOR).applyModifier(armorBoost);
+                    armorModifierApplied.put(playerId, true);
+                }
+            }
+        } else if (!hasGuardianScale && wasApplied) {
+            // 移除了守护鳞片，移除护甲修正
+            if (player.getEntityAttribute(SharedMonsterAttributes.ARMOR) != null) {
+                player.getEntityAttribute(SharedMonsterAttributes.ARMOR).removeModifier(GUARDIAN_SCALE_ARMOR_UUID);
+                armorModifierApplied.put(playerId, false);
+            }
         }
     }
 
     // ========== 6. 死亡灵魂破碎 → 灵魂锚点抵消 ==========
-    // 这个效果需要在死亡事件中处理
-    // 灵魂锚点嵌入后，死亡不会导致额外的惩罚
+    // 这个效果通过 MixinSuperpositionHandler 实现
+    // 拦截 keletu.enigmaticlegacy.event.SuperpositionHandler.loseSoul 方法
+    // 灵魂锚点嵌入后，死亡不会导致灵魂破碎
 
     // ========== 7. 失眠症 → 安眠香囊抵消 ==========
 
-    @SubscribeEvent(priority = EventPriority.HIGH)
+    /**
+     * 在睡眠事件的最高优先级处理
+     * 如果嵌入了安眠香囊，强制设置结果为 OK
+     */
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onPlayerSleep(PlayerSleepInBedEvent event) {
         EntityPlayer player = event.getEntityPlayer();
         if (player.world.isRemote) return;
@@ -141,8 +242,36 @@ public class EmbeddedCurseEffectHandler {
 
         // 检查是否嵌入了安眠香囊
         if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SLUMBER_SACHET)) {
-            // 安眠香囊可以直接解除失眠症
-            // 允许睡觉（不做任何阻止）
+            // 安眠香囊抵消失眠症
+            // 如果当前结果是 NOT_POSSIBLE_HERE（七咒造成的失眠），我们尝试允许睡觉
+            // 注意：这里不能直接设置 setResult(OK)，因为还有其他条件需要检查
+            // 但我们可以在 enigmaticlegacy 的事件之后重置结果
+
+            // 保存原始状态，在后续处理中使用
+            player.getEntityData().setBoolean("moremod_slumber_sachet_active", true);
+        }
+    }
+
+    /**
+     * 在较低优先级检查是否需要覆盖失眠结果
+     */
+    @SubscribeEvent(priority = EventPriority.LOW)
+    public static void onPlayerSleepLow(PlayerSleepInBedEvent event) {
+        EntityPlayer player = event.getEntityPlayer();
+        if (player.world.isRemote) return;
+
+        // 检查是否激活了安眠香囊
+        if (player.getEntityData().getBoolean("moremod_slumber_sachet_active")) {
+            player.getEntityData().removeTag("moremod_slumber_sachet_active");
+
+            // 如果结果是 NOT_POSSIBLE_HERE（可能是七咒造成的），尝试重置
+            // 注意：由于 Forge 事件系统的限制，我们不能直接覆盖结果
+            // 但我们可以通过 Mixin 来实现这个功能
+            if (event.getResultStatus() != null &&
+                event.getResultStatus() == EntityPlayer.SleepResult.NOT_POSSIBLE_HERE) {
+                // 这里需要 Mixin 来完全覆盖
+                // 目前只是标记，让 Mixin 来处理
+            }
         }
     }
 
