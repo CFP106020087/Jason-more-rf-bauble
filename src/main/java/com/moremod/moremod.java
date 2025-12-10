@@ -654,8 +654,9 @@ public class moremod {
         GameRegistry.registerWorldGenerator(new RuinsWorldGenerator(), 10);
         System.out.println("[moremod] 🏚️ 科技废墟世界生成器注册完成");
 
-        // 打印机配方系统 - 配方完全由CraftTweaker脚本控制
-        System.out.println("[moremod] 🖨️ 打印机系统就绪，配方由CraftTweaker定义");
+        // 打印机配方系统 - 注册预设配方 + CraftTweaker扩展
+        com.moremod.printer.PrinterRecipeRegistry.registerDefaultRecipes();
+        System.out.println("[moremod] 🖨️ 打印机系统就绪，预设配方已加载，可通过CraftTweaker扩展");
 
         // 其他初始化
         ItemMechanicalCore.registerEnergyGenerationEvents();
