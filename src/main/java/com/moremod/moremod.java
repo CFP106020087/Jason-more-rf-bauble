@@ -53,6 +53,7 @@ import com.moremod.quarry.tile.TileQuarryActuator;
 import com.moremod.recipe.DimensionLoomRecipeLoader;
 import com.moremod.ritual.RitualRecipeLoader;
 import com.moremod.ritual.fabric.UniversalFabricRituals;
+import com.moremod.ritual.enchanting.EnchantingBoosterRituals;
 import com.moremod.event.eventHandler.SimpleCoreHandler;
 import com.moremod.event.eventHandler.CoreDropProtection;
 import com.moremod.event.eventHandler.SmartUpgradeHandler;
@@ -668,6 +669,7 @@ public class moremod {
         /* ===== Ritual 多方块：配方注册 ===== */
         registerRitualRecipes();
         UniversalFabricRituals.registerRituals();
+        EnchantingBoosterRituals.registerRituals();  // 附魔增强方块仪式
 
         /* ===== 装瓶机：注册基础配方 ===== */
         registerBottlingMachineRecipes();
