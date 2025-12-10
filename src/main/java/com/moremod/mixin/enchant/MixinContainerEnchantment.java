@@ -47,8 +47,9 @@ public abstract class MixinContainerEnchantment {
 
     /**
      * 在原版计算完附魔等级后，根据魔法书柜提升等级
+     * onCraftMatrixChanged -> func_75130_a
      */
-    @Inject(method = "onCraftMatrixChanged", at = @At("RETURN"))
+    @Inject(method = "func_75130_a", at = @At("RETURN"))
     private void moremod$boostEnchantLevels(IInventory inventoryIn, CallbackInfo ci) {
         if (world == null || position == null) return;
 
