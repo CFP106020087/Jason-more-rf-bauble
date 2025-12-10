@@ -70,6 +70,11 @@ import com.moremod.container.ContainerBloodGenerator;
 import com.moremod.tile.TileEntityBloodGenerator;
 import com.moremod.client.gui.GuiBloodGenerator;
 
+// 🖨️ 打印机GUI导入
+import com.moremod.printer.ContainerPrinter;
+import com.moremod.printer.GuiPrinter;
+import com.moremod.printer.TileEntityPrinter;
+
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumHand;
@@ -129,6 +134,9 @@ public class GuiHandler implements IGuiHandler {
 
     // 🩸 血液发电机
     public static final int BLOOD_GENERATOR_GUI = 33;
+
+    // 🖨️ 打印机
+    public static final int PRINTER_GUI = 34;
 
     // ---------------- Server ----------------
     @Override
@@ -228,6 +236,10 @@ public class GuiHandler implements IGuiHandler {
                 }
                 case BLOOD_GENERATOR_GUI: { // 🩸 ID=33
                     result = createBloodGeneratorContainer(player, world, x, y, z);
+                    break;
+                }
+                case PRINTER_GUI: { // 🖨️ ID=34
+                    result = createPrinterContainer(player, world, x, y, z);
                     break;
                 }
                 default:
@@ -339,6 +351,10 @@ public class GuiHandler implements IGuiHandler {
                 }
                 case BLOOD_GENERATOR_GUI: { // 🩸 ID=33
                     result = createBloodGeneratorGui(player, world, x, y, z);
+                    break;
+                }
+                case PRINTER_GUI: { // 🖨️ ID=34
+                    result = createPrinterGui(player, world, x, y, z);
                     break;
                 }
                 default:
@@ -787,6 +803,32 @@ public class GuiHandler implements IGuiHandler {
             return new GuiBloodGenerator(player.inventory, (TileEntityBloodGenerator) te);
         }
         System.out.println("[GuiHandler] ❌ 未识别的血液发电机 TE(客户端): " + (te == null ? "null" : te.getClass().getName()));
+        return null;
+    }
+
+    // ====== 🖨️ ID=34：打印机 ======
+    private Object createPrinterContainer(EntityPlayer player, World world, int x, int y, int z) {
+        BlockPos pos = new BlockPos(x, y, z);
+        TileEntity te = world.getTileEntity(pos);
+
+        if (te instanceof TileEntityPrinter) {
+            System.out.println("[GuiHandler] 打开打印机 Container");
+            return new ContainerPrinter(player.inventory, (TileEntityPrinter) te);
+        }
+        System.out.println("[GuiHandler] ❌ 未识别的打印机 TE: " + (te == null ? "null" : te.getClass().getName()));
+        return null;
+    }
+
+    @SideOnly(Side.CLIENT)
+    private Object createPrinterGui(EntityPlayer player, World world, int x, int y, int z) {
+        BlockPos pos = new BlockPos(x, y, z);
+        TileEntity te = world.getTileEntity(pos);
+
+        if (te instanceof TileEntityPrinter) {
+            System.out.println("[GuiHandler] 打开打印机 GUI");
+            return new GuiPrinter(player.inventory, (TileEntityPrinter) te);
+        }
+        System.out.println("[GuiHandler] ❌ 未识别的打印机 TE(客户端): " + (te == null ? "null" : te.getClass().getName()));
         return null;
     }
 }

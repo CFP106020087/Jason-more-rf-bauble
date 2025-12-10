@@ -531,3 +531,23 @@ tooltip.blood_weapon.blood_energy=血液能量: %s
 tooltip.blood_weapon.flesh_chunks=肉块组织: %s
 tooltip.blood_weapon.boss_kills=击杀Boss: %s
 tooltip.blood_weapon.total_rf=可转换RF: %s
+
+# ===== 打印机系统 (Printer System) =====
+tile.printer.name=远古打印机
+container.moremod.printer=远古打印机
+gui.moremod.printer.multiblock_required=多方块结构未形成！需要3x3铁块基座和4个红石块
+
+# 打印模版
+item.moremod.print_template.gear_iron=铁齿轮模版
+item.moremod.print_template.ancient_component=远古组件模版
+item.moremod.print_template.mystery_crystal=神秘水晶模版
+item.moremod.print_template.spacetime_shard=时空碎片模版
+item.moremod.print_template.ancient_core_fragment=远古核心碎片模版
+
+# 模版信息提示
+tooltip.moremod.template_id=模版ID
+tooltip.moremod.output=输出
+tooltip.moremod.energy_cost=能量消耗
+tooltip.moremod.processing_time=处理时间
+tooltip.moremod.unknown_recipe=未知配方
+tooltip.moremod.template_desc=从远古废墟中发现的蓝图，用于打印机复制物品

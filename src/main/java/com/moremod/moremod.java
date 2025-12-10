@@ -91,6 +91,8 @@ import net.minecraft.init.Items;
 // Mixin 相关导入
 import com.moremod.world.SpacetimeOreWorldGenerator;
 import com.moremod.world.VoidStructureWorldGenerator;
+import com.moremod.world.RuinsWorldGenerator;
+import com.moremod.printer.PrinterRecipeRegistry;
 import net.minecraftforge.fml.common.registry.GameRegistry;
 import net.minecraftforge.fml.common.Loader;
 
@@ -649,6 +651,12 @@ public class moremod {
         // 世界生成器
         GameRegistry.registerWorldGenerator(new SpacetimeOreWorldGenerator(), 5);
         GameRegistry.registerWorldGenerator(new VoidStructureWorldGenerator(), 1000);
+        GameRegistry.registerWorldGenerator(new RuinsWorldGenerator(), 10);
+        System.out.println("[moremod] 🏚️ 科技废墟世界生成器注册完成");
+
+        // 打印机配方初始化
+        PrinterRecipeRegistry.initDefaultRecipes();
+        System.out.println("[moremod] 🖨️ 打印机配方系统初始化完成");
 
         // 其他初始化
         ItemMechanicalCore.registerEnergyGenerationEvents();

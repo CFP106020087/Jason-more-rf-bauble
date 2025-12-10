@@ -61,6 +61,9 @@ import com.moremod.item.energy.ItemSpeedUpgrade;
 // 📖 綜合指南書
 import com.moremod.item.ItemModGuide;
 
+// 🖨️ 打印系統
+import com.moremod.printer.ItemPrintTemplate;
+
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.item.Item.ToolMaterial;
 import net.minecraft.item.EnumRarity;
@@ -176,6 +179,9 @@ public final class ModItems {
 
     // 📖 綜合指南書
     public static Item MOREMOD_GUIDE;        // MoreMod 綜合指南
+
+    // 🖨️ 打印系統物品
+    public static Item PRINT_TEMPLATE;       // 打印模版
 
     //新模块(屎山包装)
 
@@ -350,6 +356,10 @@ public final class ModItems {
         MOREMOD_GUIDE = reg(e, new ItemModGuide());
         System.out.println("[MoreMod] 📖 MoreMod 綜合指南已註冊");
 
+        // 🖨️ 註冊打印模版
+        PRINT_TEMPLATE = reg(e, new ItemPrintTemplate());
+        System.out.println("[MoreMod] 🖨️ 打印模版已註冊");
+
         //新模块系统
     }
 
@@ -517,6 +527,10 @@ public final class ModItems {
         // 📖 綁定指南書模型
         bindModel(MOREMOD_GUIDE, "moremod_guide");
         System.out.println("[MoreMod] 📖 綜合指南書模型已註冊");
+
+        // 🖨️ 綁定打印模版模型
+        bindModel(PRINT_TEMPLATE, "print_template");
+        System.out.println("[MoreMod] 🖨️ 打印模版模型已註冊");
     }
 
     @SideOnly(Side.CLIENT)

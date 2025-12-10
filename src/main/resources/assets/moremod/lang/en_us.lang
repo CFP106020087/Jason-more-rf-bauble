@@ -115,3 +115,23 @@ item.glitch_helmet.name=Glitch Helmet
 item.glitch_chestplate.name=Glitch Chestplate
 item.glitch_leggings.name=Glitch Leggings
 item.glitch_boots.name=Glitch Boots
+
+# ===== Printer System =====
+tile.printer.name=Ancient Printer
+container.moremod.printer=Ancient Printer
+gui.moremod.printer.multiblock_required=Multiblock structure not formed! Requires 3x3 iron block base and 4 redstone blocks
+
+# Print Templates
+item.moremod.print_template.gear_iron=Iron Gear Template
+item.moremod.print_template.ancient_component=Ancient Component Template
+item.moremod.print_template.mystery_crystal=Mystery Crystal Template
+item.moremod.print_template.spacetime_shard=Spacetime Shard Template
+item.moremod.print_template.ancient_core_fragment=Ancient Core Fragment Template
+
+# Template Tooltips
+tooltip.moremod.template_id=Template ID
+tooltip.moremod.output=Output
+tooltip.moremod.energy_cost=Energy Cost
+tooltip.moremod.processing_time=Processing Time
+tooltip.moremod.unknown_recipe=Unknown Recipe
+tooltip.moremod.template_desc=A blueprint discovered in ancient ruins, used by the printer to replicate items
