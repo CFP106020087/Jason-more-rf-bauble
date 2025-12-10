@@ -1,5 +1,6 @@
 package com.moremod.mixin.enchant;
 
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.ContainerEnchantment;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.util.math.BlockPos;
@@ -11,6 +12,7 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * 突破附魔等级上限
@@ -44,6 +46,10 @@ public abstract class MixinContainerEnchantment {
     @Unique
     private static final float VANILLA_MAX_POWER = 15.0f;
 
+    // 服务端计算的真实附魔等级缓存
+    @Unique
+    private int[] moremod$serverEnchantLevels = new int[3];
+
     /**
      * 在原版计算完附魔等级后，根据额外能量提升等级
      * onCraftMatrixChanged -> func_75130_a
@@ -54,17 +60,23 @@ public abstract class MixinContainerEnchantment {
     private void moremod$boostEnchantLevels(IInventory inventoryIn, CallbackInfo ci) {
         if (world == null || position == null) return;
 
+        // 只在服务端处理
+        if (world.isRemote) return;
+
         // 计算总能量和超出原版上限的额外能量
         float totalPower = moremod$calculateTotalPower();
         float extraPower = moremod$calculateExtraPower();
 
-        // 调试输出：总是打印（帮助调试mixin是否加载）
+        // 调试输出
         System.out.println("[MoreMod-Enchant] Mixin触发! 总能量=" + totalPower + ", 额外能量=" + extraPower);
 
-        if (extraPower <= 0) return;
+        if (extraPower <= 0) {
+            // 没有额外能量，保存当前等级
+            System.arraycopy(enchantLevels, 0, moremod$serverEnchantLevels, 0, 3);
+            return;
+        }
 
         // 计算额外等级加成 (每1.0额外能量 = 2级)
-        // 这与原版的 power * 2 = max level 公式一致
         int bonusLevels = (int) (extraPower * 2);
 
         System.out.println("[MoreMod-Enchant] 附魔增强: 额外能量=" + extraPower + ", 额外等级=" + bonusLevels);
@@ -78,7 +90,10 @@ public abstract class MixinContainerEnchantment {
             }
         }
 
-        if (!hasItem) return;
+        if (!hasItem) {
+            System.arraycopy(enchantLevels, 0, moremod$serverEnchantLevels, 0, 3);
+            return;
+        }
 
         // 提升附魔等级
         for (int i = 0; i < 3; i++) {
@@ -97,6 +112,30 @@ public abstract class MixinContainerEnchantment {
                     System.out.println("[MoreMod-Enchant] 附魔槽 " + (i+1) + ": " + originalLevel + " -> " + newLevel);
                 }
             }
+        }
+
+        // 保存服务端计算的真实等级
+        System.arraycopy(enchantLevels, 0, moremod$serverEnchantLevels, 0, 3);
+    }
+
+    /**
+     * 拦截 enchantItem 方法，在服务端跳过等级验证
+     * 原版会检查 player.experienceLevel >= enchantLevels[id]
+     * 我们需要在有额外能量时，使用服务端缓存的等级
+     */
+    @Inject(method = {"enchantItem", "func_75140_a"}, at = @At("HEAD"), cancellable = true, require = 0)
+    private void moremod$onEnchantItem(EntityPlayer player, int id, CallbackInfoReturnable<Boolean> cir) {
+        if (world == null || world.isRemote) return;
+        if (id < 0 || id >= 3) return;
+
+        // 检查是否有额外能量
+        float extraPower = moremod$calculateExtraPower();
+        if (extraPower <= 0) return; // 没有额外能量，使用原版逻辑
+
+        // 有额外能量时，确保使用服务端缓存的等级
+        if (moremod$serverEnchantLevels[id] > 0 && enchantLevels[id] != moremod$serverEnchantLevels[id]) {
+            System.out.println("[MoreMod-Enchant] 修正附魔等级: 槽位" + id + " 从 " + enchantLevels[id] + " 修正为 " + moremod$serverEnchantLevels[id]);
+            enchantLevels[id] = moremod$serverEnchantLevels[id];
         }
     }
 

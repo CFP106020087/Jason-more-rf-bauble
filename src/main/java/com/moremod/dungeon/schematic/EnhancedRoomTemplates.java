@@ -19,17 +19,17 @@ public class EnhancedRoomTemplates {
 
     private static final Random rand = new Random();
 
-    // 标准房间尺寸
-    private static final int STANDARD_SIZE = 26;
-    private static final int STANDARD_HEIGHT = 8;
-    private static final int STAIRCASE_ROOM_HEIGHT = 10;
-    // Boss房间尺寸
-    private static final int BOSS_ROOM_SIZE = 36;
-    private static final int BOSS_ROOM_HEIGHT = 16;
+    // 标准房间尺寸 (加大版: +4长宽, +7高度)
+    private static final int STANDARD_SIZE = 30;
+    private static final int STANDARD_HEIGHT = 15;
+    private static final int STAIRCASE_ROOM_HEIGHT = 17;
+    // Boss房间尺寸 (加大版)
+    private static final int BOSS_ROOM_SIZE = 40;
+    private static final int BOSS_ROOM_HEIGHT = 23;
 
-    // Mini-Boss房间尺寸 (中等大小)
-    private static final int MINI_BOSS_SIZE = 32;
-    private static final int MINI_BOSS_HEIGHT = 12;
+    // Mini-Boss房间尺寸 (加大版)
+    private static final int MINI_BOSS_SIZE = 36;
+    private static final int MINI_BOSS_HEIGHT = 19;
 
     // 刷怪箱实体列表
     private static final String[] SPAWNER_ENTITIES = {
