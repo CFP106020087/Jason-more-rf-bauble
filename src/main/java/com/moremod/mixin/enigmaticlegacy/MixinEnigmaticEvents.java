@@ -4,6 +4,7 @@ import com.moremod.entity.curse.EmbeddedCurseManager;
 import com.moremod.entity.curse.EmbeddedCurseManager.EmbeddedRelicType;
 import net.minecraft.entity.player.EntityPlayer;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
@@ -13,7 +14,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  *
  * 目标类: keletu.enigmaticlegacy.event.EnigmaticEvents
  */
-@Mixin(targets = "keletu.enigmaticlegacy.event.EnigmaticEvents", remap = false, expected = 0)
+@Pseudo
+@Mixin(targets = "keletu.enigmaticlegacy.event.EnigmaticEvents", remap = false)
 public class MixinEnigmaticEvents {
 
     /**

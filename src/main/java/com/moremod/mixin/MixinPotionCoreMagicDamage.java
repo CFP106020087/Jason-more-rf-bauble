@@ -9,6 +9,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -25,7 +26,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * - 连击伤害指数增长（1.25^n，最高5倍）
  * - 20层余灼触发爆心（强制5连击）
  */
-@Mixin(targets = "com.tmtravlr.potioncore.PotionCoreEventHandler", remap = false, expected = 0)
+@Pseudo
+@Mixin(targets = "com.tmtravlr.potioncore.PotionCoreEventHandler", remap = false)
 public class MixinPotionCoreMagicDamage {
 
     /* ───────────────────────────────────────────────
