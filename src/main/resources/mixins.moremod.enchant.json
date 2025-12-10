@@ -10,7 +10,9 @@
   "mixins": [
     "MixinContainerEnchantment"
   ],
-  "client": [],
+  "client": [
+    "MixinGuiEnchantment"
+  ],
   "server": [],
   "injectors": {
     "defaultRequire": 0,
