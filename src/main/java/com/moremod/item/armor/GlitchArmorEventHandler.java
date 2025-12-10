@@ -335,7 +335,7 @@ public class GlitchArmorEventHandler {
             WorldServer world = (WorldServer) player.world;
             world.spawnParticle(EnumParticleTypes.EXPLOSION_LARGE,
                     player.posX, player.posY, player.posZ,
-                    1, 0, 0, 0, 0);
+                    1, 0, 0, 0.0, 0);
 
             player.sendStatusMessage(new TextComponentString(
                     TextFormatting.DARK_AQUA + "[Stack Underflow] " +
@@ -404,7 +404,7 @@ public class GlitchArmorEventHandler {
                 double x = player.posX + Math.cos(angle) * 10;
                 double z = player.posZ + Math.sin(angle) * 10;
                 world.spawnParticle(EnumParticleTypes.PORTAL,
-                        x, player.posY + 1, z, 1, 0, 0, 0, 0);
+                        x, player.posY + 1, z, 1, 0, 0, 0.0, 0);
             }
         }
 
@@ -428,7 +428,7 @@ public class GlitchArmorEventHandler {
         if (player.world instanceof WorldServer) {
             WorldServer world = (WorldServer) player.world;
             world.spawnParticle(EnumParticleTypes.EXPLOSION_HUGE,
-                    player.posX, player.posY + 1, player.posZ, 3, 2, 1, 2, 0);
+                    player.posX, player.posY + 1, player.posZ, 3, 2, 1, 2.0, 0);
         }
 
         player.sendStatusMessage(new TextComponentString(
@@ -449,7 +449,7 @@ public class GlitchArmorEventHandler {
 
             world.spawnParticle(EnumParticleTypes.PORTAL,
                     player.posX + offsetX, player.posY + offsetY, player.posZ + offsetZ,
-                    1, 0, 0, 0, 0);
+                    1, 0, 0, 0.0, 0);
         }
     }
 

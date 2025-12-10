@@ -174,17 +174,15 @@ public class TierRitualHandler {
             Enchantment ench = entry.getKey();
             int level = entry.getValue();
 
-            // 檢查附魔是否適用於目標物品
-            if (ench.canApply(targetItem) || targetItem.getItem() == Items.BOOK) {
-                // 如果目標已有此附魔，取最高等級
-                if (targetEnchants.containsKey(ench)) {
-                    int existingLevel = targetEnchants.get(ench);
-                    targetEnchants.put(ench, Math.max(existingLevel, level));
-                } else {
-                    targetEnchants.put(ench, level);
-                }
-                transferred++;
+            // 儀式力量強大，無視附魔適用性限制，直接轉移所有附魔
+            // 如果目標已有此附魔，取最高等級
+            if (targetEnchants.containsKey(ench)) {
+                int existingLevel = targetEnchants.get(ench);
+                targetEnchants.put(ench, Math.max(existingLevel, level));
+            } else {
+                targetEnchants.put(ench, level);
             }
+            transferred++;
         }
 
         // 應用附魔到目標
