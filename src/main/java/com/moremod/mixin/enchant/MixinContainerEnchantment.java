@@ -51,10 +51,14 @@ public abstract class MixinContainerEnchantment {
     private int[] moremod$serverEnchantLevels = new int[3];
 
     /**
-     * 在原版计算完附魔等级后，根据额外能量提升等级
+     * 在原版计算完附魔等级后，计算增强等级但不修改显示值
      * onCraftMatrixChanged -> func_75130_a
      *
-     * 使用两个方法名兼容开发环境(MCP)和生产环境(SRG)
+     * 关键设计：
+     * - enchantLevels[] 保持原版值（用于显示和经验等级检查）
+     * - moremod$serverEnchantLevels[] 存储增强后的值（用于实际附魔计算）
+     *
+     * 这样玩家只需30级经验就能附魔，但实际效果按增强等级计算
      */
     @Inject(method = {"onCraftMatrixChanged", "func_75130_a"}, at = @At("RETURN"), require = 0)
     private void moremod$boostEnchantLevels(IInventory inventoryIn, CallbackInfo ci) {
@@ -71,7 +75,7 @@ public abstract class MixinContainerEnchantment {
         System.out.println("[MoreMod-Enchant] Mixin触发! 总能量=" + totalPower + ", 额外能量=" + extraPower);
 
         if (extraPower <= 0) {
-            // 没有额外能量，保存当前等级
+            // 没有额外能量，增强等级等于显示等级
             System.arraycopy(enchantLevels, 0, moremod$serverEnchantLevels, 0, 3);
             return;
         }
@@ -95,7 +99,7 @@ public abstract class MixinContainerEnchantment {
             return;
         }
 
-        // 提升附魔等级
+        // 计算增强等级（不修改enchantLevels，保持原版显示值）
         for (int i = 0; i < 3; i++) {
             if (enchantLevels[i] > 0) {
                 int originalLevel = enchantLevels[i];
@@ -104,39 +108,59 @@ public abstract class MixinContainerEnchantment {
                 float ratio = (i + 1) / 3.0f;
                 int addedLevels = (int) (bonusLevels * ratio);
 
-                // 计算新等级（无上限）
-                int newLevel = originalLevel + addedLevels;
-                enchantLevels[i] = newLevel;
+                // 计算增强等级（无上限）
+                int boostedLevel = originalLevel + addedLevels;
+                moremod$serverEnchantLevels[i] = boostedLevel;
 
-                if (newLevel != originalLevel) {
-                    System.out.println("[MoreMod-Enchant] 附魔槽 " + (i+1) + ": " + originalLevel + " -> " + newLevel);
+                if (boostedLevel != originalLevel) {
+                    System.out.println("[MoreMod-Enchant] 附魔槽 " + (i+1) + ": 显示=" + originalLevel + ", 实际=" + boostedLevel);
                 }
+            } else {
+                moremod$serverEnchantLevels[i] = 0;
             }
         }
-
-        // 保存服务端计算的真实等级
-        System.arraycopy(enchantLevels, 0, moremod$serverEnchantLevels, 0, 3);
     }
 
     /**
-     * 拦截 enchantItem 方法，在服务端跳过等级验证
-     * 原版会检查 player.experienceLevel >= enchantLevels[id]
-     * 我们需要在有额外能量时，使用服务端缓存的等级
+     * 拦截 enchantItem 方法，在附魔计算前临时使用增强等级
+     *
+     * 原版流程：
+     * 1. 检查 player.experienceLevel >= enchantLevels[id] （使用显示等级，玩家只需30级）
+     * 2. 调用 EnchantmentHelper.buildEnchantmentList(stack, enchantLevels[id]) （我们要让它使用增强等级）
+     * 3. 应用附魔
+     *
+     * 我们的策略：在HEAD临时替换等级，让附魔计算使用增强值
      */
-    @Inject(method = {"enchantItem", "func_75140_a"}, at = @At("HEAD"), cancellable = true, require = 0)
-    private void moremod$onEnchantItem(EntityPlayer player, int id, CallbackInfoReturnable<Boolean> cir) {
+    @Inject(method = {"enchantItem", "func_75140_a"}, at = @At("HEAD"), require = 0)
+    private void moremod$onEnchantItemHead(EntityPlayer player, int id, CallbackInfoReturnable<Boolean> cir) {
         if (world == null || world.isRemote) return;
         if (id < 0 || id >= 3) return;
 
-        // 检查是否有额外能量
-        float extraPower = moremod$calculateExtraPower();
-        if (extraPower <= 0) return; // 没有额外能量，使用原版逻辑
+        // 输出调试信息
+        System.out.println("[MoreMod-Enchant] enchantItem开始! 槽位=" + id +
+            ", 显示等级=" + enchantLevels[id] +
+            ", 增强等级=" + moremod$serverEnchantLevels[id]);
 
-        // 有额外能量时，确保使用服务端缓存的等级
-        if (moremod$serverEnchantLevels[id] > 0 && enchantLevels[id] != moremod$serverEnchantLevels[id]) {
-            System.out.println("[MoreMod-Enchant] 修正附魔等级: 槽位" + id + " 从 " + enchantLevels[id] + " 修正为 " + moremod$serverEnchantLevels[id]);
+        // 如果有增强等级，临时替换（让附魔计算使用增强值）
+        if (moremod$serverEnchantLevels[id] > enchantLevels[id]) {
+            System.out.println("[MoreMod-Enchant] 临时使用增强等级: " + enchantLevels[id] + " -> " + moremod$serverEnchantLevels[id]);
             enchantLevels[id] = moremod$serverEnchantLevels[id];
         }
+    }
+
+    /**
+     * 在 enchantItem 方法结束后清理增强等级
+     * 虽然物品已经附魔完成，但保险起见恢复原值
+     */
+    @Inject(method = {"enchantItem", "func_75140_a"}, at = @At("RETURN"), require = 0)
+    private void moremod$onEnchantItemReturn(EntityPlayer player, int id, CallbackInfoReturnable<Boolean> cir) {
+        if (world == null || world.isRemote) return;
+        if (id < 0 || id >= 3) return;
+
+        // 重置增强等级缓存（下次放入物品时会重新计算）
+        moremod$serverEnchantLevels[id] = 0;
+
+        System.out.println("[MoreMod-Enchant] enchantItem完成! 结果=" + cir.getReturnValue());
     }
 
     /**
