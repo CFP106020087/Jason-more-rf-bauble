@@ -25,7 +25,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * - 魔法书柜提供额外的 enchantBonus (通过 getEnchantPowerBonus)
  * - 使用 ForgeHooks.getEnchantPower() 获取总能量
  * - 如果总能量超过15，根据超出部分提升附魔等级
- * - 最高允许60级附魔
+ * - 无上限！
  *
  * 参考: Apotheosis 模组的 EnchantmentUtils.getPower() 实现
  */
@@ -44,14 +44,13 @@ public abstract class MixinContainerEnchantment {
     @Unique
     private static final float VANILLA_MAX_POWER = 15.0f;
 
-    @Unique
-    private static final int BOOSTED_MAX_LEVEL = 60;
-
     /**
      * 在原版计算完附魔等级后，根据额外能量提升等级
      * onCraftMatrixChanged -> func_75130_a
+     *
+     * 使用两个方法名兼容开发环境(MCP)和生产环境(SRG)
      */
-    @Inject(method = "func_75130_a", at = @At("RETURN"))
+    @Inject(method = {"onCraftMatrixChanged", "func_75130_a"}, at = @At("RETURN"), require = 0)
     private void moremod$boostEnchantLevels(IInventory inventoryIn, CallbackInfo ci) {
         if (world == null || position == null) return;
 
@@ -90,8 +89,8 @@ public abstract class MixinContainerEnchantment {
                 float ratio = (i + 1) / 3.0f;
                 int addedLevels = (int) (bonusLevels * ratio);
 
-                // 计算新等级，限制在最大值
-                int newLevel = Math.min(originalLevel + addedLevels, BOOSTED_MAX_LEVEL);
+                // 计算新等级（无上限）
+                int newLevel = originalLevel + addedLevels;
                 enchantLevels[i] = newLevel;
 
                 if (newLevel != originalLevel) {
