@@ -87,34 +87,33 @@ public class DungeonTemplateRegistry {
                 System.out.println("[DungeonTemplateRegistry] 加载大型 schematic: " + fullSchematic.width + "x" + fullSchematic.height + "x" + fullSchematic.length);
 
                 // 定义房间布局: {startX, startZ, width, length, roomType}
-                // 根据 schematic 尺寸 186x16x71，房间沿 X 轴排列
-                // 每个房间约 18-19 格宽，高度 16，长度根据位置不同
+                // 用户自定义房间: HUB, ENTRANCE, NORMAL, TREASURE, TRAP×4, MONSTER, EXIT
+                // 房间沿 X 轴排列，分两排
                 int[][] roomDefinitions = {
-                    // 上排房间 (Z = 0-30)
-                    {0, 0, 18, 30, 0},      // ENTRANCE
-                    {18, 0, 18, 30, 1},     // NORMAL
-                    {36, 0, 18, 30, 2},     // TREASURE
-                    {54, 0, 18, 30, 3},     // TRAP
-                    {72, 0, 22, 30, 4},     // HUB (大一点)
-                    // 下排房间 (Z = 40-71)
-                    {0, 40, 18, 30, 1},     // NORMAL
-                    {18, 40, 18, 30, 5},    // MONSTER
-                    {36, 40, 22, 30, 6},    // MINI_BOSS
-                    {58, 40, 22, 30, 7},    // BOSS
-                    {80, 40, 18, 30, 1},    // NORMAL
+                    // 上排房间 (Z = 0-30) - 从左到右: HUB, ENTRANCE, NORMAL, TREASURE, TRAP
+                    {0, 0, 30, 30, 0},      // HUB
+                    {30, 0, 30, 30, 1},     // ENTRANCE
+                    {60, 0, 30, 30, 2},     // NORMAL
+                    {90, 0, 30, 30, 3},     // TREASURE
+                    {120, 0, 30, 30, 4},    // TRAP #1
+                    // 下排房间 (Z = 35-65) - 从左到右: TRAP, TRAP, TRAP, MONSTER, EXIT
+                    {0, 35, 30, 30, 4},     // TRAP #2
+                    {30, 35, 30, 30, 4},    // TRAP #3
+                    {60, 35, 30, 30, 4},    // TRAP #4
+                    {90, 35, 30, 30, 5},    // MONSTER
+                    {120, 35, 30, 30, 6},   // EXIT
                 };
 
                 // 房间类型映射 (索引对应 roomDefinitions 中的 typeIdx)
-                // 0=ENTRANCE, 1=NORMAL, 2=TREASURE, 3=TRAP, 4=HUB, 5=MONSTER, 6=MINI_BOSS, 7=BOSS
+                // 0=HUB, 1=ENTRANCE, 2=NORMAL, 3=TREASURE, 4=TRAP, 5=MONSTER, 6=EXIT
                 DungeonTree.RoomType[] types = {
-                    DungeonTree.RoomType.ENTRANCE,   // 0
-                    DungeonTree.RoomType.NORMAL,     // 1
-                    DungeonTree.RoomType.TREASURE,   // 2
-                    DungeonTree.RoomType.TRAP,       // 3
-                    DungeonTree.RoomType.HUB,        // 4
-                    DungeonTree.RoomType.NORMAL,     // 5 - MONSTER 房间使用 NORMAL 类型（会添加刷怪笼）
-                    DungeonTree.RoomType.MINI_BOSS,  // 6
-                    DungeonTree.RoomType.BOSS,       // 7
+                    DungeonTree.RoomType.HUB,        // 0
+                    DungeonTree.RoomType.ENTRANCE,   // 1
+                    DungeonTree.RoomType.NORMAL,     // 2
+                    DungeonTree.RoomType.TREASURE,   // 3
+                    DungeonTree.RoomType.TRAP,       // 4
+                    DungeonTree.RoomType.MONSTER,    // 5
+                    DungeonTree.RoomType.EXIT,       // 6
                 };
 
                 // 提取每个房间
@@ -232,6 +231,15 @@ public class DungeonTemplateRegistry {
                 list.add(EnhancedRoomTemplates.netherBreach()); // 地狱裂隙
                 list.add(EnhancedRoomTemplates.hubRoomGrandFoyer()); // 宏伟门厅
                 list.add(EnhancedRoomTemplates.voidObservatory()); // 虚空观测室 (枢纽变种)
+                break;
+            case EXIT:
+                // 出口房间 - 使用入口房间模板作为后备
+                list.add(EnhancedRoomTemplates.entranceRoom());
+                break;
+            case MONSTER:
+                // 怪物房间 - 使用战斗房间模板
+                list.add(EnhancedRoomTemplates.combatRoom());
+                list.add(EnhancedRoomTemplates.combatRoomArena());
                 break;
             case NORMAL:
             default:
