@@ -501,11 +501,11 @@ public final class ModItems {
         bindModel(TOWEL, "towel");
         System.out.println("[MoreMod] 🧴 毛巾模型已注册");
 
-        // 📦 绑定结构胶囊模型
-        bindModel(STRUCTURE_CAPSULE_SMALL, "structure_capsule_small");
-        bindModel(STRUCTURE_CAPSULE_MEDIUM, "structure_capsule_medium");
-        bindModel(STRUCTURE_CAPSULE_LARGE, "structure_capsule_large");
-        System.out.println("[MoreMod] 📦 结构胶囊模型已注册");
+        // 📦 绑定结构胶囊模型 (需要为空/已存储两种状态都注册)
+        bindCapsuleModels(STRUCTURE_CAPSULE_SMALL, "structure_capsule_small");
+        bindCapsuleModels(STRUCTURE_CAPSULE_MEDIUM, "structure_capsule_medium");
+        bindCapsuleModels(STRUCTURE_CAPSULE_LARGE, "structure_capsule_large");
+        System.out.println("[MoreMod] 📦 结构胶囊模型已注册 (含空/存储状态)");
 
         // ⛽ 綁定能源系統物品模型
         bindModel(OIL_PROSPECTOR, "oil_prospector");
@@ -524,6 +524,20 @@ public final class ModItems {
         if (item != null) {
             ModelLoader.setCustomModelResourceLocation(item, 0,
                     new ModelResourceLocation("moremod:" + path, "inventory"));
+        }
+    }
+
+    /**
+     * 为结构胶囊绑定模型 - 空状态和存储状态使用相同模型
+     */
+    @SideOnly(Side.CLIENT)
+    private static void bindCapsuleModels(Item item, String path) {
+        if (item != null) {
+            ModelResourceLocation modelLoc = new ModelResourceLocation("moremod:" + path, "inventory");
+            // 状态0: 空胶囊
+            ModelLoader.setCustomModelResourceLocation(item, 0, modelLoc);
+            // 状态1: 已存储结构
+            ModelLoader.setCustomModelResourceLocation(item, 1, modelLoc);
         }
     }
 }
