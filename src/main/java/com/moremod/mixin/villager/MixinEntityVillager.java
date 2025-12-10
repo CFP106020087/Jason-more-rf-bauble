@@ -247,16 +247,11 @@ public abstract class MixinEntityVillager {
         if (recipes == null || !hasHumanityPriceModifier) return;
 
         for (MerchantRecipe recipe : recipes) {
-            // 保存原始价格（如果还没保存）
-            if (!TradeDiscountHelper.hasDiscount(recipe)) {
-                TradeDiscountHelper.saveOriginalPrices(recipe);
-            }
-
-            // 应用价格倍率
+            // 应用价格倍率（使用HUMANITY来源）
             // 折扣: multiplier < 1 (例如 0.85 = -15%)
             // 加价: multiplier > 1 (例如 1.5 = +50%)
             double discount = 1.0 - humanityPriceMultiplier; // 转换为折扣率
-            TradeDiscountHelper.applyDiscount(recipe, discount);
+            TradeDiscountHelper.applyDiscount(recipe, discount, TradeDiscountHelper.DiscountSource.HUMANITY);
         }
     }
 
