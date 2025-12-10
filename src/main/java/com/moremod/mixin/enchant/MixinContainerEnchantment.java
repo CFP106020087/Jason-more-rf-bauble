@@ -50,8 +50,10 @@ public abstract class MixinContainerEnchantment {
     /**
      * 在原版计算完附魔等级后，根据额外能量提升等级
      * onCraftMatrixChanged -> func_75130_a
+     *
+     * 使用两个方法名兼容开发环境(MCP)和生产环境(SRG)
      */
-    @Inject(method = "func_75130_a", at = @At("RETURN"))
+    @Inject(method = {"onCraftMatrixChanged", "func_75130_a"}, at = @At("RETURN"), require = 0)
     private void moremod$boostEnchantLevels(IInventory inventoryIn, CallbackInfo ci) {
         if (world == null || position == null) return;
 
