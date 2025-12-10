@@ -34,7 +34,7 @@ public class SmartUpgradeHandler {
     // ════════════════════════════════════════════════════════════════
     // ⚙️ 主开关：设为 false 禁用右键升级，玩家必须使用多方块升级倉
     // ════════════════════════════════════════════════════════════════
-    public static boolean ENABLE_RIGHT_CLICK_UPGRADE = false;
+    public static boolean ENABLE_RIGHT_CLICK_UPGRADE = true;
     // ════════════════════════════════════════════════════════════════
 
     // ✅ 添加常量
