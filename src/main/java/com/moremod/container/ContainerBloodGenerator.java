@@ -30,11 +30,11 @@ public class ContainerBloodGenerator extends Container {
 
         IItemHandler handler = te.getInventory();
 
-        // 输入槽 (沾血武器)
+        // 输入槽 (沾血武器) - 接受任何有效武器，有血才发电
         this.addSlotToContainer(new SlotItemHandler(handler, 0, 56, 35) {
             @Override
             public boolean isItemValid(ItemStack stack) {
-                return BloodEnergyHandler.isValidWeapon(stack) && BloodEnergyHandler.hasBloodData(stack);
+                return BloodEnergyHandler.isValidWeapon(stack);
             }
 
             @Override
@@ -150,10 +150,9 @@ public class ContainerBloodGenerator extends Container {
                     return ItemStack.EMPTY;
                 }
             }
-            // 从玩家背包转移到输入槽
+            // 从玩家背包转移到输入槽 - 接受任何有效武器
             else {
-                if (BloodEnergyHandler.isValidWeapon(stackInSlot) &&
-                    BloodEnergyHandler.hasBloodData(stackInSlot)) {
+                if (BloodEnergyHandler.isValidWeapon(stackInSlot)) {
                     if (!mergeItemStack(stackInSlot, 0, 1, false)) {
                         return ItemStack.EMPTY;
                     }
