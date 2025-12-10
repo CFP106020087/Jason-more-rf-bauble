@@ -190,7 +190,9 @@ public class TileEntityFakePlayerActivator extends TileEntity implements ITickab
 
         // 获取当前工具
         ItemStack toolStack = getCurrentTool();
-        fakePlayer.setHeldItem(EnumHand.MAIN_HAND, toolStack.copy());
+        int originalCount = toolStack.getCount(); // ✅ 记录原始数量
+        ItemStack toolCopy = toolStack.copy();
+        fakePlayer.setHeldItem(EnumHand.MAIN_HAND, toolCopy);
         fakePlayer.updateEquipmentAttributes();
 
         boolean success = false;
@@ -210,9 +212,9 @@ public class TileEntityFakePlayerActivator extends TileEntity implements ITickab
                 break;
         }
 
-        // 更新工具
+        // ✅ 修复：更新工具时传入原始数量，防止物品意外消失
         ItemStack newTool = fakePlayer.getHeldItemMainhand();
-        updateCurrentTool(newTool);
+        updateCurrentTool(newTool, toolStack, originalCount);
 
         // 收集掉落物
         collectDroppedItems(fakePlayer);
@@ -249,36 +251,80 @@ public class TileEntityFakePlayerActivator extends TileEntity implements ITickab
 
     /**
      * 更新当前工具
-     * ✅ 修复：只有真正损坏的可损坏物品才会被清除
+     * ✅ 修复：防止物品意外消失
+     * @param newTool 假玩家使用后的物品
+     * @param originalTool 原始库存中的物品
+     * @param originalCount 原始物品数量
      */
-    private void updateCurrentTool(ItemStack newTool) {
+    private void updateCurrentTool(ItemStack newTool, ItemStack originalTool, int originalCount) {
         int maxSlot = inventory.getSlots();
         // 确保 currentToolSlot 在有效范围内
         if (currentToolSlot < 1 || currentToolSlot >= maxSlot) {
             return;
         }
 
-        // ✅ 修复判断逻辑：
-        // 1. 物品为空 -> 清除槽位
-        // 2. 物品可损坏且耐久耗尽 -> 清除槽位
-        // 3. 其他情况（包括不可损坏物品）-> 保留物品
-        boolean shouldClear = newTool.isEmpty();
-        if (!shouldClear && newTool.isItemStackDamageable()) {
-            // 只有可损坏物品才检查耐久
-            shouldClear = newTool.getItemDamage() >= newTool.getMaxDamage();
+        // ✅ 安全检查：如果原始物品为空，直接返回
+        if (originalTool.isEmpty() || originalCount <= 0) {
+            return;
         }
 
-        if (shouldClear) {
-            inventory.setStackInSlot(currentToolSlot, ItemStack.EMPTY);
-            // 切换到下一个工具
-            for (int i = 1; i < maxSlot; i++) {
-                if (!inventory.getStackInSlot(i).isEmpty()) {
-                    currentToolSlot = i;
-                    break;
+        // ✅ 计算消耗数量
+        int newCount = newTool.isEmpty() ? 0 : newTool.getCount();
+        int consumed = originalCount - newCount;
+
+        // ✅ 安全检查：消耗数量不应该超过1（单次操作）
+        // 如果消耗数量异常（大于1或为负），限制为最多消耗1个
+        if (consumed < 0) {
+            consumed = 0; // 不应该增加物品
+        } else if (consumed > 1) {
+            consumed = 1; // 单次操作最多消耗1个
+        }
+
+        // ✅ 获取库存中的实际物品
+        ItemStack inventoryStack = inventory.getStackInSlot(currentToolSlot);
+
+        // ✅ 处理可损坏物品（工具）
+        if (originalTool.isItemStackDamageable()) {
+            if (!newTool.isEmpty()) {
+                // 更新耐久度
+                inventoryStack.setItemDamage(newTool.getItemDamage());
+                // 检查是否损坏
+                if (inventoryStack.getItemDamage() >= inventoryStack.getMaxDamage()) {
+                    inventory.setStackInSlot(currentToolSlot, ItemStack.EMPTY);
+                    switchToNextTool(maxSlot);
                 }
             }
-        } else {
-            inventory.setStackInSlot(currentToolSlot, newTool);
+            return;
+        }
+
+        // ✅ 处理可堆叠物品（方块、消耗品等）
+        if (consumed > 0) {
+            int remaining = inventoryStack.getCount() - consumed;
+            if (remaining <= 0) {
+                inventory.setStackInSlot(currentToolSlot, ItemStack.EMPTY);
+                switchToNextTool(maxSlot);
+            } else {
+                inventoryStack.setCount(remaining);
+            }
+        }
+
+        // ✅ 处理物品转换情况（如水桶->空桶）
+        if (!newTool.isEmpty() && !ItemStack.areItemsEqual(originalTool, newTool)) {
+            // 物品类型改变了，尝试收集转换后的物品
+            // 但不要覆盖库存中的原物品
+            // 转换后的物品会作为掉落物被收集
+        }
+    }
+
+    /**
+     * 切换到下一个可用工具
+     */
+    private void switchToNextTool(int maxSlot) {
+        for (int i = 1; i < maxSlot; i++) {
+            if (!inventory.getStackInSlot(i).isEmpty()) {
+                currentToolSlot = i;
+                return;
+            }
         }
     }
 
