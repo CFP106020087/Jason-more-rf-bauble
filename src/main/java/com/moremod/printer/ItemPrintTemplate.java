@@ -1,6 +1,7 @@
 package com.moremod.printer;
 
 import com.moremod.creativetab.moremodCreativeTab;
+import com.moremod.init.ModItems;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.creativetab.CreativeTabs;
@@ -15,6 +16,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.Random;
 
 /**
  * 通用打印模版物品
@@ -34,7 +36,27 @@ public class ItemPrintTemplate extends Item {
         setTranslationKey("print_template");
         setHasSubtypes(false);
     }
-
+    /**
+     * 创建随机打印模版
+     */
+    private ItemStack createRandomTemplate(Random random) {
+        try {
+            if (ModItems.PRINT_TEMPLATE != null) {
+                // 从配方注册表获取所有已注册的配方
+                java.util.Collection<PrinterRecipe> recipes = PrinterRecipeRegistry.getAllRecipes();
+                if (!recipes.isEmpty()) {
+                    // 转换为数组并随机选择
+                    PrinterRecipe[] recipeArray = recipes.toArray(new PrinterRecipe[0]);
+                    PrinterRecipe selectedRecipe = recipeArray[random.nextInt(recipeArray.length)];
+                    return ItemPrintTemplate.createTemplate(ModItems.PRINT_TEMPLATE, selectedRecipe.getTemplateId());
+                }
+            }
+        } catch (Exception e) {
+            // 忽略
+        }
+        // 备用返回
+        return new ItemStack(net.minecraft.init.Items.PAPER, 1);
+    }
     /**
      * 获取模版ID
      */

@@ -4,6 +4,7 @@ import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import com.moremod.core.CurseDeathHook;
 import com.moremod.entity.curse.EmbeddedCurseManager.EmbeddedRelicType;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityCreature;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.SharedMonsterAttributes;
@@ -17,10 +18,12 @@ import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.living.LivingSetAttackTargetEvent;
 import net.minecraftforge.event.entity.player.PlayerSleepInBedEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.common.ObfuscationReflectionHelper;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
+import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -40,6 +43,37 @@ import java.util.UUID;
  */
 @Mod.EventBusSubscriber(modid = "moremod")
 public class EmbeddedCurseEffectHandler {
+
+    // ========== 反射字段：访问 Entity.fire ==========
+    private static final Field FIRE_FIELD;
+
+    static {
+        // "field_190534_ay" 是 Entity.fire 的 SRG 混淆名
+        FIRE_FIELD = ObfuscationReflectionHelper.findField(Entity.class, "field_190534_ay");
+    }
+
+    /**
+     * 获取实体的 fire ticks
+     */
+    private static int getFireTicks(Entity entity) {
+        try {
+            return FIRE_FIELD.getInt(entity);
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+            return 0;
+        }
+    }
+
+    /**
+     * 设置实体的 fire ticks
+     */
+    private static void setFireTicks(Entity entity, int ticks) {
+        try {
+            FIRE_FIELD.setInt(entity, ticks);
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        }
+    }
 
     // ========== 1. 受到伤害加倍 → 圣光之心抵消 ==========
 
@@ -82,7 +116,7 @@ public class EmbeddedCurseEffectHandler {
             // 如果是中立生物（非敌对怪物），取消攻击目标
             if (!(event.getEntityLiving() instanceof EntityMob)) {
                 if (event.getEntityLiving() instanceof EntityAnimal ||
-                    (event.getEntityLiving() instanceof EntityLiving && !(event.getEntityLiving() instanceof EntityMob))) {
+                        (event.getEntityLiving() instanceof EntityLiving && !(event.getEntityLiving() instanceof EntityMob))) {
                     // 标记需要在下一tick清除攻击目标
                     pendingTargetClear.put(event.getEntityLiving().getEntityId(), player.getUniqueID());
                 }
@@ -107,7 +141,7 @@ public class EmbeddedCurseEffectHandler {
             if (entity instanceof EntityCreature) {
                 EntityCreature creature = (EntityCreature) entity;
                 if (creature.getAttackTarget() != null &&
-                    creature.getAttackTarget().getUniqueID().equals(entry.getValue())) {
+                        creature.getAttackTarget().getUniqueID().equals(entry.getValue())) {
                     creature.setAttackTarget(null);
                 }
             }
@@ -165,15 +199,15 @@ public class EmbeddedCurseEffectHandler {
             if (player.isBurning()) {
                 UUID playerId = player.getUniqueID();
                 int lastFireTicks = playerFireTicks.getOrDefault(playerId, 0);
-                int currentFireTicks = player.fire;
+                int currentFireTicks = getFireTicks(player);
 
                 // 如果火焰没有自然减少（被七咒阻止了），我们手动减少
                 if (currentFireTicks >= lastFireTicks && lastFireTicks > 0) {
-                    // 每 tick 减少 1 点火焰时间，正常熄灭
-                    player.fire = Math.max(0, currentFireTicks - 2);
+                    // 每 tick 减少 2 点火焰时间，正常熄灭
+                    setFireTicks(player, Math.max(0, currentFireTicks - 2));
                 }
 
-                playerFireTicks.put(playerId, player.fire);
+                playerFireTicks.put(playerId, getFireTicks(player));
             } else {
                 // 不着火时清除记录
                 playerFireTicks.remove(player.getUniqueID());
@@ -268,7 +302,7 @@ public class EmbeddedCurseEffectHandler {
             // 注意：由于 Forge 事件系统的限制，我们不能直接覆盖结果
             // 但我们可以通过 Mixin 来实现这个功能
             if (event.getResultStatus() != null &&
-                event.getResultStatus() == EntityPlayer.SleepResult.NOT_POSSIBLE_HERE) {
+                    event.getResultStatus() == EntityPlayer.SleepResult.NOT_POSSIBLE_HERE) {
                 // 这里需要 Mixin 来完全覆盖
                 // 目前只是标记，让 Mixin 来处理
             }
@@ -299,13 +333,13 @@ public class EmbeddedCurseEffectHandler {
      */
     public static String[] getCurseStatus(EntityPlayer player) {
         return new String[] {
-            "1.伤害加倍: " + (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SACRED_HEART) ? "§a已抵消" : "§c生效中"),
-            "2.中立生物攻击: " + (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.PEACE_EMBLEM) ? "§a已抵消" : "§c生效中"),
-            "3.护甲降低30%: " + (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.GUARDIAN_SCALE) ? "§a已抵消" : "§c生效中"),
-            "4.伤害降低50%: " + (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.COURAGE_BLADE) ? "§a已抵消" : "§c生效中"),
-            "5.永燃: " + (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.FROST_DEW) ? "§a已抵消" : "§c生效中"),
-            "6.灵魂破碎: " + (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SOUL_ANCHOR) ? "§a已抵消" : "§c生效中"),
-            "7.失眠症: " + (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SLUMBER_SACHET) ? "§a已抵消" : "§c生效中")
+                "1.伤害加倍: " + (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SACRED_HEART) ? "§a已抵消" : "§c生效中"),
+                "2.中立生物攻击: " + (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.PEACE_EMBLEM) ? "§a已抵消" : "§c生效中"),
+                "3.护甲降低30%: " + (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.GUARDIAN_SCALE) ? "§a已抵消" : "§c生效中"),
+                "4.伤害降低50%: " + (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.COURAGE_BLADE) ? "§a已抵消" : "§c生效中"),
+                "5.永燃: " + (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.FROST_DEW) ? "§a已抵消" : "§c生效中"),
+                "6.灵魂破碎: " + (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SOUL_ANCHOR) ? "§a已抵消" : "§c生效中"),
+                "7.失眠症: " + (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SLUMBER_SACHET) ? "§a已抵消" : "§c生效中")
         };
     }
 }
