@@ -3,6 +3,7 @@ package com.moremod.mixin.lycanites;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.DamageSource;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
@@ -10,7 +11,8 @@ import org.spongepowered.asm.mixin.injection.Redirect;
  * 1.12.2：在 BaseCreatureEntity#attackEntityFrom 中放行玩家来源，
  * 防止因 isEntityInvulnerable / isDamageTypeApplicable 提前 return false。
  */
-@Mixin(targets = "com.lycanitesmobs.core.entity.BaseCreatureEntity", remap = false, expected = 0)
+@Pseudo
+@Mixin(targets = "com.lycanitesmobs.core.entity.BaseCreatureEntity", remap = false)
 public abstract class MixinBaseCreatureEntity_AttackRedirect_Min {
 
     /** 无敌检查：isEntityInvulnerable(DamageSource) */
