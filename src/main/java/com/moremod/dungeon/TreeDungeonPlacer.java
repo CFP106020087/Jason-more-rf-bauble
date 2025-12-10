@@ -479,11 +479,13 @@ public class TreeDungeonPlacer {
     private DungeonTree.RoomType convert(RoomType type) {
         switch (type) {
             case ENTRANCE:       return DungeonTree.RoomType.ENTRANCE;
+            case EXIT:           return DungeonTree.RoomType.EXIT;
             case TREASURE:       return DungeonTree.RoomType.TREASURE;
             case TRAP:           return DungeonTree.RoomType.TRAP;
             case BOSS:           return DungeonTree.RoomType.BOSS;
             case MINI_BOSS:      return DungeonTree.RoomType.MINI_BOSS;
             case HUB:            return DungeonTree.RoomType.HUB;
+            case MONSTER:        return DungeonTree.RoomType.MONSTER;
             case STAIRCASE_UP:   return DungeonTree.RoomType.STAIRCASE_UP;
             case STAIRCASE_DOWN: return DungeonTree.RoomType.STAIRCASE_DOWN;
             case STAIRCASE_BOTH: return DungeonTree.RoomType.STAIRCASE_BOTH;

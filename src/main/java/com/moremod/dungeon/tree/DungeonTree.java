@@ -66,12 +66,14 @@ public class DungeonTree {
 
     public enum RoomType {
         ENTRANCE(1.0f),
+        EXIT(1.0f),              // 出口房间
         NORMAL(0.5f),
         TREASURE(0.15f),
         TRAP(0.2f),
         MINI_BOSS(0.1f),  // 道中Boss
         BOSS(0.05f),
         HUB(0.1f),
+        MONSTER(0.3f),           // 怪物房间
         // 三维地牢楼梯房间
         STAIRCASE_UP(0.3f),      // 只能往上
         STAIRCASE_DOWN(0.3f),    // 只能往下

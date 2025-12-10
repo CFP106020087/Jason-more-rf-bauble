@@ -109,9 +109,35 @@ item.moremod_guide.name=MoreMod Comprehensive Guide
 jei.moremod.ritual_infusion=Ritual Infusion
 jei.moremod.dimension_loom=Dimension Loom
 jei.moremod.sword_upgrade_material=Material Change Station
+jei.moremod.oil_generator=Oil Generator
+jei.moremod.bio_generator=Bio Generator
+jei.moremod.generator.total_rf=Total Output: %s RF
+jei.moremod.generator.burn_time=Burn Time: %s ticks
+jei.moremod.generator.rf_per_tick=Generation Rate: %s RF/t
 
 # ===== Glitch Armor =====
 item.glitch_helmet.name=Glitch Helmet
 item.glitch_chestplate.name=Glitch Chestplate
 item.glitch_leggings.name=Glitch Leggings
 item.glitch_boots.name=Glitch Boots
+
+# ===== Printer System =====
+tile.printer.name=Ancient Printer
+container.moremod.printer=Ancient Printer
+gui.moremod.printer.multiblock_required=Multiblock structure not formed! Requires 3x3 iron block base and 4 redstone blocks
+
+# Print Template (Generic CRT Template)
+item.moremod.print_template.name=Print Template
+
+# Printer GUI Text
+gui.moremod.printer.recipe_cost=Recipe Cost: %s RF
+gui.moremod.printer.build_guide=Build Guide: 3x3 Iron Block Base + 4 Redstone Blocks
+
+# Template Tooltips
+tooltip.moremod.template_id=Template ID
+tooltip.moremod.output=Output
+tooltip.moremod.energy_cost=Energy Cost
+tooltip.moremod.processing_time=Processing Time
+tooltip.moremod.unknown_recipe=Unknown Recipe
+tooltip.moremod.no_template_id=No Template ID Set
+tooltip.moremod.template_desc=A generic template for the printer, configure recipes via CraftTweaker

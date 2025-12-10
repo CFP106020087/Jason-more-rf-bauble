@@ -1,6 +1,7 @@
 package com.moremod.integration.jei;
 
 import com.moremod.init.ModBlocks;
+import com.moremod.integration.jei.generator.*;
 import com.moremod.moremod;
 import com.moremod.recipe.DimensionLoomRecipes;
 import com.moremod.recipe.SwordUpgradeRegistry;
@@ -39,6 +40,8 @@ public class MoreModJEIPlugin implements IModPlugin {
     public static final String RITUAL_INFUSION_UID = "moremod.ritual_infusion";
     public static final String DIMENSION_LOOM_UID = "moremod.dimension_loom";
     public static final String SWORD_UPGRADE_UID = "moremod.sword_upgrade_material";
+    public static final String OIL_GENERATOR_UID = "moremod.oil_generator";
+    public static final String BIO_GENERATOR_UID = "moremod.bio_generator";
 
     // JEI 運行時引用（用於動態配方註冊）
     private static IRecipeRegistry recipeRegistry;
@@ -78,7 +81,17 @@ public class MoreModJEIPlugin implements IModPlugin {
                 new SwordUpgradeCategory(guiHelper)
         );
 
-        System.out.println("[MoreMod-JEI] Registered recipe categories");
+        // 注册石油发电机类别
+        registration.addRecipeCategories(
+                new OilGeneratorCategory(guiHelper)
+        );
+
+        // 注册生物质发电机类别
+        registration.addRecipeCategories(
+                new BioGeneratorCategory(guiHelper)
+        );
+
+        System.out.println("[MoreMod-JEI] Registered recipe categories (including generators)");
     }
 
     /**
@@ -96,6 +109,12 @@ public class MoreModJEIPlugin implements IModPlugin {
 
         // ========== 材質變化台系统 (CraftTweaker) ==========
         registerSwordUpgrade(registry);
+
+        // ========== 石油发电机系统 ==========
+        registerOilGenerator(registry);
+
+        // ========== 生物质发电机系统 ==========
+        registerBioGenerator(registry);
 
         System.out.println("[MoreMod-JEI] JEI registration complete!");
     }
@@ -503,6 +522,76 @@ public class MoreModJEIPlugin implements IModPlugin {
                     "材質變化台\n" +
                             "使用 CraftTweaker 定義配方。\n" +
                             "將劍放入左側，材料放入中間，即可變化劍的材質。"
+            );
+        }
+    }
+
+    /**
+     * 注册石油发电机配方
+     */
+    private void registerOilGenerator(IModRegistry registry) {
+        // 1. 注册配方处理器
+        registry.handleRecipes(
+                GeneratorFuel.class,
+                OilGeneratorWrapper::new,
+                OIL_GENERATOR_UID
+        );
+
+        // 2. 添加配方
+        List<GeneratorFuel> oilFuels = GeneratorRecipes.getOilGeneratorFuels();
+        if (!oilFuels.isEmpty()) {
+            registry.addRecipes(oilFuels, OIL_GENERATOR_UID);
+            System.out.println("[MoreMod-JEI] Added " + oilFuels.size() + " oil generator fuels");
+        }
+
+        // 3. 添加催化剂
+        if (ModBlocks.OIL_GENERATOR != null) {
+            registry.addRecipeCatalyst(
+                    new ItemStack(ModBlocks.OIL_GENERATOR),
+                    OIL_GENERATOR_UID
+            );
+
+            registry.addIngredientInfo(
+                    new ItemStack(ModBlocks.OIL_GENERATOR),
+                    ItemStack.class,
+                    "石油发电机\n" +
+                            "使用原油或植物油产生RF能量。\n" +
+                            "需要红石信号启动。"
+            );
+        }
+    }
+
+    /**
+     * 注册生物质发电机配方
+     */
+    private void registerBioGenerator(IModRegistry registry) {
+        // 1. 注册配方处理器
+        registry.handleRecipes(
+                GeneratorFuel.class,
+                BioGeneratorWrapper::new,
+                BIO_GENERATOR_UID
+        );
+
+        // 2. 添加配方
+        List<GeneratorFuel> bioFuels = GeneratorRecipes.getBioGeneratorFuels();
+        if (!bioFuels.isEmpty()) {
+            registry.addRecipes(bioFuels, BIO_GENERATOR_UID);
+            System.out.println("[MoreMod-JEI] Added " + bioFuels.size() + " bio generator fuels");
+        }
+
+        // 3. 添加催化剂
+        if (ModBlocks.BIO_GENERATOR != null) {
+            registry.addRecipeCatalyst(
+                    new ItemStack(ModBlocks.BIO_GENERATOR),
+                    BIO_GENERATOR_UID
+            );
+
+            registry.addIngredientInfo(
+                    new ItemStack(ModBlocks.BIO_GENERATOR),
+                    ItemStack.class,
+                    "生物质发电机\n" +
+                            "使用植物、种子、作物等生物质产生RF能量。\n" +
+                            "需要红石信号启动。"
             );
         }
     }

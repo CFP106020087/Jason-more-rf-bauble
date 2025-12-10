@@ -35,6 +35,10 @@ import com.moremod.block.energy.BlockChargingStation;
 // 🩸 血液发电机
 import com.moremod.block.BlockBloodGenerator;
 
+// 🖨️ 打印机
+import com.moremod.printer.BlockPrinter;
+import com.moremod.printer.TileEntityPrinter;
+
 // 🗡️ 两个版本的剑升级台方块
 import com.moremod.block.BlockSwordUpgradeStation;
 import com.moremod.block.BlockSwordUpgradeStationMaterial;
@@ -154,6 +158,9 @@ public class ModBlocks {
 
     // 🩸 血液发电机方块
     public static Block BLOOD_GENERATOR;
+
+    // 🖨️ 打印机方块
+    public static Block PRINTER;
 
     @SubscribeEvent
     public static void registerBlocks(RegistryEvent.Register<Block> event) {
@@ -288,6 +295,11 @@ public class ModBlocks {
         event.getRegistry().register(BLOOD_GENERATOR);
         System.out.println("[MoreMod] 🩸 血液發電機方塊已註冊");
 
+        // 🖨️ 打印机方块
+        PRINTER = new BlockPrinter();
+        event.getRegistry().register(PRINTER);
+        System.out.println("[MoreMod] 🖨️ 打印機方塊已註冊");
+
         // ---- TileEntity 注册 ----
         GameRegistry.registerTileEntity(TileEntityDimensionLoom.class,
                 new ResourceLocation(moremod.MODID, "dimension_loom"));
@@ -384,6 +396,11 @@ public class ModBlocks {
         GameRegistry.registerTileEntity(TileEntityBloodGenerator.class,
                 new ResourceLocation(moremod.MODID, "blood_generator"));
         System.out.println("[MoreMod] 🩸 血液發電機 TileEntity 已註冊");
+
+        // 🖨️ 打印机 TileEntity
+        GameRegistry.registerTileEntity(TileEntityPrinter.class,
+                new ResourceLocation(moremod.MODID, "printer"));
+        System.out.println("[MoreMod] 🖨️ 打印機 TileEntity 已註冊");
     }
 
     @SubscribeEvent
@@ -542,6 +559,13 @@ public class ModBlocks {
                     .setRegistryName(BLOOD_GENERATOR.getRegistryName()));
             System.out.println("[MoreMod] 🩸 血液發電機 ItemBlock 已註冊");
         }
+
+        // 🖨️ 打印机 ItemBlock
+        if (PRINTER != null) {
+            event.getRegistry().register(new ItemBlock(PRINTER)
+                    .setRegistryName(PRINTER.getRegistryName()));
+            System.out.println("[MoreMod] 🖨️ 打印機 ItemBlock 已註冊");
+        }
     }
 
     @SideOnly(Side.CLIENT)
@@ -669,6 +693,12 @@ public class ModBlocks {
         if (BLOOD_GENERATOR != null) {
             registerBlockModel(BLOOD_GENERATOR);
             System.out.println("[MoreMod] 🩸 血液發電機模型已註冊");
+        }
+
+        // 🖨️ 打印机模型
+        if (PRINTER != null) {
+            registerBlockModel(PRINTER);
+            System.out.println("[MoreMod] 🖨️ 打印機模型已註冊");
         }
     }
 

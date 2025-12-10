@@ -9,6 +9,7 @@ import net.minecraft.nbt.NBTTagCompound;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.InputStream;
 import java.util.*;
 
 public class DungeonTemplateRegistry {
@@ -63,7 +64,95 @@ public class DungeonTemplateRegistry {
 
     private void loadTemplates() {
         if (LOAD_FILE_TEMPLATES) loadFromFiles();
+        loadFromResources(); // 从 resources 加载 .schem 文件
         ensureAllBuiltins(); // 无论是否读磁盘，都保证箱内模板齐全
+    }
+
+    /**
+     * 从 mod resources 目录加载 .schem 文件
+     * 路径: assets/moremod/schematics/
+     *
+     * dungeon_room.schem 是一个包含多个房间的大型 schematic (186x16x71)
+     * 需要分割成 10 个独立的房间模板
+     */
+    private void loadFromResources() {
+        try {
+            String resourcePath = "/assets/moremod/schematics/dungeon_room.schem";
+            InputStream is = getClass().getResourceAsStream(resourcePath);
+            if (is != null) {
+                NBTTagCompound nbt = CompressedStreamTools.readCompressed(is);
+                Schematic fullSchematic = Schematic.loadFromNBT(nbt);
+                is.close();
+
+                System.out.println("[DungeonTemplateRegistry] 加载大型 schematic: " + fullSchematic.width + "x" + fullSchematic.height + "x" + fullSchematic.length);
+
+                // 定义房间布局: {startX, startZ, width, length, roomType}
+                // 用户自定义房间: HUB, ENTRANCE, NORMAL, TREASURE, TRAP×4, MONSTER, EXIT
+                // 房间沿 X 轴排列，分两排
+                int[][] roomDefinitions = {
+                    // 上排房间 (Z = 0-30) - 从左到右: HUB, ENTRANCE, NORMAL, TREASURE, TRAP
+                    {0, 0, 30, 30, 0},      // HUB
+                    {30, 0, 30, 30, 1},     // ENTRANCE
+                    {60, 0, 30, 30, 2},     // NORMAL
+                    {90, 0, 30, 30, 3},     // TREASURE
+                    {120, 0, 30, 30, 4},    // TRAP #1
+                    // 下排房间 (Z = 35-65) - 从左到右: TRAP, TRAP, TRAP, MONSTER, EXIT
+                    {0, 35, 30, 30, 4},     // TRAP #2
+                    {30, 35, 30, 30, 4},    // TRAP #3
+                    {60, 35, 30, 30, 4},    // TRAP #4
+                    {90, 35, 30, 30, 5},    // MONSTER
+                    {120, 35, 30, 30, 6},   // EXIT
+                };
+
+                // 房间类型映射 (索引对应 roomDefinitions 中的 typeIdx)
+                // 0=HUB, 1=ENTRANCE, 2=NORMAL, 3=TREASURE, 4=TRAP, 5=MONSTER, 6=EXIT
+                DungeonTree.RoomType[] types = {
+                    DungeonTree.RoomType.HUB,        // 0
+                    DungeonTree.RoomType.ENTRANCE,   // 1
+                    DungeonTree.RoomType.NORMAL,     // 2
+                    DungeonTree.RoomType.TREASURE,   // 3
+                    DungeonTree.RoomType.TRAP,       // 4
+                    DungeonTree.RoomType.MONSTER,    // 5
+                    DungeonTree.RoomType.EXIT,       // 6
+                };
+
+                // 提取每个房间
+                for (int[] def : roomDefinitions) {
+                    int startX = def[0];
+                    int startZ = def[1];
+                    int roomWidth = def[2];
+                    int roomLength = def[3];
+                    int typeIdx = def[4];
+
+                    // 确保不越界
+                    if (startX + roomWidth > fullSchematic.width) {
+                        roomWidth = fullSchematic.width - startX;
+                    }
+                    if (startZ + roomLength > fullSchematic.length) {
+                        roomLength = fullSchematic.length - startZ;
+                    }
+
+                    if (roomWidth <= 0 || roomLength <= 0) continue;
+
+                    Schematic roomSchematic = fullSchematic.extractRegion(
+                        startX, 0, startZ,
+                        roomWidth, fullSchematic.height, roomLength
+                    );
+
+                    if (typeIdx < types.length) {
+                        DungeonTree.RoomType roomType = types[typeIdx];
+                        templatesByType.get(roomType).add(roomSchematic);
+                        System.out.println("[DungeonTemplateRegistry] 提取房间 [" + startX + "," + startZ + "] "
+                            + roomWidth + "x" + fullSchematic.height + "x" + roomLength + " -> " + roomType);
+                    }
+                }
+            } else {
+                System.out.println("[DungeonTemplateRegistry] 未找到 resources 模板: " + resourcePath);
+            }
+        } catch (Exception e) {
+            System.err.println("[DungeonTemplateRegistry] 加载 resources 模板失败: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     private void loadFromFiles() {
@@ -142,6 +231,15 @@ public class DungeonTemplateRegistry {
                 list.add(EnhancedRoomTemplates.netherBreach()); // 地狱裂隙
                 list.add(EnhancedRoomTemplates.hubRoomGrandFoyer()); // 宏伟门厅
                 list.add(EnhancedRoomTemplates.voidObservatory()); // 虚空观测室 (枢纽变种)
+                break;
+            case EXIT:
+                // 出口房间 - 使用入口房间模板作为后备
+                list.add(EnhancedRoomTemplates.entranceRoom());
+                break;
+            case MONSTER:
+                // 怪物房间 - 使用战斗房间模板
+                list.add(EnhancedRoomTemplates.combatRoom());
+                list.add(EnhancedRoomTemplates.combatRoomArena());
                 break;
             case NORMAL:
             default:
