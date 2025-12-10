@@ -4,7 +4,6 @@ import com.moremod.item.ItemMechanicalCore;
 import com.moremod.item.ItemMechanicalCoreExtended;
 import com.moremod.util.ElementUtil;
 import com.moremod.event.MagicDamageAbsorbHandler;
-import com.tmtravlr.potioncore.PotionCoreEventHandler;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -26,7 +25,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * - 连击伤害指数增长（1.25^n，最高5倍）
  * - 20层余灼触发爆心（强制5连击）
  */
-@Mixin(value = PotionCoreEventHandler.class, remap = false)
+@Mixin(targets = "com.tmtravlr.potioncore.PotionCoreEventHandler", remap = false)
 public class MixinPotionCoreMagicDamage {
 
     /* ───────────────────────────────────────────────

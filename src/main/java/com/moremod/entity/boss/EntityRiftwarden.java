@@ -1,6 +1,6 @@
 package com.moremod.entity.boss;
 
-import com.github.alexthe666.iceandfire.api.ChainLightningUtils;
+import com.moremod.compat.IceAndFireReflectionHelper;
 import com.moremod.util.combat.TrueDamageHelper;
 import com.moremod.entity.EntityCursedKnight;
 import com.moremod.entity.fx.EntityLaserBeam;
@@ -1533,7 +1533,7 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
                     CHAIN_LIGHTNING_DAMAGE * 0.25F
             };
 
-            ChainLightningUtils.createChainLightningFromTarget(
+            boolean success = IceAndFireReflectionHelper.createChainLightningFromTarget(
                     this.world,
                     target,
                     this,
@@ -1541,6 +1541,11 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
                     8,
                     false
             );
+            if (!success) {
+                fallbackChainLightning(target);
+                chainLightningCooldown = 60;
+                return;
+            }
 
             playGlobal(SoundEvents.ENTITY_LIGHTNING_THUNDER, 0.6F, 1.8F);
             // 移除手部粒子，闪电实体本身已有效果
