@@ -40,6 +40,16 @@ public abstract class MixinEntityVillager {
     @Unique
     private EntityPlayer lastInteractingPlayer = null;
 
+    // 🔒 防止人性值折扣重复叠加 - NBT标签
+    @Unique
+    private static final String NBT_HUMANITY_DISCOUNT_PLAYER = "MoreMod_HumanityDiscPlayer";
+    @Unique
+    private static final String NBT_HUMANITY_DISCOUNT_TIME = "MoreMod_HumanityDiscTime";
+    @Unique
+    private static final String NBT_HUMANITY_DISCOUNT_RATE = "MoreMod_HumanityDiscRate";
+    @Unique
+    private static final long DISCOUNT_EXPIRE_TIME = 24 * 60 * 60 * 1000; // 24小时后折扣过期
+
     /**
      * 在玩家与村民交互时检查是否持有说服器
      * processInteract -> func_184645_a
@@ -52,16 +62,21 @@ public abstract class MixinEntityVillager {
             // 记录交互玩家（用于人性值恢复）
             this.lastInteractingPlayer = player;
 
-            // ========== 人性值系统价格调整 ==========
+            // ========== 人性值系统价格调整 (防止重复叠加) ==========
             if (HumanitySpectrumSystem.isSystemActive(player)) {
                 float priceMultiplier = HumanityEffectsManager.getTradePriceMultiplier(player);
                 if (priceMultiplier != 1.0f && priceMultiplier < 999f) {
-                    this.hasHumanityPriceModifier = true;
-                    this.humanityPriceMultiplier = priceMultiplier;
+                    // 🔒 检查是否已经给这个村民应用过折扣
+                    if (!moremod$hasExistingHumanityDiscount(villager, player, priceMultiplier)) {
+                        this.hasHumanityPriceModifier = true;
+                        this.humanityPriceMultiplier = priceMultiplier;
 
-                    MerchantRecipeList recipes = villager.getRecipes(player);
-                    if (recipes != null) {
-                        applyHumanityPriceModifier(recipes);
+                        MerchantRecipeList recipes = villager.getRecipes(player);
+                        if (recipes != null) {
+                            applyHumanityPriceModifier(recipes);
+                            // 🔒 标记折扣已应用
+                            moremod$markHumanityDiscountApplied(villager, player, priceMultiplier);
+                        }
                     }
                 }
             }
@@ -243,5 +258,61 @@ public abstract class MixinEntityVillager {
             double discount = 1.0 - humanityPriceMultiplier; // 转换为折扣率
             TradeDiscountHelper.applyDiscount(recipe, discount);
         }
+    }
+
+    // ========== 🔒 防止人性值折扣重复叠加 ==========
+
+    /**
+     * 检查村民是否已经从此玩家获得过折扣
+     * @return true = 已有折扣，不需要再次应用
+     */
+    @Unique
+    private boolean moremod$hasExistingHumanityDiscount(EntityVillager villager, EntityPlayer player, float newMultiplier) {
+        net.minecraft.nbt.NBTTagCompound data = villager.getEntityData();
+
+        // 检查是否有折扣记录
+        if (!data.hasKey(NBT_HUMANITY_DISCOUNT_PLAYER)) {
+            return false;
+        }
+
+        String savedPlayerUUID = data.getString(NBT_HUMANITY_DISCOUNT_PLAYER);
+        String currentPlayerUUID = player.getUniqueID().toString();
+
+        // 检查是否是同一个玩家
+        if (!savedPlayerUUID.equals(currentPlayerUUID)) {
+            // 不同玩家，允许应用新折扣（会覆盖旧的）
+            return false;
+        }
+
+        // 检查折扣是否过期
+        long savedTime = data.getLong(NBT_HUMANITY_DISCOUNT_TIME);
+        if (System.currentTimeMillis() - savedTime > DISCOUNT_EXPIRE_TIME) {
+            // 折扣已过期，允许重新应用
+            return false;
+        }
+
+        // 检查折扣率是否相同（人性值可能变化）
+        float savedRate = data.getFloat(NBT_HUMANITY_DISCOUNT_RATE);
+        if (Math.abs(savedRate - newMultiplier) > 0.01f) {
+            // 折扣率变化了，允许更新（但不叠加）
+            // 先清除旧折扣再应用新折扣
+            return false;
+        }
+
+        // 相同玩家、未过期、相同折扣率 = 已有折扣，跳过
+        System.out.println("[MoreMod] 🔒 跳过重复人性值折扣: 玩家=" + player.getName() + ", 村民已有折扣");
+        return true;
+    }
+
+    /**
+     * 标记村民已从此玩家获得折扣
+     */
+    @Unique
+    private void moremod$markHumanityDiscountApplied(EntityVillager villager, EntityPlayer player, float multiplier) {
+        net.minecraft.nbt.NBTTagCompound data = villager.getEntityData();
+        data.setString(NBT_HUMANITY_DISCOUNT_PLAYER, player.getUniqueID().toString());
+        data.setLong(NBT_HUMANITY_DISCOUNT_TIME, System.currentTimeMillis());
+        data.setFloat(NBT_HUMANITY_DISCOUNT_RATE, multiplier);
+        System.out.println("[MoreMod] 🔒 标记人性值折扣已应用: 玩家=" + player.getName() + ", 倍率=" + multiplier);
     }
 }

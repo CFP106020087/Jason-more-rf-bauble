@@ -16,6 +16,8 @@ import net.minecraftforge.energy.IEnergyStorage;
 import net.minecraftforge.items.CapabilityItemHandler;
 import net.minecraftforge.items.ItemStackHandler;
 
+import net.minecraft.block.state.IBlockState;
+
 import javax.annotation.Nullable;
 
 /**
@@ -23,6 +25,16 @@ import javax.annotation.Nullable;
  * 从沾血武器中提取能量，转换为RF
  */
 public class TileEntityBloodGenerator extends TileEntity implements ITickable {
+
+    /**
+     * 防止方块状态变化时TileEntity被重新创建
+     * 这是导致物品消失的关键修复
+     */
+    @Override
+    public boolean shouldRefresh(World world, BlockPos pos, IBlockState oldState, IBlockState newState) {
+        // 只有方块类型改变时才重新创建TileEntity
+        return oldState.getBlock() != newState.getBlock();
+    }
 
     // 配置
     private static final int MAX_ENERGY = 5000000;          // 500万RF容量
@@ -37,17 +49,20 @@ public class TileEntityBloodGenerator extends TileEntity implements ITickable {
     private final ItemStackHandler inventory = new ItemStackHandler(2) {
         @Override
         protected void onContentsChanged(int slot) {
-            markDirty();
-            syncToClient();
+            TileEntityBloodGenerator.this.markDirty();
+            if (world != null && !world.isRemote) {
+                syncToClient();
+            }
         }
 
         @Override
         public boolean isItemValid(int slot, ItemStack stack) {
             if (slot == 0) {
-                // 输入槽：只接受有血液数据的武器
-                return BloodEnergyHandler.isValidWeapon(stack) && BloodEnergyHandler.hasBloodData(stack);
+                // 输入槽：接受任何有效武器（有血液数据才会发电，但允许存放）
+                return BloodEnergyHandler.isValidWeapon(stack);
             }
-            return false; // 输出槽不接受外部输入
+            // 输出槽：允许取出，但不限制（内部移动需要）
+            return true;
         }
 
         @Override

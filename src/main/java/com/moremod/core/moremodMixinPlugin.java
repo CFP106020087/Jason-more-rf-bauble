@@ -28,6 +28,9 @@ public class moremodMixinPlugin implements IFMLLoadingPlugin {
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.potioncore.json");
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.ev.json");
 
+            // 附魔增强 - 突破附魔等级上限
+            FermiumRegistryAPI.enqueueMixin(false, "mixins.moremod.enchant.json");
+
             // FermiumMixins 兼容 - 绕过假玩家检测
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.fermiummixins.json");
 
