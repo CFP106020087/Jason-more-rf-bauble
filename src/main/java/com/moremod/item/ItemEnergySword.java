@@ -5,6 +5,9 @@ import com.moremod.mixin.mixinhelper.CapBypassFlag;
 import net.minecraft.enchantment.EnchantmentDurability;
 import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.*;
+import net.minecraft.entity.SharedMonsterAttributes;
+import net.minecraft.entity.ai.attributes.AttributeModifier;
+import net.minecraft.entity.ai.attributes.IAttributeInstance;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Enchantments;
 import net.minecraft.item.ItemStack;
@@ -48,6 +51,12 @@ public class ItemEnergySword extends ItemSword {
 
     public static final UUID RANGE_MODIFIER_UUID = UUID.nameUUIDFromBytes("ENERGY_SWORD_REACH".getBytes());
     public static final UUID ATTACK_SPEED_UUID = UUID.nameUUIDFromBytes("ENERGY_SWORD_SPEED".getBytes());
+
+    // 自动攻击攻速补正
+    // 攻击间隔3tick = 每秒6.67次攻击，需要攻速 20/3 ≈ 6.67，加成 = 6.67 - 4.0 = 2.67
+    private static final UUID AUTO_ATTACK_SPEED_UUID = UUID.fromString("d8f3a1b2-c4e5-6f78-9a0b-1c2d3e4f5a6b");
+    private static final String AUTO_ATTACK_SPEED_NAME = "Energy Sword Auto Attack Speed";
+    private static final float AUTO_ATTACK_SPEED_BONUS = 2.67f;
 
     private static final String NBT_CAN_UNSHEATHE = "CanUnsheathe";
     private static final String UPGRADE_PREFIX = "upgrade_";
@@ -128,14 +137,26 @@ public class ItemEnergySword extends ItemSword {
     }
 
     // =========================
-    // 玩家Tick - 更新出鞘状态
+    // 玩家Tick - 更新出鞘状态 + 攻速补正
     // =========================
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
+        if (event.player.world.isRemote) return; // 服务端处理属性
+
         EntityPlayer p = event.player;
         ItemStack mh = p.getHeldItemMainhand();
-        if (!(mh.getItem() instanceof ItemEnergySword)) return;
+
+        // 获取攻速属性实例
+        IAttributeInstance attackSpeedAttr = p.getEntityAttribute(SharedMonsterAttributes.ATTACK_SPEED);
+        if (attackSpeedAttr == null) return;
+
+        // 检查是否手持能量剑
+        if (!(mh.getItem() instanceof ItemEnergySword)) {
+            // 没有持有能量剑，移除攻速加成
+            removeAutoAttackSpeedModifier(attackSpeedAttr);
+            return;
+        }
 
         boolean allow = canUnsheathe(p, mh);
         NBTTagCompound tag = mh.getTagCompound();
@@ -144,6 +165,43 @@ public class ItemEnergySword extends ItemSword {
             mh.setTagCompound(tag);
         }
         tag.setBoolean(NBT_CAN_UNSHEATHE, allow);
+
+        // 检查能量
+        IEnergyStorage st = mh.getCapability(CapabilityEnergy.ENERGY, null);
+        boolean powered = st != null && st.getEnergyStored() > 0;
+
+        // 满足出鞘条件时添加攻速加成
+        if (powered && allow) {
+            applyAutoAttackSpeedModifier(attackSpeedAttr);
+        } else {
+            removeAutoAttackSpeedModifier(attackSpeedAttr);
+        }
+    }
+
+    /**
+     * 应用自动攻击攻速修饰符
+     */
+    private static void applyAutoAttackSpeedModifier(IAttributeInstance attackSpeed) {
+        AttributeModifier existing = attackSpeed.getModifier(AUTO_ATTACK_SPEED_UUID);
+        if (existing == null) {
+            AttributeModifier modifier = new AttributeModifier(
+                    AUTO_ATTACK_SPEED_UUID,
+                    AUTO_ATTACK_SPEED_NAME,
+                    AUTO_ATTACK_SPEED_BONUS,
+                    0  // 加法运算
+            );
+            attackSpeed.applyModifier(modifier);
+        }
+    }
+
+    /**
+     * 移除自动攻击攻速修饰符
+     */
+    private static void removeAutoAttackSpeedModifier(IAttributeInstance attackSpeed) {
+        AttributeModifier existing = attackSpeed.getModifier(AUTO_ATTACK_SPEED_UUID);
+        if (existing != null) {
+            attackSpeed.removeModifier(existing);
+        }
     }
 
     // =========================
