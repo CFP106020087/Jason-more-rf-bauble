@@ -266,16 +266,30 @@ public class CTSwordUpgradematerial {
 
     // JEI 刷新標記（避免多次刷新）
     private static boolean jeiRefreshScheduled = false;
+    private static int recipeAddedCount = 0;
 
     /**
      * 安排 JEI 刷新（延遲執行以批量處理多個配方）
      */
     private static void scheduleJEIRefresh() {
+        recipeAddedCount++;
+
         if (!jeiRefreshScheduled) {
             jeiRefreshScheduled = true;
-            // 延遲刷新 JEI（在 CraftTweaker 完成所有配方後）
-            // 注意：這裡只標記需要刷新，實際刷新在玩家登入時進行
-            System.out.println("[SwordUpgrade] JEI refresh scheduled (will apply on player login)");
+            System.out.println("[SwordUpgrade] JEI refresh scheduled");
+        }
+
+        // 嘗試觸發延遲刷新
+        try {
+            MoreModJEIPlugin.triggerDelayedRefresh();
+        } catch (Exception e) {
+            // JEI 可能尚未初始化，忽略
+        }
+
+        // 每10個配方打印一次狀態
+        if (recipeAddedCount % 10 == 0) {
+            System.out.println("[SwordUpgrade] " + recipeAddedCount + " recipes added so far, " +
+                              SwordUpgradeRegistry.getRecipeCount() + " total in registry");
         }
     }
 
@@ -285,12 +299,25 @@ public class CTSwordUpgradematerial {
      */
     @ZenMethod
     public static void refreshJEI() {
+        System.out.println("[SwordUpgrade] Manual JEI refresh requested");
+        System.out.println("[SwordUpgrade] Current recipes in registry: " + SwordUpgradeRegistry.getRecipeCount());
+
         try {
             MoreModJEIPlugin.refreshSwordUpgradeRecipes();
-            System.out.println("[SwordUpgrade] JEI recipes refreshed manually");
+            System.out.println("[SwordUpgrade] JEI recipes refreshed successfully");
         } catch (Exception e) {
             System.err.println("[SwordUpgrade] Failed to refresh JEI: " + e.getMessage());
+            e.printStackTrace();
         }
+    }
+
+    /**
+     * 獲取當前配方數量（用於調試）
+     * 可從 ZenScript 調用：mods.moremod.SwordUpgradematerial.getRecipeCount()
+     */
+    @ZenMethod
+    public static int getRecipeCount() {
+        return SwordUpgradeRegistry.getRecipeCount();
     }
 
     /** 移除精确配方（带NBT） */

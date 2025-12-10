@@ -13,8 +13,12 @@ import mezz.jei.api.recipe.IRecipeWrapperFactory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent;
+import net.minecraftforge.fml.common.gameevent.TickEvent;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -96,6 +100,13 @@ public class MoreModJEIPlugin implements IModPlugin {
         System.out.println("[MoreMod-JEI] JEI registration complete!");
     }
 
+    // 用於追蹤是否已經註冊了事件處理器
+    private static boolean eventHandlerRegistered = false;
+
+    // 延遲刷新的tick計數器
+    private static int pendingRefreshTicks = -1;
+    private static final int REFRESH_DELAY_TICKS = 20; // 延遲1秒刷新
+
     /**
      * JEI 運行時可用時的回調
      * 保存運行時引用以便後續動態添加配方
@@ -105,34 +116,111 @@ public class MoreModJEIPlugin implements IModPlugin {
         jeiRuntime = runtime;
         recipeRegistry = runtime.getRecipeRegistry();
 
-        // 註冊事件監聽器用於刷新配方
-        MinecraftForge.EVENT_BUS.register(new JEIRefreshHandler());
+        System.out.println("[MoreMod-JEI] ========================================");
+        System.out.println("[MoreMod-JEI] Runtime available!");
+        System.out.println("[MoreMod-JEI] recipeRegistry = " + (recipeRegistry != null ? "OK" : "NULL"));
 
-        System.out.println("[MoreMod-JEI] Runtime available, dynamic recipe support enabled");
+        // 檢查 CraftTweaker 是否已加載
+        boolean ctLoaded = Loader.isModLoaded("crafttweaker");
+        System.out.println("[MoreMod-JEI] CraftTweaker loaded = " + ctLoaded);
+
+        // 打印當前配方狀態
+        int swordRecipes = SwordUpgradeRegistry.viewAll().size();
+        int ritualRecipes = RitualInfusionAPI.RITUAL_RECIPES.size();
+        System.out.println("[MoreMod-JEI] Current sword recipes in registry: " + swordRecipes);
+        System.out.println("[MoreMod-JEI] Current ritual recipes in registry: " + ritualRecipes);
+        System.out.println("[MoreMod-JEI] ========================================");
+
+        // 只註冊一次事件監聽器
+        if (!eventHandlerRegistered) {
+            MinecraftForge.EVENT_BUS.register(new JEIRefreshHandler());
+            eventHandlerRegistered = true;
+            System.out.println("[MoreMod-JEI] Event handler registered");
+        }
+
+        // 如果已經有配方（可能CRT已經執行完畢），立即嘗試刷新
+        if (swordRecipes > 0 || ritualRecipes > registeredRitualRecipes.size()) {
+            System.out.println("[MoreMod-JEI] Recipes found, scheduling immediate refresh...");
+            pendingRefreshTicks = REFRESH_DELAY_TICKS;
+        }
     }
 
     /**
-     * 事件處理器：在玩家進入世界時刷新 JEI 配方
-     * 這確保 CraftTweaker 腳本已經執行完畢
+     * 事件處理器：處理玩家登入和客戶端tick
      */
     public static class JEIRefreshHandler {
+
+        private int tickCounter = 0;
+        private boolean firstTickRefreshDone = false;
+
         @SubscribeEvent
         public void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
-            System.out.println("[MoreMod-JEI] Player logged in, checking for recipe refresh...");
-            System.out.println("[MoreMod-JEI] hasRefreshed=" + hasRefreshed + ", recipeRegistry=" + (recipeRegistry != null));
+            System.out.println("[MoreMod-JEI] ========================================");
+            System.out.println("[MoreMod-JEI] Player logged in: " + event.player.getName());
+            System.out.println("[MoreMod-JEI] hasRefreshed=" + hasRefreshed);
+            System.out.println("[MoreMod-JEI] recipeRegistry=" + (recipeRegistry != null ? "OK" : "NULL"));
+            System.out.println("[MoreMod-JEI] Sword recipes in registry: " + SwordUpgradeRegistry.viewAll().size());
+            System.out.println("[MoreMod-JEI] Already registered sword recipes: " + registeredSwordRecipes.size());
+            System.out.println("[MoreMod-JEI] ========================================");
 
             // 總是嘗試刷新（檢查是否有新配方）
             if (recipeRegistry != null) {
-                int beforeCount = registeredSwordRecipes.size();
-                refreshAllRecipes();
-                int afterCount = registeredSwordRecipes.size();
+                int beforeSword = registeredSwordRecipes.size();
+                int beforeRitual = registeredRitualRecipes.size();
 
-                if (afterCount > beforeCount) {
-                    System.out.println("[MoreMod-JEI] Added " + (afterCount - beforeCount) + " recipes during refresh");
+                refreshAllRecipes();
+
+                int afterSword = registeredSwordRecipes.size();
+                int afterRitual = registeredRitualRecipes.size();
+
+                if (afterSword > beforeSword || afterRitual > beforeRitual) {
+                    System.out.println("[MoreMod-JEI] Refresh added: " +
+                        (afterSword - beforeSword) + " sword, " +
+                        (afterRitual - beforeRitual) + " ritual recipes");
                 }
+            } else {
+                System.out.println("[MoreMod-JEI] WARNING: Cannot refresh - recipeRegistry is null!");
             }
             hasRefreshed = true;
         }
+
+        @SubscribeEvent
+        @SideOnly(Side.CLIENT)
+        public void onClientTick(TickEvent.ClientTickEvent event) {
+            if (event.phase != TickEvent.Phase.END) return;
+
+            // 處理延遲刷新
+            if (pendingRefreshTicks > 0) {
+                pendingRefreshTicks--;
+                if (pendingRefreshTicks == 0) {
+                    System.out.println("[MoreMod-JEI] Executing delayed refresh...");
+                    if (recipeRegistry != null) {
+                        refreshAllRecipes();
+                    }
+                    pendingRefreshTicks = -1;
+                }
+            }
+
+            // 每5秒檢查一次是否有新配方（前30秒內）
+            tickCounter++;
+            if (tickCounter < 600 && tickCounter % 100 == 0) { // 每5秒
+                int currentRecipes = SwordUpgradeRegistry.viewAll().size();
+                int registeredCount = registeredSwordRecipes.size();
+
+                if (currentRecipes > registeredCount && recipeRegistry != null) {
+                    System.out.println("[MoreMod-JEI] Detected " + (currentRecipes - registeredCount) + " new recipes, refreshing...");
+                    refreshSwordUpgradeRecipes();
+                }
+            }
+        }
+    }
+
+    /**
+     * 手動觸發刷新（可從外部調用）
+     */
+    public static void triggerDelayedRefresh() {
+        pendingRefreshTicks = REFRESH_DELAY_TICKS;
+        System.out.println("[MoreMod-JEI] Delayed refresh scheduled");
     }
 
     /**
