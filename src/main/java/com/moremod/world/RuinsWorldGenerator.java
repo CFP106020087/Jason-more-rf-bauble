@@ -3,6 +3,8 @@ package com.moremod.world;
 import com.moremod.init.ModBlocks;
 import com.moremod.init.ModItems;
 import com.moremod.printer.ItemPrintTemplate;
+import com.moremod.printer.PrinterRecipe;
+import com.moremod.printer.PrinterRecipeRegistry;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
@@ -519,9 +521,14 @@ public class RuinsWorldGenerator implements IWorldGenerator {
     private ItemStack createRandomTemplate(Random random) {
         try {
             if (ModItems.PRINT_TEMPLATE != null) {
-                String[] templateIds = ItemPrintTemplate.TEMPLATE_TYPES;
-                String templateId = templateIds[random.nextInt(templateIds.length)];
-                return ItemPrintTemplate.createTemplate(ModItems.PRINT_TEMPLATE, templateId);
+                // 从配方注册表获取所有已注册的配方
+                java.util.Collection<PrinterRecipe> recipes = PrinterRecipeRegistry.getAllRecipes();
+                if (!recipes.isEmpty()) {
+                    // 转换为数组并随机选择
+                    PrinterRecipe[] recipeArray = recipes.toArray(new PrinterRecipe[0]);
+                    PrinterRecipe selectedRecipe = recipeArray[random.nextInt(recipeArray.length)];
+                    return ItemPrintTemplate.createTemplate(ModItems.PRINT_TEMPLATE, selectedRecipe.getTemplateId());
+                }
             }
         } catch (Exception e) {
             // 忽略
