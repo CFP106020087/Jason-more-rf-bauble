@@ -31,13 +31,58 @@ public class TileEntityCompostBin extends TileEntity implements ITickable {
 
     // 堆肥进度
     private int compostProgress = 0;
-    private static final int COMPOST_TIME = 600; // 30秒完成一次
+    private static final int COMPOST_TIME = 100; // 5秒完成一次（加速6倍）
 
     // 输出存储
     private final ItemStackHandler output = new ItemStackHandler(1) {
         @Override
         protected void onContentsChanged(int slot) {
             markDirty();
+        }
+    };
+
+    // 输入包装器 - 用于管道自动输入有机物
+    private final net.minecraftforge.items.IItemHandler inputHandler = new net.minecraftforge.items.IItemHandler() {
+        @Override
+        public int getSlots() {
+            return 1;
+        }
+
+        @Override
+        public ItemStack getStackInSlot(int slot) {
+            return ItemStack.EMPTY; // 虚拟槽位，不存储实际物品
+        }
+
+        @Override
+        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
+            if (!isValidInput(stack)) {
+                return stack;
+            }
+            if (simulate) {
+                int canAdd = MAX_COMPOST - storedCompost;
+                if (canAdd <= 0) return stack;
+                int toAdd = Math.min(canAdd, stack.getCount());
+                ItemStack remaining = stack.copy();
+                remaining.shrink(toAdd);
+                return remaining;
+            } else {
+                return addCompostMaterial(stack);
+            }
+        }
+
+        @Override
+        public ItemStack extractItem(int slot, int amount, boolean simulate) {
+            return ItemStack.EMPTY; // 输入槽不能抽取
+        }
+
+        @Override
+        public int getSlotLimit(int slot) {
+            return 64;
+        }
+
+        @Override
+        public boolean isItemValid(int slot, ItemStack stack) {
+            return isValidInputStatic(stack);
         }
     };
 
@@ -123,6 +168,15 @@ public class TileEntityCompostBin extends TileEntity implements ITickable {
     }
 
     /**
+     * 静态检查是否是有效的有机物（不依赖world）
+     */
+    public static boolean isValidInputStatic(ItemStack stack) {
+        if (stack.isEmpty()) return false;
+        // 检查预定义列表
+        return VALID_INPUTS.contains(stack.getItem());
+    }
+
+    /**
      * 检查是否是有效的有机物
      */
     public boolean isValidInput(ItemStack stack) {
@@ -133,7 +187,7 @@ public class TileEntityCompostBin extends TileEntity implements ITickable {
 
         // 检查树叶（所有树叶方块）
         Block block = Block.getBlockFromItem(stack.getItem());
-        if (block != Blocks.AIR && block.isLeaves(block.getDefaultState(), world, pos)) {
+        if (block != Blocks.AIR && world != null && block.isLeaves(block.getDefaultState(), world, pos)) {
             return true;
         }
 
@@ -223,7 +277,7 @@ public class TileEntityCompostBin extends TileEntity implements ITickable {
     @Override
     public boolean hasCapability(Capability<?> capability, @Nullable EnumFacing facing) {
         if (capability == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY) {
-            return facing == EnumFacing.DOWN; // 只能从底部抽取
+            return true; // 所有方向都支持管道
         }
         return super.hasCapability(capability, facing);
     }
@@ -231,9 +285,68 @@ public class TileEntityCompostBin extends TileEntity implements ITickable {
     @Nullable
     @Override
     public <T> T getCapability(Capability<T> capability, @Nullable EnumFacing facing) {
-        if (capability == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY && facing == EnumFacing.DOWN) {
-            return CapabilityItemHandler.ITEM_HANDLER_CAPABILITY.cast(output);
+        if (capability == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY) {
+            if (facing == EnumFacing.DOWN) {
+                // 底部：只能抽取骨粉
+                return CapabilityItemHandler.ITEM_HANDLER_CAPABILITY.cast(output);
+            } else if (facing == EnumFacing.UP) {
+                // 顶部：只能输入有机物
+                return CapabilityItemHandler.ITEM_HANDLER_CAPABILITY.cast(inputHandler);
+            } else {
+                // 侧面：可以输入有机物，也可以抽取骨粉（使用组合处理器）
+                return CapabilityItemHandler.ITEM_HANDLER_CAPABILITY.cast(new CombinedItemHandler());
+            }
         }
         return super.getCapability(capability, facing);
+    }
+
+    /**
+     * 组合物品处理器 - 用于侧面管道，支持输入和输出
+     */
+    private class CombinedItemHandler implements net.minecraftforge.items.IItemHandler {
+        @Override
+        public int getSlots() {
+            return 2; // 槽位0=输入，槽位1=输出
+        }
+
+        @Override
+        public ItemStack getStackInSlot(int slot) {
+            if (slot == 0) {
+                return ItemStack.EMPTY; // 输入槽是虚拟的
+            } else {
+                return output.getStackInSlot(0);
+            }
+        }
+
+        @Override
+        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
+            // 只有槽位0可以输入
+            if (slot == 0) {
+                return inputHandler.insertItem(0, stack, simulate);
+            }
+            return stack;
+        }
+
+        @Override
+        public ItemStack extractItem(int slot, int amount, boolean simulate) {
+            // 只有槽位1可以抽取
+            if (slot == 1) {
+                return output.extractItem(0, amount, simulate);
+            }
+            return ItemStack.EMPTY;
+        }
+
+        @Override
+        public int getSlotLimit(int slot) {
+            return 64;
+        }
+
+        @Override
+        public boolean isItemValid(int slot, ItemStack stack) {
+            if (slot == 0) {
+                return isValidInputStatic(stack);
+            }
+            return false;
+        }
     }
 }
