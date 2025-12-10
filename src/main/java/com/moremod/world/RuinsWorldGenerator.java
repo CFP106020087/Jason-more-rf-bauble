@@ -29,8 +29,8 @@ public class RuinsWorldGenerator implements IWorldGenerator {
 
     // 生成配置
     private static final int MIN_Y = 63;           // 最低生成高度
-    private static final int SPAWN_CHANCE = 800;   // 生成概率 (1/800 区块)
-    private static final int MIN_DISTANCE_FROM_SPAWN = 500;  // 距离出生点最小距离
+    private static final int SPAWN_CHANCE = 150;   // 生成概率 (1/150 区块) - 约每150个区块生成一个
+    private static final int MIN_DISTANCE_FROM_SPAWN = 200;  // 距离出生点最小距离
 
     @Override
     public void generate(Random random, int chunkX, int chunkZ, World world,
@@ -94,8 +94,8 @@ public class RuinsWorldGenerator implements IWorldGenerator {
         x += random.nextInt(8) - 4;
         z += random.nextInt(8) - 4;
 
-        // 从高处向下搜索地面
-        for (int y = 100; y >= MIN_Y; y--) {
+        // 从高处向下搜索地面 (提高到 128 以适应山区)
+        for (int y = 128; y >= MIN_Y; y--) {
             BlockPos pos = new BlockPos(x, y, z);
             IBlockState state = world.getBlockState(pos);
             IBlockState belowState = world.getBlockState(pos.down());
@@ -105,17 +105,18 @@ public class RuinsWorldGenerator implements IWorldGenerator {
                 belowState.isFullCube() &&
                 belowState.getMaterial().isSolid()) {
 
-                // 检查周围是否足够平坦 (简单检查)
+                // 检查周围是否足够平坦 (放宽条件)
                 int solidCount = 0;
-                for (int dx = -3; dx <= 3; dx++) {
-                    for (int dz = -3; dz <= 3; dz++) {
+                for (int dx = -2; dx <= 2; dx++) {
+                    for (int dz = -2; dz <= 2; dz++) {
                         if (world.getBlockState(pos.add(dx, -1, dz)).isFullCube()) {
                             solidCount++;
                         }
                     }
                 }
 
-                if (solidCount >= 35) {  // 至少70%是实心
+                // 25 个方块中至少 15 个是实心 (60%)
+                if (solidCount >= 15) {
                     return pos;
                 }
             }

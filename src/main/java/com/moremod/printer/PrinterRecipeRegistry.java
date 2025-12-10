@@ -1,6 +1,5 @@
 package com.moremod.printer;
 
-import com.moremod.init.ModItems;
 import com.moremod.item.ModMaterialItems;
 import com.moremod.item.RegisterItem;
 import net.minecraft.init.Blocks;
@@ -121,14 +120,14 @@ public class PrinterRecipeRegistry {
             }
         }
 
-        // ========== 2. 远古核心碎片 (Ancient Core Fragment) ==========
+        // ========== 2. 远古组件 (Ancient Component) ==========
         // 远古科技的核心组件
-        if (ModItems.ANCIENT_CORE_FRAGMENT != null) {
+        if (ModMaterialItems.ANCIENT_COMPONENT != null) {
             try {
-                PrinterRecipe coreRecipe = new PrinterRecipe.Builder()
-                    .setTemplateId("ancient_core_fragment")
-                    .setDisplayName("远古核心碎片模板")
-                    .setOutput(new ItemStack(ModItems.ANCIENT_CORE_FRAGMENT, 1))
+                PrinterRecipe componentRecipe = new PrinterRecipe.Builder()
+                    .setTemplateId("ancient_component")
+                    .setDisplayName("远古组件模板")
+                    .setOutput(new ItemStack(ModMaterialItems.ANCIENT_COMPONENT, 1))
                     .addMaterial(new ItemStack(Items.DIAMOND, 2))
                     .addMaterial(new ItemStack(Items.EMERALD, 2))
                     .addMaterial(new ItemStack(Items.ENDER_PEARL, 4))
@@ -137,9 +136,9 @@ public class PrinterRecipeRegistry {
                     .setProcessingTime(400) // 20秒
                     .setRarity(EnumRarity.RARE)
                     .build();
-                registerRecipe(coreRecipe);
+                registerRecipe(componentRecipe);
             } catch (Exception e) {
-                System.err.println("[Printer] 注册远古核心配方失败: " + e.getMessage());
+                System.err.println("[Printer] 注册远古组件配方失败: " + e.getMessage());
             }
         }
 
@@ -161,27 +160,6 @@ public class PrinterRecipeRegistry {
                 registerRecipe(crystalRecipe);
             } catch (Exception e) {
                 System.err.println("[Printer] 注册稀有水晶配方失败: " + e.getMessage());
-            }
-        }
-
-        // ========== 4. 裂隙水晶 (Rift Crystal) ==========
-        // 次元能量的结晶
-        if (ModItems.RIFT_CRYSTAL != null) {
-            try {
-                PrinterRecipe riftRecipe = new PrinterRecipe.Builder()
-                    .setTemplateId("rift_crystal")
-                    .setDisplayName("裂隙水晶模板")
-                    .setOutput(new ItemStack(ModItems.RIFT_CRYSTAL, 1))
-                    .addMaterial(new ItemStack(Items.ENDER_PEARL, 8))
-                    .addMaterial(new ItemStack(Items.NETHER_STAR, 1))
-                    .addMaterial(new ItemStack(Blocks.OBSIDIAN, 4))
-                    .setEnergyCost(500000)  // 500k RF
-                    .setProcessingTime(600) // 30秒
-                    .setRarity(EnumRarity.EPIC)
-                    .build();
-                registerRecipe(riftRecipe);
-            } catch (Exception e) {
-                System.err.println("[Printer] 注册裂隙水晶配方失败: " + e.getMessage());
             }
         }
 
