@@ -664,7 +664,7 @@ public class moremod {
             RenderHandler.registerLayers();
             System.out.println("[moremod] ✅ 喷气背包渲染层注册完成");
         }
-        // 注意：量子礦機 GUI 已整合到 GuiHandler 中（不再單獨註冊，避免覆蓋）
+        // 注册量子礦機 GUI Handler (TileEntity已在preInit註冊)
 
         /* ===== Ritual 多方块：配方注册 ===== */
         registerRitualRecipes();

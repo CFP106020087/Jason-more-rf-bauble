@@ -228,7 +228,7 @@ public class GlitchArmorDeathHook {
 
             world.spawnParticle(EnumParticleTypes.PORTAL,
                     player.posX + offsetX, player.posY + offsetY, player.posZ + offsetZ,
-                    1, 0, 0, 0, 0);
+                    1, 0, 0, 0.0, 0);
         }
     }
 
