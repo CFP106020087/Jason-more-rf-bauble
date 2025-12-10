@@ -109,6 +109,11 @@ item.moremod_guide.name=MoreMod Comprehensive Guide
 jei.moremod.ritual_infusion=Ritual Infusion
 jei.moremod.dimension_loom=Dimension Loom
 jei.moremod.sword_upgrade_material=Material Change Station
+jei.moremod.oil_generator=Oil Generator
+jei.moremod.bio_generator=Bio Generator
+jei.moremod.generator.total_rf=Total Output: %s RF
+jei.moremod.generator.burn_time=Burn Time: %s ticks
+jei.moremod.generator.rf_per_tick=Generation Rate: %s RF/t
 
 # ===== Glitch Armor =====
 item.glitch_helmet.name=Glitch Helmet
