@@ -1,6 +1,6 @@
 package com.moremod.client.gui;
 
-import com.moremod.moremod;
+import com.moremod.network.NetworkHandler;
 import com.moremod.network.PacketCreateEnchantedBook;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
@@ -14,8 +14,6 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-
-import static com.dhanantry.scapeandrunparasites.SRPMain.network;
 
 @SideOnly(Side.CLIENT)
 public class GuiSageBook extends GuiScreen {
@@ -112,7 +110,7 @@ public class GuiSageBook extends GuiScreen {
             for (Enchantment ench : selectedEnchantments) {
                 ids.add(Enchantment.getEnchantmentID(ench));
             }
-            network.sendToServer(new PacketCreateEnchantedBook(ids, hand == EnumHand.MAIN_HAND));
+            NetworkHandler.CHANNEL.sendToServer(new PacketCreateEnchantedBook(ids, hand == EnumHand.MAIN_HAND));
             this.mc.displayGuiScreen(null);
         }
     }

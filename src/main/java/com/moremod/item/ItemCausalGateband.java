@@ -5,8 +5,8 @@ import baubles.api.cap.IBaublesItemHandler;
 import com.moremod.item.causal.CausalFieldManager;
 import com.moremod.item.causal.EnergyHelper;
 import com.moremod.creativetab.moremodCreativeTab;
-import atomicstryker.infernalmobs.common.InfernalMobsCore;
 import com.moremod.compat.ChampionReflectionHelper;
+import com.moremod.compat.InfernalReflectionHelper;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.*;
@@ -99,8 +99,8 @@ public class ItemCausalGateband extends Item implements IBauble {
         AxisAlignedBB box = new AxisAlignedBB(p.posX-r, p.posY-3, p.posZ-r, p.posX+r, p.posY+3, p.posZ+r);
         for (EntityLivingBase e : p.world.getEntitiesWithinAABB(EntityLivingBase.class, box)) {
             if (!e.isEntityAlive() || e==p) continue;
-            // Infernal
-            if (InfernalMobsCore.getIsRareEntity(e)) return true;
+            // Infernal (反射)
+            if (InfernalReflectionHelper.isRareEntity(e)) return true;
             // Champions
             if (e instanceof EntityLiving && ChampionReflectionHelper.isChampionsAvailable()) {
                 Object chp = ChampionReflectionHelper.getChampionship((EntityLiving) e);
