@@ -26,6 +26,7 @@ public class moremodTransformer implements IClassTransformer {
     private static final boolean ENABLE_SHAMBHALA_DEATH     = true;
     private static final boolean ENABLE_TEMPORAL_DEATH      = true;  // 时序织印死亡回溯
     private static final boolean ENABLE_CURSE_DEATH         = true;  // 七咒之戒-虚无之眸死亡保护
+    private static final boolean ENABLE_GLITCH_ARMOR_DEATH  = true;  // 故障盔甲NULL异常
     public static final boolean ENABLE_RS_INFINITY_BOOSTER = true;
 
     public static Side side;
@@ -1357,6 +1358,25 @@ public class moremodTransformer implements IClassTransformer {
                     System.out.println("[moremodTransformer]     + Injected Curse (Void Gaze) death prevention at damageEntity HEAD");
                 }
 
+                // 故障盔甲NULL异常死亡保护
+                if (ENABLE_GLITCH_ARMOR_DEATH) {
+                    LabelNode glitchContinue = new LabelNode();
+                    inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                    inject.add(new VarInsnNode(Opcodes.ALOAD, 1));
+                    inject.add(new VarInsnNode(Opcodes.FLOAD, 2));
+                    inject.add(new MethodInsnNode(
+                            Opcodes.INVOKESTATIC,
+                            "com/moremod/core/GlitchArmorDeathHook",
+                            "checkAndTriggerNull",
+                            "(Lnet/minecraft/entity/EntityLivingBase;Lnet/minecraft/util/DamageSource;F)Z",
+                            false
+                    ));
+                    inject.add(new JumpInsnNode(Opcodes.IFEQ, glitchContinue));
+                    inject.add(new InsnNode(Opcodes.RETURN));
+                    inject.add(glitchContinue);
+                    System.out.println("[moremodTransformer]     + Injected Glitch Armor NULL exception at damageEntity HEAD");
+                }
+
                 mn.instructions.insert(inject);
                 modified = true;
                 System.out.println("[moremodTransformer]     + Injected shutdown trigger check at damageEntity HEAD");
@@ -1436,6 +1456,24 @@ public class moremodTransformer implements IClassTransformer {
                     inject.add(new InsnNode(Opcodes.RETURN));
                     inject.add(curseContinue);
                     System.out.println("[moremodTransformer]     + Injected Curse (Void Gaze) death prevention at onDeath HEAD");
+                }
+
+                // 故障盔甲NULL异常（最终防线）
+                if (ENABLE_GLITCH_ARMOR_DEATH) {
+                    LabelNode glitchContinue = new LabelNode();
+                    inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                    inject.add(new VarInsnNode(Opcodes.ALOAD, 1));
+                    inject.add(new MethodInsnNode(
+                            Opcodes.INVOKESTATIC,
+                            "com/moremod/core/GlitchArmorDeathHook",
+                            "shouldPreventDeath",
+                            "(Lnet/minecraft/entity/EntityLivingBase;Lnet/minecraft/util/DamageSource;)Z",
+                            false
+                    ));
+                    inject.add(new JumpInsnNode(Opcodes.IFEQ, glitchContinue));
+                    inject.add(new InsnNode(Opcodes.RETURN));
+                    inject.add(glitchContinue);
+                    System.out.println("[moremodTransformer]     + Injected Glitch Armor NULL exception at onDeath HEAD");
                 }
 
                 mn.instructions.insert(inject);

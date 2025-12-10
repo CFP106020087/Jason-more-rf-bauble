@@ -299,6 +299,11 @@ public class ItemHeroSword extends ItemSword implements IAnimatable {
 
     @Override
     public boolean isEnchantable(ItemStack stack) {
-        return false;  // 不可附魔（已经够强了）
+        return true;  // 允许附魔
+    }
+
+    @Override
+    public int getItemEnchantability() {
+        return 15;  // 中等附魔能力
     }
 }

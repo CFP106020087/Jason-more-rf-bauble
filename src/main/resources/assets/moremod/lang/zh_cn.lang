@@ -58,6 +58,11 @@ gui.sword_upgrade.click_to_upgrade=点击进行升级
 jei.moremod.ritual_infusion=仪式注入
 jei.moremod.dimension_loom=维度织机
 jei.moremod.sword_upgrade_material=材质变化台
+jei.moremod.oil_generator=石油发电机
+jei.moremod.bio_generator=生物质发电机
+jei.moremod.generator.total_rf=总产出: %s RF
+jei.moremod.generator.burn_time=燃烧时间: %s ticks
+jei.moremod.generator.rf_per_tick=发电速率: %s RF/t
 
 # 槽位提示
 gui.sword_upgrade.place_sword_here=在此放置需要升级的剑
@@ -517,3 +522,38 @@ item.moremod.speed_upgrade.name=發電機增速插件
 
 # ===== 綜合指南書 (Comprehensive Guide) =====
 item.moremod_guide.name=MoreMod 綜合指南
+
+# ===== 故障盔甲 (Glitch Armor) =====
+item.glitch_helmet.name=故障頭盔
+item.glitch_chestplate.name=故障胸甲
+item.glitch_leggings.name=故障護腿
+item.glitch_boots.name=故障靴子
+
+# ===== 血液发电机 (Blood Generator) =====
+tile.moremod.blood_generator.name=血液发电机
+container.blood_generator=血液发电机
+tooltip.blood_weapon.blood_energy=血液能量: %s
+tooltip.blood_weapon.flesh_chunks=肉块组织: %s
+tooltip.blood_weapon.boss_kills=击杀Boss: %s
+tooltip.blood_weapon.total_rf=可转换RF: %s
+
+# ===== 打印机系统 (Printer System) =====
+tile.printer.name=远古打印机
+container.moremod.printer=远古打印机
+gui.moremod.printer.multiblock_required=多方块结构未形成！需要3x3铁块基座和4个红石块
+
+# 打印模版（通用CRT模板）
+item.moremod.print_template.name=打印模板
+
+# 打印机GUI文字
+gui.moremod.printer.recipe_cost=配方消耗: %s RF
+gui.moremod.printer.build_guide=搭建指南: 3x3铁块底座 + 4红石块
+
+# 模版信息提示
+tooltip.moremod.template_id=模版ID
+tooltip.moremod.output=输出
+tooltip.moremod.energy_cost=能量消耗
+tooltip.moremod.processing_time=处理时间
+tooltip.moremod.unknown_recipe=未知配方
+tooltip.moremod.no_template_id=未设置模板ID
+tooltip.moremod.template_desc=用于打印机的通用模板，通过CraftTweaker配置配方

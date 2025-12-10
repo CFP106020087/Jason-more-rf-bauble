@@ -107,6 +107,12 @@ public final class ClientModelRegistrar {
         reg(RegisterItem.HOLY_WATER);
         reg(RegisterItem.IMMORTAL_AMULET);
 
+        // 故障盔甲 (Glitch Armor)
+        reg(RegisterItem.GLITCH_HELMET);
+        reg(RegisterItem.GLITCH_CHESTPLATE);
+        reg(RegisterItem.GLITCH_LEGGINGS);
+        reg(RegisterItem.GLITCH_BOOTS);
+
         System.out.println("[moremod] ⚙️ 所有模型注册完成（包括7个电池）");
     }
 

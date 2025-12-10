@@ -12,7 +12,6 @@ import com.moremod.block.BlockAncientCore;
 import com.moremod.block.BlockWisdomFountainCore;
 import com.moremod.block.ItemTransporter;
 import com.moremod.block.BlockTradingStation;
-import com.moremod.block.BlockCreativeWirelessTransmitter;
 import com.moremod.block.BlockSimpleWisdomShrine;
 import com.moremod.block.BlockExtractionStation;  // ⭐ 添加提取台导入
 import com.moremod.block.BlockPurificationAltar;  // 🔮 添加提纯祭坛导入
@@ -33,6 +32,13 @@ import com.moremod.block.BlockPlantOilPress;
 import com.moremod.block.BlockOilGenerator;
 import com.moremod.block.energy.BlockChargingStation;
 
+// 🩸 血液发电机
+import com.moremod.block.BlockBloodGenerator;
+
+// 🖨️ 打印机
+import com.moremod.printer.BlockPrinter;
+import com.moremod.printer.TileEntityPrinter;
+
 // 🗡️ 两个版本的剑升级台方块
 import com.moremod.block.BlockSwordUpgradeStation;
 import com.moremod.block.BlockSwordUpgradeStationMaterial;
@@ -47,7 +53,6 @@ import com.moremod.tile.TileEntityTimeController;
 import com.moremod.tile.TileEntityWisdomFountain;
 import com.moremod.tile.TileEntityItemTransporter;
 import com.moremod.tile.TileTradingStation;
-import com.moremod.tile.TileCreativeWirelessTransmitter;
 import com.moremod.tile.TileEntitySimpleWisdomShrine;
 import com.moremod.tile.TileEntityExtractionStation;  // ⭐ 添加提取台 TE 导入
 import com.moremod.tile.TileEntityPurificationAltar;  // 🔮 添加提纯祭坛 TE 导入
@@ -65,6 +70,9 @@ import com.moremod.tile.TileEntityOilExtractorCore;
 import com.moremod.tile.TileEntityPlantOilPress;
 import com.moremod.tile.TileEntityOilGenerator;
 import com.moremod.tile.TileEntityChargingStation;
+
+// 🩸 血液发电机 TileEntity
+import com.moremod.tile.TileEntityBloodGenerator;
 
 // 🗡️ 两个版本的剑升级台 TE
 import com.moremod.tile.TileEntitySwordUpgradeStation;
@@ -103,7 +111,6 @@ public class ModBlocks {
     public static Block WISDOM_FOUNTAIN_CORE;
     public static Block ITEM_TRANSPORTER;
     public static Block TRADING_STATION;
-    public static Block CREATIVE_WIRELESS_TRANSMITTER;
     public static Block SIMPLE_WISDOM_SHRINE;
 
     // ⭐ 提取台方块
@@ -149,6 +156,12 @@ public class ModBlocks {
     public static Block OIL_GENERATOR;
     public static Block CHARGING_STATION;
 
+    // 🩸 血液发电机方块
+    public static Block BLOOD_GENERATOR;
+
+    // 🖨️ 打印机方块
+    public static Block PRINTER;
+
     @SubscribeEvent
     public static void registerBlocks(RegistryEvent.Register<Block> event) {
         event.getRegistry().register(SPACETIME_SHARD_ORE);
@@ -191,8 +204,6 @@ public class ModBlocks {
         TRADING_STATION = new BlockTradingStation();
         event.getRegistry().register(TRADING_STATION);
 
-        CREATIVE_WIRELESS_TRANSMITTER = new BlockCreativeWirelessTransmitter();
-        event.getRegistry().register(CREATIVE_WIRELESS_TRANSMITTER);
 
         SIMPLE_WISDOM_SHRINE = new BlockSimpleWisdomShrine();
         event.getRegistry().register(SIMPLE_WISDOM_SHRINE);
@@ -279,6 +290,16 @@ public class ModBlocks {
         event.getRegistry().register(CHARGING_STATION);
         System.out.println("[MoreMod] ⚡ 充能站方塊已註冊");
 
+        // 🩸 血液发电机方块
+        BLOOD_GENERATOR = new BlockBloodGenerator();
+        event.getRegistry().register(BLOOD_GENERATOR);
+        System.out.println("[MoreMod] 🩸 血液發電機方塊已註冊");
+
+        // 🖨️ 打印机方块
+        PRINTER = new BlockPrinter();
+        event.getRegistry().register(PRINTER);
+        System.out.println("[MoreMod] 🖨️ 打印機方塊已註冊");
+
         // ---- TileEntity 注册 ----
         GameRegistry.registerTileEntity(TileEntityDimensionLoom.class,
                 new ResourceLocation(moremod.MODID, "dimension_loom"));
@@ -294,8 +315,6 @@ public class ModBlocks {
                 new ResourceLocation(moremod.MODID, "item_transporter"));
         GameRegistry.registerTileEntity(TileTradingStation.class,
                 new ResourceLocation(moremod.MODID, "trading_station"));
-        GameRegistry.registerTileEntity(TileCreativeWirelessTransmitter.class,
-                new ResourceLocation(moremod.MODID, "creative_wireless_transmitter"));
         GameRegistry.registerTileEntity(TileEntitySimpleWisdomShrine.class,
                 new ResourceLocation(moremod.MODID, "simple_wisdom_shrine"));
 
@@ -372,6 +391,16 @@ public class ModBlocks {
         GameRegistry.registerTileEntity(TileEntityChargingStation.class,
                 new ResourceLocation(moremod.MODID, "charging_station"));
         System.out.println("[MoreMod] ⚡ 充能站 TileEntity 已註冊");
+
+        // 🩸 血液发电机 TileEntity
+        GameRegistry.registerTileEntity(TileEntityBloodGenerator.class,
+                new ResourceLocation(moremod.MODID, "blood_generator"));
+        System.out.println("[MoreMod] 🩸 血液發電機 TileEntity 已註冊");
+
+        // 🖨️ 打印机 TileEntity
+        GameRegistry.registerTileEntity(TileEntityPrinter.class,
+                new ResourceLocation(moremod.MODID, "printer"));
+        System.out.println("[MoreMod] 🖨️ 打印機 TileEntity 已註冊");
     }
 
     @SubscribeEvent
@@ -408,9 +437,6 @@ public class ModBlocks {
         }
         if (TRADING_STATION != null) {
             event.getRegistry().register(new ItemBlock(TRADING_STATION).setRegistryName(TRADING_STATION.getRegistryName()));
-        }
-        if (CREATIVE_WIRELESS_TRANSMITTER != null) {
-            event.getRegistry().register(new ItemBlock(CREATIVE_WIRELESS_TRANSMITTER).setRegistryName(CREATIVE_WIRELESS_TRANSMITTER.getRegistryName()));
         }
         if (SIMPLE_WISDOM_SHRINE != null) {
             event.getRegistry().register(new ItemBlock(SIMPLE_WISDOM_SHRINE).setRegistryName(SIMPLE_WISDOM_SHRINE.getRegistryName()));
@@ -526,6 +552,20 @@ public class ModBlocks {
                     .setRegistryName(CHARGING_STATION.getRegistryName()));
             System.out.println("[MoreMod] ⚡ 充能站 ItemBlock 已註冊");
         }
+
+        // 🩸 血液发电机 ItemBlock
+        if (BLOOD_GENERATOR != null) {
+            event.getRegistry().register(new ItemBlock(BLOOD_GENERATOR)
+                    .setRegistryName(BLOOD_GENERATOR.getRegistryName()));
+            System.out.println("[MoreMod] 🩸 血液發電機 ItemBlock 已註冊");
+        }
+
+        // 🖨️ 打印机 ItemBlock
+        if (PRINTER != null) {
+            event.getRegistry().register(new ItemBlock(PRINTER)
+                    .setRegistryName(PRINTER.getRegistryName()));
+            System.out.println("[MoreMod] 🖨️ 打印機 ItemBlock 已註冊");
+        }
     }
 
     @SideOnly(Side.CLIENT)
@@ -547,7 +587,6 @@ public class ModBlocks {
         if (WISDOM_FOUNTAIN_CORE != null) registerBlockModel(WISDOM_FOUNTAIN_CORE);
         if (ITEM_TRANSPORTER != null) registerBlockModel(ITEM_TRANSPORTER);
         if (TRADING_STATION != null) registerBlockModel(TRADING_STATION);
-        if (CREATIVE_WIRELESS_TRANSMITTER != null) registerBlockModel(CREATIVE_WIRELESS_TRANSMITTER);
         if (SIMPLE_WISDOM_SHRINE != null) registerBlockModel(SIMPLE_WISDOM_SHRINE);
 
         // ⭐ 提取台模型
@@ -648,6 +687,18 @@ public class ModBlocks {
         if (CHARGING_STATION != null) {
             registerBlockModel(CHARGING_STATION);
             System.out.println("[MoreMod] ⚡ 充能站模型已註冊");
+        }
+
+        // 🩸 血液发电机模型
+        if (BLOOD_GENERATOR != null) {
+            registerBlockModel(BLOOD_GENERATOR);
+            System.out.println("[MoreMod] 🩸 血液發電機模型已註冊");
+        }
+
+        // 🖨️ 打印机模型
+        if (PRINTER != null) {
+            registerBlockModel(PRINTER);
+            System.out.println("[MoreMod] 🖨️ 打印機模型已註冊");
         }
     }
 

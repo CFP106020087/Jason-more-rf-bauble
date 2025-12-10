@@ -1,5 +1,8 @@
 package com.moremod.item.battery;
 
+import baubles.api.BaublesApi;
+import baubles.api.cap.IBaublesItemHandler;
+import com.moremod.item.ItemMechanicalCore;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.AxisAlignedBB;
@@ -14,6 +17,9 @@ public class ItemBatteryElite extends ItemBatteryBase {
     private static final int SELF_CHARGE_RATE = 500; // 500 RF/t 自动发电
     private static final int WIRELESS_RANGE = 5; // 5格无线充电范围
     private static final int WIRELESS_TRANSFER_RATE = 2000; // 每次传输2000 RF
+
+    // 核心优先充电配置
+    private static final float CORE_PRIORITY_THRESHOLD = 0.90f; // 核心低于90%时暂停无线充电
 
     public ItemBatteryElite() {
         super("battery_elite", 3,
@@ -47,11 +53,53 @@ public class ItemBatteryElite extends ItemBatteryBase {
         IEnergyStorage thisEnergy = stack.getCapability(CapabilityEnergy.ENERGY, null);
         if (thisEnergy == null || thisEnergy.getEnergyStored() < WIRELESS_TRANSFER_RATE) return;
 
+        // ✨ 核心优先检查：如果机械核心需要充电，暂停无线充电功能
+        if (shouldPrioritizeCore(player)) {
+            return; // 让能量优先供给机械核心
+        }
+
         // 1. 先充电背包中的其他电池
         chargeInventoryBatteries(stack, player, thisEnergy);
 
         // 2. 充电附近玩家的电池（5格范围内）
         chargeNearbyPlayerBatteries(stack, player, thisEnergy);
+    }
+
+    /**
+     * ✨ 检查是否应该优先给机械核心充电
+     * 当核心电量低于阈值时，暂停无线充电以保留能量给核心
+     */
+    private boolean shouldPrioritizeCore(EntityPlayer player) {
+        ItemStack coreStack = findMechanicalCore(player);
+        if (coreStack.isEmpty()) return false;
+
+        IEnergyStorage coreEnergy = coreStack.getCapability(CapabilityEnergy.ENERGY, null);
+        if (coreEnergy == null) return false;
+
+        float corePercent = (float) coreEnergy.getEnergyStored() / Math.max(1, coreEnergy.getMaxEnergyStored());
+        return corePercent < CORE_PRIORITY_THRESHOLD;
+    }
+
+    /**
+     * ✨ 查找玩家装备的机械核心
+     */
+    private ItemStack findMechanicalCore(EntityPlayer player) {
+        try {
+            IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(player);
+            if (baubles != null) {
+                for (int i = 0; i < baubles.getSlots(); i++) {
+                    ItemStack s = baubles.getStackInSlot(i);
+                    if (!s.isEmpty() && s.getItem() instanceof ItemMechanicalCore) {
+                        return s;
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+
+        for (ItemStack s : player.inventory.mainInventory) {
+            if (!s.isEmpty() && s.getItem() instanceof ItemMechanicalCore) return s;
+        }
+        return ItemStack.EMPTY;
     }
 
     private void chargeInventoryBatteries(ItemStack stack, EntityPlayer player, IEnergyStorage thisEnergy) {

@@ -61,6 +61,9 @@ import com.moremod.item.energy.ItemSpeedUpgrade;
 // 📖 綜合指南書
 import com.moremod.item.ItemModGuide;
 
+// 🖨️ 打印系統
+import com.moremod.printer.ItemPrintTemplate;
+
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.item.Item.ToolMaterial;
 import net.minecraft.item.EnumRarity;
@@ -176,6 +179,9 @@ public final class ModItems {
 
     // 📖 綜合指南書
     public static Item MOREMOD_GUIDE;        // MoreMod 綜合指南
+
+    // 🖨️ 打印系統物品
+    public static Item PRINT_TEMPLATE;       // 打印模版
 
     //新模块(屎山包装)
 
@@ -350,6 +356,10 @@ public final class ModItems {
         MOREMOD_GUIDE = reg(e, new ItemModGuide());
         System.out.println("[MoreMod] 📖 MoreMod 綜合指南已註冊");
 
+        // 🖨️ 註冊打印模版
+        PRINT_TEMPLATE = reg(e, new ItemPrintTemplate());
+        System.out.println("[MoreMod] 🖨️ 打印模版已註冊");
+
         //新模块系统
     }
 
@@ -501,11 +511,11 @@ public final class ModItems {
         bindModel(TOWEL, "towel");
         System.out.println("[MoreMod] 🧴 毛巾模型已注册");
 
-        // 📦 绑定结构胶囊模型
-        bindModel(STRUCTURE_CAPSULE_SMALL, "structure_capsule_small");
-        bindModel(STRUCTURE_CAPSULE_MEDIUM, "structure_capsule_medium");
-        bindModel(STRUCTURE_CAPSULE_LARGE, "structure_capsule_large");
-        System.out.println("[MoreMod] 📦 结构胶囊模型已注册");
+        // 📦 绑定结构胶囊模型 (需要为空/已存储两种状态都注册)
+        bindCapsuleModels(STRUCTURE_CAPSULE_SMALL, "structure_capsule_small");
+        bindCapsuleModels(STRUCTURE_CAPSULE_MEDIUM, "structure_capsule_medium");
+        bindCapsuleModels(STRUCTURE_CAPSULE_LARGE, "structure_capsule_large");
+        System.out.println("[MoreMod] 📦 结构胶囊模型已注册 (含空/存储状态)");
 
         // ⛽ 綁定能源系統物品模型
         bindModel(OIL_PROSPECTOR, "oil_prospector");
@@ -517,6 +527,10 @@ public final class ModItems {
         // 📖 綁定指南書模型
         bindModel(MOREMOD_GUIDE, "moremod_guide");
         System.out.println("[MoreMod] 📖 綜合指南書模型已註冊");
+
+        // 🖨️ 綁定打印模版模型
+        bindModel(PRINT_TEMPLATE, "print_template");
+        System.out.println("[MoreMod] 🖨️ 打印模版模型已註冊");
     }
 
     @SideOnly(Side.CLIENT)
@@ -524,6 +538,20 @@ public final class ModItems {
         if (item != null) {
             ModelLoader.setCustomModelResourceLocation(item, 0,
                     new ModelResourceLocation("moremod:" + path, "inventory"));
+        }
+    }
+
+    /**
+     * 为结构胶囊绑定模型 - 空状态和存储状态使用相同模型
+     */
+    @SideOnly(Side.CLIENT)
+    private static void bindCapsuleModels(Item item, String path) {
+        if (item != null) {
+            ModelResourceLocation modelLoc = new ModelResourceLocation("moremod:" + path, "inventory");
+            // 状态0: 空胶囊
+            ModelLoader.setCustomModelResourceLocation(item, 0, modelLoc);
+            // 状态1: 已存储结构
+            ModelLoader.setCustomModelResourceLocation(item, 1, modelLoc);
         }
     }
 }

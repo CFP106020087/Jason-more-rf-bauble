@@ -34,7 +34,7 @@ public class SmartUpgradeHandler {
     // ════════════════════════════════════════════════════════════════
     // ⚙️ 主开关：设为 false 禁用右键升级，玩家必须使用多方块升级倉
     // ════════════════════════════════════════════════════════════════
-    public static boolean ENABLE_RIGHT_CLICK_UPGRADE = false;
+    public static boolean ENABLE_RIGHT_CLICK_UPGRADE = true;
     // ════════════════════════════════════════════════════════════════
 
     // ✅ 添加常量
@@ -56,9 +56,9 @@ public class SmartUpgradeHandler {
         if (!ENABLE_RIGHT_CLICK_UPGRADE) {
             player.sendMessage(new TextComponentString(
                     TextFormatting.YELLOW + "⚠ 右键升级已禁用！" +
-                    TextFormatting.WHITE + " 请使用" +
-                    TextFormatting.AQUA + "多方块升级倉" +
-                    TextFormatting.WHITE + "来安装升级模块。"
+                            TextFormatting.WHITE + " 请使用" +
+                            TextFormatting.AQUA + "多方块升级倉" +
+                            TextFormatting.WHITE + "来安装升级模块。"
             ));
             return;
         }

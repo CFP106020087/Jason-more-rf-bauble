@@ -7,25 +7,26 @@ import java.util.*;
 
 /**
  * 严格树状布局生成器（无环、不重叠）
- * - 每个房间使用统一 30x12x30 壳体（大小逻辑按"壳中心点"计算间距）
+ * - 每个房间使用统一壳体（大小逻辑按"壳中心点"计算间距）
  * - 只输出一棵树：connections.size() == rooms.size() - 1
  * - 支持多层三维地牢结构
+ * - 加大版：更大房间、更多道中Boss和藏宝室
  */
 public class DungeonLayoutGenerator {
 
-    // 壳体参数（需与放置器一致）
-    // 使用最大房间尺寸(BOSS=40)作为基准，确保任何房间都不会重叠
-    private static final int SHELL_SIZE = 30;
-    private static final int MAX_SHELL_SIZE = 40; // BOSS房间尺寸
-    private static final int GAP = 12; // 增加间距确保大房间不重叠
-    private static final int MIN_ROOMS = 14;
-    private static final int MAX_ROOMS = 24;
+    // 壳体参数（加大版：需与放置器一致）
+    // 使用最大房间尺寸(BOSS=44)作为基准，确保任何房间都不会重叠
+    private static final int SHELL_SIZE = 34;
+    private static final int MAX_SHELL_SIZE = 44; // BOSS房间尺寸
+    private static final int GAP = 14; // 增加间距确保大房间不重叠
+    private static final int MIN_ROOMS = 18;
+    private static final int MAX_ROOMS = 30;
 
-    // 三维地牢参数
+    // 三维地牢参数 (加大版)
     private static final int DEFAULT_FLOOR_COUNT = 3;    // 默认楼层数
-    private static final int FLOOR_HEIGHT = 25;          // 楼层间隔高度
-    private static final int MIN_ROOMS_PER_FLOOR = 5;    // 每层最少房间
-    private static final int MAX_ROOMS_PER_FLOOR = 8;    // 每层最多房间
+    private static final int FLOOR_HEIGHT = 32;          // 楼层间隔高度 (最大房间27高)
+    private static final int MIN_ROOMS_PER_FLOOR = 6;    // 每层最少房间
+    private static final int MAX_ROOMS_PER_FLOOR = 10;   // 每层最多房间
 
     private static final double TRI_MAX_DIST = SHELL_SIZE * 4.0; // 三角化近邻阈值
 
@@ -265,39 +266,88 @@ public class DungeonLayoutGenerator {
         }
         if (boss != null) boss.type = RoomType.BOSS;
 
-        // MINI_BOSS = 在入口到Boss/出口路径中间的房间（度>=2）
-        // 选择路径长度在 40%-60% 范围内的房间
+        // MINI_BOSS = 选择2个道中Boss房间
+        // 在路径的 1/3 和 2/3 位置各放一个
         int maxPathLen = Math.max(pathLen(parent, entrance, exit), bestLen);
-        RoomNode miniBoss = null;
-        int targetLen = maxPathLen / 2;
-        int minDiff = Integer.MAX_VALUE;
+        List<RoomNode> miniBossCandidates = new ArrayList<>();
+
+        // 收集所有符合条件的候选房间
         for (RoomNode r : order) {
             if (r == entrance || r == exit || r == boss) continue;
             int len = pathLen(parent, entrance, r);
-            int diff = Math.abs(len - targetLen);
-            // 选择路径中间、度>=2的房间作为道中Boss
-            if (diff < minDiff && g.get(r).size() >= 2 && len >= 2) {
-                minDiff = diff;
-                miniBoss = r;
+            // 度>=2 且 路径长度>=2 的房间作为候选
+            if (g.get(r).size() >= 2 && len >= 2) {
+                miniBossCandidates.add(r);
             }
         }
-        if (miniBoss != null && maxPathLen >= 5) {
-            miniBoss.type = RoomType.MINI_BOSS;
+
+        // 选择2个道中Boss：优先选择路径长度在 1/3 和 2/3 附近的
+        if (maxPathLen >= 5 && miniBossCandidates.size() >= 2) {
+            int target1 = maxPathLen / 3;
+            int target2 = maxPathLen * 2 / 3;
+
+            RoomNode miniBoss1 = null, miniBoss2 = null;
+            int minDiff1 = Integer.MAX_VALUE, minDiff2 = Integer.MAX_VALUE;
+
+            for (RoomNode r : miniBossCandidates) {
+                int len = pathLen(parent, entrance, r);
+                int diff1 = Math.abs(len - target1);
+                int diff2 = Math.abs(len - target2);
+
+                if (diff1 < minDiff1) {
+                    minDiff1 = diff1;
+                    miniBoss1 = r;
+                }
+                if (diff2 < minDiff2 && r != miniBoss1) {
+                    minDiff2 = diff2;
+                    miniBoss2 = r;
+                }
+            }
+
+            if (miniBoss1 != null) miniBoss1.type = RoomType.MINI_BOSS;
+            if (miniBoss2 != null) miniBoss2.type = RoomType.MINI_BOSS;
+        } else if (maxPathLen >= 5 && miniBossCandidates.size() == 1) {
+            miniBossCandidates.get(0).type = RoomType.MINI_BOSS;
         }
 
-        // 其它按度分：度=1 → TREASURE/TRAP；度>=4 → HUB；否则 NORMAL/MONSTER/PUZZLE
+        // 其它按度分：保证至少2个TREASURE
         Random rnd = new Random(rooms.hashCode() ^ tree.hashCode());
+        int treasureCount = 0;
+        List<RoomNode> deadEnds = new ArrayList<>(); // 死胡同房间(度=1)
+
         for (RoomNode r : rooms) {
             if (r.type == RoomType.ENTRANCE || r.type == RoomType.EXIT ||
                 r.type == RoomType.BOSS || r.type == RoomType.MINI_BOSS) continue;
             int deg = g.get(r).size();
-            if (deg == 1) r.type = rnd.nextDouble() < 0.65 ? RoomType.TREASURE : RoomType.TRAP;
-            else if (deg >= 4) r.type = RoomType.HUB;
-            else {
+            if (deg == 1) {
+                deadEnds.add(r);
+            }
+        }
+
+        // 优先将前2个死胡同设为藏宝室
+        for (int i = 0; i < deadEnds.size(); i++) {
+            RoomNode r = deadEnds.get(i);
+            if (i < 2) {
+                r.type = RoomType.TREASURE;
+                treasureCount++;
+            } else {
+                // 剩余死胡同随机分配
+                r.type = rnd.nextDouble() < 0.5 ? RoomType.TREASURE : RoomType.TRAP;
+                if (r.type == RoomType.TREASURE) treasureCount++;
+            }
+        }
+
+        // 分配其他房间
+        for (RoomNode r : rooms) {
+            if (r.type != RoomType.NORMAL) continue; // 跳过已分配类型的
+            int deg = g.get(r).size();
+            if (deg >= 4) {
+                r.type = RoomType.HUB;
+            } else {
                 double p = rnd.nextDouble();
                 if (p < 0.33) r.type = RoomType.MONSTER;
                 else if (p < 0.55) r.type = RoomType.PUZZLE;
-                else r.type = RoomType.NORMAL;
+                // else 保持 NORMAL
             }
         }
     }
@@ -568,8 +618,22 @@ public class DungeonLayoutGenerator {
             }
         }
 
-        if (floor == totalFloors / 2 || (totalFloors > 2 && floor == 1)) {
-            // 中间层：MINI_BOSS
+        // 每层都放置道中Boss (除了底层和顶层)
+        if (floor > 0 && floor < totalFloors - 1) {
+            // 中间层：放置2个MINI_BOSS
+            List<RoomNode> miniBossCandidates = rooms.stream()
+                    .filter(r -> !r.isStaircase() && r.type == RoomType.NORMAL)
+                    .filter(r -> g.containsKey(r) && g.get(r).size() >= 2)
+                    .collect(java.util.stream.Collectors.toList());
+
+            int miniBossCount = 0;
+            for (RoomNode r : miniBossCandidates) {
+                if (miniBossCount >= 2) break;
+                r.type = RoomType.MINI_BOSS;
+                miniBossCount++;
+            }
+        } else if (floor == 0 && totalFloors > 2) {
+            // 底层也放1个道中Boss (如果层数够多)
             RoomNode miniBoss = rooms.stream()
                     .filter(r -> !r.isStaircase() && r.type == RoomType.NORMAL)
                     .filter(r -> g.containsKey(r) && g.get(r).size() >= 2)
@@ -580,23 +644,44 @@ public class DungeonLayoutGenerator {
             }
         }
 
-        // 其他房间类型分配
+        // 其他房间类型分配：保证每层至少2个藏宝室
+        List<RoomNode> deadEnds = new ArrayList<>();
         for (RoomNode r : rooms) {
             if (r.type == RoomType.ENTRANCE || r.type == RoomType.EXIT ||
                 r.type == RoomType.BOSS || r.type == RoomType.MINI_BOSS ||
                 r.isStaircase()) continue;
 
             int deg = g.containsKey(r) ? g.get(r).size() : 0;
-
             if (deg == 1) {
-                r.type = random.nextDouble() < 0.65 ? RoomType.TREASURE : RoomType.TRAP;
-            } else if (deg >= 3) {
+                deadEnds.add(r);
+            }
+        }
+
+        // 优先将前2个死胡同设为藏宝室
+        int treasureCount = 0;
+        for (int i = 0; i < deadEnds.size(); i++) {
+            RoomNode r = deadEnds.get(i);
+            if (i < 2) {
+                r.type = RoomType.TREASURE;
+                treasureCount++;
+            } else {
+                r.type = random.nextDouble() < 0.5 ? RoomType.TREASURE : RoomType.TRAP;
+            }
+        }
+
+        // 分配其他房间
+        for (RoomNode r : rooms) {
+            if (r.type != RoomType.NORMAL) continue;
+
+            int deg = g.containsKey(r) ? g.get(r).size() : 0;
+
+            if (deg >= 3) {
                 r.type = RoomType.HUB;
             } else {
                 double p = random.nextDouble();
                 if (p < 0.33) r.type = RoomType.MONSTER;
                 else if (p < 0.55) r.type = RoomType.PUZZLE;
-                else r.type = RoomType.NORMAL;
+                // else 保持 NORMAL
             }
         }
     }

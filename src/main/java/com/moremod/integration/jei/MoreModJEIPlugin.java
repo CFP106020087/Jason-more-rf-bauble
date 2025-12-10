@@ -1,6 +1,7 @@
 package com.moremod.integration.jei;
 
 import com.moremod.init.ModBlocks;
+import com.moremod.integration.jei.generator.*;
 import com.moremod.moremod;
 import com.moremod.recipe.DimensionLoomRecipes;
 import com.moremod.recipe.SwordUpgradeRegistry;
@@ -13,8 +14,12 @@ import mezz.jei.api.recipe.IRecipeWrapperFactory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent;
+import net.minecraftforge.fml.common.gameevent.TickEvent;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -35,6 +40,8 @@ public class MoreModJEIPlugin implements IModPlugin {
     public static final String RITUAL_INFUSION_UID = "moremod.ritual_infusion";
     public static final String DIMENSION_LOOM_UID = "moremod.dimension_loom";
     public static final String SWORD_UPGRADE_UID = "moremod.sword_upgrade_material";
+    public static final String OIL_GENERATOR_UID = "moremod.oil_generator";
+    public static final String BIO_GENERATOR_UID = "moremod.bio_generator";
 
     // JEI 運行時引用（用於動態配方註冊）
     private static IRecipeRegistry recipeRegistry;
@@ -74,7 +81,17 @@ public class MoreModJEIPlugin implements IModPlugin {
                 new SwordUpgradeCategory(guiHelper)
         );
 
-        System.out.println("[MoreMod-JEI] Registered recipe categories");
+        // 注册石油发电机类别
+        registration.addRecipeCategories(
+                new OilGeneratorCategory(guiHelper)
+        );
+
+        // 注册生物质发电机类别
+        registration.addRecipeCategories(
+                new BioGeneratorCategory(guiHelper)
+        );
+
+        System.out.println("[MoreMod-JEI] Registered recipe categories (including generators)");
     }
 
     /**
@@ -93,8 +110,21 @@ public class MoreModJEIPlugin implements IModPlugin {
         // ========== 材質變化台系统 (CraftTweaker) ==========
         registerSwordUpgrade(registry);
 
+        // ========== 石油发电机系统 ==========
+        registerOilGenerator(registry);
+
+        // ========== 生物质发电机系统 ==========
+        registerBioGenerator(registry);
+
         System.out.println("[MoreMod-JEI] JEI registration complete!");
     }
+
+    // 用於追蹤是否已經註冊了事件處理器
+    private static boolean eventHandlerRegistered = false;
+
+    // 延遲刷新的tick計數器
+    private static int pendingRefreshTicks = -1;
+    private static final int REFRESH_DELAY_TICKS = 20; // 延遲1秒刷新
 
     /**
      * JEI 運行時可用時的回調
@@ -105,34 +135,111 @@ public class MoreModJEIPlugin implements IModPlugin {
         jeiRuntime = runtime;
         recipeRegistry = runtime.getRecipeRegistry();
 
-        // 註冊事件監聽器用於刷新配方
-        MinecraftForge.EVENT_BUS.register(new JEIRefreshHandler());
+        System.out.println("[MoreMod-JEI] ========================================");
+        System.out.println("[MoreMod-JEI] Runtime available!");
+        System.out.println("[MoreMod-JEI] recipeRegistry = " + (recipeRegistry != null ? "OK" : "NULL"));
 
-        System.out.println("[MoreMod-JEI] Runtime available, dynamic recipe support enabled");
+        // 檢查 CraftTweaker 是否已加載
+        boolean ctLoaded = Loader.isModLoaded("crafttweaker");
+        System.out.println("[MoreMod-JEI] CraftTweaker loaded = " + ctLoaded);
+
+        // 打印當前配方狀態
+        int swordRecipes = SwordUpgradeRegistry.viewAll().size();
+        int ritualRecipes = RitualInfusionAPI.RITUAL_RECIPES.size();
+        System.out.println("[MoreMod-JEI] Current sword recipes in registry: " + swordRecipes);
+        System.out.println("[MoreMod-JEI] Current ritual recipes in registry: " + ritualRecipes);
+        System.out.println("[MoreMod-JEI] ========================================");
+
+        // 只註冊一次事件監聽器
+        if (!eventHandlerRegistered) {
+            MinecraftForge.EVENT_BUS.register(new JEIRefreshHandler());
+            eventHandlerRegistered = true;
+            System.out.println("[MoreMod-JEI] Event handler registered");
+        }
+
+        // 如果已經有配方（可能CRT已經執行完畢），立即嘗試刷新
+        if (swordRecipes > 0 || ritualRecipes > registeredRitualRecipes.size()) {
+            System.out.println("[MoreMod-JEI] Recipes found, scheduling immediate refresh...");
+            pendingRefreshTicks = REFRESH_DELAY_TICKS;
+        }
     }
 
     /**
-     * 事件處理器：在玩家進入世界時刷新 JEI 配方
-     * 這確保 CraftTweaker 腳本已經執行完畢
+     * 事件處理器：處理玩家登入和客戶端tick
      */
     public static class JEIRefreshHandler {
+
+        private int tickCounter = 0;
+        private boolean firstTickRefreshDone = false;
+
         @SubscribeEvent
         public void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
-            System.out.println("[MoreMod-JEI] Player logged in, checking for recipe refresh...");
-            System.out.println("[MoreMod-JEI] hasRefreshed=" + hasRefreshed + ", recipeRegistry=" + (recipeRegistry != null));
+            System.out.println("[MoreMod-JEI] ========================================");
+            System.out.println("[MoreMod-JEI] Player logged in: " + event.player.getName());
+            System.out.println("[MoreMod-JEI] hasRefreshed=" + hasRefreshed);
+            System.out.println("[MoreMod-JEI] recipeRegistry=" + (recipeRegistry != null ? "OK" : "NULL"));
+            System.out.println("[MoreMod-JEI] Sword recipes in registry: " + SwordUpgradeRegistry.viewAll().size());
+            System.out.println("[MoreMod-JEI] Already registered sword recipes: " + registeredSwordRecipes.size());
+            System.out.println("[MoreMod-JEI] ========================================");
 
             // 總是嘗試刷新（檢查是否有新配方）
             if (recipeRegistry != null) {
-                int beforeCount = registeredSwordRecipes.size();
-                refreshAllRecipes();
-                int afterCount = registeredSwordRecipes.size();
+                int beforeSword = registeredSwordRecipes.size();
+                int beforeRitual = registeredRitualRecipes.size();
 
-                if (afterCount > beforeCount) {
-                    System.out.println("[MoreMod-JEI] Added " + (afterCount - beforeCount) + " recipes during refresh");
+                refreshAllRecipes();
+
+                int afterSword = registeredSwordRecipes.size();
+                int afterRitual = registeredRitualRecipes.size();
+
+                if (afterSword > beforeSword || afterRitual > beforeRitual) {
+                    System.out.println("[MoreMod-JEI] Refresh added: " +
+                        (afterSword - beforeSword) + " sword, " +
+                        (afterRitual - beforeRitual) + " ritual recipes");
                 }
+            } else {
+                System.out.println("[MoreMod-JEI] WARNING: Cannot refresh - recipeRegistry is null!");
             }
             hasRefreshed = true;
         }
+
+        @SubscribeEvent
+        @SideOnly(Side.CLIENT)
+        public void onClientTick(TickEvent.ClientTickEvent event) {
+            if (event.phase != TickEvent.Phase.END) return;
+
+            // 處理延遲刷新
+            if (pendingRefreshTicks > 0) {
+                pendingRefreshTicks--;
+                if (pendingRefreshTicks == 0) {
+                    System.out.println("[MoreMod-JEI] Executing delayed refresh...");
+                    if (recipeRegistry != null) {
+                        refreshAllRecipes();
+                    }
+                    pendingRefreshTicks = -1;
+                }
+            }
+
+            // 每5秒檢查一次是否有新配方（前30秒內）
+            tickCounter++;
+            if (tickCounter < 600 && tickCounter % 100 == 0) { // 每5秒
+                int currentRecipes = SwordUpgradeRegistry.viewAll().size();
+                int registeredCount = registeredSwordRecipes.size();
+
+                if (currentRecipes > registeredCount && recipeRegistry != null) {
+                    System.out.println("[MoreMod-JEI] Detected " + (currentRecipes - registeredCount) + " new recipes, refreshing...");
+                    refreshSwordUpgradeRecipes();
+                }
+            }
+        }
+    }
+
+    /**
+     * 手動觸發刷新（可從外部調用）
+     */
+    public static void triggerDelayedRefresh() {
+        pendingRefreshTicks = REFRESH_DELAY_TICKS;
+        System.out.println("[MoreMod-JEI] Delayed refresh scheduled");
     }
 
     /**
@@ -415,6 +522,76 @@ public class MoreModJEIPlugin implements IModPlugin {
                     "材質變化台\n" +
                             "使用 CraftTweaker 定義配方。\n" +
                             "將劍放入左側，材料放入中間，即可變化劍的材質。"
+            );
+        }
+    }
+
+    /**
+     * 注册石油发电机配方
+     */
+    private void registerOilGenerator(IModRegistry registry) {
+        // 1. 注册配方处理器
+        registry.handleRecipes(
+                GeneratorFuel.class,
+                OilGeneratorWrapper::new,
+                OIL_GENERATOR_UID
+        );
+
+        // 2. 添加配方
+        List<GeneratorFuel> oilFuels = GeneratorRecipes.getOilGeneratorFuels();
+        if (!oilFuels.isEmpty()) {
+            registry.addRecipes(oilFuels, OIL_GENERATOR_UID);
+            System.out.println("[MoreMod-JEI] Added " + oilFuels.size() + " oil generator fuels");
+        }
+
+        // 3. 添加催化剂
+        if (ModBlocks.OIL_GENERATOR != null) {
+            registry.addRecipeCatalyst(
+                    new ItemStack(ModBlocks.OIL_GENERATOR),
+                    OIL_GENERATOR_UID
+            );
+
+            registry.addIngredientInfo(
+                    new ItemStack(ModBlocks.OIL_GENERATOR),
+                    ItemStack.class,
+                    "石油发电机\n" +
+                            "使用原油或植物油产生RF能量。\n" +
+                            "需要红石信号启动。"
+            );
+        }
+    }
+
+    /**
+     * 注册生物质发电机配方
+     */
+    private void registerBioGenerator(IModRegistry registry) {
+        // 1. 注册配方处理器
+        registry.handleRecipes(
+                GeneratorFuel.class,
+                BioGeneratorWrapper::new,
+                BIO_GENERATOR_UID
+        );
+
+        // 2. 添加配方
+        List<GeneratorFuel> bioFuels = GeneratorRecipes.getBioGeneratorFuels();
+        if (!bioFuels.isEmpty()) {
+            registry.addRecipes(bioFuels, BIO_GENERATOR_UID);
+            System.out.println("[MoreMod-JEI] Added " + bioFuels.size() + " bio generator fuels");
+        }
+
+        // 3. 添加催化剂
+        if (ModBlocks.BIO_GENERATOR != null) {
+            registry.addRecipeCatalyst(
+                    new ItemStack(ModBlocks.BIO_GENERATOR),
+                    BIO_GENERATOR_UID
+            );
+
+            registry.addIngredientInfo(
+                    new ItemStack(ModBlocks.BIO_GENERATOR),
+                    ItemStack.class,
+                    "生物质发电机\n" +
+                            "使用植物、种子、作物等生物质产生RF能量。\n" +
+                            "需要红石信号启动。"
             );
         }
     }

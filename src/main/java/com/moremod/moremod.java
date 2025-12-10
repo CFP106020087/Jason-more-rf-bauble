@@ -36,7 +36,6 @@ import com.moremod.fabric.handler.SpatialFabricFirstAidHandler;
 import com.moremod.fabric.sanity.CompleteSanitySystem;
 import com.moremod.init.GemSystemInit;
 import com.moremod.init.ModFluids;
-import com.moremod.init.RSNodeRegistryCompat;
 import com.moremod.init.SimpleReverseDeducer;
 import com.moremod.integration.ModIntegration;
 import com.moremod.integration.jei.JEIIntegrationManager;
@@ -54,6 +53,7 @@ import com.moremod.quarry.tile.TileQuarryActuator;
 import com.moremod.recipe.DimensionLoomRecipeLoader;
 import com.moremod.ritual.RitualRecipeLoader;
 import com.moremod.ritual.fabric.UniversalFabricRituals;
+import com.moremod.ritual.enchanting.EnchantingBoosterRituals;
 import com.moremod.event.eventHandler.SimpleCoreHandler;
 import com.moremod.event.eventHandler.CoreDropProtection;
 import com.moremod.event.eventHandler.SmartUpgradeHandler;
@@ -91,6 +91,8 @@ import net.minecraft.init.Items;
 // Mixin 相关导入
 import com.moremod.world.SpacetimeOreWorldGenerator;
 import com.moremod.world.VoidStructureWorldGenerator;
+import com.moremod.world.RuinsWorldGenerator;
+import com.moremod.printer.PrinterRecipeRegistry;
 import net.minecraftforge.fml.common.registry.GameRegistry;
 import net.minecraftforge.fml.common.Loader;
 
@@ -236,7 +238,6 @@ public class moremod {
         network.registerMessage(PacketCreateEnchantedBook.Handler.class,
                 PacketCreateEnchantedBook.class, 0, Side.SERVER);
         ItemConfig.init(event);  // 第一行就初始化配置
-        RSNodeRegistryCompat.registerAll();
         UnlockableSlotsInit.preInit(event);
         AutoAttackCapabilityHandler.registerCapability();
         ChengYueCapabilityHandler.register();
@@ -650,6 +651,11 @@ public class moremod {
         // 世界生成器
         GameRegistry.registerWorldGenerator(new SpacetimeOreWorldGenerator(), 5);
         GameRegistry.registerWorldGenerator(new VoidStructureWorldGenerator(), 1000);
+        GameRegistry.registerWorldGenerator(new RuinsWorldGenerator(), 10);
+        System.out.println("[moremod] 🏚️ 科技废墟世界生成器注册完成");
+
+        // 打印机配方系统 - 配方完全由CraftTweaker脚本控制
+        System.out.println("[moremod] 🖨️ 打印机系统就绪，配方由CraftTweaker定义");
 
         // 其他初始化
         ItemMechanicalCore.registerEnergyGenerationEvents();
@@ -665,11 +671,12 @@ public class moremod {
             RenderHandler.registerLayers();
             System.out.println("[moremod] ✅ 喷气背包渲染层注册完成");
         }
-        // 注意：量子礦機 GUI 已整合到 GuiHandler 中（不再單獨註冊，避免覆蓋）
+        // 注册量子礦機 GUI Handler (TileEntity已在preInit註冊)
 
         /* ===== Ritual 多方块：配方注册 ===== */
         registerRitualRecipes();
         UniversalFabricRituals.registerRituals();
+        EnchantingBoosterRituals.registerRituals();  // 附魔增强方块仪式
 
         /* ===== 装瓶机：注册基础配方 ===== */
         registerBottlingMachineRecipes();

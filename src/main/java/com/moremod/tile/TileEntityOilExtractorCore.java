@@ -43,7 +43,7 @@ public class TileEntityOilExtractorCore extends TileEntity implements ITickable 
     // 配置
     private static final int ENERGY_CAPACITY = 500000;     // 500k RF
     private static final int ENERGY_PER_TICK = 100;        // 每tick消耗 100 RF
-    private static final int BASE_OIL_PER_TICK = 10;       // 基礎每tick提取 10 mB
+    private static final int BASE_OIL_PER_TICK = 30;       // 基礎每tick提取 30 mB (3倍加速)
     private static final int MAX_OIL_STORAGE = 16000;      // 內部儲油 16000 mB (16桶)
     private static final int MB_PER_BUCKET = 1000;         // 1桶 = 1000 mB
     private static final int UPGRADE_SLOTS = 4;            // 增速插件槽數量

@@ -50,7 +50,7 @@ public class QuarryRegistry {
     public static BlockQuarryActuator blockQuarryActuator;
     
     // GUI ID
-    public static final int GUI_QUANTUM_QUARRY = 100;  // 修改为不冲突的 ID
+    public static final int GUI_QUANTUM_QUARRY = 201;  // 修改为不冲突的 ID
     
     /**
      * PreInit 阶段调用

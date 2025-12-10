@@ -1,5 +1,6 @@
 package com.moremod.tile;
 
+import com.moremod.init.ModFluids;
 import com.moremod.init.ModItems;
 import net.minecraft.init.Items;
 import net.minecraft.item.Item;
@@ -13,6 +14,9 @@ import net.minecraft.util.ITickable;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.energy.CapabilityEnergy;
 import net.minecraftforge.energy.EnergyStorage;
+import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.fluids.FluidTank;
+import net.minecraftforge.fluids.capability.CapabilityFluidHandler;
 import net.minecraftforge.items.CapabilityItemHandler;
 import net.minecraftforge.items.ItemStackHandler;
 
@@ -32,7 +36,8 @@ public class TileEntityPlantOilPress extends TileEntity implements ITickable {
     // 配置
     private static final int ENERGY_CAPACITY = 100000;     // 100k RF
     private static final int ENERGY_PER_TICK = 50;         // 每tick消耗 50 RF
-    private static final int PROCESS_TIME = 200;           // 10秒壓榨時間
+    private static final int PROCESS_TIME = 40;            // 2秒壓榨時間（加速5倍）
+    private static final int FLUID_CAPACITY = 16000;       // 16桶液體容量
 
     // 原料轉換率（每種作物產出多少mB植物油）
     private static final Map<Item, Integer> OIL_YIELD = new HashMap<>();
@@ -63,6 +68,27 @@ public class TileEntityPlantOilPress extends TileEntity implements ITickable {
         }
     };
 
+    // 液體儲罐 - 支持管道輸出
+    private final FluidTank fluidTank = new FluidTank(FLUID_CAPACITY) {
+        @Override
+        public boolean canFillFluidType(FluidStack fluid) {
+            return false; // 不接受外部輸入
+        }
+
+        @Override
+        public boolean canDrain() {
+            return true; // 允許管道抽取
+        }
+
+        @Override
+        protected void onContentsChanged() {
+            TileEntityPlantOilPress.this.markDirty();
+            if (world != null && !world.isRemote) {
+                world.notifyBlockUpdate(pos, world.getBlockState(pos), world.getBlockState(pos), 3);
+            }
+        }
+    };
+
     // 物品槽位：0=輸入（農作物），1=輸出（植物油桶）
     private final ItemStackHandler inventory = new ItemStackHandler(2) {
         @Override
@@ -81,7 +107,6 @@ public class TileEntityPlantOilPress extends TileEntity implements ITickable {
 
     // 壓榨進度
     private int progress = 0;
-    private int storedOilMB = 0;  // 內部儲存的植物油（mB）
     private boolean isProcessing = false;
 
     @Override
@@ -92,8 +117,10 @@ public class TileEntityPlantOilPress extends TileEntity implements ITickable {
         ItemStack input = inventory.getStackInSlot(0);
         boolean hasInput = !input.isEmpty() && isValidInput(input);
         boolean hasEnergy = energy.getEnergyStored() >= ENERGY_PER_TICK;
+        int yield = hasInput ? getOilYield(input) : 0;
+        boolean hasSpace = fluidTank.getFluidAmount() + yield <= fluidTank.getCapacity();
 
-        if (hasInput && hasEnergy) {
+        if (hasInput && hasEnergy && hasSpace) {
             isProcessing = true;
 
             // 消耗能量
@@ -101,9 +128,10 @@ public class TileEntityPlantOilPress extends TileEntity implements ITickable {
             progress++;
 
             if (progress >= PROCESS_TIME) {
-                // 壓榨完成
-                int yield = getOilYield(input);
-                storedOilMB += yield;
+                // 壓榨完成 - 將油存入液體儲罐
+                FluidStack oilStack = new FluidStack(ModFluids.getPlantOil(), yield);
+                fluidTank.fillInternal(oilStack, true);
+
                 input.shrink(1);
                 inventory.setStackInSlot(0, input);
                 progress = 0;
@@ -119,23 +147,23 @@ public class TileEntityPlantOilPress extends TileEntity implements ITickable {
         }
 
         // 持續嘗試輸出桶
-        if (storedOilMB >= MB_PER_BUCKET) {
+        if (fluidTank.getFluidAmount() >= MB_PER_BUCKET) {
             tryOutputBucket();
         }
     }
 
     private void tryOutputBucket() {
-        if (storedOilMB >= MB_PER_BUCKET) {
+        if (fluidTank.getFluidAmount() >= MB_PER_BUCKET) {
             ItemStack output = inventory.getStackInSlot(1);
             ItemStack newBucket = new ItemStack(ModItems.PLANT_OIL_BUCKET);
 
             if (output.isEmpty()) {
                 inventory.setStackInSlot(1, newBucket);
-                storedOilMB -= MB_PER_BUCKET;
+                fluidTank.drainInternal(MB_PER_BUCKET, true);
             } else if (output.getItem() == ModItems.PLANT_OIL_BUCKET && output.getCount() < output.getMaxStackSize()) {
                 output.grow(1);
                 inventory.setStackInSlot(1, output);
-                storedOilMB -= MB_PER_BUCKET;
+                fluidTank.drainInternal(MB_PER_BUCKET, true);
             }
         }
     }
@@ -176,12 +204,25 @@ public class TileEntityPlantOilPress extends TileEntity implements ITickable {
         return isProcessing;
     }
 
+    public int getFluidAmount() {
+        return fluidTank.getFluidAmount();
+    }
+
+    public int getFluidCapacity() {
+        return fluidTank.getCapacity();
+    }
+
+    public FluidTank getFluidTank() {
+        return fluidTank;
+    }
+
     // ===== Capabilities =====
 
     @Override
     public boolean hasCapability(Capability<?> capability, @Nullable EnumFacing facing) {
         return capability == CapabilityEnergy.ENERGY ||
                capability == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY ||
+               capability == CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY ||
                super.hasCapability(capability, facing);
     }
 
@@ -195,6 +236,9 @@ public class TileEntityPlantOilPress extends TileEntity implements ITickable {
         if (capability == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY) {
             return (T) inventory;
         }
+        if (capability == CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY) {
+            return (T) fluidTank;
+        }
         return super.getCapability(capability, facing);
     }
 
@@ -206,8 +250,11 @@ public class TileEntityPlantOilPress extends TileEntity implements ITickable {
         compound.setTag("Inventory", inventory.serializeNBT());
         compound.setInteger("Energy", energy.getEnergyStored());
         compound.setInteger("Progress", progress);
-        compound.setInteger("StoredOilMB", storedOilMB);
         compound.setBoolean("IsProcessing", isProcessing);
+        // 保存液體儲罐
+        NBTTagCompound tankTag = new NBTTagCompound();
+        fluidTank.writeToNBT(tankTag);
+        compound.setTag("FluidTank", tankTag);
         return compound;
     }
 
@@ -220,8 +267,11 @@ public class TileEntityPlantOilPress extends TileEntity implements ITickable {
         int fe = compound.getInteger("Energy");
         while (energy.getEnergyStored() < fe && energy.receiveEnergy(Integer.MAX_VALUE, false) > 0) {}
         progress = compound.getInteger("Progress");
-        storedOilMB = compound.getInteger("StoredOilMB");
         isProcessing = compound.getBoolean("IsProcessing");
+        // 讀取液體儲罐
+        if (compound.hasKey("FluidTank")) {
+            fluidTank.readFromNBT(compound.getCompoundTag("FluidTank"));
+        }
     }
 
     // ===== 網絡同步 =====

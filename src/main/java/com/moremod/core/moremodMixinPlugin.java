@@ -16,6 +16,7 @@ public class moremodMixinPlugin implements IFMLLoadingPlugin {
             // 先加载 villager mixin
             FermiumRegistryAPI.enqueueMixin(false, "mixins.moremod.villager.json");
             FermiumRegistryAPI.enqueueMixin(false, "mixins.moremod.otherworldly.json");
+            FermiumRegistryAPI.enqueueMixin(false, "mixins.moremod.enchant.json");
 
             // 然后加载其他 mod 的 mixins
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.lycanites.json");
@@ -27,6 +28,9 @@ public class moremodMixinPlugin implements IFMLLoadingPlugin {
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.bauble.json");
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.potioncore.json");
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.ev.json");
+
+            // Enigmatic Legacy 七圣遗物效果拦截
+            FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.enigmaticlegacy.json");
 
             // FermiumMixins 兼容 - 绕过假玩家检测
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.fermiummixins.json");

@@ -21,21 +21,21 @@ import java.util.*;
 
 public class TreeDungeonPlacer {
 
-    // 標準房間參數
-    private static final int STANDARD_SHELL_SIZE   = 30;
-    private static final int STANDARD_SHELL_HEIGHT = 12;
+    // 標準房間參數 (加大版: 模板+4)
+    private static final int STANDARD_SHELL_SIZE   = 34;
+    private static final int STANDARD_SHELL_HEIGHT = 19;
 
-    // Mini-Boss房間參數（中等大小）
-    private static final int MINI_BOSS_SHELL_SIZE   = 36;
-    private static final int MINI_BOSS_SHELL_HEIGHT = 16;
+    // Mini-Boss房間參數 (加大版)
+    private static final int MINI_BOSS_SHELL_SIZE   = 40;
+    private static final int MINI_BOSS_SHELL_HEIGHT = 23;
 
-    // Boss房間參數（更大）
-    private static final int BOSS_SHELL_SIZE   = 40;
-    private static final int BOSS_SHELL_HEIGHT = 18;
+    // Boss房間參數 (加大版)
+    private static final int BOSS_SHELL_SIZE   = 44;
+    private static final int BOSS_SHELL_HEIGHT = 27;
 
-    // 樓梯房間參數
-    private static final int STAIRCASE_SHELL_SIZE   = 30;
-    private static final int STAIRCASE_SHELL_HEIGHT = 12;
+    // 樓梯房間參數 (加大版)
+    private static final int STAIRCASE_SHELL_SIZE   = 34;
+    private static final int STAIRCASE_SHELL_HEIGHT = 21;
 
     private static final int THICK        = 2;
     private static final int INNER_Y      = 2;
@@ -479,11 +479,13 @@ public class TreeDungeonPlacer {
     private DungeonTree.RoomType convert(RoomType type) {
         switch (type) {
             case ENTRANCE:       return DungeonTree.RoomType.ENTRANCE;
+            case EXIT:           return DungeonTree.RoomType.EXIT;
             case TREASURE:       return DungeonTree.RoomType.TREASURE;
             case TRAP:           return DungeonTree.RoomType.TRAP;
             case BOSS:           return DungeonTree.RoomType.BOSS;
             case MINI_BOSS:      return DungeonTree.RoomType.MINI_BOSS;
             case HUB:            return DungeonTree.RoomType.HUB;
+            case MONSTER:        return DungeonTree.RoomType.MONSTER;
             case STAIRCASE_UP:   return DungeonTree.RoomType.STAIRCASE_UP;
             case STAIRCASE_DOWN: return DungeonTree.RoomType.STAIRCASE_DOWN;
             case STAIRCASE_BOTH: return DungeonTree.RoomType.STAIRCASE_BOTH;

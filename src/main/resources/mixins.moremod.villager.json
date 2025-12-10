@@ -8,7 +8,9 @@
   "priority": 2000,
   "verbose": true,
   "mixins": [
-    "MixinEntityVillager",    "MixinMerchantRecipeList",
+    "MixinEntityVillager",
+    "MixinEntityZombieVillager",
+    "MixinMerchantRecipeList",
     "MixinSlotMerchantResult"
   ],
   "client": [

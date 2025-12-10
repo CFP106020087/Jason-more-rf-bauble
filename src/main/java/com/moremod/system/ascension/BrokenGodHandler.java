@@ -403,6 +403,15 @@ public class BrokenGodHandler {
         // 替换饰品
         BrokenGodItems.replacePlayerBaubles(player);
 
+        // ⚠️ 重要：确保升格后血量合理（修复血量降至0的问题）
+        // ItemBrokenHeart 会把最大HP压缩到10，这里确保当前血量也是10
+        float targetHP = 10.0f; // 与 ItemBrokenHeart.TARGET_MAX_HP 一致
+        if (player.getHealth() < targetHP) {
+            player.setHealth(targetHP);
+        }
+        // First Aid 兼容：恢复所有身体部位到满血
+        healFirstAidFull(player);
+
         // 粒子效果
         if (player.world instanceof WorldServer) {
             WorldServer world = (WorldServer) player.world;

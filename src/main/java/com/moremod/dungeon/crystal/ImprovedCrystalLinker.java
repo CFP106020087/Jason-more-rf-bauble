@@ -17,7 +17,8 @@ import java.util.*;
  */
 public class ImprovedCrystalLinker {
 
-    private static final int SHELL_SIZE = 30;
+    // 加大版：与标准房间外壳尺寸一致
+    private static final int SHELL_SIZE = 34;
     private static final int THICK = 2;
     private static final int INNER_Y = 2;
 
