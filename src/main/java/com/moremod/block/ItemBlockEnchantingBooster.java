@@ -23,6 +23,6 @@ public class ItemBlockEnchantingBooster extends ItemBlock {
     @Override
     public String getUnlocalizedName(ItemStack stack) {
         BlockEnchantingBooster.BoosterType type = BlockEnchantingBooster.BoosterType.byMeta(stack.getMetadata());
-        return supersetTranslationKey() + "." + type.getName();
+        return getUnlocalizedName() + "." + type.getName();
     }
 }
