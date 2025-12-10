@@ -53,13 +53,15 @@ public class ItemExplorerCompass extends Item implements IBauble {
     private static final int MAX_SEARCH_ATTEMPTS = 10;
 
     // ===== 性能优化配置 =====
-    private static final int PARTICLE_DENSITY = 120; // 粒子密度（降低到120以优化性能）
-    private static final int PARTICLE_BATCH_SIZE = 25; // 每批粒子数
-    private static final int SEARCH_COOLDOWN = 10; // 搜索冷却（tick）
-    private static final int PARTICLE_COOLDOWN = 20; // 粒子冷却（tick）
     private static final int CACHE_EXPIRE_DISTANCE = 100; // 缓存失效距离
     private static final long CACHE_EXPIRE_TIME = 60000; // 缓存失效时间（60秒）
+    private static final int PARTICLE_DENSITY = 350; // 最大粒子数 (提升上限)
+    private static final double PARTICLES_PER_BLOCK = 5.0; // 线性密度 (每格5个粒子，非常密！)
+    private static final double RENDER_DISTANCE_CAP = 48.0; // 渲染距离上限 (只画眼前48格，防止爆显存)
 
+    private static final int PARTICLE_BATCH_SIZE = 40; // 每批粒子数 (现代CPU能抗住)
+    private static final int SEARCH_COOLDOWN = 10;
+    private static final int PARTICLE_COOLDOWN = 10; // 降低冷却让手感更好
     // ===== 冷却时间和缓存 =====
     private static final Map<UUID, Long> searchCooldowns = new HashMap<>();
     private static final Map<UUID, Long> particleCooldowns = new HashMap<>();
@@ -610,74 +612,93 @@ public class ItemExplorerCompass extends Item implements IBauble {
     private static void createOptimizedParticlePath(EntityPlayerMP player, BlockPos target) {
         World world = player.getServerWorld();
 
-        Vec3d start = player.getPositionVector().add(0, player.getEyeHeight(), 0);
-        Vec3d end = new Vec3d(target.getX() + 0.5, target.getY() + 1.5, target.getZ() + 0.5);
+        // 1. 計算起點與終點
+        Vec3d start = player.getPositionVector().add(0, player.getEyeHeight() - 0.2, 0); // 稍微降低起點，不擋視野
+        Vec3d targetVec = new Vec3d(target.getX() + 0.5, target.getY() + 1.5, target.getZ() + 0.5);
 
-        double distance = start.distanceTo(end);
-        int steps = Math.min((int) (distance * 1.2), PARTICLE_DENSITY);
-        double arcHeight = Math.min(distance * 0.15, 12);
+        // 2. 計算方向與總距離
+        Vec3d direction = targetVec.subtract(start);
+        double totalDistance = direction.length();
+        direction = direction.normalize();
+
+        // 3. 視距裁剪：如果目標太遠，只畫出一部分路徑指向目標
+        // 這樣即使目標在 10000 格外，也只會生成有限的粒子，絕對不卡！
+        double renderDistance = Math.min(totalDistance, RENDER_DISTANCE_CAP);
+        Vec3d endRenderPos = start.add(direction.scale(renderDistance));
+
+        // 4. 計算粒子步數 (高密度)
+        int steps = (int) (renderDistance * PARTICLES_PER_BLOCK);
+
+        // 曲線高度：距離越遠弧度越高，但有上限
+        double arcHeight = Math.min(renderDistance * 0.2, 5.0);
 
         int totalBatches = (steps + PARTICLE_BATCH_SIZE - 1) / PARTICLE_BATCH_SIZE;
 
-        // 分批生成路径粒子
+        // 5. 分批生成粒子 (流光效果)
         for (int batch = 0; batch < totalBatches; batch++) {
             final int batchStart = batch * PARTICLE_BATCH_SIZE;
             final int batchEnd = Math.min(batchStart + PARTICLE_BATCH_SIZE, steps);
-            final int delay = batch;
 
+            // 延遲執行，創造「光流射出」的動畫感
             world.getMinecraftServer().addScheduledTask(() -> {
                 for (int i = batchStart; i < batchEnd; i++) {
+                    // t 代表當前點在渲染路徑上的比例 (0.0 ~ 1.0)
                     double t = (double) i / steps;
 
-                    double x = start.x + (end.x - start.x) * t;
-                    double y = start.y + (end.y - start.y) * t;
-                    double z = start.z + (end.z - start.z) * t;
+                    // 線性插值
+                    double x = start.x + (endRenderPos.x - start.x) * t;
+                    double y = start.y + (endRenderPos.y - start.y) * t;
+                    double z = start.z + (endRenderPos.z - start.z) * t;
 
-                    double arc = arcHeight * Math.sin(t * Math.PI);
-                    y += arc;
+                    // 添加弧度 (Sine Wave)
+                    // 使用 Math.sin(t * Math.PI) 讓線條呈拱形
+                    y += arcHeight * Math.sin(t * Math.PI);
 
+                    // 隨機抖動 (讓線條變粗，像魔法光束)
+                    double jitter = 0.05;
+                    double jx = (Math.random() - 0.5) * jitter;
+                    double jy = (Math.random() - 0.5) * jitter;
+                    double jz = (Math.random() - 0.5) * jitter;
+
+                    // 主體粒子：龍息 (紫色光輝)
+                    world.spawnParticle(EnumParticleTypes.DRAGON_BREATH, x + jx, y + jy, z + jz, 0, 0, 0);
+
+                    // 核心粒子：紅石 (高亮核心) - 每2個點生成一次，保持性能
                     if (i % 2 == 0) {
-                        world.spawnParticle(EnumParticleTypes.DRAGON_BREATH, x, y, z, 0, 0, 0);
+                        // 紅石粒子顏色參數：Redstone 粒子的速度參數其實是 RGB 顏色
+                        // 這裡設為金黃色/橙色系
+                        world.spawnParticle(EnumParticleTypes.REDSTONE, x, y, z, 1.0, 0.5, 0.0);
                     }
-                    
-                    if (i % 4 == 0) {
-                        world.spawnParticle(EnumParticleTypes.REDSTONE, x, y, z, 0, 0, 0);
+
+                    // 點綴粒子：末影光點 (增加魔法感) - 稀疏生成
+                    if (i % 10 == 0) {
+                        world.spawnParticle(EnumParticleTypes.END_ROD, x, y, z, 0, 0.02, 0);
                     }
                 }
             });
         }
 
-        // 目标标记 - 延迟生成
-        world.getMinecraftServer().addScheduledTask(() -> {
-            // 火焰柱（减少数量）
-            for (int i = 0; i < 15; i++) {
-                world.spawnParticle(EnumParticleTypes.FLAME,
-                        target.getX() + 0.5 + (Math.random() - 0.5) * 0.5,
-                        target.getY() + 0.5 + Math.random() * 1.5,
-                        target.getZ() + 0.5 + (Math.random() - 0.5) * 0.5,
-                        0.0, 0.1, 0.0);
-            }
-            
-            // 龙息圆环（减少数量）
-            for (int i = 0; i < 10; i++) {
-                double angle = (2 * Math.PI * i) / 10;
-                double radius = 1.2;
-                world.spawnParticle(EnumParticleTypes.DRAGON_BREATH,
-                        target.getX() + 0.5 + Math.cos(angle) * radius,
-                        target.getY() + 1.0,
-                        target.getZ() + 0.5 + Math.sin(angle) * radius,
-                        0, 0, 0);
-            }
-            
-            // 音效
-            world.playSound(null, player.getPosition(),
-                    net.minecraft.init.SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP,
-                    net.minecraft.util.SoundCategory.PLAYERS, 0.5F, 1.5F);
-            
-            world.playSound(null, target,
-                    net.minecraft.init.SoundEvents.BLOCK_NOTE_CHIME,
-                    net.minecraft.util.SoundCategory.PLAYERS, 0.8F, 2.0F);
-        });
+        // 6. 只有當目標在渲染距離內時，才標記終點
+        if (totalDistance <= RENDER_DISTANCE_CAP + 5) {
+            world.getMinecraftServer().addScheduledTask(() -> {
+                // 終點特效：星爆
+                for (int i = 0; i < 20; i++) {
+                    world.spawnParticle(EnumParticleTypes.VILLAGER_HAPPY,
+                            targetVec.x + (Math.random() - 0.5),
+                            targetVec.y + (Math.random() - 0.5) + 1,
+                            targetVec.z + (Math.random() - 0.5),
+                            (Math.random() - 0.5) * 0.1, 0.1, (Math.random() - 0.5) * 0.1);
+                }
+
+                // 音效：清脆的定位音
+                world.playSound(null, target,
+                        net.minecraft.init.SoundEvents.ENTITY_PLAYER_LEVELUP,
+                        net.minecraft.util.SoundCategory.PLAYERS, 0.5F, 2.0F);
+            });
+        } else {
+            // 如果目標很遠，在路徑盡頭播放一個指向音效
+            // 這樣玩家知道還沒到
+        }
     }
 
     // ===== NBT 数据管理 =====

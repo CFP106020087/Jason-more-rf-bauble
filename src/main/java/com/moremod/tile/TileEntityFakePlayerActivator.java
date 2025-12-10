@@ -364,8 +364,9 @@ public class TileEntityFakePlayerActivator extends TileEntity implements ITickab
         ItemStack tool = fakePlayer.getHeldItemMainhand();
         if (tool.isEmpty()) return false;
 
-        // 记录使用前的数量，用于检测是否已消耗
-        int countBefore = tool.getCount();
+        // ✅ 修复：记录原始物品和数量
+        ItemStack originalTool = tool.copy();
+        int originalCount = tool.getCount();
 
         EnumActionResult result = tool.getItem().onItemUse(
                 fakePlayer, world, targetPos, EnumHand.MAIN_HAND,
@@ -375,18 +376,16 @@ public class TileEntityFakePlayerActivator extends TileEntity implements ITickab
         ItemStack afterUse = fakePlayer.getHeldItemMainhand();
 
         if (result == EnumActionResult.SUCCESS) {
-            updateCurrentTool(afterUse);
+            updateCurrentTool(afterUse, originalTool, originalCount);
             return true;
         }
 
-        // ✅ 修复：只有在 onItemUse 没有消耗物品时才尝试 onItemRightClick
-        // 避免双重消耗
-        if (!afterUse.isEmpty() && afterUse.getCount() >= countBefore) {
+        if (!afterUse.isEmpty() && afterUse.getCount() >= originalCount) {
             tool.getItem().onItemRightClick(world, fakePlayer, EnumHand.MAIN_HAND);
             afterUse = fakePlayer.getHeldItemMainhand();
         }
 
-        updateCurrentTool(afterUse);
+        updateCurrentTool(afterUse, originalTool, originalCount);
         return true;
     }
 
