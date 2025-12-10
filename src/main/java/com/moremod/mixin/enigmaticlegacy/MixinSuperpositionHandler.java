@@ -14,14 +14,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  *
  * 当玩家嵌入了灵魂锚点 (SOUL_ANCHOR) 时，阻止 loseSoul 方法执行
  */
-@Mixin(targets = "keletu.enigmaticlegacy.event.SuperpositionHandler", remap = false)
+@Mixin(targets = "keletu.enigmaticlegacy.event.SuperpositionHandler", remap = false, expected = 0)
 public class MixinSuperpositionHandler {
 
     /**
      * 拦截 loseSoul 方法
      * 当玩家嵌入了灵魂锚点时，取消灵魂破碎效果
      */
-    @Inject(method = "loseSoul", at = @At("HEAD"), cancellable = true, remap = false)
+    @Inject(method = "loseSoul", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
     private static void onLoseSoul(EntityPlayer player, CallbackInfo ci) {
         if (player == null || player.world.isRemote) return;
 
