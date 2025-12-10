@@ -128,6 +128,10 @@ item.moremod.print_template.mystery_crystal=Mystery Crystal Template
 item.moremod.print_template.spacetime_shard=Spacetime Shard Template
 item.moremod.print_template.ancient_core_fragment=Ancient Core Fragment Template
 
+# Printer GUI Text
+gui.moremod.printer.recipe_cost=Recipe Cost: %s RF
+gui.moremod.printer.build_guide=Build Guide: 3x3 Iron Block Base + 4 Redstone Blocks
+
 # Template Tooltips
 tooltip.moremod.template_id=Template ID
 tooltip.moremod.output=Output

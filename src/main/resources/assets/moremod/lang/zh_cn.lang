@@ -544,6 +544,10 @@ item.moremod.print_template.mystery_crystal=神秘水晶模版
 item.moremod.print_template.spacetime_shard=时空碎片模版
 item.moremod.print_template.ancient_core_fragment=远古核心碎片模版
 
+# 打印机GUI文字
+gui.moremod.printer.recipe_cost=配方消耗: %s RF
+gui.moremod.printer.build_guide=搭建指南: 3x3铁块底座 + 4红石块
+
 # 模版信息提示
 tooltip.moremod.template_id=模版ID
 tooltip.moremod.output=输出
