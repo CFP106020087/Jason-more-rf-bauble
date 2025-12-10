@@ -29,10 +29,44 @@ import java.util.Map.Entry;
 /**
  * 独立的Schematic类 - 不依赖CubicChunks
  * 基于DimDoors的实现，移除了CubicChunks相关代码
+ * 支持 1.13+ Sponge Schematic 格式自动转换到 1.12.2
  */
 public class Schematic {
 
     public int version = 1;
+
+    // 1.13+ 方块名称到 1.12.2 的映射
+    private static final Map<String, String> BLOCK_NAME_MAPPING = new HashMap<>();
+    // 需要移除的 1.13+ 属性
+    private static final Set<String> PROPERTIES_TO_REMOVE = new HashSet<>();
+
+    static {
+        // 1.13 扁平化后的方块名称映射
+        BLOCK_NAME_MAPPING.put("minecraft:smooth_stone", "minecraft:stone");
+        BLOCK_NAME_MAPPING.put("minecraft:smooth_stone_slab", "minecraft:stone_slab");
+        BLOCK_NAME_MAPPING.put("minecraft:stone_brick_slab", "minecraft:stone_slab");
+        BLOCK_NAME_MAPPING.put("minecraft:stone_brick_stairs", "minecraft:stone_brick_stairs");
+        BLOCK_NAME_MAPPING.put("minecraft:cobblestone_stairs", "minecraft:stone_stairs");
+        BLOCK_NAME_MAPPING.put("minecraft:cobblestone_wall", "minecraft:cobblestone_wall");
+        BLOCK_NAME_MAPPING.put("minecraft:mossy_cobblestone_wall", "minecraft:cobblestone_wall");
+        BLOCK_NAME_MAPPING.put("minecraft:cyan_terracotta", "minecraft:stained_hardened_clay");
+        BLOCK_NAME_MAPPING.put("minecraft:light_gray_wool", "minecraft:wool");
+        BLOCK_NAME_MAPPING.put("minecraft:light_gray_concrete", "minecraft:concrete");
+        BLOCK_NAME_MAPPING.put("minecraft:gray_concrete", "minecraft:concrete");
+        BLOCK_NAME_MAPPING.put("minecraft:brown_stained_glass_pane", "minecraft:stained_glass_pane");
+        BLOCK_NAME_MAPPING.put("minecraft:green_stained_glass_pane", "minecraft:stained_glass_pane");
+        BLOCK_NAME_MAPPING.put("minecraft:purple_stained_glass", "minecraft:stained_glass");
+        BLOCK_NAME_MAPPING.put("minecraft:nether_brick_fence", "minecraft:nether_brick_fence");
+        BLOCK_NAME_MAPPING.put("minecraft:oak_fence", "minecraft:fence");
+        BLOCK_NAME_MAPPING.put("minecraft:oak_fence_gate", "minecraft:fence_gate");
+        BLOCK_NAME_MAPPING.put("minecraft:oak_trapdoor", "minecraft:trapdoor");
+        BLOCK_NAME_MAPPING.put("minecraft:oak_wall_sign", "minecraft:wall_sign");
+        BLOCK_NAME_MAPPING.put("minecraft:wall_torch", "minecraft:torch");
+        BLOCK_NAME_MAPPING.put("minecraft:potted_dead_bush", "minecraft:flower_pot");
+
+        // 需要移除的 1.13+ 属性
+        PROPERTIES_TO_REMOVE.add("waterlogged");
+    }
     public String author = null;
     public String name = null;
     public long creationDate;
@@ -110,6 +144,9 @@ public class Schematic {
 
         for (int i = 0; i < paletteMap.size(); i++) {
             String blockStateString = paletteMap.get(i);
+            // 转换 1.13+ 格式到 1.12.2
+            blockStateString = convert113To112(blockStateString);
+
             char lastBlockStateStringChar = blockStateString.charAt(blockStateString.length() - 1);
             String blockString;
             String stateString;
@@ -123,6 +160,12 @@ public class Schematic {
                 stateString = "";
             }
             Block block = ForgeRegistries.BLOCKS.getValue(new ResourceLocation(blockString));
+
+            if (block == null || block == Blocks.AIR && !blockString.contains("air")) {
+                System.err.println("[Schematic] 警告: 未知方块 " + blockString + " (原始: " + paletteMap.get(i) + ")，替换为空气");
+                schematic.palette.add(Blocks.AIR.getDefaultState());
+                continue;
+            }
 
             IBlockState blockstate = block.getDefaultState();
             if (!stateString.equals("")) {
@@ -140,10 +183,31 @@ public class Schematic {
 
         byte[] blockDataIntArray = nbt.getByteArray("BlockData");
         schematic.blockData = new short[schematic.width][schematic.height][schematic.length];
-        for (int x = 0; x < schematic.width; x++) {
+
+        // 1.13+ schematic 使用 varint 编码
+        if (schematic.version >= 2 && schematic.paletteMax > 127) {
+            // 使用 varint 解码
+            int[] decodedData = decodeVarintBlockData(blockDataIntArray, schematic.width * schematic.height * schematic.length);
+            int idx = 0;
             for (int y = 0; y < schematic.height; y++) {
                 for (int z = 0; z < schematic.length; z++) {
-                    schematic.blockData[x][y][z] = blockDataIntArray[x + z * schematic.width + y * schematic.width * schematic.length];
+                    for (int x = 0; x < schematic.width; x++) {
+                        if (idx < decodedData.length) {
+                            schematic.blockData[x][y][z] = (short) decodedData[idx++];
+                        }
+                    }
+                }
+            }
+        } else {
+            // 标准格式或小调色板
+            for (int x = 0; x < schematic.width; x++) {
+                for (int y = 0; y < schematic.height; y++) {
+                    for (int z = 0; z < schematic.length; z++) {
+                        int idx = x + z * schematic.width + y * schematic.width * schematic.length;
+                        if (idx < blockDataIntArray.length) {
+                            schematic.blockData[x][y][z] = (short) (blockDataIntArray[idx] & 0xFF);
+                        }
+                    }
                 }
             }
         }
@@ -464,5 +528,145 @@ public class Schematic {
         world.markBlockRangeForRenderUpdate(xBase, yBase, zBase, xBase + width, yBase + height, zBase + length);
 
         System.out.println("[moremod] Schematic放置完成 - 方块设置: " + setTime / 1000000 + "ms, 光照计算: " + relightTime / 1000000 + "ms");
+    }
+
+    /**
+     * 将 1.13+ 方块状态字符串转换为 1.12.2 格式
+     */
+    private static String convert113To112(String blockStateString) {
+        String blockName;
+        String properties = "";
+
+        if (blockStateString.contains("[")) {
+            int bracketIdx = blockStateString.indexOf('[');
+            blockName = blockStateString.substring(0, bracketIdx);
+            properties = blockStateString.substring(bracketIdx + 1, blockStateString.length() - 1);
+        } else {
+            blockName = blockStateString;
+        }
+
+        // 转换方块名称
+        if (BLOCK_NAME_MAPPING.containsKey(blockName)) {
+            blockName = BLOCK_NAME_MAPPING.get(blockName);
+        }
+
+        // 处理属性
+        if (!properties.isEmpty()) {
+            StringBuilder newProps = new StringBuilder();
+            String[] propArray = properties.split(",");
+            for (String prop : propArray) {
+                String[] kv = prop.split("=");
+                if (kv.length == 2) {
+                    String key = kv[0];
+                    String value = kv[1];
+
+                    // 跳过 1.13+ 专有属性
+                    if (PROPERTIES_TO_REMOVE.contains(key)) {
+                        continue;
+                    }
+
+                    // 转换属性值
+                    // 1.13 使用 "none", "low", "tall" 来表示墙的连接状态
+                    // 1.12 使用 "true", "false"
+                    if (key.equals("north") || key.equals("south") || key.equals("east") || key.equals("west")) {
+                        if (value.equals("none")) {
+                            value = "false";
+                        } else if (value.equals("low") || value.equals("tall")) {
+                            value = "true";
+                        }
+                    }
+
+                    // 1.13 石砖楼梯的 shape 属性处理
+                    // "straight", "inner_left", "inner_right", "outer_left", "outer_right"
+                    // 在 1.12.2 中这些是自动计算的，不需要手动设置
+
+                    // type 属性: bottom/top/double 需要转换
+                    if (key.equals("type")) {
+                        if (value.equals("bottom")) {
+                            // 1.12 使用 half=bottom
+                            key = "half";
+                            value = "bottom";
+                        } else if (value.equals("top")) {
+                            key = "half";
+                            value = "top";
+                        } else if (value.equals("double")) {
+                            // double slab 在 1.12 是单独的方块
+                            continue;
+                        }
+                    }
+
+                    if (newProps.length() > 0) {
+                        newProps.append(",");
+                    }
+                    newProps.append(key).append("=").append(value);
+                }
+            }
+            properties = newProps.toString();
+        }
+
+        if (properties.isEmpty()) {
+            return blockName;
+        } else {
+            return blockName + "[" + properties + "]";
+        }
+    }
+
+    /**
+     * 解码 varint 编码的方块数据
+     */
+    private static int[] decodeVarintBlockData(byte[] data, int expectedSize) {
+        int[] result = new int[expectedSize];
+        int resultIdx = 0;
+        int dataIdx = 0;
+
+        while (dataIdx < data.length && resultIdx < expectedSize) {
+            int value = 0;
+            int shift = 0;
+
+            while (true) {
+                if (dataIdx >= data.length) break;
+                byte b = data[dataIdx++];
+                value |= (b & 0x7F) << shift;
+                if ((b & 0x80) == 0) break;
+                shift += 7;
+            }
+
+            result[resultIdx++] = value;
+        }
+
+        return result;
+    }
+
+    /**
+     * 从大 schematic 中提取子区域
+     * @param startX 起始 X
+     * @param startY 起始 Y
+     * @param startZ 起始 Z
+     * @param w 宽度
+     * @param h 高度
+     * @param l 长度
+     * @return 新的 Schematic 包含子区域
+     */
+    public Schematic extractRegion(int startX, int startY, int startZ, int w, int h, int l) {
+        Schematic sub = new Schematic((short) w, (short) h, (short) l);
+        sub.name = this.name + "_sub";
+        sub.author = this.author;
+
+        for (int x = 0; x < w; x++) {
+            for (int y = 0; y < h; y++) {
+                for (int z = 0; z < l; z++) {
+                    int srcX = startX + x;
+                    int srcY = startY + y;
+                    int srcZ = startZ + z;
+
+                    if (srcX >= 0 && srcX < width && srcY >= 0 && srcY < height && srcZ >= 0 && srcZ < length) {
+                        IBlockState state = getBlockState(srcX, srcY, srcZ);
+                        sub.setBlockState(x, y, z, state);
+                    }
+                }
+            }
+        }
+
+        return sub;
     }
 }

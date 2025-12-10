@@ -71,33 +71,86 @@ public class DungeonTemplateRegistry {
     /**
      * 从 mod resources 目录加载 .schem 文件
      * 路径: assets/moremod/schematics/
+     *
+     * dungeon_room.schem 是一个包含多个房间的大型 schematic (186x16x71)
+     * 需要分割成 10 个独立的房间模板
      */
     private void loadFromResources() {
-        // 定义要加载的 schematic 文件及其对应的房间类型
-        String[][] schematics = {
-            {"dungeon_room.schem", "NORMAL"}
-        };
+        try {
+            String resourcePath = "/assets/moremod/schematics/dungeon_room.schem";
+            InputStream is = getClass().getResourceAsStream(resourcePath);
+            if (is != null) {
+                NBTTagCompound nbt = CompressedStreamTools.readCompressed(is);
+                Schematic fullSchematic = Schematic.loadFromNBT(nbt);
+                is.close();
 
-        for (String[] entry : schematics) {
-            String filename = entry[0];
-            String roomTypeStr = entry[1];
-            try {
-                String resourcePath = "/assets/moremod/schematics/" + filename;
-                InputStream is = getClass().getResourceAsStream(resourcePath);
-                if (is != null) {
-                    NBTTagCompound nbt = CompressedStreamTools.readCompressed(is);
-                    Schematic schematic = Schematic.loadFromNBT(nbt);
-                    DungeonTree.RoomType type = DungeonTree.RoomType.valueOf(roomTypeStr);
-                    templatesByType.get(type).add(schematic);
-                    System.out.println("[DungeonTemplateRegistry] 从 resources 加载模板: " + filename + " -> " + type);
-                    is.close();
-                } else {
-                    System.out.println("[DungeonTemplateRegistry] 未找到 resources 模板: " + resourcePath);
+                System.out.println("[DungeonTemplateRegistry] 加载大型 schematic: " + fullSchematic.width + "x" + fullSchematic.height + "x" + fullSchematic.length);
+
+                // 定义房间布局: {startX, startZ, width, length, roomType}
+                // 根据 schematic 尺寸 186x16x71，房间沿 X 轴排列
+                // 每个房间约 18-19 格宽，高度 16，长度根据位置不同
+                int[][] roomDefinitions = {
+                    // 上排房间 (Z = 0-30)
+                    {0, 0, 18, 30, 0},      // ENTRANCE
+                    {18, 0, 18, 30, 1},     // NORMAL
+                    {36, 0, 18, 30, 2},     // TREASURE
+                    {54, 0, 18, 30, 3},     // TRAP
+                    {72, 0, 22, 30, 4},     // HUB (大一点)
+                    // 下排房间 (Z = 40-71)
+                    {0, 40, 18, 30, 1},     // NORMAL
+                    {18, 40, 18, 30, 5},    // MONSTER
+                    {36, 40, 22, 30, 6},    // MINI_BOSS
+                    {58, 40, 22, 30, 7},    // BOSS
+                    {80, 40, 18, 30, 1},    // NORMAL
+                };
+
+                DungeonTree.RoomType[] types = {
+                    DungeonTree.RoomType.ENTRANCE,
+                    DungeonTree.RoomType.NORMAL,
+                    DungeonTree.RoomType.TREASURE,
+                    DungeonTree.RoomType.TRAP,
+                    DungeonTree.RoomType.HUB,
+                    DungeonTree.RoomType.NORMAL,  // MONSTER 使用 NORMAL
+                    DungeonTree.RoomType.MINI_BOSS,
+                    DungeonTree.RoomType.BOSS,
+                };
+
+                // 提取每个房间
+                for (int[] def : roomDefinitions) {
+                    int startX = def[0];
+                    int startZ = def[1];
+                    int roomWidth = def[2];
+                    int roomLength = def[3];
+                    int typeIdx = def[4];
+
+                    // 确保不越界
+                    if (startX + roomWidth > fullSchematic.width) {
+                        roomWidth = fullSchematic.width - startX;
+                    }
+                    if (startZ + roomLength > fullSchematic.length) {
+                        roomLength = fullSchematic.length - startZ;
+                    }
+
+                    if (roomWidth <= 0 || roomLength <= 0) continue;
+
+                    Schematic roomSchematic = fullSchematic.extractRegion(
+                        startX, 0, startZ,
+                        roomWidth, fullSchematic.height, roomLength
+                    );
+
+                    if (typeIdx < types.length) {
+                        DungeonTree.RoomType roomType = types[typeIdx];
+                        templatesByType.get(roomType).add(roomSchematic);
+                        System.out.println("[DungeonTemplateRegistry] 提取房间 [" + startX + "," + startZ + "] "
+                            + roomWidth + "x" + fullSchematic.height + "x" + roomLength + " -> " + roomType);
+                    }
                 }
-            } catch (Exception e) {
-                System.err.println("[DungeonTemplateRegistry] 加载 resources 模板失败: " + filename + " - " + e.getMessage());
-                e.printStackTrace();
+            } else {
+                System.out.println("[DungeonTemplateRegistry] 未找到 resources 模板: " + resourcePath);
             }
+        } catch (Exception e) {
+            System.err.println("[DungeonTemplateRegistry] 加载 resources 模板失败: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
