@@ -119,21 +119,23 @@ public abstract class MixinContainerEnchantment {
     }
 
     /**
-     * 拦截 enchantItem 方法，在服务端跳过等级验证
+     * 拦截 enchantItem 方法，在服务端恢复正确的附魔等级
      * 原版会检查 player.experienceLevel >= enchantLevels[id]
-     * 我们需要在有额外能量时，使用服务端缓存的等级
+     * 客户端可能同步了错误的等级，我们需要恢复服务端缓存的等级
      */
     @Inject(method = {"enchantItem", "func_75140_a"}, at = @At("HEAD"), cancellable = true, require = 0)
     private void moremod$onEnchantItem(EntityPlayer player, int id, CallbackInfoReturnable<Boolean> cir) {
         if (world == null || world.isRemote) return;
         if (id < 0 || id >= 3) return;
 
-        // 检查是否有额外能量
-        float extraPower = moremod$calculateExtraPower();
-        if (extraPower <= 0) return; // 没有额外能量，使用原版逻辑
+        // 输出调试信息
+        System.out.println("[MoreMod-Enchant] enchantItem被调用! 槽位=" + id +
+            ", 当前等级=" + enchantLevels[id] +
+            ", 缓存等级=" + moremod$serverEnchantLevels[id]);
 
-        // 有额外能量时，确保使用服务端缓存的等级
-        if (moremod$serverEnchantLevels[id] > 0 && enchantLevels[id] != moremod$serverEnchantLevels[id]) {
+        // 如果有缓存的服务端等级，并且与当前等级不同，恢复它
+        // 不再检查extraPower，因为缓存已经表明之前有额外能量
+        if (moremod$serverEnchantLevels[id] > 0 && moremod$serverEnchantLevels[id] != enchantLevels[id]) {
             System.out.println("[MoreMod-Enchant] 修正附魔等级: 槽位" + id + " 从 " + enchantLevels[id] + " 修正为 " + moremod$serverEnchantLevels[id]);
             enchantLevels[id] = moremod$serverEnchantLevels[id];
         }
