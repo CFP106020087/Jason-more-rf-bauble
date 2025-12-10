@@ -33,11 +33,16 @@ public class ItemModGuide extends Item {
     @Override
     public ActionResult<ItemStack> onItemRightClick(World world, EntityPlayer player, EnumHand hand) {
         if (world.isRemote) {
-            net.minecraft.client.Minecraft.getMinecraft().displayGuiScreen(
-                new com.moremod.gui.GuiModGuide(player)
-            );
+            openGuiClient(player);
         }
         return new ActionResult<>(EnumActionResult.SUCCESS, player.getHeldItem(hand));
+    }
+
+    @SideOnly(Side.CLIENT)
+    private void openGuiClient(EntityPlayer player) {
+        net.minecraft.client.Minecraft.getMinecraft().displayGuiScreen(
+            new com.moremod.gui.GuiModGuide(player)
+        );
     }
 
     @Override
