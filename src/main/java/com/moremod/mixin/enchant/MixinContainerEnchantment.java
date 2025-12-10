@@ -1,11 +1,10 @@
 package com.moremod.mixin.enchant;
 
-import com.moremod.block.BlockEnchantingBooster;
-import net.minecraft.block.state.IBlockState;
 import net.minecraft.inventory.ContainerEnchantment;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import net.minecraftforge.common.ForgeHooks;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -23,9 +22,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * - 原版会 Math.min(power, 15) 限制上限
  *
  * 我们的修改:
- * - 魔法书柜提供额外的 enchantBonus
- * - 在附魔等级计算完成后，根据魔法书柜的额外加成提升等级
+ * - 魔法书柜提供额外的 enchantBonus (通过 getEnchantPowerBonus)
+ * - 使用 ForgeHooks.getEnchantPower() 获取总能量
+ * - 如果总能量超过15，根据超出部分提升附魔等级
  * - 最高允许60级附魔
+ *
+ * 参考: Apotheosis 模组的 EnchantmentUtils.getPower() 实现
  */
 @Mixin(ContainerEnchantment.class)
 public abstract class MixinContainerEnchantment {
@@ -40,27 +42,33 @@ public abstract class MixinContainerEnchantment {
     public int[] enchantLevels;
 
     @Unique
-    private static final int VANILLA_MAX_LEVEL = 30;
+    private static final float VANILLA_MAX_POWER = 15.0f;
 
     @Unique
     private static final int BOOSTED_MAX_LEVEL = 60;
 
     /**
-     * 在原版计算完附魔等级后，根据魔法书柜提升等级
+     * 在原版计算完附魔等级后，根据额外能量提升等级
+     * onCraftMatrixChanged -> func_75130_a
      */
-    @Inject(method = "onCraftMatrixChanged", at = @At("RETURN"))
+    @Inject(method = "func_75130_a", at = @At("RETURN"))
     private void moremod$boostEnchantLevels(IInventory inventoryIn, CallbackInfo ci) {
         if (world == null || position == null) return;
 
-        // 计算魔法书柜提供的额外加成
-        float totalBoosterBonus = moremod$calculateBoosterBonus();
+        // 计算总能量和超出原版上限的额外能量
+        float totalPower = moremod$calculateTotalPower();
+        float extraPower = moremod$calculateExtraPower();
 
-        if (totalBoosterBonus <= 0) return;
+        // 调试输出：总是打印（帮助调试mixin是否加载）
+        System.out.println("[MoreMod-Enchant] Mixin触发! 总能量=" + totalPower + ", 额外能量=" + extraPower);
 
-        // 计算额外等级加成 (每1.0 bonus = 2级)
-        int bonusLevels = (int) (totalBoosterBonus * 2);
+        if (extraPower <= 0) return;
 
-        System.out.println("[MoreMod] 附魔增强: 检测到魔法书柜加成 = " + totalBoosterBonus + ", 额外等级 = " + bonusLevels);
+        // 计算额外等级加成 (每1.0额外能量 = 2级)
+        // 这与原版的 power * 2 = max level 公式一致
+        int bonusLevels = (int) (extraPower * 2);
+
+        System.out.println("[MoreMod-Enchant] 附魔增强: 额外能量=" + extraPower + ", 额外等级=" + bonusLevels);
 
         // 检查是否有物品在附魔台中
         boolean hasItem = false;
@@ -87,71 +95,56 @@ public abstract class MixinContainerEnchantment {
                 enchantLevels[i] = newLevel;
 
                 if (newLevel != originalLevel) {
-                    System.out.println("[MoreMod] 附魔槽 " + (i+1) + ": " + originalLevel + " -> " + newLevel);
+                    System.out.println("[MoreMod-Enchant] 附魔槽 " + (i+1) + ": " + originalLevel + " -> " + newLevel);
                 }
             }
         }
     }
 
     /**
-     * 计算附近魔法书柜提供的额外加成
-     * 注意: 只计算 BlockEnchantingBooster 的额外加成
-     * 不包括普通书架 (普通书架由原版处理)
+     * 使用 ForgeHooks.getEnchantPower() 计算总能量
+     * 参考 Apotheosis 的 EnchantmentUtils.getPower() 实现
+     *
+     * @return 总能量值（未被原版15上限截断的真实值）
      */
     @Unique
-    private float moremod$calculateBoosterBonus() {
+    private float moremod$calculateTotalPower() {
         if (world == null || position == null) return 0;
 
-        float totalBonus = 0;
+        float power = 0;
 
-        // 扫描附魔台周围 (与原版相同的范围)
-        for (int dz = -1; dz <= 1; ++dz) {
-            for (int dx = -1; dx <= 1; ++dx) {
-                // 跳过中心和紧邻附魔台的位置
-                if ((dz != 0 || dx != 0) && moremod$isAirOrEmpty(position.add(dx, 0, dz)) && moremod$isAirOrEmpty(position.add(dx, 1, dz))) {
-                    // 检查第一圈外的方块 (距离2格)
-                    totalBonus += moremod$getBoosterBonus(position.add(dx * 2, 0, dz * 2));
-                    totalBonus += moremod$getBoosterBonus(position.add(dx * 2, 1, dz * 2));
+        // 使用与原版和 Apotheosis 相同的扫描模式
+        for (int deltaZ = -1; deltaZ <= 1; ++deltaZ) {
+            for (int deltaX = -1; deltaX <= 1; ++deltaX) {
+                if ((deltaZ != 0 || deltaX != 0) &&
+                    world.isAirBlock(position.add(deltaX, 0, deltaZ)) &&
+                    world.isAirBlock(position.add(deltaX, 1, deltaZ))) {
 
-                    // 检查对角线位置
-                    if (dx != 0 && dz != 0) {
-                        totalBonus += moremod$getBoosterBonus(position.add(dx * 2, 0, dz));
-                        totalBonus += moremod$getBoosterBonus(position.add(dx * 2, 1, dz));
-                        totalBonus += moremod$getBoosterBonus(position.add(dx, 0, dz * 2));
-                        totalBonus += moremod$getBoosterBonus(position.add(dx, 1, dz * 2));
+                    // 使用 ForgeHooks.getEnchantPower 获取能量
+                    power += ForgeHooks.getEnchantPower(world, position.add(deltaX * 2, 0, deltaZ * 2));
+                    power += ForgeHooks.getEnchantPower(world, position.add(deltaX * 2, 1, deltaZ * 2));
+
+                    if (deltaX != 0 && deltaZ != 0) {
+                        power += ForgeHooks.getEnchantPower(world, position.add(deltaX * 2, 0, deltaZ));
+                        power += ForgeHooks.getEnchantPower(world, position.add(deltaX * 2, 1, deltaZ));
+                        power += ForgeHooks.getEnchantPower(world, position.add(deltaX, 0, deltaZ * 2));
+                        power += ForgeHooks.getEnchantPower(world, position.add(deltaX, 1, deltaZ * 2));
                     }
                 }
             }
         }
 
-        return totalBonus;
+        return power;
     }
 
     /**
-     * 检查位置是否为空气或可通过
+     * 计算超出原版上限的额外能量
+     * 只有当总能量超过15时才返回正值
      */
     @Unique
-    private boolean moremod$isAirOrEmpty(BlockPos pos) {
-        IBlockState state = world.getBlockState(pos);
-        return state.getBlock().isAir(state, world, pos) ||
-               !state.getMaterial().blocksMovement();
-    }
-
-    /**
-     * 获取指定位置的魔法书柜加成
-     * 只返回超过普通书架(1.0)的额外部分
-     */
-    @Unique
-    private float moremod$getBoosterBonus(BlockPos pos) {
-        IBlockState state = world.getBlockState(pos);
-
-        if (state.getBlock() instanceof BlockEnchantingBooster) {
-            float bonus = state.getValue(BlockEnchantingBooster.TYPE).getEnchantBonus();
-            // 返回超过1.0的部分 (因为1.0已经被原版计算过了)
-            // 如果书柜类型bonus <= 1.0，则不提供额外加成
-            return Math.max(0, bonus - 1.0f);
-        }
-
-        return 0;
+    private float moremod$calculateExtraPower() {
+        float totalPower = moremod$calculateTotalPower();
+        // 只返回超过原版15上限的部分
+        return Math.max(0, totalPower - VANILLA_MAX_POWER);
     }
 }
