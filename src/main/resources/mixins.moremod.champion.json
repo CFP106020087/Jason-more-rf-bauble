@@ -6,7 +6,8 @@
   "target": "@env(DEFAULT)",
   "minVersion": "0.8",
   "mixins": [
-    "champion.MixinAffixVortex"
+    "champion.MixinAffixVortex",
+    "MixinEventHandlerCommon"
   ],
   "injectors": {
     "maxShiftBy": 10

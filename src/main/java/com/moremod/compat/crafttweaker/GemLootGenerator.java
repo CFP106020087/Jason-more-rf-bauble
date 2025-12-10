@@ -12,10 +12,7 @@ import net.minecraftforge.event.entity.living.LivingDropsEvent;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
-// Lycanites Mobs
-import com.lycanitesmobs.core.entity.BaseCreatureEntity;
-import com.lycanitesmobs.core.entity.TameableCreatureEntity;
-
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -179,46 +176,80 @@ public class GemLootGenerator {
     }
 
     // ==========================================
-    // 友善生物判断（精简版）
+    // Lycanites反射缓存
     // ==========================================
-    
+
+    private static boolean lycanitesChecked = false;
+    private static boolean lycanitesAvailable = false;
+    private static Class<?> baseCreatureEntityClass;
+    private static Class<?> tameableCreatureEntityClass;
+    private static Method isTamedMethod;
+    private static Method isAggressiveMethod;
+
+    private static void initLycanites() {
+        if (lycanitesChecked) return;
+        lycanitesChecked = true;
+
+        try {
+            baseCreatureEntityClass = Class.forName("com.lycanitesmobs.core.entity.BaseCreatureEntity");
+            tameableCreatureEntityClass = Class.forName("com.lycanitesmobs.core.entity.TameableCreatureEntity");
+            isTamedMethod = tameableCreatureEntityClass.getMethod("isTamed");
+            isAggressiveMethod = baseCreatureEntityClass.getMethod("isAggressive");
+            lycanitesAvailable = true;
+        } catch (Exception e) {
+            lycanitesAvailable = false;
+        }
+    }
+
+    // ==========================================
+    // 友善生物判断（反射版）
+    // ==========================================
+
     private static boolean isPeacefulCreature(EntityLivingBase entity) {
         // 原版动物
         if (entity instanceof EntityAnimal) {
             return true;
         }
-        
+
         // 驯服生物
         if (entity instanceof EntityTameable && ((EntityTameable) entity).isTamed()) {
             return true;
         }
-        
+
         // 环境生物
         if (entity instanceof EntityAmbientCreature || entity instanceof EntityWaterMob) {
             return true;
         }
-        
-        // Lycanites驯服生物
-        if (entity instanceof TameableCreatureEntity) {
-            TameableCreatureEntity tameable = (TameableCreatureEntity) entity;
-            if (tameable.isTamed() || !tameable.isAggressive()) {
-                return true;
+
+        // Lycanites检测（反射）
+        initLycanites();
+        if (lycanitesAvailable) {
+            try {
+                // Lycanites驯服生物
+                if (tameableCreatureEntityClass.isInstance(entity)) {
+                    boolean isTamed = (Boolean) isTamedMethod.invoke(entity);
+                    boolean isAggressive = (Boolean) isAggressiveMethod.invoke(entity);
+                    if (isTamed || !isAggressive) {
+                        return true;
+                    }
+                }
+                // Lycanites非攻击性生物
+                else if (baseCreatureEntityClass.isInstance(entity)) {
+                    boolean isAggressive = (Boolean) isAggressiveMethod.invoke(entity);
+                    if (!isAggressive) {
+                        return true;
+                    }
+                }
+            } catch (Exception e) {
+                // 忽略反射异常
             }
         }
-        
-        // Lycanites非攻击性生物
-        if (entity instanceof BaseCreatureEntity) {
-            BaseCreatureEntity creature = (BaseCreatureEntity) entity;
-            if (!creature.isAggressive()) {
-                return true;
-            }
-        }
-        
+
         // 村民
         if (entity.getClass().getName().toLowerCase().contains("villager")) {
             return true;
         }
-        
+
         return false;
     }
 

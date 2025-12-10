@@ -6,46 +6,136 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.entity.monster.IMob;
 import net.minecraft.entity.passive.EntityAnimal;
 
-// Champions（已优化，无反射）
-import c4.champions.common.capability.CapabilityChampionship;
-import c4.champions.common.capability.IChampionship;
-
-// Infernal（已优化，使用NBT）
-import atomicstryker.infernalmobs.common.InfernalMobsCore;
-import atomicstryker.infernalmobs.common.MobModifier;
-
-// ⭐ Lycanites - 直接导入（有软依赖）
-import com.lycanitesmobs.core.entity.BaseCreatureEntity;
-import com.lycanitesmobs.core.entity.TameableCreatureEntity;
-import com.lycanitesmobs.api.IGroupBoss;
-import com.lycanitesmobs.api.IGroupHeavy;
-import com.lycanitesmobs.api.IGroupDemon;
-import com.lycanitesmobs.api.IGroupShadow;
-
-// ⭐ SRP - 直接导入（有软依赖）
-import com.dhanantry.scapeandrunparasites.entity.ai.misc.EntityParasiteBase;
-
 import java.util.*;
 import java.util.regex.Pattern;
 import java.lang.reflect.Method;
 
 /**
- * 宝石掉落规则管理器 v3.0 - 性能优化版
+ * 宝石掉落规则管理器 v3.1 - 完全软依赖版
  *
- * 优化策略：
- * 1. ✅ Ice and Fire龙：保留反射（private access）
- * 2. ✅ Champions：已优化（CapabilityChampionship）
- * 3. ✅ Infernal：已优化（NBT检测）
- * 4. ✅ Lycanites：直接导入类和接口
- * 5. ✅ SRP：直接导入EntityParasiteBase
+ * 所有模组依赖改为反射，避免硬依赖导致崩溃：
+ * 1. ✅ Ice and Fire龙：反射
+ * 2. ✅ Champions：反射
+ * 3. ✅ Infernal：NBT检测（无需反射）
+ * 4. ✅ Lycanites：反射
+ * 5. ✅ SRP：反射
  */
 public class GemLootRuleManager {
 
     private static final List<LootRule> RULES = new ArrayList<>();
     private static boolean debugMode = false;
 
-    // 缓存反射方法（仅用于龙）
+    // 缓存反射方法
     private static final Map<Class<?>, Method> DRAGON_STAGE_METHOD_CACHE = new HashMap<>();
+
+    // ==========================================
+    // 模组可用性检测（反射）
+    // ==========================================
+
+    private static boolean championsChecked = false;
+    private static boolean championsAvailable = false;
+    private static Class<?> capabilityChampionshipClass;
+    private static Class<?> iChampionshipClass;
+    private static Class<?> iRankClass;
+    private static Method getChampionshipMethod;
+    private static Method getRankMethod;
+    private static Method getTierMethod;
+    private static Method getGrowthFactorMethod;
+    private static Method getAffixesMethod;
+
+    private static boolean lycanitesChecked = false;
+    private static boolean lycanitesAvailable = false;
+    private static Class<?> baseCreatureEntityClass;
+    private static Class<?> iGroupBossClass;
+    private static Class<?> iGroupHeavyClass;
+    private static Class<?> iGroupDemonClass;
+    private static Class<?> iGroupShadowClass;
+    private static Method isAggressiveMethod;
+
+    private static boolean srpChecked = false;
+    private static boolean srpAvailable = false;
+    private static Class<?> entityParasiteBaseClass;
+
+    /**
+     * 初始化 Champions 反射
+     */
+    private static void initChampions() {
+        if (championsChecked) return;
+        championsChecked = true;
+
+        try {
+            capabilityChampionshipClass = Class.forName("c4.champions.common.capability.CapabilityChampionship");
+            iChampionshipClass = Class.forName("c4.champions.common.capability.IChampionship");
+            iRankClass = Class.forName("c4.champions.common.rank.IRank");
+
+            getChampionshipMethod = capabilityChampionshipClass.getMethod("getChampionship", EntityLiving.class);
+            getRankMethod = iChampionshipClass.getMethod("getRank");
+            getTierMethod = iRankClass.getMethod("getTier");
+            getGrowthFactorMethod = iRankClass.getMethod("getGrowthFactor");
+            getAffixesMethod = iChampionshipClass.getMethod("getAffixes");
+
+            championsAvailable = true;
+            System.out.println("[GemLootRuleManager] Champions 模组已加载");
+        } catch (Exception e) {
+            championsAvailable = false;
+            System.out.println("[GemLootRuleManager] Champions 模组未加载: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 初始化 Lycanites 反射
+     */
+    private static void initLycanites() {
+        if (lycanitesChecked) return;
+        lycanitesChecked = true;
+
+        try {
+            baseCreatureEntityClass = Class.forName("com.lycanitesmobs.core.entity.BaseCreatureEntity");
+            iGroupBossClass = Class.forName("com.lycanitesmobs.api.IGroupBoss");
+            iGroupHeavyClass = Class.forName("com.lycanitesmobs.api.IGroupHeavy");
+            iGroupDemonClass = Class.forName("com.lycanitesmobs.api.IGroupDemon");
+            iGroupShadowClass = Class.forName("com.lycanitesmobs.api.IGroupShadow");
+            isAggressiveMethod = baseCreatureEntityClass.getMethod("isAggressive");
+
+            lycanitesAvailable = true;
+            System.out.println("[GemLootRuleManager] Lycanites 模组已加载");
+        } catch (Exception e) {
+            lycanitesAvailable = false;
+            System.out.println("[GemLootRuleManager] Lycanites 模组未加载: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 初始化 SRP 反射
+     */
+    private static void initSRP() {
+        if (srpChecked) return;
+        srpChecked = true;
+
+        try {
+            entityParasiteBaseClass = Class.forName("com.dhanantry.scapeandrunparasites.entity.ai.misc.EntityParasiteBase");
+            srpAvailable = true;
+            System.out.println("[GemLootRuleManager] SRP 模组已加载");
+        } catch (Exception e) {
+            srpAvailable = false;
+            System.out.println("[GemLootRuleManager] SRP 模组未加载: " + e.getMessage());
+        }
+    }
+
+    public static boolean isChampionsAvailable() {
+        initChampions();
+        return championsAvailable;
+    }
+
+    public static boolean isLycanitesAvailable() {
+        initLycanites();
+        return lycanitesAvailable;
+    }
+
+    public static boolean isSRPAvailable() {
+        initSRP();
+        return srpAvailable;
+    }
 
     // 默认规则
     private static LootRule DEFAULT_RULE = new LootRule(
@@ -59,8 +149,8 @@ public class GemLootRuleManager {
 
     static {
         System.out.println("[GemLootRuleManager] ========================================");
-        System.out.println("[GemLootRuleManager] v3.0 性能优化版");
-        System.out.println("[GemLootRuleManager] 仅龙使用反射，其他均已优化");
+        System.out.println("[GemLootRuleManager] v3.1 完全软依赖版");
+        System.out.println("[GemLootRuleManager] 所有模组依赖使用反射，无硬依赖");
         System.out.println("[GemLootRuleManager] ========================================");
     }
 
@@ -118,11 +208,11 @@ public class GemLootRuleManager {
         return DEFAULT_RULE;
     }
 
-    // 优化的模组ID获取
+    // 优化的模组ID获取（使用反射）
     private static String getModIdFast(EntityLivingBase entity) {
-        // 使用instanceof判断（性能最优）
-        if (entity instanceof BaseCreatureEntity) return "lycanitesmobs";
-        if (entity instanceof EntityParasiteBase) return "srparasites";
+        // 使用反射判断（软依赖）
+        if (isLycanitesAvailable() && baseCreatureEntityClass.isInstance(entity)) return "lycanitesmobs";
+        if (isSRPAvailable() && entityParasiteBaseClass.isInstance(entity)) return "srparasites";
 
         // 使用类名前缀判断（次优）
         String className = entity.getClass().getName();
@@ -468,43 +558,33 @@ public class GemLootRuleManager {
         }
 
         // ==========================================
-        // Champions检查（已优化）
+        // Champions检查（反射版）
         // ==========================================
 
         private boolean checkChampions(EntityLivingBase entity) {
-            if (!(entity instanceof EntityLiving)) {
-                return false;
-            }
+            if (!isChampionsAvailable()) return false;
+            if (!(entity instanceof EntityLiving)) return false;
 
             try {
-                IChampionship chp = CapabilityChampionship.getChampionship((EntityLiving) entity);
-                if (chp == null || chp.getRank() == null) {
-                    return false;
-                }
+                Object chp = getChampionshipMethod.invoke(null, (EntityLiving) entity);
+                if (chp == null) return false;
 
-                int tier = chp.getRank().getTier();
-                if (tier <= 0) {
-                    return false;
-                }
+                Object rank = getRankMethod.invoke(chp);
+                if (rank == null) return false;
 
-                if (championTier > 0 && tier != championTier) {
-                    return false;
-                }
-                if (minChampionTier > 0 && tier < minChampionTier) {
-                    return false;
-                }
-                if (maxChampionTier > 0 && tier > maxChampionTier) {
-                    return false;
-                }
+                int tier = (Integer) getTierMethod.invoke(rank);
+                if (tier <= 0) return false;
+
+                if (championTier > 0 && tier != championTier) return false;
+                if (minChampionTier > 0 && tier < minChampionTier) return false;
+                if (maxChampionTier > 0 && tier > maxChampionTier) return false;
 
                 if (minAffixCount > 0 || maxAffixCount > 0) {
-                    int affixCount = chp.getAffixes().size();
-                    if (minAffixCount > 0 && affixCount < minAffixCount) {
-                        return false;
-                    }
-                    if (maxAffixCount > 0 && affixCount > maxAffixCount) {
-                        return false;
-                    }
+                    @SuppressWarnings("unchecked")
+                    Set<String> affixes = (Set<String>) getAffixesMethod.invoke(chp);
+                    int affixCount = affixes != null ? affixes.size() : 0;
+                    if (minAffixCount > 0 && affixCount < minAffixCount) return false;
+                    if (maxAffixCount > 0 && affixCount > maxAffixCount) return false;
                 }
 
                 return true;
@@ -549,70 +629,52 @@ public class GemLootRuleManager {
         }
 
         // ==========================================
-        // Lycanites检查（优化版）
+        // Lycanites检查（反射版）
         // ==========================================
 
         private boolean checkLycanitesOptimized(EntityLivingBase entity) {
-            if (!(entity instanceof BaseCreatureEntity)) {
-                return false;
-            }
+            if (!isLycanitesAvailable()) return false;
+            if (!baseCreatureEntityClass.isInstance(entity)) return false;
 
-            // 使用直接类判断替代反射
+            // 使用反射判断接口
             for (String interfaceName : requiredInterfaces) {
-                boolean matched = false;
-                switch (interfaceName) {
-                    case "IGroupBoss":
-                        matched = entity instanceof IGroupBoss;
-                        break;
-                    case "IGroupHeavy":
-                        matched = entity instanceof IGroupHeavy;
-                        break;
-                    case "IGroupDemon":
-                        matched = entity instanceof IGroupDemon;
-                        break;
-                    case "IGroupShadow":
-                        matched = entity instanceof IGroupShadow;
-                        break;
-                }
+                boolean matched = checkLycanitesInterface(entity, interfaceName);
                 if (!matched) return false;
             }
 
             for (String interfaceName : excludedInterfaces) {
-                boolean matched = false;
-                switch (interfaceName) {
-                    case "IGroupBoss":
-                        matched = entity instanceof IGroupBoss;
-                        break;
-                    case "IGroupHeavy":
-                        matched = entity instanceof IGroupHeavy;
-                        break;
-                    case "IGroupDemon":
-                        matched = entity instanceof IGroupDemon;
-                        break;
-                    case "IGroupShadow":
-                        matched = entity instanceof IGroupShadow;
-                        break;
-                }
+                boolean matched = checkLycanitesInterface(entity, interfaceName);
                 if (matched) return false;
             }
 
-            if (excludeBoss && entity instanceof IGroupBoss) {
+            if (excludeBoss && iGroupBossClass != null && iGroupBossClass.isInstance(entity)) {
                 return false;
             }
 
             return true;
         }
 
+        private boolean checkLycanitesInterface(EntityLivingBase entity, String interfaceName) {
+            switch (interfaceName) {
+                case "IGroupBoss":
+                    return iGroupBossClass != null && iGroupBossClass.isInstance(entity);
+                case "IGroupHeavy":
+                    return iGroupHeavyClass != null && iGroupHeavyClass.isInstance(entity);
+                case "IGroupDemon":
+                    return iGroupDemonClass != null && iGroupDemonClass.isInstance(entity);
+                case "IGroupShadow":
+                    return iGroupShadowClass != null && iGroupShadowClass.isInstance(entity);
+            }
+            return false;
+        }
+
         // ==========================================
-        // SRP检查（优化版）
+        // SRP检查（反射版）
         // ==========================================
 
         private boolean checkSRPOptimized(EntityLivingBase entity) {
-            if (!(entity instanceof EntityParasiteBase)) {
-                return false;
-            }
-
-            EntityParasiteBase parasite = (EntityParasiteBase) entity;
+            if (!isSRPAvailable()) return false;
+            if (!entityParasiteBaseClass.isInstance(entity)) return false;
 
             // 直接获取包名判断进化等级
             String packageName = entity.getClass().getPackage().getName();
@@ -626,14 +688,17 @@ public class GemLootRuleManager {
         }
 
         // ==========================================
-        // 敌对性检查（优化版）
+        // 敌对性检查（反射版）
         // ==========================================
 
         private boolean checkHostileOptimized(EntityLivingBase entity) {
-            // Lycanites生物
-            if (entity instanceof BaseCreatureEntity) {
-                BaseCreatureEntity creature = (BaseCreatureEntity) entity;
-                return creature.isAggressive();
+            // Lycanites生物（反射）
+            if (isLycanitesAvailable() && baseCreatureEntityClass.isInstance(entity)) {
+                try {
+                    return (Boolean) isAggressiveMethod.invoke(entity);
+                } catch (Exception e) {
+                    // 忽略，使用默认判断
+                }
             }
 
             // 原版敌对接口
@@ -739,23 +804,28 @@ public class GemLootRuleManager {
             int infernalLevelBonus = 0;
             float infernalDropBonus = 0.0f;
 
-            // Champions动态调整（已优化）
-            if ((dynamicDropRate || dynamicLevel || growthFactorBonus) && entity instanceof EntityLiving) {
+            // Champions动态调整（反射版）
+            if ((dynamicDropRate || dynamicLevel || growthFactorBonus) && isChampionsAvailable() && entity instanceof EntityLiving) {
                 try {
-                    IChampionship chp = CapabilityChampionship.getChampionship((EntityLiving) entity);
-                    if (chp != null && chp.getRank() != null) {
-                        if (growthFactorBonus) {
-                            int growth = chp.getRank().getGrowthFactor();
-                            championsDropBonus += growth * 0.02f;
-                            championsLevelBonus += growth * 2;
-                        }
-                        if (dynamicDropRate || dynamicLevel) {
-                            int affixCount = chp.getAffixes().size();
-                            if (dynamicDropRate) {
-                                championsDropBonus += affixCount * 0.05f;
+                    Object chp = getChampionshipMethod.invoke(null, (EntityLiving) entity);
+                    if (chp != null) {
+                        Object rank = getRankMethod.invoke(chp);
+                        if (rank != null) {
+                            if (growthFactorBonus) {
+                                int growth = (Integer) getGrowthFactorMethod.invoke(rank);
+                                championsDropBonus += growth * 0.02f;
+                                championsLevelBonus += growth * 2;
                             }
-                            if (dynamicLevel) {
-                                championsLevelBonus += affixCount * 5;
+                            if (dynamicDropRate || dynamicLevel) {
+                                @SuppressWarnings("unchecked")
+                                Set<String> affixes = (Set<String>) getAffixesMethod.invoke(chp);
+                                int affixCount = affixes != null ? affixes.size() : 0;
+                                if (dynamicDropRate) {
+                                    championsDropBonus += affixCount * 0.05f;
+                                }
+                                if (dynamicLevel) {
+                                    championsLevelBonus += affixCount * 5;
+                                }
                             }
                         }
                     }

@@ -129,8 +129,6 @@ import net.minecraftforge.client.model.ModelLoader;
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraftforge.event.RegistryEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
-
-import static com.dhanantry.scapeandrunparasites.SRPMain.network;
 /* ================================================================================ */
 
 /**
@@ -235,8 +233,8 @@ public class moremod {
         System.out.println("[moremod] ✅ 液體註冊完成");
 
         CompleteSanitySystem.registerRecipes();
-        network.registerMessage(PacketCreateEnchantedBook.Handler.class,
-                PacketCreateEnchantedBook.class, 0, Side.SERVER);
+        NetworkHandler.CHANNEL.registerMessage(PacketCreateEnchantedBook.Handler.class,
+                PacketCreateEnchantedBook.class, 100, Side.SERVER);
         ItemConfig.init(event);  // 第一行就初始化配置
         UnlockableSlotsInit.preInit(event);
         AutoAttackCapabilityHandler.registerCapability();

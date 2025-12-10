@@ -1,8 +1,7 @@
 package com.moremod.item.causal;
 
-import atomicstryker.infernalmobs.common.InfernalMobsCore;
-import atomicstryker.infernalmobs.common.MobModifier;
 import com.moremod.compat.ChampionReflectionHelper;
+import com.moremod.compat.InfernalReflectionHelper;
 import net.minecraft.entity.*;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -12,7 +11,7 @@ import net.minecraft.world.WorldServer;
 import java.util.*;
 
 /**
- * 完全修复版 - 正确清空 affixData
+ * 完全修复版 - 正确清空 affixData (使用反射，无硬依赖)
  */
 public final class CombinedSuppressor {
 
@@ -21,7 +20,8 @@ public final class CombinedSuppressor {
     private static final String NBT_CH_SUPP   = "moremod:ch_suppressed";
     private static final String NBT_CH_BACK   = "moremod:ch_backup";
 
-    private static final WeakHashMap<EntityLivingBase, MobModifier> INF_CACHE = new WeakHashMap<>();
+    // 使用 Object 代替 MobModifier，因为使用反射
+    private static final WeakHashMap<EntityLivingBase, Object> INF_CACHE = new WeakHashMap<>();
 
     public static void tick(EntityLivingBase e){
         if (e.world.isRemote) return;
@@ -36,36 +36,37 @@ public final class CombinedSuppressor {
     }
 
     private static void handleInfernal(EntityLivingBase e, boolean in){
+        if (!InfernalReflectionHelper.isInfernalAvailable()) return;
+
         NBTTagCompound tag = e.getEntityData();
         boolean suppressed = tag.getBoolean(NBT_INF_SUPP);
 
-        Map<EntityLivingBase, MobModifier> raresMap = InfernalMobsCore.proxy.getRareMobs();
-        boolean isRare = raresMap.containsKey(e);
+        boolean isRare = InfernalReflectionHelper.isInRareMobs(e);
 
         if (in && !suppressed && isRare) {
-            MobModifier chain = raresMap.get(e);
+            Object chain = InfernalReflectionHelper.getModifier(e);
             if (chain != null) {
                 INF_CACHE.put(e, chain);
-                String modNames = chain.getLinkedModNameUntranslated();
+                String modNames = InfernalReflectionHelper.getLinkedModNameUntranslated(chain);
                 if (modNames != null && !modNames.isEmpty()) {
                     tag.setString(NBT_INF_BACK, modNames);
                 }
                 System.out.println("[Infernal] 压制: " + e.getName() + " (Mods: " + modNames + ")");
             }
 
-            InfernalMobsCore.removeEntFromElites(e);
+            InfernalReflectionHelper.removeEntFromElites(e);
             tag.setBoolean(NBT_INF_SUPP, true);
         }
         else if (!in && suppressed) {
-            MobModifier chain = INF_CACHE.remove(e);
+            Object chain = INF_CACHE.remove(e);
             if (chain != null) {
-                raresMap.put(e, chain);
-                chain.onSpawningComplete(e);
+                InfernalReflectionHelper.putRareMob(e, chain);
+                InfernalReflectionHelper.onSpawningComplete(chain, e);
                 System.out.println("[Infernal] 恢复: " + e.getName());
             } else {
                 String modNames = tag.getString(NBT_INF_BACK);
                 if (!modNames.isEmpty()) {
-                    InfernalMobsCore.instance().addEntityModifiersByString(e, modNames);
+                    InfernalReflectionHelper.addEntityModifiersByString(e, modNames);
                     System.out.println("[Infernal] 从NBT恢复: " + e.getName());
                 }
             }
