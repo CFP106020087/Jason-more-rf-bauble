@@ -2,9 +2,8 @@ package com.moremod.mixin.enchant;
 
 import com.moremod.block.BlockEnchantingBooster;
 import net.minecraft.block.state.IBlockState;
-import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.inventory.ContainerEnchantment;
-import net.minecraft.item.ItemStack;
+import net.minecraft.inventory.IInventory;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.spongepowered.asm.mixin.Mixin;
@@ -12,17 +11,21 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-
-import java.util.Random;
 
 /**
  * 突破附魔等级上限
- * 当附魔台周围有魔法书柜时，允许附魔等级超过30
+ * 当附魔台周围有魔法书柜(BlockEnchantingBooster)时，允许附魔等级超过30
  *
- * 原版上限: 30级 (15个书架 × 2 = 30)
- * 突破后: 根据魔法书柜的增益值计算更高上限
+ * 原版机制:
+ * - 普通书架提供 1.0 power (通过 getEnchantPowerBonus)
+ * - 最多计算15个书架 = 15 power = 30级附魔
+ * - 原版会 Math.min(power, 15) 限制上限
+ *
+ * 我们的修改:
+ * - 魔法书柜提供额外的 enchantBonus
+ * - 在附魔等级计算完成后，根据魔法书柜的额外加成提升等级
+ * - 最高允许60级附魔
  */
 @Mixin(ContainerEnchantment.class)
 public abstract class MixinContainerEnchantment {
@@ -34,90 +37,121 @@ public abstract class MixinContainerEnchantment {
     private BlockPos position;
 
     @Shadow
-    private Random rand;
+    public int[] enchantLevels;
 
     @Unique
-    private static final int VANILLA_MAX = 30;
+    private static final int VANILLA_MAX_LEVEL = 30;
 
     @Unique
-    private static final int BOOSTED_MAX = 60; // 最高允许60级附魔
+    private static final int BOOSTED_MAX_LEVEL = 60;
+
+    /**
+     * 在原版计算完附魔等级后，根据魔法书柜提升等级
+     */
+    @Inject(method = "onCraftMatrixChanged", at = @At("RETURN"))
+    private void moremod$boostEnchantLevels(IInventory inventoryIn, CallbackInfo ci) {
+        if (world == null || position == null) return;
+
+        // 计算魔法书柜提供的额外加成
+        float totalBoosterBonus = moremod$calculateBoosterBonus();
+
+        if (totalBoosterBonus <= 0) return;
+
+        // 计算额外等级加成 (每1.0 bonus = 2级)
+        int bonusLevels = (int) (totalBoosterBonus * 2);
+
+        System.out.println("[MoreMod] 附魔增强: 检测到魔法书柜加成 = " + totalBoosterBonus + ", 额外等级 = " + bonusLevels);
+
+        // 检查是否有物品在附魔台中
+        boolean hasItem = false;
+        for (int i = 0; i < 3; i++) {
+            if (enchantLevels[i] > 0) {
+                hasItem = true;
+                break;
+            }
+        }
+
+        if (!hasItem) return;
+
+        // 提升附魔等级
+        for (int i = 0; i < 3; i++) {
+            if (enchantLevels[i] > 0) {
+                int originalLevel = enchantLevels[i];
+
+                // 按槽位比例提升 (第1槽30%, 第2槽60%, 第3槽100%)
+                float ratio = (i + 1) / 3.0f;
+                int addedLevels = (int) (bonusLevels * ratio);
+
+                // 计算新等级，限制在最大值
+                int newLevel = Math.min(originalLevel + addedLevels, BOOSTED_MAX_LEVEL);
+                enchantLevels[i] = newLevel;
+
+                if (newLevel != originalLevel) {
+                    System.out.println("[MoreMod] 附魔槽 " + (i+1) + ": " + originalLevel + " -> " + newLevel);
+                }
+            }
+        }
+    }
 
     /**
      * 计算附近魔法书柜提供的额外加成
-     * 魔法书柜的 enchantBonus 会额外增加附魔上限
+     * 注意: 只计算 BlockEnchantingBooster 的额外加成
+     * 不包括普通书架 (普通书架由原版处理)
      */
     @Unique
-    private int moremod$calculateBoosterBonus() {
+    private float moremod$calculateBoosterBonus() {
         if (world == null || position == null) return 0;
 
-        float totalBoosterBonus = 0;
+        float totalBonus = 0;
 
-        // 扫描附魔台周围 2 格范围
-        for (int dx = -2; dx <= 2; dx++) {
-            for (int dz = -2; dz <= 2; dz++) {
-                for (int dy = 0; dy <= 1; dy++) {
-                    // 跳过附魔台正上方和正中
-                    if ((dx != 0 || dz != 0) || dy != 0) {
-                        BlockPos checkPos = position.add(dx, dy, dz);
-                        IBlockState state = world.getBlockState(checkPos);
+        // 扫描附魔台周围 (与原版相同的范围)
+        for (int dz = -1; dz <= 1; ++dz) {
+            for (int dx = -1; dx <= 1; ++dx) {
+                // 跳过中心和紧邻附魔台的位置
+                if ((dz != 0 || dx != 0) && moremod$isAirOrEmpty(position.add(dx, 0, dz)) && moremod$isAirOrEmpty(position.add(dx, 1, dz))) {
+                    // 检查第一圈外的方块 (距离2格)
+                    totalBonus += moremod$getBoosterBonus(position.add(dx * 2, 0, dz * 2));
+                    totalBonus += moremod$getBoosterBonus(position.add(dx * 2, 1, dz * 2));
 
-                        if (state.getBlock() instanceof BlockEnchantingBooster) {
-                            // 获取书柜类型的增益值
-                            float bonus = state.getValue(BlockEnchantingBooster.TYPE).getEnchantBonus();
-                            totalBoosterBonus += bonus;
-                        }
+                    // 检查对角线位置
+                    if (dx != 0 && dz != 0) {
+                        totalBonus += moremod$getBoosterBonus(position.add(dx * 2, 0, dz));
+                        totalBonus += moremod$getBoosterBonus(position.add(dx * 2, 1, dz));
+                        totalBonus += moremod$getBoosterBonus(position.add(dx, 0, dz * 2));
+                        totalBonus += moremod$getBoosterBonus(position.add(dx, 1, dz * 2));
                     }
                 }
             }
         }
 
-        // 将浮点增益转换为整数加成
-        // 每1.0点增益 = 2级附魔上限提升
-        return (int) (totalBoosterBonus * 2);
+        return totalBonus;
     }
 
     /**
-     * 修改附魔等级上限
-     * 在计算附魔选项时，根据魔法书柜提升上限
+     * 检查位置是否为空气或可通过
      */
-    @Inject(method = "updateRepairOutput", at = @At("HEAD"), remap = false, require = 0)
-    private void moremod$onUpdateEnchantLevels(CallbackInfo ci) {
-        // 此方法可能不存在于1.12.2，使用其他注入点
+    @Unique
+    private boolean moremod$isAirOrEmpty(BlockPos pos) {
+        IBlockState state = world.getBlockState(pos);
+        return state.getBlock().isAir(state, world, pos) ||
+               !state.getMaterial().blocksMovement();
     }
 
     /**
-     * 在添加监听器时计算加成
-     * 这是确保在GUI打开时计算的一个时机
+     * 获取指定位置的魔法书柜加成
+     * 只返回超过普通书架(1.0)的额外部分
      */
-    @Inject(method = "onCraftMatrixChanged", at = @At("TAIL"))
-    private void moremod$afterCraftMatrixChanged(net.minecraft.inventory.IInventory inventoryIn, CallbackInfo ci) {
-        // 此注入在物品放入附魔台后触发
-        // 附魔等级计算已经在原方法中完成
-        // 我们需要在计算后修改结果
+    @Unique
+    private float moremod$getBoosterBonus(BlockPos pos) {
+        IBlockState state = world.getBlockState(pos);
 
-        ContainerEnchantment self = (ContainerEnchantment)(Object)this;
-        int boosterBonus = moremod$calculateBoosterBonus();
-
-        if (boosterBonus > 0) {
-            // 获取当前计算的等级
-            int[] levels = self.enchantLevels;
-
-            // 如果任何槽位达到了30级上限，尝试提升
-            for (int i = 0; i < 3; i++) {
-                if (levels[i] >= 30) {
-                    // 计算新的上限
-                    int newMax = Math.min(VANILLA_MAX + boosterBonus, BOOSTED_MAX);
-
-                    // 按比例提升（第三槽位获得最大提升）
-                    float ratio = (i + 1) / 3.0f;
-                    int additionalLevels = (int) ((newMax - VANILLA_MAX) * ratio);
-
-                    levels[i] = Math.min(levels[i] + additionalLevels, newMax);
-                }
-            }
-
-            // 更新显示
-            self.detectAndSendChanges();
+        if (state.getBlock() instanceof BlockEnchantingBooster) {
+            float bonus = state.getValue(BlockEnchantingBooster.TYPE).getEnchantBonus();
+            // 返回超过1.0的部分 (因为1.0已经被原版计算过了)
+            // 如果书柜类型bonus <= 1.0，则不提供额外加成
+            return Math.max(0, bonus - 1.0f);
         }
+
+        return 0;
     }
 }
