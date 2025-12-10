@@ -104,15 +104,17 @@ public class DungeonTemplateRegistry {
                     {80, 40, 18, 30, 1},    // NORMAL
                 };
 
+                // 房间类型映射 (索引对应 roomDefinitions 中的 typeIdx)
+                // 0=ENTRANCE, 1=NORMAL, 2=TREASURE, 3=TRAP, 4=HUB, 5=MONSTER, 6=MINI_BOSS, 7=BOSS
                 DungeonTree.RoomType[] types = {
-                    DungeonTree.RoomType.ENTRANCE,
-                    DungeonTree.RoomType.NORMAL,
-                    DungeonTree.RoomType.TREASURE,
-                    DungeonTree.RoomType.TRAP,
-                    DungeonTree.RoomType.HUB,
-                    DungeonTree.RoomType.NORMAL,  // MONSTER 使用 NORMAL
-                    DungeonTree.RoomType.MINI_BOSS,
-                    DungeonTree.RoomType.BOSS,
+                    DungeonTree.RoomType.ENTRANCE,   // 0
+                    DungeonTree.RoomType.NORMAL,     // 1
+                    DungeonTree.RoomType.TREASURE,   // 2
+                    DungeonTree.RoomType.TRAP,       // 3
+                    DungeonTree.RoomType.HUB,        // 4
+                    DungeonTree.RoomType.NORMAL,     // 5 - MONSTER 房间使用 NORMAL 类型（会添加刷怪笼）
+                    DungeonTree.RoomType.MINI_BOSS,  // 6
+                    DungeonTree.RoomType.BOSS,       // 7
                 };
 
                 // 提取每个房间
