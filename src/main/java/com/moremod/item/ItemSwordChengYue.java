@@ -381,4 +381,16 @@ public class ItemSwordChengYue extends ItemSword implements IAnimatable {
         int level = ChengYueNBT.getLevel(stack);
         return level >= 10;
     }
+
+    // ==================== 附魔支持 ====================
+
+    @Override
+    public boolean isEnchantable(ItemStack stack) {
+        return true;  // 允许附魔（覆盖原版的isDamageable检查）
+    }
+
+    @Override
+    public int getItemEnchantability() {
+        return 22;  // 较高的附魔能力（金质=22, 钻石=10）
+    }
 }
