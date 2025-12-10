@@ -22,6 +22,8 @@ public class moremodMixinPlugin implements IFMLLoadingPlugin {
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.lycanites.json");
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.parasites.json");
            FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.champion.json");
+            FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.infernal.json");
+            FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.rs.json");
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.silent.json");
             FermiumRegistryAPI.enqueueMixin(false, "mixins.moremod.element.json");
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.dummy.json");
