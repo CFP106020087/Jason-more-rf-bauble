@@ -86,7 +86,7 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     private boolean enchantInfusionActive = false;
     private int enchantInfusionProgress = 0;
     private static final int ENCHANT_INFUSION_TIME = 200; // 10秒注魔时间
-    private static final float ENCHANT_SUCCESS_RATE = 0.10f; // 10%成功率
+    private static final float ENCHANT_SUCCESS_RATE = 0.05f; // 5%成功率 (七咒之戒佩戴者10%)
 
     // 复制仪式系统 (Duplication Ritual)
     private boolean duplicationRitualActive = false;
@@ -920,8 +920,24 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
      * 执行注魔仪式
      */
     private void performEnchantInfusion(ItemStack coreItem, List<TileEntityPedestal> bookPedestals) {
-        // 计算成功率 (基础10%)
+        // 计算成功率 (基础5%，七咒之戒佩戴者10%)
         float successRate = ENCHANT_SUCCESS_RATE;
+
+        // 检测附近是否有佩戴七咒之戒的玩家
+        AxisAlignedBB area = new AxisAlignedBB(pos).grow(10);
+        List<EntityPlayer> nearbyPlayers = world.getEntitiesWithinAABB(EntityPlayer.class, area);
+        boolean hasCursedRingPlayer = false;
+        for (EntityPlayer player : nearbyPlayers) {
+            if (CurseDeathHook.hasCursedRing(player)) {
+                hasCursedRingPlayer = true;
+                break;
+            }
+        }
+
+        // 七咒之戒佩戴者概率翻倍（5% -> 10%）
+        if (hasCursedRingPlayer) {
+            successRate = successRate * 2.0f; // 10%
+        }
 
         // 判定成功/失败
         boolean success = world.rand.nextFloat() < successRate;
@@ -996,6 +1012,17 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     private void notifyEnchantInfusionStart(ItemStack item, int bookCount) {
         AxisAlignedBB area = new AxisAlignedBB(pos).grow(10);
         List<EntityPlayer> players = world.getEntitiesWithinAABB(EntityPlayer.class, area);
+
+        // 检测是否有佩戴七咒之戒的玩家
+        boolean hasCursedRingPlayer = false;
+        for (EntityPlayer player : players) {
+            if (CurseDeathHook.hasCursedRing(player)) {
+                hasCursedRingPlayer = true;
+                break;
+            }
+        }
+        String successRateText = hasCursedRingPlayer ? "10% (七咒加持)" : "5%";
+
         for (EntityPlayer player : players) {
             player.sendMessage(new TextComponentString(
                 TextFormatting.LIGHT_PURPLE + "════════════════════════════════"
@@ -1010,7 +1037,7 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
                 TextFormatting.GRAY + "附魔书: " + TextFormatting.GOLD + bookCount + " 本"
             ));
             player.sendMessage(new TextComponentString(
-                TextFormatting.RED + "⚠ 成功率: " + TextFormatting.YELLOW + "10%"
+                TextFormatting.RED + "⚠ 成功率: " + TextFormatting.YELLOW + successRateText
             ));
             player.sendMessage(new TextComponentString(
                 TextFormatting.LIGHT_PURPLE + "════════════════════════════════"
