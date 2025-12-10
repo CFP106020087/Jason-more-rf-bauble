@@ -9,6 +9,7 @@ import net.minecraft.nbt.NBTTagCompound;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.InputStream;
 import java.util.*;
 
 public class DungeonTemplateRegistry {
@@ -63,7 +64,41 @@ public class DungeonTemplateRegistry {
 
     private void loadTemplates() {
         if (LOAD_FILE_TEMPLATES) loadFromFiles();
+        loadFromResources(); // 从 resources 加载 .schem 文件
         ensureAllBuiltins(); // 无论是否读磁盘，都保证箱内模板齐全
+    }
+
+    /**
+     * 从 mod resources 目录加载 .schem 文件
+     * 路径: assets/moremod/schematics/
+     */
+    private void loadFromResources() {
+        // 定义要加载的 schematic 文件及其对应的房间类型
+        String[][] schematics = {
+            {"dungeon_room.schem", "NORMAL"}
+        };
+
+        for (String[] entry : schematics) {
+            String filename = entry[0];
+            String roomTypeStr = entry[1];
+            try {
+                String resourcePath = "/assets/moremod/schematics/" + filename;
+                InputStream is = getClass().getResourceAsStream(resourcePath);
+                if (is != null) {
+                    NBTTagCompound nbt = CompressedStreamTools.readCompressed(is);
+                    Schematic schematic = Schematic.loadFromNBT(nbt);
+                    DungeonTree.RoomType type = DungeonTree.RoomType.valueOf(roomTypeStr);
+                    templatesByType.get(type).add(schematic);
+                    System.out.println("[DungeonTemplateRegistry] 从 resources 加载模板: " + filename + " -> " + type);
+                    is.close();
+                } else {
+                    System.out.println("[DungeonTemplateRegistry] 未找到 resources 模板: " + resourcePath);
+                }
+            } catch (Exception e) {
+                System.err.println("[DungeonTemplateRegistry] 加载 resources 模板失败: " + filename + " - " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
     }
 
     private void loadFromFiles() {
