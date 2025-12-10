@@ -159,6 +159,17 @@ public class SlotBaubleTyped extends SlotBauble {
     public void putStack(ItemStack stack) {
         ItemStack oldStack = this.getStack();
 
+        // 检查物品是否真的发生了变化，避免反复触发佩戴事件
+        if (ItemStack.areItemStacksEqual(oldStack, stack)) {
+            // 物品完全相同，不触发任何事件
+            return;
+        }
+
+        // 检查是否是相同的物品实例（引用相等）
+        if (oldStack == stack) {
+            return;
+        }
+
         if (!oldStack.isEmpty() && oldStack.getItem() instanceof IBauble) {
             boolean canceled = AccessoryBoxCrTCompat.fireUnequipPre(player, logicalSlotId, oldStack);
 

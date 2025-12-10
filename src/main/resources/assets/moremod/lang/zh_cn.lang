@@ -523,3 +523,11 @@ item.glitch_helmet.name=故障頭盔
 item.glitch_chestplate.name=故障胸甲
 item.glitch_leggings.name=故障護腿
 item.glitch_boots.name=故障靴子
+
+# ===== 血液发电机 (Blood Generator) =====
+tile.moremod.blood_generator.name=血液发电机
+container.blood_generator=血液发电机
+tooltip.blood_weapon.blood_energy=血液能量: %s
+tooltip.blood_weapon.flesh_chunks=肉块组织: %s
+tooltip.blood_weapon.boss_kills=击杀Boss: %s
+tooltip.blood_weapon.total_rf=可转换RF: %s

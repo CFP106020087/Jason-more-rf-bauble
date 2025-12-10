@@ -2,10 +2,15 @@ package com.moremod.accessorybox.unlock;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
-import net.minecraftforge.fml.common.gameevent.PlayerEvent;
+import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerLoggedInEvent;
+import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerLoggedOutEvent;
+import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerRespawnEvent;
+import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerChangedDimensionEvent;
 
 /**
  * 槽位解锁事件处理器
@@ -14,11 +19,37 @@ import net.minecraftforge.fml.common.gameevent.PlayerEvent;
 @Mod.EventBusSubscriber(modid = "moremod")
 public class UnlockEventHandler {
 
+    // NBT 键名（需要与 SlotUnlockManager 保持一致）
+    private static final String NBT_UNLOCKED_SLOTS = "UnlockedBaubleSlots";
+
+    /**
+     * 玩家死亡后克隆数据 - 关键！将解锁数据从旧玩家复制到新玩家
+     */
+    @SubscribeEvent
+    public static void onPlayerClone(PlayerEvent.Clone event) {
+        if (!event.isWasDeath()) return;
+
+        EntityPlayer oldPlayer = event.getOriginal();
+        EntityPlayer newPlayer = event.getEntityPlayer();
+
+        // 复制解锁槽位数据
+        NBTTagCompound oldData = oldPlayer.getEntityData();
+        NBTTagCompound newData = newPlayer.getEntityData();
+
+        if (oldData.hasKey(NBT_UNLOCKED_SLOTS)) {
+            int[] unlockedSlots = oldData.getIntArray(NBT_UNLOCKED_SLOTS);
+            newData.setIntArray(NBT_UNLOCKED_SLOTS, unlockedSlots);
+
+            System.out.println("[UnlockEventHandler] 玩家死亡克隆，复制解锁槽位数据: " +
+                    oldPlayer.getName() + " -> " + unlockedSlots.length + " 个槽位");
+        }
+    }
+
     /**
      * 玩家登录时加载和同步解锁数据
      */
     @SubscribeEvent
-    public static void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
+    public static void onPlayerLogin(PlayerLoggedInEvent event) {
         EntityPlayer player = event.player;
 
         if (player instanceof EntityPlayerMP) {
@@ -38,7 +69,7 @@ public class UnlockEventHandler {
      * 玩家登出时保存数据
      */
     @SubscribeEvent
-    public static void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+    public static void onPlayerLogout(PlayerLoggedOutEvent event) {
         EntityPlayer player = event.player;
 
         // 保存解锁数据到NBT
@@ -54,7 +85,7 @@ public class UnlockEventHandler {
      * 玩家重生时重新加载数据
      */
     @SubscribeEvent
-    public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
+    public static void onPlayerRespawn(PlayerRespawnEvent event) {
         EntityPlayer player = event.player;
 
         if (player instanceof EntityPlayerMP) {
@@ -74,7 +105,7 @@ public class UnlockEventHandler {
      * 玩家切换维度时重新同步
      */
     @SubscribeEvent
-    public static void onPlayerChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
+    public static void onPlayerChangedDimension(PlayerChangedDimensionEvent event) {
         EntityPlayer player = event.player;
 
         if (player instanceof EntityPlayerMP) {
