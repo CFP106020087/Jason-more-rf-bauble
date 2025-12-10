@@ -537,12 +537,8 @@ tile.printer.name=远古打印机
 container.moremod.printer=远古打印机
 gui.moremod.printer.multiblock_required=多方块结构未形成！需要3x3铁块基座和4个红石块
 
-# 打印模版
-item.moremod.print_template.gear_iron=铁齿轮模版
-item.moremod.print_template.ancient_component=远古组件模版
-item.moremod.print_template.mystery_crystal=神秘水晶模版
-item.moremod.print_template.spacetime_shard=时空碎片模版
-item.moremod.print_template.ancient_core_fragment=远古核心碎片模版
+# 打印模版（通用CRT模板）
+item.moremod.print_template.name=打印模板
 
 # 打印机GUI文字
 gui.moremod.printer.recipe_cost=配方消耗: %s RF
@@ -554,4 +550,5 @@ tooltip.moremod.output=输出
 tooltip.moremod.energy_cost=能量消耗
 tooltip.moremod.processing_time=处理时间
 tooltip.moremod.unknown_recipe=未知配方
-tooltip.moremod.template_desc=从远古废墟中发现的蓝图，用于打印机复制物品
+tooltip.moremod.no_template_id=未设置模板ID
+tooltip.moremod.template_desc=用于打印机的通用模板，通过CraftTweaker配置配方
