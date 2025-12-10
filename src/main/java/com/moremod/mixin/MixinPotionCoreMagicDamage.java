@@ -4,7 +4,6 @@ import com.moremod.item.ItemMechanicalCore;
 import com.moremod.item.ItemMechanicalCoreExtended;
 import com.moremod.util.ElementUtil;
 import com.moremod.event.MagicDamageAbsorbHandler;
-import com.tmtravlr.potioncore.PotionCoreEventHandler;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -26,7 +25,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * - 连击伤害指数增长（1.25^n，最高5倍）
  * - 20层余灼触发爆心（强制5连击）
  */
-@Mixin(value = PotionCoreEventHandler.class, remap = false)
+@Mixin(targets = "com.tmtravlr.potioncore.PotionCoreEventHandler", remap = false, expected = 0)
 public class MixinPotionCoreMagicDamage {
 
     /* ───────────────────────────────────────────────
@@ -47,7 +46,7 @@ public class MixinPotionCoreMagicDamage {
     /* ───────────────────────────────────────────────
      * HEAD：记录原伤害与战斗环境
      * ─────────────────────────────────────────────── */
-    @Inject(method = "onLivingHurt", at = @At("HEAD"), remap = false)
+    @Inject(method = "onLivingHurt", at = @At("HEAD"), remap = false, require = 0)
     private static void beforePotionCore(LivingHurtEvent event, CallbackInfo ci) {
 
         TL_IS_ELEMENTAL.set(false);
@@ -85,7 +84,7 @@ public class MixinPotionCoreMagicDamage {
     /* ───────────────────────────────────────────────
      * RETURN：处理法伤偏移、叠加余灼、标记连击
      * ─────────────────────────────────────────────── */
-    @Inject(method = "onLivingHurt", at = @At("RETURN"), remap = false)
+    @Inject(method = "onLivingHurt", at = @At("RETURN"), remap = false, require = 0)
     private static void afterPotionCore(LivingHurtEvent event, CallbackInfo ci) {
 
         try {

@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  *
  * 目标类: keletu.enigmaticlegacy.event.EnigmaticEvents
  */
-@Mixin(targets = "keletu.enigmaticlegacy.event.EnigmaticEvents", remap = false)
+@Mixin(targets = "keletu.enigmaticlegacy.event.EnigmaticEvents", remap = false, expected = 0)
 public class MixinEnigmaticEvents {
 
     /**
