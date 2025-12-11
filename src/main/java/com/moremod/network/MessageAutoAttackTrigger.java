@@ -112,6 +112,12 @@ public class MessageAutoAttackTrigger implements IMessage {
          * 对任意实体执行攻击
          */
         private void performAttack(EntityPlayerMP player, Entity target, ItemStack weapon) {
+            // ⭐ 清除目标无敌帧，允许快速连击
+            if (target instanceof EntityLivingBase) {
+                EntityLivingBase livingTarget = (EntityLivingBase) target;
+                livingTarget.hurtResistantTime = 0;
+            }
+
             // 计算基础伤害
             float damage = (float) player.getEntityAttribute(
                 SharedMonsterAttributes.ATTACK_DAMAGE).getAttributeValue();

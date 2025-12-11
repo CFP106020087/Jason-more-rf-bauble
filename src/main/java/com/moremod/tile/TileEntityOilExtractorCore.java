@@ -5,6 +5,7 @@ import com.moremod.init.ModItems;
 import com.moremod.item.energy.ItemOilProspector;
 import com.moremod.item.energy.ItemSpeedUpgrade;
 import com.moremod.multiblock.MultiblockOilExtractor;
+import com.moremod.world.OilExtractionData;
 import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -132,7 +133,7 @@ public class TileEntityOilExtractorCore extends TileEntity implements ITickable 
 
     // 石油儲存（兼容舊版，實際使用 fluidTank）
     private int storedOil = 0;           // 內部儲油量 (mB) - 僅用於遷移
-    private int extractedTotal = 0;      // 已從礦脈提取的總量
+    // extractedTotal 現在保存到 OilExtractionData（世界數據）
     private boolean isRunning = false;
     private int tickCounter = 0;
 
@@ -173,7 +174,8 @@ public class TileEntityOilExtractorCore extends TileEntity implements ITickable 
                     if (crudeOil != null) {
                         fluidTank.fillInternal(new FluidStack(crudeOil, actualExtract), true);
                     }
-                    extractedTotal += actualExtract;
+                    // 保存提取量到世界數據（持久化）
+                    addExtractedOil(actualExtract);
                     markDirty();
 
                     // 粒子效果（速度越快，粒子越多）
@@ -198,13 +200,28 @@ public class TileEntityOilExtractorCore extends TileEntity implements ITickable 
     }
 
     /**
-     * 獲取區塊剩餘石油量
+     * 獲取區塊剩餘石油量（從世界數據讀取）
      */
     public int getRemainingOil() {
+        if (world == null) return 0;
         ChunkPos chunkPos = new ChunkPos(pos);
         ItemOilProspector.OilVeinData data = ItemOilProspector.getOilVeinData(world, chunkPos);
         if (!data.hasOil) return 0;
-        return Math.max(0, data.amount - extractedTotal);
+
+        // 從世界數據獲取已提取量
+        OilExtractionData extractionData = OilExtractionData.get(world);
+        int extracted = extractionData.getExtractedAmount(chunkPos);
+        return Math.max(0, data.amount - extracted);
+    }
+
+    /**
+     * 增加區塊的提取量（保存到世界數據）
+     */
+    private void addExtractedOil(int amount) {
+        if (world == null) return;
+        ChunkPos chunkPos = new ChunkPos(pos);
+        OilExtractionData extractionData = OilExtractionData.get(world);
+        extractionData.addExtractedAmount(chunkPos, amount);
     }
 
     /**
@@ -316,7 +333,7 @@ public class TileEntityOilExtractorCore extends TileEntity implements ITickable 
     public NBTTagCompound writeToNBT(NBTTagCompound compound) {
         super.writeToNBT(compound);
         compound.setInteger("Energy", energy.getEnergyStored());
-        compound.setInteger("ExtractedTotal", extractedTotal);
+        // ExtractedTotal 現在保存在 OilExtractionData（世界數據）
         compound.setBoolean("IsRunning", isRunning);
         // 保存液體槽
         fluidTank.writeToNBT(compound);
@@ -332,7 +349,6 @@ public class TileEntityOilExtractorCore extends TileEntity implements ITickable 
         int fe = compound.getInteger("Energy");
         setEnergy(fe);
 
-        extractedTotal = compound.getInteger("ExtractedTotal");
         isRunning = compound.getBoolean("IsRunning");
         // 讀取液體槽
         fluidTank.readFromNBT(compound);
@@ -349,6 +365,19 @@ public class TileEntityOilExtractorCore extends TileEntity implements ITickable 
                 Fluid crudeOil = ModFluids.getCrudeOil();
                 if (crudeOil != null) {
                     fluidTank.fillInternal(new FluidStack(crudeOil, oldOil), true);
+                }
+            }
+        }
+
+        // 兼容舊版：遷移 ExtractedTotal 到世界數據
+        if (compound.hasKey("ExtractedTotal") && world != null) {
+            int oldExtracted = compound.getInteger("ExtractedTotal");
+            if (oldExtracted > 0) {
+                ChunkPos chunkPos = new ChunkPos(pos);
+                OilExtractionData extractionData = OilExtractionData.get(world);
+                // 只有當世界數據中沒有記錄時才遷移
+                if (extractionData.getExtractedAmount(chunkPos) == 0) {
+                    extractionData.setExtractedAmount(chunkPos, oldExtracted);
                 }
             }
         }
