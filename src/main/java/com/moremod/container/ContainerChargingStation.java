@@ -67,12 +67,8 @@ public class ContainerChargingStation extends Container {
         } else if (id == 1) {
             lastEnergy = (lastEnergy & 0x0000FFFF) | ((data & 0xFFFF) << 16);
             // 更新到TileEntity（客户端）
-            setClientEnergy(lastEnergy);
+            tile.setClientEnergy(lastEnergy);
         }
-    }
-
-    private void setClientEnergy(int energy) {
-        tile.setClientEnergy(energy);
     }
 
     @Override
