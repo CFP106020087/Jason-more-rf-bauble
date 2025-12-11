@@ -15,7 +15,6 @@ import net.minecraft.init.MobEffects;
 import net.minecraft.potion.PotionEffect;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.living.LivingSetAttackTargetEvent;
-import net.minecraftforge.event.entity.player.PlayerSleepInBedEvent;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.injection.At;
@@ -131,27 +130,9 @@ public class MixinEnigmaticEvents {
         return player.isPlayerSleeping();
     }
 
-    /**
-     * 拦截睡眠事件处理器
-     * 当有安眠香囊时，取消诅咒对睡眠的阻止
-     */
-    @Inject(
-            method = "onSleepEnter(Lnet/minecraftforge/event/entity/player/PlayerSleepInBedEvent;)V",
-            at = @At("HEAD"),
-            cancellable = true,
-            require = 0
-    )
-    private static void moremod$onSleepEnter_head(PlayerSleepInBedEvent event, CallbackInfo ci) {
-        EntityPlayer player = event.getEntityPlayer();
-        if (player == null || player.world.isRemote) return;
-
-        // 检查是否应该绕过睡眠诅咒（使用统一的检查方法）
-        if (EmbeddedCurseEffectHandler.shouldBypassSleepCurse(player)) {
-            // 祝福效果：取消诅咒对睡眠的阻止
-            // 直接取消这个事件处理器，让原版睡眠逻辑执行
-            ci.cancel();
-        }
-    }
+    // 注意：EnigmaticLegacy 没有 onSleepEnter 方法
+    // 睡眠诅咒是通过 tickHandler 中设置 sleepTimer = 90 实现的
+    // 我们通过 isPlayerSleeping 重定向 + EmbeddedCurseEffectHandler 中的 sleepTimer 推进来绕过
 
     // ═══════════════════════════════════════════════════════════════
     // 守护鳞片 - 护甲强化祝福

@@ -296,10 +296,10 @@ public class EmbeddedCurseEffectHandler {
                 // 强制突破睡眠诅咒：七咒会把 sleepTimer 卡在 90，我们强制推进它
                 // 睡眠需要 sleepTimer >= 100 才能完成，七咒通过 sleepTimer = 90 来阻止
                 int currentSleepTimer = getSleepTimer(player);
-                // 如果 sleepTimer 被卡在 90-91（诅咒会把它设回 90），强制推进
-                if (currentSleepTimer >= 89 && currentSleepTimer <= 91) {
-                    // 每 tick 强制 +2，这样即使诅咒设回 90，下一 tick 也能推进
-                    setSleepTimer(player, currentSleepTimer + 2);
+                // 如果 sleepTimer 在 85-100 范围内，直接设置到 101 确保睡眠完成
+                // 这样即使诅咒把它设回 90，下一 tick 我们又会推进到 101
+                if (currentSleepTimer >= 85 && currentSleepTimer <= 100) {
+                    setSleepTimer(player, 101);
                 }
             }
         }
