@@ -1562,7 +1562,39 @@ public class GuiModGuide extends GuiScreen {
                 }
         ));
 
-        // 第13頁：武器經驗加速儀式
+        // 第13頁：靈魂束縛儀式
+        currentPages.add(new GuidePageContent(
+                "靈魂束縛儀式 (三階)",
+                new String[]{
+                        "§e使物品死亡不掉落§r",
+                        "",
+                        "§6材料需求：§r",
+                        "中心：任意物品",
+                        "基座：",
+                        "  末影珍珠 x4",
+                        "  惡魂之淚 x2",
+                        "  金塊 x2",
+                        "",
+                        "§c需要三階祭壇！§r"
+                },
+                new String[]{
+                        "§a效果：§r",
+                        "",
+                        "為物品添加",
+                        "Soulbound 標籤",
+                        "死亡時物品不會掉落",
+                        "",
+                        "§6特點：§r",
+                        "- §a保留所有NBT數據§r",
+                        "- 保留所有附魔",
+                        "- 成功率: §e90%§r",
+                        "",
+                        "§c失敗懲罰：§r",
+                        "物品被虛空吞噬！"
+                }
+        ));
+
+        // 第14頁：武器經驗加速儀式
         currentPages.add(new GuidePageContent(
                 "武器經驗加速 (二階)",
                 new String[]{
@@ -1658,8 +1690,11 @@ public class GuiModGuide extends GuiScreen {
                         "§6七聖遺物嵌入§r",
                         "遺物嵌入七咒玩家",
                         "",
-                        "§6§l不可破壞§r",
-                        "使物品永不損壞"
+                        "§6不可破壞§r",
+                        "使物品永不損壞",
+                        "",
+                        "§6§l靈魂束縛§r",
+                        "使物品死亡不掉落"
                 }
         ));
 

@@ -138,6 +138,12 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     private static final int UNBREAKABLE_TIME = 400; // 20秒
     private static final float UNBREAKABLE_SUCCESS_RATE = 0.80f; // 80%成功率
 
+    // 灵魂束缚仪式系统 (Soulbound Ritual) - 死亡不掉落
+    private boolean soulboundRitualActive = false;
+    private int soulboundProgress = 0;
+    private static final int SOULBOUND_TIME = 300; // 15秒
+    private static final float SOULBOUND_SUCCESS_RATE = 0.90f; // 90%成功率
+
     // 成功率显示系统
     private RitualInfusionRecipe lastNotifiedRecipe = null;
     private int successRateDisplayCooldown = 0;
@@ -229,6 +235,11 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
 
         // 0.15 检测不可破坏仪式
         if (updateUnbreakableRitual()) {
+            return;
+        }
+
+        // 0.16 检测灵魂束缚仪式（死亡不掉落）
+        if (updateSoulboundRitual()) {
             return;
         }
 
@@ -3026,4 +3037,252 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     // Getter for unbreakable ritual
     public boolean isUnbreakableRitualActive() { return unbreakableRitualActive; }
     public int getUnbreakableProgress() { return unbreakableProgress; }
+
+    // ========== 灵魂束缚仪式系统 (Soulbound Ritual) - 死亡不掉落 ==========
+
+    /**
+     * 更新灵魂束缚仪式
+     * 三阶祭坛 + 任意物品 + 末影珍珠×4 + 恶魂之泪×2 + 金块×2 = 死亡不掉落物品
+     * @return true 如果正在进行灵魂束缚仪式
+     */
+    private boolean updateSoulboundRitual() {
+        // 必须是三阶祭坛
+        if (currentTier != AltarTier.TIER_3) {
+            if (soulboundRitualActive) {
+                resetSoulboundRitual();
+            }
+            return false;
+        }
+
+        // 检查中心物品
+        ItemStack centerItem = inv.getStackInSlot(0);
+        if (centerItem.isEmpty()) {
+            if (soulboundRitualActive) {
+                resetSoulboundRitual();
+            }
+            return false;
+        }
+
+        // 检查物品是否已经有灵魂束缚
+        if (centerItem.hasTagCompound() && centerItem.getTagCompound().getBoolean("Soulbound")) {
+            if (soulboundRitualActive) {
+                resetSoulboundRitual();
+            }
+            return false;
+        }
+
+        // 检查基座材料：末影珍珠×4 + 恶魂之泪×2 + 金块×2
+        if (!checkSoulboundMaterials()) {
+            if (soulboundRitualActive) {
+                resetSoulboundRitual();
+            }
+            return false;
+        }
+
+        // 开始/继续灵魂束缚仪式
+        if (!soulboundRitualActive) {
+            soulboundRitualActive = true;
+            soulboundProgress = 0;
+            notifySoulboundStart(centerItem);
+        }
+
+        soulboundProgress++;
+
+        // 进度效果
+        if (soulboundProgress % 20 == 0) {
+            int seconds = (SOULBOUND_TIME - soulboundProgress) / 20;
+            notifySoulboundProgress(seconds);
+            spawnSoulboundParticles();
+        }
+
+        // 完成灵魂束缚仪式
+        if (soulboundProgress >= SOULBOUND_TIME) {
+            performSoulboundRitual(centerItem);
+            resetSoulboundRitual();
+        }
+
+        return true;
+    }
+
+    private void resetSoulboundRitual() {
+        soulboundRitualActive = false;
+        soulboundProgress = 0;
+    }
+
+    /**
+     * 检查灵魂束缚仪式所需材料
+     * 末影珍珠×4 + 恶魂之泪×2 + 金块×2
+     */
+    private boolean checkSoulboundMaterials() {
+        int enderPearlCount = 0;
+        int ghastTearCount = 0;
+        int goldBlockCount = 0;
+
+        for (BlockPos off : OFFS8) {
+            TileEntity te = world.getTileEntity(pos.add(off));
+            if (te instanceof TileEntityPedestal) {
+                TileEntityPedestal ped = (TileEntityPedestal) te;
+                ItemStack stack = ped.getInv().getStackInSlot(0);
+                if (!stack.isEmpty()) {
+                    if (stack.getItem() == Items.ENDER_PEARL) {
+                        enderPearlCount++;
+                    } else if (stack.getItem() == Items.GHAST_TEAR) {
+                        ghastTearCount++;
+                    } else if (stack.getItem() == net.minecraft.item.Item.getItemFromBlock(net.minecraft.init.Blocks.GOLD_BLOCK)) {
+                        goldBlockCount++;
+                    }
+                }
+            }
+        }
+
+        return enderPearlCount >= 4 && ghastTearCount >= 2 && goldBlockCount >= 2;
+    }
+
+    /**
+     * 执行灵魂束缚仪式
+     */
+    private void performSoulboundRitual(ItemStack targetItem) {
+        // 消耗材料：末影珍珠×4 + 恶魂之泪×2 + 金块×2
+        int pearlsConsumed = 0;
+        int tearsConsumed = 0;
+        int goldConsumed = 0;
+
+        for (BlockPos off : OFFS8) {
+            TileEntity te = world.getTileEntity(pos.add(off));
+            if (te instanceof TileEntityPedestal) {
+                TileEntityPedestal ped = (TileEntityPedestal) te;
+                ItemStack stack = ped.getInv().getStackInSlot(0);
+                if (!stack.isEmpty()) {
+                    if (stack.getItem() == Items.ENDER_PEARL && pearlsConsumed < 4) {
+                        ped.consumeOne();
+                        pearlsConsumed++;
+                    } else if (stack.getItem() == Items.GHAST_TEAR && tearsConsumed < 2) {
+                        ped.consumeOne();
+                        tearsConsumed++;
+                    } else if (stack.getItem() == net.minecraft.item.Item.getItemFromBlock(net.minecraft.init.Blocks.GOLD_BLOCK) && goldConsumed < 2) {
+                        ped.consumeOne();
+                        goldConsumed++;
+                    }
+                }
+            }
+        }
+
+        // 判定成功/失败
+        boolean success = world.rand.nextFloat() < SOULBOUND_SUCCESS_RATE;
+
+        if (success) {
+            // 成功：添加Soulbound标签
+            NBTTagCompound nbt = targetItem.hasTagCompound() ? targetItem.getTagCompound() : new NBTTagCompound();
+            nbt.setBoolean("Soulbound", true);
+            targetItem.setTagCompound(nbt);
+
+            notifySoulboundSuccess(targetItem);
+            spawnSoulboundSuccessEffects();
+        } else {
+            // 失败：物品消失
+            inv.setStackInSlot(0, ItemStack.EMPTY);
+            notifySoulboundFail(targetItem);
+            spawnSoulboundFailEffects();
+        }
+
+        syncToClient();
+        markDirty();
+    }
+
+    // ========== 灵魂束缚仪式通知方法 ==========
+
+    private void notifySoulboundStart(ItemStack item) {
+        TierRitualHandler.notifyPlayers(world, pos,
+            "✦ 灵魂束缚仪式开始... [" + item.getDisplayName() + "]",
+            TextFormatting.DARK_PURPLE);
+        world.playSound(null, pos, SoundEvents.ENTITY_ENDERMEN_TELEPORT,
+            SoundCategory.BLOCKS, 0.8f, 0.5f);
+    }
+
+    private void notifySoulboundProgress(int secondsLeft) {
+        if (secondsLeft > 0 && secondsLeft <= 5) {
+            TierRitualHandler.notifyPlayers(world, pos,
+                "✦ 灵魂融合中... " + secondsLeft + "秒",
+                TextFormatting.LIGHT_PURPLE);
+        }
+    }
+
+    private void notifySoulboundSuccess(ItemStack item) {
+        TierRitualHandler.notifyPlayers(world, pos,
+            "✦ 灵魂束缚成功！[" + item.getDisplayName() + "] 已获得死亡保护",
+            TextFormatting.DARK_PURPLE);
+    }
+
+    private void notifySoulboundFail(ItemStack item) {
+        TierRitualHandler.notifyPlayers(world, pos,
+            "✦ 灵魂束缚失败... [" + item.getDisplayName() + "] 被虚空吞噬",
+            TextFormatting.RED);
+    }
+
+    // ========== 灵魂束缚仪式粒子效果 ==========
+
+    private void spawnSoulboundParticles() {
+        if (!(world instanceof WorldServer)) return;
+        WorldServer ws = (WorldServer) world;
+
+        // 紫色末影粒子环绕
+        for (int i = 0; i < 8; i++) {
+            double angle = i * Math.PI / 4 + (soulboundProgress * 0.1);
+            double radius = 1.5;
+            double x = pos.getX() + 0.5 + Math.cos(angle) * radius;
+            double z = pos.getZ() + 0.5 + Math.sin(angle) * radius;
+            double y = pos.getY() + 1.0 + Math.sin(soulboundProgress * 0.15) * 0.5;
+
+            ws.spawnParticle(EnumParticleTypes.PORTAL,
+                x, y, z, 3, 0.1, 0.1, 0.1, 0.0);
+        }
+
+        // 中心末影粒子
+        ws.spawnParticle(EnumParticleTypes.PORTAL,
+            pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
+            10, 0.3, 0.3, 0.3, 0.0);
+    }
+
+    private void spawnSoulboundSuccessEffects() {
+        if (!(world instanceof WorldServer)) return;
+        WorldServer ws = (WorldServer) world;
+
+        // 大量末影粒子爆发
+        ws.spawnParticle(EnumParticleTypes.PORTAL,
+            pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
+            100, 1.0, 1.0, 1.0, 0.5);
+
+        // 紫色烟雾
+        ws.spawnParticle(EnumParticleTypes.SPELL_WITCH,
+            pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
+            50, 0.5, 0.5, 0.5, 0.0);
+
+        // 成功音效
+        world.playSound(null, pos, SoundEvents.ENTITY_ENDERMEN_TELEPORT,
+            SoundCategory.BLOCKS, 1.0f, 1.2f);
+        world.playSound(null, pos, SoundEvents.ENTITY_PLAYER_LEVELUP,
+            SoundCategory.BLOCKS, 0.8f, 0.8f);
+    }
+
+    private void spawnSoulboundFailEffects() {
+        if (!(world instanceof WorldServer)) return;
+        WorldServer ws = (WorldServer) world;
+
+        // 紫黑色烟雾
+        ws.spawnParticle(EnumParticleTypes.SMOKE_LARGE,
+            pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
+            50, 0.5, 0.5, 0.5, 0.1);
+
+        ws.spawnParticle(EnumParticleTypes.PORTAL,
+            pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
+            30, 0.5, 0.5, 0.5, 0.0);
+
+        // 失败音效
+        world.playSound(null, pos, SoundEvents.ENTITY_ENDERMEN_DEATH,
+            SoundCategory.BLOCKS, 1.0f, 0.5f);
+    }
+
+    // Getter for soulbound ritual
+    public boolean isSoulboundRitualActive() { return soulboundRitualActive; }
+    public int getSoulboundProgress() { return soulboundProgress; }
 }

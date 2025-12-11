@@ -27,7 +27,8 @@ public class SpecialRitualInfo {
         SOUL_BINDING("灵魂绑定", 3, "从头颅创建假玩家核心"),
         DUPLICATION("禁忌复制", 3, "复制诅咒之镜中的物品"),
         EMBEDDING("七圣遗物嵌入", 3, "将七圣遗物嵌入七咒玩家体内"),
-        UNBREAKABLE("不可破坏", 3, "使物品变得不可破坏");
+        UNBREAKABLE("不可破坏", 3, "使物品变得不可破坏"),
+        SOULBOUND("灵魂束缚", 3, "使物品死亡不掉落");
 
         public final String name;
         public final int requiredTier;
@@ -242,6 +243,25 @@ public class SpecialRitualInfo {
             Arrays.asList(new ItemStack(Items.DIAMOND_SWORD)), // 带Unbreakable标签
             400, 300000, 0.20f,
             "使物品变得不可破坏\n保留所有NBT数据\n成功率: 80%"
+        ));
+
+        // 12. 灵魂束缚 (三阶) - 死亡不掉落
+        rituals.add(new SpecialRitualInfo(
+            RitualType.SOULBOUND,
+            Arrays.asList(new ItemStack(Items.DIAMOND_SWORD), new ItemStack(Items.DIAMOND_PICKAXE), new ItemStack(Items.DIAMOND_CHESTPLATE)),
+            createPedestalList(Arrays.asList(
+                new ItemStack(Items.ENDER_PEARL),
+                new ItemStack(Items.ENDER_PEARL),
+                new ItemStack(Items.ENDER_PEARL),
+                new ItemStack(Items.ENDER_PEARL),
+                new ItemStack(Items.GHAST_TEAR),
+                new ItemStack(Items.GHAST_TEAR),
+                new ItemStack(Blocks.GOLD_BLOCK),
+                new ItemStack(Blocks.GOLD_BLOCK)
+            )),
+            Arrays.asList(new ItemStack(Items.DIAMOND_SWORD)), // 带Soulbound标签
+            300, 200000, 0.10f,
+            "使物品死亡时不掉落\n保留所有NBT数据\n成功率: 90%\n失败时物品被虚空吞噬"
         ));
 
         return rituals;
