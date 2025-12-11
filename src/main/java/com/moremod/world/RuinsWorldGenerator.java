@@ -210,31 +210,83 @@ public class RuinsWorldGenerator implements IWorldGenerator {
         placeRuinContents(world, pos.add(-5, 0, 3), random, RuinType.QUANTUM_QUARRY_SITE.lootTier);
     }
 
-    // 放置破损的量子采矿机
+    // 放置破损的量子采矿机多方块结构
     private void placeQuantumQuarry(World world, BlockPos pos, Random random) {
         try {
-            // 尝试放置量子采矿机方块
-            if (ModBlocks.QUANTUM_QUARRY != null) {
-                setBlockSafe(world, pos, ModBlocks.QUANTUM_QUARRY.getDefaultState());
-                System.out.println("[Ruins] 放置了破损的量子采矿机于 " + pos);
+            Block quarryCore = ModBlocks.QUANTUM_QUARRY;
+            Block quarryActuator = com.moremod.quarry.QuarryRegistry.blockQuarryActuator;
+
+            if (quarryCore != null && quarryActuator != null) {
+                // 放置核心
+                setBlockSafe(world, pos, quarryCore.getDefaultState());
+
+                // 六面驱动器 (破损 - 随机缺失1-3个)
+                net.minecraft.util.EnumFacing[] faces = net.minecraft.util.EnumFacing.values();
+                int missingCount = 1 + random.nextInt(3);  // 缺失1-3个
+                java.util.Set<net.minecraft.util.EnumFacing> missingFaces = new java.util.HashSet<>();
+
+                // 随机选择缺失的面
+                while (missingFaces.size() < missingCount) {
+                    missingFaces.add(faces[random.nextInt(6)]);
+                }
+
+                for (net.minecraft.util.EnumFacing face : faces) {
+                    BlockPos actuatorPos = pos.offset(face);
+                    if (missingFaces.contains(face)) {
+                        // 缺失的驱动器 - 放置破损零件
+                        if (random.nextFloat() < 0.5f) {
+                            setBlockSafe(world, actuatorPos, Blocks.IRON_BLOCK.getDefaultState());
+                        } else if (random.nextFloat() < 0.3f) {
+                            setBlockSafe(world, actuatorPos, Blocks.REDSTONE_BLOCK.getDefaultState());
+                        }
+                        // 否则留空
+                    } else {
+                        // 放置驱动器
+                        setBlockSafe(world, actuatorPos, quarryActuator.getDefaultState());
+                    }
+                }
+
+                System.out.println("[Ruins] 放置了破损的量子采矿机多方块结构于 " + pos + " (缺失" + missingCount + "个驱动器)");
             } else {
                 // 备用: 用铁块+红石块模拟
-                setBlockSafe(world, pos, Blocks.IRON_BLOCK.getDefaultState());
-                setBlockSafe(world, pos.up(), Blocks.REDSTONE_BLOCK.getDefaultState());
+                placeFallbackQuarry(world, pos, random);
             }
         } catch (Exception e) {
-            setBlockSafe(world, pos, Blocks.IRON_BLOCK.getDefaultState());
-            setBlockSafe(world, pos.up(), Blocks.REDSTONE_BLOCK.getDefaultState());
+            placeFallbackQuarry(world, pos, random);
         }
 
-        // 周围的破损零件
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dz = -1; dz <= 1; dz++) {
-                if (dx == 0 && dz == 0) continue;
-                if (random.nextFloat() < 0.4f) {
-                    Block debris = random.nextBoolean() ? Blocks.IRON_BLOCK : Blocks.QUARTZ_BLOCK;
-                    setBlockSafe(world, pos.add(dx, 0, dz), debris.getDefaultState());
+        // 散落的零件和线缆
+        for (int dx = -2; dx <= 2; dx++) {
+            for (int dz = -2; dz <= 2; dz++) {
+                if (Math.abs(dx) <= 1 && Math.abs(dz) <= 1) continue;  // 跳过核心区域
+                if (random.nextFloat() < 0.25f) {
+                    BlockPos debrisPos = pos.add(dx, 0, dz);
+                    if (world.isAirBlock(debrisPos)) {
+                        int debrisType = random.nextInt(5);
+                        switch (debrisType) {
+                            case 0: setBlockSafe(world, debrisPos, Blocks.IRON_BLOCK.getDefaultState()); break;
+                            case 1: setBlockSafe(world, debrisPos, Blocks.QUARTZ_BLOCK.getDefaultState()); break;
+                            case 2: setBlockSafe(world, debrisPos, Blocks.REDSTONE_BLOCK.getDefaultState()); break;
+                            case 3: setBlockSafe(world, debrisPos, Blocks.END_ROD.getDefaultState()); break;
+                            default: setBlockSafe(world, debrisPos, Blocks.IRON_BARS.getDefaultState()); break;
+                        }
+                    }
                 }
+            }
+        }
+    }
+
+    // 备用量子采矿机 (方块不存在时)
+    private void placeFallbackQuarry(World world, BlockPos pos, Random random) {
+        // 核心
+        setBlockSafe(world, pos, Blocks.IRON_BLOCK.getDefaultState());
+        setBlockSafe(world, pos.up(), Blocks.REDSTONE_BLOCK.getDefaultState());
+        setBlockSafe(world, pos.down(), Blocks.OBSIDIAN.getDefaultState());
+
+        // 模拟驱动器
+        for (net.minecraft.util.EnumFacing face : net.minecraft.util.EnumFacing.HORIZONTALS) {
+            if (random.nextFloat() > 0.3f) {
+                setBlockSafe(world, pos.offset(face), Blocks.IRON_BLOCK.getDefaultState());
             }
         }
     }
