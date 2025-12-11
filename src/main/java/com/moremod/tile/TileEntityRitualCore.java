@@ -2248,7 +2248,18 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         // 收集基座物品
         List<ItemStack> pedestalItems = collectPedestalItems();
 
-        if (!TierRitualHandler.canPurifyCurse(world, pos, centerItem, pedestalItems, currentTier)) {
+        // 检查材料需求（支持CRT自定义）
+        boolean materialsValid;
+        if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.CURSE_PURIFICATION)) {
+            // 使用自定义材料配置，但仍需检查中心物品是否有诅咒附魔
+            materialsValid = LegacyRitualConfig.checkMaterialRequirements(LegacyRitualConfig.CURSE_PURIFICATION, pedestalItems)
+                          && hasCurseEnchantment(centerItem);
+        } else {
+            // 默认使用TierRitualHandler检查
+            materialsValid = TierRitualHandler.canPurifyCurse(world, pos, centerItem, pedestalItems, currentTier);
+        }
+
+        if (!materialsValid) {
             if (cursePurificationActive) resetCursePurification();
             return false;
         }
@@ -2288,7 +2299,12 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         if (result.success) {
             TierRitualHandler.notifyPlayers(world, pos,
                 "✓ 成功淨化 " + result.removedCount + " 個詛咒！", TextFormatting.GREEN);
-            consumeOnePedestalItem(stack -> isHolyItem(stack));
+            // 消耗材料（支持CRT自定义）
+            if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.CURSE_PURIFICATION)) {
+                consumeCustomMaterials(LegacyRitualConfig.CURSE_PURIFICATION);
+            } else {
+                consumeOnePedestalItem(stack -> isHolyItem(stack));
+            }
         } else {
             TierRitualHandler.notifyPlayers(world, pos,
                 "✗ " + result.errorMessage, TextFormatting.RED);
@@ -2337,7 +2353,18 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
 
         List<ItemStack> pedestalItems = collectPedestalItems();
 
-        if (!TierRitualHandler.canTransferEnchantment(world, pos, centerItem, pedestalItems, currentTier)) {
+        // 检查材料需求（支持CRT自定义）
+        boolean materialsValid;
+        if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.ENCHANT_TRANSFER)) {
+            // 使用自定义材料配置，但仍需检查是否有目标物品
+            materialsValid = LegacyRitualConfig.checkMaterialRequirements(LegacyRitualConfig.ENCHANT_TRANSFER, pedestalItems)
+                          && !findTransferTarget().isEmpty();
+        } else {
+            // 默认使用TierRitualHandler检查
+            materialsValid = TierRitualHandler.canTransferEnchantment(world, pos, centerItem, pedestalItems, currentTier);
+        }
+
+        if (!materialsValid) {
             if (enchantTransferActive) resetEnchantTransfer();
             return false;
         }
@@ -2382,9 +2409,14 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         if (transferred > 0) {
             TierRitualHandler.notifyPlayers(world, pos,
                 "★ 成功轉移 " + transferred + " 個附魔！", TextFormatting.GOLD);
-            consumeOnePedestalItem(stack ->
-                (stack.getItem() == Items.DYE && stack.getMetadata() == 4) ||
-                stack.getItem() == Items.DRAGON_BREATH);
+            // 消耗材料（支持CRT自定义）
+            if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.ENCHANT_TRANSFER)) {
+                consumeCustomMaterials(LegacyRitualConfig.ENCHANT_TRANSFER);
+            } else {
+                consumeOnePedestalItem(stack ->
+                    (stack.getItem() == Items.DYE && stack.getMetadata() == 4) ||
+                    stack.getItem() == Items.DRAGON_BREATH);
+            }
         } else {
             TierRitualHandler.notifyPlayers(world, pos, "✗ 無法轉移附魔！", TextFormatting.RED);
         }
@@ -2438,19 +2470,30 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
 
         List<ItemStack> pedestalItems = collectPedestalItems();
 
-        // 需要墨囊和詛咒材料
-        boolean hasInk = false;
+        // 检查材料需求（支持CRT自定义）
+        boolean materialsValid;
         int curseMaterials = 0;
-        for (ItemStack stack : pedestalItems) {
-            if (stack.getItem() == Items.DYE && stack.getMetadata() == 0) hasInk = true; // 墨囊
-            if (stack.getItem() == Items.ROTTEN_FLESH ||
-                stack.getItem() == Items.SPIDER_EYE ||
-                stack.getItem() == Items.FERMENTED_SPIDER_EYE) {
-                curseMaterials++;
+
+        if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.CURSE_CREATION)) {
+            // 使用自定义材料配置
+            materialsValid = LegacyRitualConfig.checkMaterialRequirements(LegacyRitualConfig.CURSE_CREATION, pedestalItems);
+            // 对于自定义材料，默认诅咒数量为1
+            curseMaterials = materialsValid ? 1 : 0;
+        } else {
+            // 默认硬编码检查：需要墨囊和詛咒材料
+            boolean hasInk = false;
+            for (ItemStack stack : pedestalItems) {
+                if (stack.getItem() == Items.DYE && stack.getMetadata() == 0) hasInk = true; // 墨囊
+                if (stack.getItem() == Items.ROTTEN_FLESH ||
+                    stack.getItem() == Items.SPIDER_EYE ||
+                    stack.getItem() == Items.FERMENTED_SPIDER_EYE) {
+                    curseMaterials++;
+                }
             }
+            materialsValid = hasInk && curseMaterials >= 1;
         }
 
-        if (!hasInk || curseMaterials < 1) {
+        if (!materialsValid) {
             if (curseCreationActive) resetCurseCreation();
             return false;
         }
@@ -2499,13 +2542,19 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             world.spawnEntity(entity);
         }
 
-        // 消耗材料
-        consumeOnePedestalItem(stack -> stack.getItem() == Items.DYE && stack.getMetadata() == 0);
-        for (int i = 0; i < curseCount; i++) {
-            consumeOnePedestalItem(stack ->
-                stack.getItem() == Items.ROTTEN_FLESH ||
-                stack.getItem() == Items.SPIDER_EYE ||
-                stack.getItem() == Items.FERMENTED_SPIDER_EYE);
+        // 消耗材料（支持CRT自定义）
+        if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.CURSE_CREATION)) {
+            // 使用自定义材料配置消耗
+            consumeCustomMaterials(LegacyRitualConfig.CURSE_CREATION);
+        } else {
+            // 默认材料消耗
+            consumeOnePedestalItem(stack -> stack.getItem() == Items.DYE && stack.getMetadata() == 0);
+            for (int i = 0; i < curseCount; i++) {
+                consumeOnePedestalItem(stack ->
+                    stack.getItem() == Items.ROTTEN_FLESH ||
+                    stack.getItem() == Items.SPIDER_EYE ||
+                    stack.getItem() == Items.FERMENTED_SPIDER_EYE);
+            }
         }
 
         TierRitualHandler.notifyPlayers(world, pos,
@@ -2546,14 +2595,21 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
 
         List<ItemStack> pedestalItems = collectPedestalItems();
 
-        // 需要經驗瓶或附魔書
-        boolean hasExpMaterial = false;
-        for (ItemStack stack : pedestalItems) {
-            if (stack.getItem() == Items.EXPERIENCE_BOTTLE ||
-                stack.getItem() == Items.ENCHANTED_BOOK ||
-                stack.getItem() == Items.EMERALD) {
-                hasExpMaterial = true;
-                break;
+        // 检查材料需求（支持CRT自定义）
+        boolean hasExpMaterial;
+        if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.WEAPON_EXP_BOOST)) {
+            // 使用自定义材料配置
+            hasExpMaterial = LegacyRitualConfig.checkMaterialRequirements(LegacyRitualConfig.WEAPON_EXP_BOOST, pedestalItems);
+        } else {
+            // 默认硬编码检查：需要經驗瓶或附魔書
+            hasExpMaterial = false;
+            for (ItemStack stack : pedestalItems) {
+                if (stack.getItem() == Items.EXPERIENCE_BOTTLE ||
+                    stack.getItem() == Items.ENCHANTED_BOOK ||
+                    stack.getItem() == Items.EMERALD) {
+                    hasExpMaterial = true;
+                    break;
+                }
             }
         }
 
@@ -2604,10 +2660,15 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
                 "★ " + weapon.getDisplayName() + " 獲得經驗加速 x" + mult + " (10分鐘)",
                 TextFormatting.GOLD);
 
-            consumeOnePedestalItem(stack ->
-                stack.getItem() == Items.EXPERIENCE_BOTTLE ||
-                stack.getItem() == Items.ENCHANTED_BOOK ||
-                stack.getItem() == Items.EMERALD);
+            // 消耗材料（支持CRT自定义）
+            if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.WEAPON_EXP_BOOST)) {
+                consumeCustomMaterials(LegacyRitualConfig.WEAPON_EXP_BOOST);
+            } else {
+                consumeOnePedestalItem(stack ->
+                    stack.getItem() == Items.EXPERIENCE_BOTTLE ||
+                    stack.getItem() == Items.ENCHANTED_BOOK ||
+                    stack.getItem() == Items.EMERALD);
+            }
 
             world.playSound(null, pos, SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.BLOCKS, 1.0f, 1.0f);
         }
@@ -2646,14 +2707,21 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
 
         List<ItemStack> pedestalItems = collectPedestalItems();
 
-        // 需要攻擊材料
-        boolean hasBoostMaterial = false;
-        for (ItemStack stack : pedestalItems) {
-            if ((stack.getItem() == Items.SKULL && stack.getMetadata() == 1) || // 凋零骷髏頭
-                stack.getItem() == Items.BLAZE_POWDER ||
-                stack.getItem() == Items.NETHER_STAR) {
-                hasBoostMaterial = true;
-                break;
+        // 检查材料需求（支持CRT自定义）
+        boolean hasBoostMaterial;
+        if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.MURAMASA_BOOST)) {
+            // 使用自定义材料配置
+            hasBoostMaterial = LegacyRitualConfig.checkMaterialRequirements(LegacyRitualConfig.MURAMASA_BOOST, pedestalItems);
+        } else {
+            // 默认硬编码检查：需要攻擊材料
+            hasBoostMaterial = false;
+            for (ItemStack stack : pedestalItems) {
+                if ((stack.getItem() == Items.SKULL && stack.getMetadata() == 1) || // 凋零骷髏頭
+                    stack.getItem() == Items.BLAZE_POWDER ||
+                    stack.getItem() == Items.NETHER_STAR) {
+                    hasBoostMaterial = true;
+                    break;
+                }
             }
         }
 
@@ -2704,10 +2772,15 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
                 "⚔ 村正獲得攻擊加成 +" + boost + " (10分鐘)",
                 TextFormatting.RED);
 
-            consumeOnePedestalItem(stack ->
-                (stack.getItem() == Items.SKULL && stack.getMetadata() == 1) ||
-                stack.getItem() == Items.BLAZE_POWDER ||
-                stack.getItem() == Items.NETHER_STAR);
+            // 消耗材料（支持CRT自定义）
+            if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.MURAMASA_BOOST)) {
+                consumeCustomMaterials(LegacyRitualConfig.MURAMASA_BOOST);
+            } else {
+                consumeOnePedestalItem(stack ->
+                    (stack.getItem() == Items.SKULL && stack.getMetadata() == 1) ||
+                    stack.getItem() == Items.BLAZE_POWDER ||
+                    stack.getItem() == Items.NETHER_STAR);
+            }
 
             world.playSound(null, pos, SoundEvents.ENTITY_WITHER_AMBIENT, SoundCategory.BLOCKS, 0.5f, 0.5f);
         }
@@ -2766,6 +2839,32 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     }
 
     /**
+     * 消耗CRT自定义材料配置中指定的物品
+     * @param ritualId 仪式ID
+     */
+    private void consumeCustomMaterials(String ritualId) {
+        List<LegacyRitualConfig.MaterialRequirement> requirements =
+            LegacyRitualConfig.getMaterialRequirements(ritualId);
+
+        for (LegacyRitualConfig.MaterialRequirement req : requirements) {
+            int remaining = req.getCount();
+            for (BlockPos off : OFFS8) {
+                if (remaining <= 0) break;
+                TileEntity te = world.getTileEntity(pos.add(off));
+                if (te instanceof TileEntityPedestal) {
+                    TileEntityPedestal ped = (TileEntityPedestal) te;
+                    ItemStack stack = ped.getInv().getStackInSlot(0);
+                    if (!stack.isEmpty() && req.matches(stack)) {
+                        int toConsume = Math.min(remaining, stack.getCount());
+                        ped.consumeAmount(toConsume);
+                        remaining -= toConsume;
+                    }
+                }
+            }
+        }
+    }
+
+    /**
      * 檢查是否為聖潔物品
      */
     private boolean isHolyItem(ItemStack stack) {
@@ -2774,6 +2873,20 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
                stack.getItem() == Items.DRAGON_BREATH ||
                stack.getItem() == Items.NETHER_STAR ||
                stack.getItem().getRegistryName().toString().contains("holy_water");
+    }
+
+    /**
+     * 检查物品是否有诅咒附魔
+     */
+    private boolean hasCurseEnchantment(ItemStack stack) {
+        if (stack.isEmpty()) return false;
+        Map<Enchantment, Integer> enchants = EnchantmentHelper.getEnchantments(stack);
+        for (Enchantment ench : enchants.keySet()) {
+            if (ench.isCurse()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -2829,7 +2942,17 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
 
         List<ItemStack> pedestalItems = collectPedestalItems();
 
-        if (!TierRitualHandler.canEnhanceFabric(centerItem, pedestalItems, currentTier)) {
+        // 检查材料需求（支持CRT自定义）
+        boolean materialsValid;
+        if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.FABRIC_ENHANCE)) {
+            // 使用自定义材料配置
+            materialsValid = LegacyRitualConfig.checkMaterialRequirements(LegacyRitualConfig.FABRIC_ENHANCE, pedestalItems);
+        } else {
+            // 默认使用TierRitualHandler检查
+            materialsValid = TierRitualHandler.canEnhanceFabric(centerItem, pedestalItems, currentTier);
+        }
+
+        if (!materialsValid) {
             if (fabricEnhanceActive) resetFabricEnhance();
             return false;
         }
@@ -2882,13 +3005,17 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
                 "能量倍率: x" + result.energyMultiplier +
                 " / 能力倍率: x" + result.abilityMultiplier, TextFormatting.GREEN);
 
-            // 消耗強化材料
-            consumeOnePedestalItem(stack ->
-                stack.getItem() == Items.DRAGON_BREATH ||
-                stack.getItem() == Items.ENDER_EYE ||
-                stack.getItem() == Items.NETHER_STAR ||
-                stack.getItem() == Items.PRISMARINE_SHARD ||
-                stack.getItem() == Items.BLAZE_POWDER);
+            // 消耗強化材料（支持CRT自定义）
+            if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.FABRIC_ENHANCE)) {
+                consumeCustomMaterials(LegacyRitualConfig.FABRIC_ENHANCE);
+            } else {
+                consumeOnePedestalItem(stack ->
+                    stack.getItem() == Items.DRAGON_BREATH ||
+                    stack.getItem() == Items.ENDER_EYE ||
+                    stack.getItem() == Items.NETHER_STAR ||
+                    stack.getItem() == Items.PRISMARINE_SHARD ||
+                    stack.getItem() == Items.BLAZE_POWDER);
+            }
 
             world.playSound(null, pos, SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.BLOCKS, 1.0f, 1.0f);
         } else {

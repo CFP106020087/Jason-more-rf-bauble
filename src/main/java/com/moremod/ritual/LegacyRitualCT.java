@@ -67,6 +67,37 @@ import java.util.List;
  *     <minecraft:enchanted_book> * 5
  * ]);
  *
+ * // 修改诅咒创造仪式的材料（默认需要墨囊+腐肉/蜘蛛眼）
+ * mods.moremod.LegacyRitual.setPedestalItems("curse_creation", [
+ *     <minecraft:dye:0>,
+ *     <minecraft:bone> * 2
+ * ]);
+ *
+ * // 修改武器经验加速仪式的材料（默认需要经验瓶/附魔书/绿宝石）
+ * mods.moremod.LegacyRitual.setPedestalItems("weapon_exp_boost", [
+ *     <minecraft:experience_bottle> * 4
+ * ]);
+ *
+ * // 修改村正攻击提升仪式的材料（默认需要凋零骷髅头/烈焰粉/下界之星）
+ * mods.moremod.LegacyRitual.setPedestalItems("muramasa_boost", [
+ *     <minecraft:blaze_powder> * 8
+ * ]);
+ *
+ * // 修改诅咒净化仪式的材料（默认需要金苹果/圣水）
+ * mods.moremod.LegacyRitual.setPedestalItems("curse_purification", [
+ *     <minecraft:golden_apple> * 2
+ * ]);
+ *
+ * // 修改附魔转移仪式的材料（默认需要青金石/龙息）
+ * mods.moremod.LegacyRitual.setPedestalItems("enchant_transfer", [
+ *     <minecraft:diamond> * 4
+ * ]);
+ *
+ * // 修改织印强化仪式的材料（默认需要龙息/末影之眼/下界之星等）
+ * mods.moremod.LegacyRitual.setPedestalItems("fabric_enhance", [
+ *     <minecraft:ender_eye> * 4
+ * ]);
+ *
  * // 禁用某个仪式
  * mods.moremod.LegacyRitual.disable("duplication");
  *

@@ -30,6 +30,7 @@ public class TileEntityPedestal extends TileEntity {
     public EnergyStorage getEnergy() { return energy; }
     public boolean isEmpty() { return inv.getStackInSlot(0).isEmpty(); }
     public void consumeOne() { inv.extractItem(0, 1, false); }
+    public void consumeAmount(int amount) { inv.extractItem(0, amount, false); }
 
     @Override
     public SPacketUpdateTileEntity getUpdatePacket() {
