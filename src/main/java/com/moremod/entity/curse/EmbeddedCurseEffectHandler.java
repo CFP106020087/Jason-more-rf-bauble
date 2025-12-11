@@ -353,9 +353,48 @@ public class EmbeddedCurseEffectHandler {
 
     // ========== 7. 失眠症 → 安眠香囊抵消 ==========
 
+    // 用于标记有安眠香囊的玩家，让后续处理知道应该允许睡眠
+    private static final Map<UUID, Long> sleepBypassPlayers = new HashMap<>();
+
+    /**
+     * 在睡眠事件的最高优先级处理（最先执行）
+     * 如果嵌入了安眠香囊，标记这个玩家并设置结果为OK
+     */
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onPlayerSleepHighest(PlayerSleepInBedEvent event) {
+        EntityPlayer player = event.getEntityPlayer();
+        if (player.world.isRemote) return;
+
+        // 检查是否有七咒之戒
+        if (!CurseDeathHook.hasCursedRing(player)) return;
+
+        // 检查是否嵌入了安眠香囊
+        if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SLUMBER_SACHET)) {
+            // 标记这个玩家，让Mixin和后续处理知道应该允许睡眠
+            sleepBypassPlayers.put(player.getUniqueID(), System.currentTimeMillis());
+            // 抢先设置结果为OK
+            event.setResult(EntityPlayer.SleepResult.OK);
+        }
+    }
+
+    /**
+     * 检查玩家是否应该绕过睡眠诅咒
+     */
+    public static boolean shouldBypassSleepCurse(EntityPlayer player) {
+        Long timestamp = sleepBypassPlayers.get(player.getUniqueID());
+        if (timestamp != null) {
+            // 5秒内有效
+            if (System.currentTimeMillis() - timestamp < 5000) {
+                return true;
+            }
+            sleepBypassPlayers.remove(player.getUniqueID());
+        }
+        return EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SLUMBER_SACHET);
+    }
+
     /**
      * 在睡眠事件的最低优先级处理（最后执行）
-     * 如果嵌入了安眠香囊，并且之前被诅咒阻止，强制允许睡觉
+     * 如果嵌入了安眠香囊，强制覆盖任何阻止睡眠的结果
      */
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onPlayerSleepLowest(PlayerSleepInBedEvent event) {
@@ -367,14 +406,9 @@ public class EmbeddedCurseEffectHandler {
 
         // 检查是否嵌入了安眠香囊
         if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SLUMBER_SACHET)) {
-            // 如果结果是 NOT_POSSIBLE_HERE（七咒造成的失眠），强制覆盖为 null 让原版逻辑处理
-            // 或者如果其他条件都满足，设置为 OK
-            EntityPlayer.SleepResult currentResult = event.getResultStatus();
-            if (currentResult == EntityPlayer.SleepResult.NOT_POSSIBLE_HERE ||
-                currentResult == EntityPlayer.SleepResult.OTHER_PROBLEM) {
-                // 强制设置结果为 OK，抵消诅咒的失眠效果
-                event.setResult(EntityPlayer.SleepResult.OK);
-            }
+            // 无条件强制设置结果为 OK，抵消任何诅咒的失眠效果
+            // 不管之前的结果是什么，都覆盖为OK
+            event.setResult(EntityPlayer.SleepResult.OK);
         }
     }
 
