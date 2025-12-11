@@ -2357,6 +2357,13 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             cursePurificationActive = true;
             cursePurificationProgress = 0;
             notifyRitualStart("詛咒淨化", TextFormatting.YELLOW);
+
+            // 能量超载：记录仪式开始时的总能量
+            initialTotalEnergy = 0;
+            List<TileEntityPedestal> allPeds = findValidPedestals();
+            for (TileEntityPedestal ped : allPeds) {
+                initialTotalEnergy += ped.getEnergy().getEnergyStored();
+            }
         }
 
         cursePurificationProgress++;
@@ -2381,6 +2388,36 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     }
 
     private void performCursePurification(ItemStack centerItem) {
+        // 检查CRT配置的失败率（默认0%）
+        float baseFailChance = LegacyRitualConfig.getFailChance(LegacyRitualConfig.CURSE_PURIFICATION);
+
+        // 如果有失败率，计算超载加成
+        if (baseFailChance > 0) {
+            int pedestalCount = collectPedestalItems().size();
+            float overloadBonus = LegacyRitualConfig.getOverloadBonus(
+                LegacyRitualConfig.CURSE_PURIFICATION, pedestalCount, initialTotalEnergy);
+            float finalFailChance = Math.max(0, baseFailChance - overloadBonus);
+
+            if (overloadBonus > 0) {
+                notifyOverloadBonus(overloadBonus);
+            }
+
+            // 随机失败判定
+            if (world.rand.nextFloat() < finalFailChance) {
+                TierRitualHandler.notifyPlayers(world, pos,
+                    "✗ 詛咒淨化失敗！神聖能量被反噬...", TextFormatting.RED);
+                // 消耗材料但不净化
+                if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.CURSE_PURIFICATION)) {
+                    consumeCustomMaterials(LegacyRitualConfig.CURSE_PURIFICATION);
+                } else {
+                    consumeOnePedestalItem(stack -> isHolyItem(stack));
+                }
+                syncToClient();
+                markDirty();
+                return;
+            }
+        }
+
         TierRitualHandler.PurificationResult result =
             TierRitualHandler.performCursePurification(world, pos, centerItem, currentTier);
 
@@ -2492,6 +2529,38 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     }
 
     private void performEnchantTransfer(ItemStack sourceItem) {
+        // 检查CRT配置的失败率（默认0%）
+        float baseFailChance = LegacyRitualConfig.getFailChance(LegacyRitualConfig.ENCHANT_TRANSFER);
+
+        // 如果有失败率，计算超载加成
+        if (baseFailChance > 0) {
+            int pedestalCount = collectPedestalItems().size();
+            float overloadBonus = LegacyRitualConfig.getOverloadBonus(
+                LegacyRitualConfig.ENCHANT_TRANSFER, pedestalCount, initialTotalEnergy);
+            float finalFailChance = Math.max(0, baseFailChance - overloadBonus);
+
+            if (overloadBonus > 0) {
+                notifyOverloadBonus(overloadBonus);
+            }
+
+            // 随机失败判定
+            if (world.rand.nextFloat() < finalFailChance) {
+                TierRitualHandler.notifyPlayers(world, pos,
+                    "✗ 附魔轉移失敗！魔力共鳴中斷...", TextFormatting.RED);
+                // 消耗材料
+                if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.ENCHANT_TRANSFER)) {
+                    consumeCustomMaterials(LegacyRitualConfig.ENCHANT_TRANSFER);
+                } else {
+                    consumeOnePedestalItem(stack ->
+                        (stack.getItem() == Items.DYE && stack.getMetadata() == 4) ||
+                        stack.getItem() == Items.DRAGON_BREATH);
+                }
+                syncToClient();
+                markDirty();
+                return;
+            }
+        }
+
         // 找到目標物品
         ItemStack targetItem = findTransferTarget();
         if (targetItem.isEmpty()) {
@@ -2597,6 +2666,13 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             curseCreationActive = true;
             curseCreationProgress = 0;
             notifyRitualStart("詛咒創造", TextFormatting.DARK_PURPLE);
+
+            // 能量超载：记录仪式开始时的总能量
+            initialTotalEnergy = 0;
+            List<TileEntityPedestal> allPeds = findValidPedestals();
+            for (TileEntityPedestal ped : allPeds) {
+                initialTotalEnergy += ped.getEnergy().getEnergyStored();
+            }
         }
 
         curseCreationProgress++;
@@ -2621,6 +2697,32 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     }
 
     private void performCurseCreation(int curseCount) {
+        // 检查CRT配置的失败率（默认0%）
+        float baseFailChance = LegacyRitualConfig.getFailChance(LegacyRitualConfig.CURSE_CREATION);
+
+        // 如果有失败率，计算超载加成
+        if (baseFailChance > 0) {
+            int pedestalCount = collectPedestalItems().size();
+            float overloadBonus = LegacyRitualConfig.getOverloadBonus(
+                LegacyRitualConfig.CURSE_CREATION, pedestalCount, initialTotalEnergy);
+            float finalFailChance = Math.max(0, baseFailChance - overloadBonus);
+
+            if (overloadBonus > 0) {
+                notifyOverloadBonus(overloadBonus);
+            }
+
+            // 随机失败判定
+            if (world.rand.nextFloat() < finalFailChance) {
+                TierRitualHandler.notifyPlayers(world, pos,
+                    "✗ 詛咒創造失敗！黑暗能量失控...", TextFormatting.RED);
+                // 消耗书本
+                inv.extractItem(0, 1, false);
+                syncToClient();
+                markDirty();
+                return;
+            }
+        }
+
         // 消耗書
         inv.extractItem(0, 1, false);
 
@@ -2717,6 +2819,13 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             weaponExpBoostActive = true;
             weaponExpBoostProgress = 0;
             notifyRitualStart("武器覺醒", TextFormatting.LIGHT_PURPLE);
+
+            // 能量超载：记录仪式开始时的总能量
+            initialTotalEnergy = 0;
+            List<TileEntityPedestal> allPeds = findValidPedestals();
+            for (TileEntityPedestal ped : allPeds) {
+                initialTotalEnergy += ped.getEnergy().getEnergyStored();
+            }
         }
 
         weaponExpBoostProgress++;
@@ -2741,6 +2850,39 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     }
 
     private void performWeaponExpBoost(ItemStack weapon) {
+        // 检查CRT配置的失败率（默认0%）
+        float baseFailChance = LegacyRitualConfig.getFailChance(LegacyRitualConfig.WEAPON_EXP_BOOST);
+
+        // 如果有失败率，计算超载加成
+        if (baseFailChance > 0) {
+            int pedestalCount = collectPedestalItems().size();
+            float overloadBonus = LegacyRitualConfig.getOverloadBonus(
+                LegacyRitualConfig.WEAPON_EXP_BOOST, pedestalCount, initialTotalEnergy);
+            float finalFailChance = Math.max(0, baseFailChance - overloadBonus);
+
+            if (overloadBonus > 0) {
+                notifyOverloadBonus(overloadBonus);
+            }
+
+            // 随机失败判定
+            if (world.rand.nextFloat() < finalFailChance) {
+                TierRitualHandler.notifyPlayers(world, pos,
+                    "✗ 武器覺醒失敗！能量共鳴中斷...", TextFormatting.RED);
+                // 消耗材料
+                if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.WEAPON_EXP_BOOST)) {
+                    consumeCustomMaterials(LegacyRitualConfig.WEAPON_EXP_BOOST);
+                } else {
+                    consumeOnePedestalItem(stack ->
+                        stack.getItem() == Items.EXPERIENCE_BOTTLE ||
+                        stack.getItem() == Items.ENCHANTED_BOOK ||
+                        stack.getItem() == Items.EMERALD);
+                }
+                syncToClient();
+                markDirty();
+                return;
+            }
+        }
+
         boolean success = TierRitualHandler.applyExpBoost(weapon, currentTier, WEAPON_EXP_BOOST_DURATION);
 
         if (success) {
@@ -2829,6 +2971,13 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             muramasaBoostActive = true;
             muramasaBoostProgress = 0;
             notifyRitualStart("妖刀覺醒", TextFormatting.RED);
+
+            // 能量超载：记录仪式开始时的总能量
+            initialTotalEnergy = 0;
+            List<TileEntityPedestal> allPeds = findValidPedestals();
+            for (TileEntityPedestal ped : allPeds) {
+                initialTotalEnergy += ped.getEnergy().getEnergyStored();
+            }
         }
 
         muramasaBoostProgress++;
@@ -2853,6 +3002,39 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     }
 
     private void performMuramasaBoost(ItemStack weapon) {
+        // 检查CRT配置的失败率（默认0%）
+        float baseFailChance = LegacyRitualConfig.getFailChance(LegacyRitualConfig.MURAMASA_BOOST);
+
+        // 如果有失败率，计算超载加成
+        if (baseFailChance > 0) {
+            int pedestalCount = collectPedestalItems().size();
+            float overloadBonus = LegacyRitualConfig.getOverloadBonus(
+                LegacyRitualConfig.MURAMASA_BOOST, pedestalCount, initialTotalEnergy);
+            float finalFailChance = Math.max(0, baseFailChance - overloadBonus);
+
+            if (overloadBonus > 0) {
+                notifyOverloadBonus(overloadBonus);
+            }
+
+            // 随机失败判定
+            if (world.rand.nextFloat() < finalFailChance) {
+                TierRitualHandler.notifyPlayers(world, pos,
+                    "✗ 妖刀覺醒失敗！邪氣反噬...", TextFormatting.RED);
+                // 消耗材料
+                if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.MURAMASA_BOOST)) {
+                    consumeCustomMaterials(LegacyRitualConfig.MURAMASA_BOOST);
+                } else {
+                    consumeOnePedestalItem(stack ->
+                        (stack.getItem() == Items.SKULL && stack.getMetadata() == 1) ||
+                        stack.getItem() == Items.BLAZE_POWDER ||
+                        stack.getItem() == Items.NETHER_STAR);
+                }
+                syncToClient();
+                markDirty();
+                return;
+            }
+        }
+
         boolean success = TierRitualHandler.applyMuramasaBoost(weapon, currentTier, MURAMASA_BOOST_DURATION);
 
         if (success) {
@@ -3057,6 +3239,13 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             fabricEnhanceProgress = 0;
             notifyRitualStart("織印強化", TextFormatting.LIGHT_PURPLE);
 
+            // 能量超载：记录仪式开始时的总能量
+            initialTotalEnergy = 0;
+            List<TileEntityPedestal> allPeds = findValidPedestals();
+            for (TileEntityPedestal ped : allPeds) {
+                initialTotalEnergy += ped.getEnergy().getEnergyStored();
+            }
+
             // 顯示當前階層加成預覽
             String bonusInfo = "";
             switch (currentTier.getLevel()) {
@@ -3090,6 +3279,42 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     }
 
     private void performFabricEnhance(ItemStack armor) {
+        // 检查CRT配置的失败率（默认0%）
+        float baseFailChance = LegacyRitualConfig.getFailChance(LegacyRitualConfig.FABRIC_ENHANCE);
+
+        // 如果有失败率，计算超载加成
+        if (baseFailChance > 0) {
+            int pedestalCount = collectPedestalItems().size();
+            float overloadBonus = LegacyRitualConfig.getOverloadBonus(
+                LegacyRitualConfig.FABRIC_ENHANCE, pedestalCount, initialTotalEnergy);
+            float finalFailChance = Math.max(0, baseFailChance - overloadBonus);
+
+            if (overloadBonus > 0) {
+                notifyOverloadBonus(overloadBonus);
+            }
+
+            // 随机失败判定
+            if (world.rand.nextFloat() < finalFailChance) {
+                TierRitualHandler.notifyPlayers(world, pos,
+                    "✗ 織印強化失敗！能量不穩定...", TextFormatting.RED);
+                // 消耗材料但不强化
+                if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.FABRIC_ENHANCE)) {
+                    consumeCustomMaterials(LegacyRitualConfig.FABRIC_ENHANCE);
+                } else {
+                    consumeOnePedestalItem(stack ->
+                        stack.getItem() == Items.DRAGON_BREATH ||
+                        stack.getItem() == Items.ENDER_EYE ||
+                        stack.getItem() == Items.NETHER_STAR ||
+                        stack.getItem() == Items.PRISMARINE_SHARD ||
+                        stack.getItem() == Items.BLAZE_POWDER);
+                }
+                world.playSound(null, pos, SoundEvents.ENTITY_GENERIC_EXPLODE, SoundCategory.BLOCKS, 0.5f, 1.0f);
+                syncToClient();
+                markDirty();
+                return;
+            }
+        }
+
         TierRitualHandler.FabricEnhanceResult result =
             TierRitualHandler.enhanceFabric(armor, currentTier, world, pos);
 
