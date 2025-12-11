@@ -34,8 +34,8 @@ public class TileEntityChargingStation extends TileEntity implements ITickable {
 
     // 配置
     private static final int ENERGY_CAPACITY = 100000000;    // 100M RF
-    private static final int MAX_RECEIVE = 50000000;         // 每tick最多接收 50M RF (大幅提升)
-    private static final int PULL_RATE = 10000000;           // 每tick从周围抽取 10M RF
+    private static final int MAX_RECEIVE = Integer.MAX_VALUE; // 無限快接收
+    private static final int PULL_RATE = Integer.MAX_VALUE;   // 無限快抽取
     private static final int CHARGE_RATE = Integer.MAX_VALUE; // 無限快充電
     private static final int SLOT_COUNT = 9;                 // 9個充電槽
 

@@ -29,12 +29,12 @@ import java.util.Map;
 public class TileEntityBioGenerator extends TileEntity implements ITickable {
 
     // 能量存储
-    private static final int MAX_ENERGY = 500000;
-    private static final int BASE_RF_PER_TICK = 1000;  // 基础 1000 RF/tick (大幅提升)
+    private static final int MAX_ENERGY = 100000;
+    private static final int BASE_RF_PER_TICK = 200;  // 基础 200 RF/tick
     private static final int UPGRADE_SLOTS = 4;
     private static final float SPEED_PER_UPGRADE = 0.5f;
 
-    private final EnergyStorageInternal energyStorage = new EnergyStorageInternal(MAX_ENERGY, 0, 25000);
+    private final EnergyStorageInternal energyStorage = new EnergyStorageInternal(MAX_ENERGY, 0, Integer.MAX_VALUE);
 
     // 燃料存储 (9格) + 升级槽 (4格)
     private final ItemStackHandler fuelInventory = new ItemStackHandler(9) {
@@ -227,7 +227,7 @@ public class TileEntityBioGenerator extends TileEntity implements ITickable {
             if (neighbor != null && neighbor.hasCapability(CapabilityEnergy.ENERGY, facing.getOpposite())) {
                 IEnergyStorage neighborStorage = neighbor.getCapability(CapabilityEnergy.ENERGY, facing.getOpposite());
                 if (neighborStorage != null && neighborStorage.canReceive()) {
-                    int toTransfer = Math.min(10000, energyStorage.getEnergyStored());
+                    int toTransfer = Math.min(Integer.MAX_VALUE, energyStorage.getEnergyStored());
                     int transferred = neighborStorage.receiveEnergy(toTransfer, false);
                     if (transferred > 0) {
                         ((EnergyStorageInternal) energyStorage).extractEnergyInternal(transferred);

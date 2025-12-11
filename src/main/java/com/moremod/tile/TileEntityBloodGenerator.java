@@ -43,8 +43,8 @@ public class TileEntityBloodGenerator extends TileEntity implements ITickable {
 
     // 配置
     private static final int MAX_ENERGY = 10000000;         // 1000万RF容量
-    private static final int MAX_OUTPUT = 1000000;          // 每tick最大输出 1M RF (大幅提升传输)
-    private static final int BASE_EXTRACTION_RATE = 250000; // 基础每tick提取 250000 血液能量 (大幅提升)
+    private static final int MAX_OUTPUT = Integer.MAX_VALUE; // 无限快传输
+    private static final int BASE_EXTRACTION_RATE = 50000;  // 基础每tick提取 50000 血液能量
     private static final int CONVERSION_EFFICIENCY = 100;   // 转换效率 100% (血液能量 -> RF)
     private static final int UPGRADE_SLOTS = 4;
     private static final float SPEED_PER_UPGRADE = 0.5f;
