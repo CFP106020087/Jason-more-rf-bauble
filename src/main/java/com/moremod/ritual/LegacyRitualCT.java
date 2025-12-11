@@ -46,13 +46,34 @@ import java.util.List;
  * // 修改仪式所需阶层（1-3）
  * mods.moremod.LegacyRitual.setTier("curse_purification", 1);
  *
+ * // ========== 自定义仪式材料 ==========
+ *
+ * // 修改不可破坏仪式的材料（替换默认的下界之星×2+黑曜石×2+钻石×4）
+ * mods.moremod.LegacyRitual.setPedestalItems("unbreakable", [
+ *     <minecraft:nether_star>,
+ *     <minecraft:nether_star>,
+ *     <minecraft:diamond> * 6
+ * ]);
+ *
+ * // 修改灵魂束缚仪式的材料（替换默认的末影珍珠×4+恶魂之泪×2+金块×2）
+ * mods.moremod.LegacyRitual.setPedestalItems("soulbound", [
+ *     <minecraft:ender_pearl> * 4,
+ *     <minecraft:ghast_tear> * 2,
+ *     <minecraft:emerald_block> * 2
+ * ]);
+ *
+ * // 修改注魔仪式的材料（默认需要3本附魔书）
+ * mods.moremod.LegacyRitual.setPedestalItems("enchant_infusion", [
+ *     <minecraft:enchanted_book> * 5
+ * ]);
+ *
  * // 禁用某个仪式
  * mods.moremod.LegacyRitual.disable("duplication");
  *
  * // 启用某个仪式
  * mods.moremod.LegacyRitual.enable("duplication");
  *
- * // 重置仪式到默认值
+ * // 重置仪式到默认值（包括材料）
  * mods.moremod.LegacyRitual.reset("enchant_infusion");
  *
  * // 打印所有仪式配置

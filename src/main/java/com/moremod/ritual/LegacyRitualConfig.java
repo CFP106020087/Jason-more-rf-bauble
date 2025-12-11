@@ -1,9 +1,13 @@
 package com.moremod.ritual;
 
+import net.minecraft.init.Blocks;
+import net.minecraft.init.Items;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 
 import javax.annotation.Nullable;
 import java.util.*;
+import java.util.function.Predicate;
 
 /**
  * 旧仪式系统配置
@@ -254,5 +258,285 @@ public class LegacyRitualConfig {
             this.energyPerPedestal = energyPerPedestal;
             this.requiredTier = requiredTier;
         }
+    }
+
+    // ==================== 材料需求系统 ====================
+
+    /**
+     * 材料需求定义
+     * 支持精确匹配（物品+数量）或谓词匹配（任意满足条件的物品）
+     */
+    public static class MaterialRequirement {
+        private final ItemStack exactItem;      // 精确匹配的物品
+        private final int count;                // 所需数量
+        private final Predicate<ItemStack> matcher; // 自定义匹配器
+        private final String description;       // 描述（用于显示）
+
+        // 精确匹配构造器
+        public MaterialRequirement(Item item, int count) {
+            this.exactItem = new ItemStack(item);
+            this.count = count;
+            this.matcher = null;
+            this.description = item.getRegistryName() + " x" + count;
+        }
+
+        // 带meta的精确匹配构造器
+        public MaterialRequirement(Item item, int meta, int count) {
+            this.exactItem = new ItemStack(item, 1, meta);
+            this.count = count;
+            this.matcher = null;
+            this.description = item.getRegistryName() + ":" + meta + " x" + count;
+        }
+
+        // 谓词匹配构造器
+        public MaterialRequirement(Predicate<ItemStack> matcher, int count, String description) {
+            this.exactItem = null;
+            this.count = count;
+            this.matcher = matcher;
+            this.description = description + " x" + count;
+        }
+
+        public int getCount() {
+            return count;
+        }
+
+        public String getDescription() {
+            return description;
+        }
+
+        /**
+         * 检查物品是否匹配此需求
+         */
+        public boolean matches(ItemStack stack) {
+            if (stack.isEmpty()) return false;
+            if (matcher != null) {
+                return matcher.test(stack);
+            }
+            if (exactItem != null) {
+                if (exactItem.getMetadata() == 32767) {
+                    // 忽略meta
+                    return stack.getItem() == exactItem.getItem();
+                }
+                return stack.getItem() == exactItem.getItem() &&
+                       stack.getMetadata() == exactItem.getMetadata();
+            }
+            return false;
+        }
+
+        /**
+         * 从ItemStack创建（用于CraftTweaker）
+         */
+        public static MaterialRequirement fromItemStack(ItemStack stack) {
+            return new MaterialRequirement(stack.getItem(), stack.getMetadata(), stack.getCount());
+        }
+    }
+
+    // ==================== 默认材料配置 ====================
+
+    private static final Map<String, List<MaterialRequirement>> DEFAULT_MATERIALS = new HashMap<>();
+
+    static {
+        // 注魔仪式 - 附魔书 ×3 (最少)
+        DEFAULT_MATERIALS.put(ENCHANT_INFUSION, Arrays.asList(
+            new MaterialRequirement(Items.ENCHANTED_BOOK, 3)
+        ));
+
+        // 复制仪式 - 虚空精华 ×8 (需要从ModItems获取，这里用占位符)
+        // 注意：实际使用时需要在游戏初始化后设置
+        DEFAULT_MATERIALS.put(DUPLICATION, new ArrayList<>()); // 将在PostInit中设置
+
+        // 灵魂绑定仪式 - 灵魂材料 ×4 (最少)
+        // 注意：实际使用时需要在游戏初始化后设置
+        DEFAULT_MATERIALS.put(SOUL_BINDING, new ArrayList<>()); // 将在PostInit中设置
+
+        // 诅咒净化仪式 - 圣水/金苹果 ×1
+        DEFAULT_MATERIALS.put(CURSE_PURIFICATION, Arrays.asList(
+            new MaterialRequirement(
+                stack -> stack.getItem() == Items.GOLDEN_APPLE ||
+                         (stack.getItem() == Items.POTIONITEM), // 简化检查
+                1, "Holy Item"
+            )
+        ));
+
+        // 附魔转移仪式 - 青金石/龙息 ×1 + 目标物品 ×1
+        DEFAULT_MATERIALS.put(ENCHANT_TRANSFER, Arrays.asList(
+            new MaterialRequirement(
+                stack -> (stack.getItem() == Items.DYE && stack.getMetadata() == 4) ||
+                         stack.getItem() == Items.DRAGON_BREATH,
+                1, "Lapis/Dragon Breath"
+            )
+        ));
+
+        // 诅咒创造仪式 - 墨囊 ×1 + 腐肉/蜘蛛眼 ×1
+        DEFAULT_MATERIALS.put(CURSE_CREATION, Arrays.asList(
+            new MaterialRequirement(Items.DYE, 0, 1), // 墨囊
+            new MaterialRequirement(
+                stack -> stack.getItem() == Items.ROTTEN_FLESH ||
+                         stack.getItem() == Items.SPIDER_EYE ||
+                         stack.getItem() == Items.FERMENTED_SPIDER_EYE,
+                1, "Curse Material"
+            )
+        ));
+
+        // 武器经验加速仪式 - 经验瓶/附魔书/绿宝石 ×1
+        DEFAULT_MATERIALS.put(WEAPON_EXP_BOOST, Arrays.asList(
+            new MaterialRequirement(
+                stack -> stack.getItem() == Items.EXPERIENCE_BOTTLE ||
+                         stack.getItem() == Items.ENCHANTED_BOOK ||
+                         stack.getItem() == Items.EMERALD,
+                1, "Exp Material"
+            )
+        ));
+
+        // 村正攻击提升仪式 - 烈焰粉/恶魂之泪/金粒 ×1
+        DEFAULT_MATERIALS.put(MURAMASA_BOOST, Arrays.asList(
+            new MaterialRequirement(
+                stack -> stack.getItem() == Items.BLAZE_POWDER ||
+                         stack.getItem() == Items.GHAST_TEAR ||
+                         stack.getItem() == Items.GOLD_NUGGET,
+                1, "Muramasa Material"
+            )
+        ));
+
+        // 织印强化仪式 - 龙息/末影之眼/下界之星/海晶碎片/烈焰粉 ×1
+        DEFAULT_MATERIALS.put(FABRIC_ENHANCE, Arrays.asList(
+            new MaterialRequirement(
+                stack -> stack.getItem() == Items.DRAGON_BREATH ||
+                         stack.getItem() == Items.ENDER_EYE ||
+                         stack.getItem() == Items.NETHER_STAR ||
+                         stack.getItem() == Items.PRISMARINE_SHARD ||
+                         stack.getItem() == Items.BLAZE_POWDER,
+                1, "Fabric Material"
+            )
+        ));
+
+        // 不可破坏仪式 - 下界之星×2 + 黑曜石×2 + 钻石×4
+        DEFAULT_MATERIALS.put(UNBREAKABLE, Arrays.asList(
+            new MaterialRequirement(Items.NETHER_STAR, 2),
+            new MaterialRequirement(Item.getItemFromBlock(Blocks.OBSIDIAN), 2),
+            new MaterialRequirement(Items.DIAMOND, 4)
+        ));
+
+        // 灵魂束缚仪式 - 末影珍珠×4 + 恶魂之泪×2 + 金块×2
+        DEFAULT_MATERIALS.put(SOULBOUND, Arrays.asList(
+            new MaterialRequirement(Items.ENDER_PEARL, 4),
+            new MaterialRequirement(Items.GHAST_TEAR, 2),
+            new MaterialRequirement(Item.getItemFromBlock(Blocks.GOLD_BLOCK), 2)
+        ));
+
+        // 嵌入仪式 - 无材料需求（由七圣遗物自动触发）
+        DEFAULT_MATERIALS.put(EMBEDDING, new ArrayList<>());
+    }
+
+    // ==================== 材料查询方法 ====================
+
+    /**
+     * 获取仪式的材料需求列表
+     * 优先返回自定义配置，否则返回默认配置
+     */
+    public static List<MaterialRequirement> getMaterialRequirements(String ritualId) {
+        String id = ritualId.toLowerCase(Locale.ROOT);
+
+        // 检查是否有自定义材料（通过 setPedestalItems 设置）
+        RitualParams override = OVERRIDES.get(id);
+        if (override != null && override.pedestalItems != null && !override.pedestalItems.isEmpty()) {
+            // 将自定义 ItemStack 列表转换为 MaterialRequirement 列表
+            List<MaterialRequirement> result = new ArrayList<>();
+            Map<String, Integer> countMap = new HashMap<>();
+
+            // 统计每种物品的数量
+            for (ItemStack stack : override.pedestalItems) {
+                String key = stack.getItem().getRegistryName() + ":" + stack.getMetadata();
+                countMap.merge(key, stack.getCount(), Integer::sum);
+            }
+
+            // 创建 MaterialRequirement
+            for (ItemStack stack : override.pedestalItems) {
+                String key = stack.getItem().getRegistryName() + ":" + stack.getMetadata();
+                Integer count = countMap.remove(key);
+                if (count != null) {
+                    result.add(new MaterialRequirement(stack.getItem(), stack.getMetadata(), count));
+                }
+            }
+
+            return result;
+        }
+
+        // 返回默认配置
+        List<MaterialRequirement> defaults = DEFAULT_MATERIALS.get(id);
+        return defaults != null ? new ArrayList<>(defaults) : new ArrayList<>();
+    }
+
+    /**
+     * 检查基座物品是否满足仪式材料需求
+     *
+     * @param ritualId 仪式ID
+     * @param pedestalItems 基座上的物品列表
+     * @return true 如果满足所有材料需求
+     */
+    public static boolean checkMaterialRequirements(String ritualId, List<ItemStack> pedestalItems) {
+        List<MaterialRequirement> requirements = getMaterialRequirements(ritualId);
+        if (requirements.isEmpty()) {
+            return true; // 无材料需求
+        }
+
+        // 创建可用物品的副本（用于计数）
+        List<ItemStack> available = new ArrayList<>();
+        for (ItemStack stack : pedestalItems) {
+            if (!stack.isEmpty()) {
+                available.add(stack.copy());
+            }
+        }
+
+        // 检查每个需求是否满足
+        for (MaterialRequirement req : requirements) {
+            int needed = req.getCount();
+            int found = 0;
+
+            for (ItemStack stack : available) {
+                if (req.matches(stack)) {
+                    found += stack.getCount();
+                }
+            }
+
+            if (found < needed) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * 统计满足特定条件的基座物品数量
+     *
+     * @param pedestalItems 基座上的物品列表
+     * @param matcher 匹配条件
+     * @return 满足条件的物品总数
+     */
+    public static int countMatchingItems(List<ItemStack> pedestalItems, Predicate<ItemStack> matcher) {
+        int count = 0;
+        for (ItemStack stack : pedestalItems) {
+            if (!stack.isEmpty() && matcher.test(stack)) {
+                count += stack.getCount();
+            }
+        }
+        return count;
+    }
+
+    /**
+     * 设置默认材料配置（用于在 PostInit 阶段设置 ModItems）
+     */
+    public static void setDefaultMaterials(String ritualId, List<MaterialRequirement> materials) {
+        DEFAULT_MATERIALS.put(ritualId.toLowerCase(Locale.ROOT), new ArrayList<>(materials));
+        log("Set default materials for " + ritualId + " (" + materials.size() + " requirements)");
+    }
+
+    /**
+     * 检查是否有自定义材料配置
+     */
+    public static boolean hasCustomMaterials(String ritualId) {
+        RitualParams override = OVERRIDES.get(ritualId.toLowerCase(Locale.ROOT));
+        return override != null && override.pedestalItems != null && !override.pedestalItems.isEmpty();
     }
 }

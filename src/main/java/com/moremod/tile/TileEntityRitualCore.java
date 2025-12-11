@@ -1097,16 +1097,40 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
 
     /**
      * 查找所有放着附魔书的基座
+     * 如果有自定义材料配置，则查找匹配自定义材料的基座
      */
     private List<TileEntityPedestal> findEnchantedBookPedestals() {
         List<TileEntityPedestal> list = new ArrayList<>();
-        for (BlockPos off : OFFS8) {
-            TileEntity te = world.getTileEntity(pos.add(off));
-            if (te instanceof TileEntityPedestal) {
-                TileEntityPedestal ped = (TileEntityPedestal) te;
-                ItemStack stack = ped.getInv().getStackInSlot(0);
-                if (!stack.isEmpty() && stack.getItem() == Items.ENCHANTED_BOOK) {
-                    list.add(ped);
+
+        // 如果有自定义材料配置，使用配置系统匹配
+        if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.ENCHANT_INFUSION)) {
+            List<LegacyRitualConfig.MaterialRequirement> reqs =
+                LegacyRitualConfig.getMaterialRequirements(LegacyRitualConfig.ENCHANT_INFUSION);
+            for (BlockPos off : OFFS8) {
+                TileEntity te = world.getTileEntity(pos.add(off));
+                if (te instanceof TileEntityPedestal) {
+                    TileEntityPedestal ped = (TileEntityPedestal) te;
+                    ItemStack stack = ped.getInv().getStackInSlot(0);
+                    if (!stack.isEmpty()) {
+                        for (LegacyRitualConfig.MaterialRequirement req : reqs) {
+                            if (req.matches(stack)) {
+                                list.add(ped);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            // 默认：只匹配附魔书
+            for (BlockPos off : OFFS8) {
+                TileEntity te = world.getTileEntity(pos.add(off));
+                if (te instanceof TileEntityPedestal) {
+                    TileEntityPedestal ped = (TileEntityPedestal) te;
+                    ItemStack stack = ped.getInv().getStackInSlot(0);
+                    if (!stack.isEmpty() && stack.getItem() == Items.ENCHANTED_BOOK) {
+                        list.add(ped);
+                    }
                 }
             }
         }
@@ -1455,16 +1479,40 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
 
     /**
      * 查找所有放着虚空精华的基座
+     * 如果有自定义材料配置，则查找匹配自定义材料的基座
      */
     private List<TileEntityPedestal> findVoidEssencePedestals() {
         List<TileEntityPedestal> list = new ArrayList<>();
-        for (BlockPos off : OFFS8) {
-            TileEntity te = world.getTileEntity(pos.add(off));
-            if (te instanceof TileEntityPedestal) {
-                TileEntityPedestal ped = (TileEntityPedestal) te;
-                ItemStack stack = ped.getInv().getStackInSlot(0);
-                if (!stack.isEmpty() && stack.getItem() == ModItems.VOID_ESSENCE) {
-                    list.add(ped);
+
+        // 如果有自定义材料配置，使用配置系统匹配
+        if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.DUPLICATION)) {
+            List<LegacyRitualConfig.MaterialRequirement> reqs =
+                LegacyRitualConfig.getMaterialRequirements(LegacyRitualConfig.DUPLICATION);
+            for (BlockPos off : OFFS8) {
+                TileEntity te = world.getTileEntity(pos.add(off));
+                if (te instanceof TileEntityPedestal) {
+                    TileEntityPedestal ped = (TileEntityPedestal) te;
+                    ItemStack stack = ped.getInv().getStackInSlot(0);
+                    if (!stack.isEmpty()) {
+                        for (LegacyRitualConfig.MaterialRequirement req : reqs) {
+                            if (req.matches(stack)) {
+                                list.add(ped);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            // 默认：只匹配虚空精华
+            for (BlockPos off : OFFS8) {
+                TileEntity te = world.getTileEntity(pos.add(off));
+                if (te instanceof TileEntityPedestal) {
+                    TileEntityPedestal ped = (TileEntityPedestal) te;
+                    ItemStack stack = ped.getInv().getStackInSlot(0);
+                    if (!stack.isEmpty() && stack.getItem() == ModItems.VOID_ESSENCE) {
+                        list.add(ped);
+                    }
                 }
             }
         }
@@ -1859,16 +1907,40 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     /**
      * 查找所有放着灵魂材料的基座
      * 灵魂材料：灵魂果实、虚空精华、凝视碎片、灵魂锚点等
+     * 如果有自定义材料配置，则查找匹配自定义材料的基座
      */
     private List<TileEntityPedestal> findSoulMaterialPedestals() {
         List<TileEntityPedestal> list = new ArrayList<>();
-        for (BlockPos off : OFFS8) {
-            TileEntity te = world.getTileEntity(pos.add(off));
-            if (te instanceof TileEntityPedestal) {
-                TileEntityPedestal ped = (TileEntityPedestal) te;
-                ItemStack stack = ped.getInv().getStackInSlot(0);
-                if (!stack.isEmpty() && isSoulMaterial(stack)) {
-                    list.add(ped);
+
+        // 如果有自定义材料配置，使用配置系统匹配
+        if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.SOUL_BINDING)) {
+            List<LegacyRitualConfig.MaterialRequirement> reqs =
+                LegacyRitualConfig.getMaterialRequirements(LegacyRitualConfig.SOUL_BINDING);
+            for (BlockPos off : OFFS8) {
+                TileEntity te = world.getTileEntity(pos.add(off));
+                if (te instanceof TileEntityPedestal) {
+                    TileEntityPedestal ped = (TileEntityPedestal) te;
+                    ItemStack stack = ped.getInv().getStackInSlot(0);
+                    if (!stack.isEmpty()) {
+                        for (LegacyRitualConfig.MaterialRequirement req : reqs) {
+                            if (req.matches(stack)) {
+                                list.add(ped);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            // 默认：使用硬编码灵魂材料
+            for (BlockPos off : OFFS8) {
+                TileEntity te = world.getTileEntity(pos.add(off));
+                if (te instanceof TileEntityPedestal) {
+                    TileEntityPedestal ped = (TileEntityPedestal) te;
+                    ItemStack stack = ped.getInv().getStackInSlot(0);
+                    if (!stack.isEmpty() && isSoulMaterial(stack)) {
+                        list.add(ped);
+                    }
                 }
             }
         }
@@ -1876,7 +1948,7 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     }
 
     /**
-     * 判断是否是灵魂材料
+     * 判断是否是灵魂材料（默认硬编码列表）
      */
     private boolean isSoulMaterial(ItemStack stack) {
         if (stack.isEmpty()) return false;
@@ -2930,27 +3002,29 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
 
     /**
      * 检查不可破坏仪式所需材料
-     * 地狱之星×2 + 黑曜石×2 + 钻石×4
+     * 默认: 地狱之星×2 + 黑曜石×2 + 钻石×4
+     * 可通过 CraftTweaker 自定义
      */
     private boolean checkUnbreakableMaterials() {
+        List<ItemStack> pedestalItems = collectPedestalItems();
+
+        // 如果有自定义材料配置，使用配置系统检查
+        if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.UNBREAKABLE)) {
+            return LegacyRitualConfig.checkMaterialRequirements(LegacyRitualConfig.UNBREAKABLE, pedestalItems);
+        }
+
+        // 默认硬编码检查
         int netherStarCount = 0;
         int obsidianCount = 0;
         int diamondCount = 0;
 
-        for (BlockPos off : OFFS8) {
-            TileEntity te = world.getTileEntity(pos.add(off));
-            if (te instanceof TileEntityPedestal) {
-                TileEntityPedestal ped = (TileEntityPedestal) te;
-                ItemStack stack = ped.getInv().getStackInSlot(0);
-                if (!stack.isEmpty()) {
-                    if (stack.getItem() == Items.NETHER_STAR) {
-                        netherStarCount++;
-                    } else if (stack.getItem() == net.minecraft.item.Item.getItemFromBlock(net.minecraft.init.Blocks.OBSIDIAN)) {
-                        obsidianCount++;
-                    } else if (stack.getItem() == Items.DIAMOND) {
-                        diamondCount++;
-                    }
-                }
+        for (ItemStack stack : pedestalItems) {
+            if (stack.getItem() == Items.NETHER_STAR) {
+                netherStarCount++;
+            } else if (stack.getItem() == net.minecraft.item.Item.getItemFromBlock(net.minecraft.init.Blocks.OBSIDIAN)) {
+                obsidianCount++;
+            } else if (stack.getItem() == Items.DIAMOND) {
+                diamondCount++;
             }
         }
 
@@ -3253,27 +3327,29 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
 
     /**
      * 检查灵魂束缚仪式所需材料
-     * 末影珍珠×4 + 恶魂之泪×2 + 金块×2
+     * 默认: 末影珍珠×4 + 恶魂之泪×2 + 金块×2
+     * 可通过 CraftTweaker 自定义
      */
     private boolean checkSoulboundMaterials() {
+        List<ItemStack> pedestalItems = collectPedestalItems();
+
+        // 如果有自定义材料配置，使用配置系统检查
+        if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.SOULBOUND)) {
+            return LegacyRitualConfig.checkMaterialRequirements(LegacyRitualConfig.SOULBOUND, pedestalItems);
+        }
+
+        // 默认硬编码检查
         int enderPearlCount = 0;
         int ghastTearCount = 0;
         int goldBlockCount = 0;
 
-        for (BlockPos off : OFFS8) {
-            TileEntity te = world.getTileEntity(pos.add(off));
-            if (te instanceof TileEntityPedestal) {
-                TileEntityPedestal ped = (TileEntityPedestal) te;
-                ItemStack stack = ped.getInv().getStackInSlot(0);
-                if (!stack.isEmpty()) {
-                    if (stack.getItem() == Items.ENDER_PEARL) {
-                        enderPearlCount++;
-                    } else if (stack.getItem() == Items.GHAST_TEAR) {
-                        ghastTearCount++;
-                    } else if (stack.getItem() == net.minecraft.item.Item.getItemFromBlock(net.minecraft.init.Blocks.GOLD_BLOCK)) {
-                        goldBlockCount++;
-                    }
-                }
+        for (ItemStack stack : pedestalItems) {
+            if (stack.getItem() == Items.ENDER_PEARL) {
+                enderPearlCount++;
+            } else if (stack.getItem() == Items.GHAST_TEAR) {
+                ghastTearCount++;
+            } else if (stack.getItem() == net.minecraft.item.Item.getItemFromBlock(net.minecraft.init.Blocks.GOLD_BLOCK)) {
+                goldBlockCount++;
             }
         }
 
