@@ -2,10 +2,14 @@ package com.moremod.integration.jei;
 
 import com.moremod.init.ModBlocks;
 import com.moremod.integration.jei.generator.*;
+import com.moremod.integration.jei.printer.PrinterCategory;
+import com.moremod.integration.jei.printer.PrinterWrapper;
 import com.moremod.integration.jei.ritual.SpecialRitualCategory;
 import com.moremod.integration.jei.ritual.SpecialRitualInfo;
 import com.moremod.integration.jei.ritual.SpecialRitualWrapper;
 import com.moremod.moremod;
+import com.moremod.printer.PrinterRecipe;
+import com.moremod.printer.PrinterRecipeRegistry;
 import com.moremod.recipe.DimensionLoomRecipes;
 import com.moremod.recipe.SwordUpgradeRegistry;
 import com.moremod.ritual.RitualInfusionAPI;
@@ -44,6 +48,7 @@ public class MoreModJEIPlugin implements IModPlugin {
     public static final String SPECIAL_RITUAL_UID = "moremod.special_ritual";
     public static final String DIMENSION_LOOM_UID = "moremod.dimension_loom";
     public static final String SWORD_UPGRADE_UID = "moremod.sword_upgrade_material";
+    public static final String PRINTER_UID = "moremod.printer";
     public static final String OIL_GENERATOR_UID = "moremod.oil_generator";
     public static final String BIO_GENERATOR_UID = "moremod.bio_generator";
 
@@ -54,6 +59,7 @@ public class MoreModJEIPlugin implements IModPlugin {
     // 追踪已註冊的配方（用於避免重複）
     private static final Set<Object> registeredSwordRecipes = new HashSet<>();
     private static final Set<Object> registeredRitualRecipes = new HashSet<>();
+    private static final Set<String> registeredPrinterRecipes = new HashSet<>();
 
     // 是否已完成首次刷新
     private static boolean hasRefreshed = false;
@@ -90,6 +96,11 @@ public class MoreModJEIPlugin implements IModPlugin {
                 new SwordUpgradeCategory(guiHelper)
         );
 
+        // 注册打印机类别
+        registration.addRecipeCategories(
+                new PrinterCategory(guiHelper)
+        );
+
         // 注册石油发电机类别
         registration.addRecipeCategories(
                 new OilGeneratorCategory(guiHelper)
@@ -121,6 +132,9 @@ public class MoreModJEIPlugin implements IModPlugin {
 
         // ========== 材質變化台系统 (CraftTweaker) ==========
         registerSwordUpgrade(registry);
+
+        // ========== 打印机系统 (CraftTweaker) ==========
+        registerPrinter(registry);
 
         // ========== 石油发电机系统 ==========
         registerOilGenerator(registry);
@@ -272,6 +286,9 @@ public class MoreModJEIPlugin implements IModPlugin {
         // 刷新儀式配方
         refreshRitualRecipes();
 
+        // 刷新打印机配方
+        refreshPrinterRecipes();
+
         System.out.println("[MoreMod-JEI] Dynamic recipe refresh complete!");
     }
 
@@ -396,6 +413,26 @@ public class MoreModJEIPlugin implements IModPlugin {
         hasRefreshed = false;
         registeredSwordRecipes.clear();
         registeredRitualRecipes.clear();
+        registeredPrinterRecipes.clear();
+    }
+
+    /**
+     * 刷新打印机配方
+     */
+    public static void refreshPrinterRecipes() {
+        if (recipeRegistry == null) return;
+
+        for (PrinterRecipe recipe : PrinterRecipeRegistry.getAllRecipes()) {
+            String recipeId = recipe.getTemplateId();
+            if (!registeredPrinterRecipes.contains(recipeId)) {
+                try {
+                    recipeRegistry.addRecipe(new PrinterWrapper(recipe), PRINTER_UID);
+                    registeredPrinterRecipes.add(recipeId);
+                } catch (Exception e) {
+                    System.err.println("[MoreMod-JEI] Failed to add printer recipe: " + e.getMessage());
+                }
+            }
+        }
     }
 
     // ==================== 原有註冊方法 ====================
@@ -665,6 +702,52 @@ public class MoreModJEIPlugin implements IModPlugin {
                     "• 禁忌复制 - 三阶祭坛，诅咒之镜+虚空精华\n" +
                     "• 七圣遗物嵌入 - 三阶祭坛，七咒玩家站立\n" +
                     "• 不可破坏 - 三阶祭坛，地狱之星+黑曜石+钻石"
+            );
+        }
+    }
+
+    /**
+     * 注册打印机配方 (CraftTweaker 定義)
+     */
+    private void registerPrinter(IModRegistry registry) {
+        // 1. 注册配方处理器
+        registry.handleRecipes(
+                PrinterRecipe.class,
+                PrinterWrapper::new,
+                PRINTER_UID
+        );
+
+        // 2. 确保默认配方已注册
+        PrinterRecipeRegistry.registerDefaultRecipes();
+
+        // 3. 获取所有配方并添加
+        List<PrinterRecipe> recipes = new ArrayList<>(PrinterRecipeRegistry.getAllRecipes());
+        if (!recipes.isEmpty()) {
+            registry.addRecipes(recipes, PRINTER_UID);
+            // 標記為已註冊
+            for (PrinterRecipe recipe : recipes) {
+                registeredPrinterRecipes.add(recipe.getTemplateId());
+            }
+            System.out.println("[MoreMod-JEI] Added " + recipes.size() + " printer recipes");
+        } else {
+            System.out.println("[MoreMod-JEI] No printer recipes found (will refresh after CraftTweaker loads)");
+        }
+
+        // 4. 添加催化剂 - 使用打印机方块
+        if (ModBlocks.PRINTER != null) {
+            registry.addRecipeCatalyst(
+                    new ItemStack(ModBlocks.PRINTER),
+                    PRINTER_UID
+            );
+
+            // 5. 添加物品描述
+            registry.addIngredientInfo(
+                    new ItemStack(ModBlocks.PRINTER),
+                    ItemStack.class,
+                    "远古打印机\n" +
+                            "使用 CraftTweaker 定義配方。\n" +
+                            "将模板放入模板槽，材料放入材料槽，\n" +
+                            "提供足够能量即可打印物品。"
             );
         }
     }

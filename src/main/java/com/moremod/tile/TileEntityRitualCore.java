@@ -140,6 +140,9 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     private int soulboundProgress = 0;
     // 时间和成功率现在从 LegacyRitualConfig 读取
 
+    // 能量超载系统 - 记录仪式开始时的总能量（用于计算超载加成）
+    private int initialTotalEnergy = 0;
+
     // ========== 配置读取辅助方法 ==========
 
     private int getEnchantInfusionTime() {
@@ -316,6 +319,14 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             activeRecipe = findMatchingRecipe(peds);
             process = 0; // 新配方，進度歸零
             lastNotifiedRecipe = null; // 重置通知状态以便显示新配方信息
+
+            // 能量超载：在仪式开始时记录总能量（此时能量尚未被消耗）
+            if (activeRecipe != null) {
+                initialTotalEnergy = 0;
+                for (TileEntityPedestal ped : peds) {
+                    initialTotalEnergy += ped.getEnergy().getEnergyStored();
+                }
+            }
         }
 
         // 如果還是找不到配方，歸位
@@ -418,11 +429,9 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         // 标记为非活动状态，防止onContentsChanged触发reset
         isActive = false;
 
-        // 计算所有基座的总可用能量（用于超载机制）
-        int totalAvailableEnergy = 0;
-        for (TileEntityPedestal ped : peds) {
-            totalAvailableEnergy += ped.getEnergy().getEnergyStored();
-        }
+        // 使用仪式开始时记录的能量（initialTotalEnergy），而非当前剩余能量
+        // 这样超载机制才能正确计算加成
+        int totalAvailableEnergy = initialTotalEnergy;
 
         // 使用能量超载调整后的失败率
         float adjustedFailChance = recipe.getOverloadAdjustedFailChance(currentTier, totalAvailableEnergy);
@@ -530,6 +539,7 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     private void reset() {
         process = 0;
         activeRecipe = null;
+        initialTotalEnergy = 0; // 重置能量超载记录
         updateState(false, false);
     }
 
@@ -652,10 +662,15 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
      * 通知玩家当前仪式的成功率信息
      */
     private void notifySuccessRateInfo(List<TileEntityPedestal> peds, RitualInfusionRecipe recipe) {
-        // 计算总可用能量
-        int totalAvailableEnergy = 0;
-        for (TileEntityPedestal ped : peds) {
-            totalAvailableEnergy += ped.getEnergy().getEnergyStored();
+        // 使用仪式开始时记录的能量（如果已记录），否则计算当前能量
+        int totalAvailableEnergy;
+        if (initialTotalEnergy > 0) {
+            totalAvailableEnergy = initialTotalEnergy;
+        } else {
+            totalAvailableEnergy = 0;
+            for (TileEntityPedestal ped : peds) {
+                totalAvailableEnergy += ped.getEnergy().getEnergyStored();
+            }
         }
 
         // 计算各项数值
