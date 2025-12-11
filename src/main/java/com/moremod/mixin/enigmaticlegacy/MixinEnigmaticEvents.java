@@ -1,5 +1,6 @@
 package com.moremod.mixin.enigmaticlegacy;
 
+import com.moremod.entity.curse.EmbeddedCurseEffectHandler;
 import com.moremod.entity.curse.EmbeddedCurseManager;
 import com.moremod.entity.curse.EmbeddedCurseManager.EmbeddedRelicType;
 import net.minecraft.entity.Entity;
@@ -116,15 +117,15 @@ public class MixinEnigmaticEvents {
             require = 0
     )
     private static boolean moremod$redirect_isPlayerSleeping(EntityPlayer player) {
-        // 检查是否嵌入了安眠香囊
-        if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SLUMBER_SACHET)) {
+        // 检查是否应该绕过睡眠诅咒（使用统一的检查方法）
+        if (EmbeddedCurseEffectHandler.shouldBypassSleepCurse(player)) {
             // 如果正在睡觉，给予再生效果（祝福）
             if (player.isPlayerSleeping()) {
                 if (!player.isPotionActive(MobEffects.REGENERATION)) {
                     player.addPotionEffect(new PotionEffect(MobEffects.REGENERATION, 100, 1, false, false));
                 }
             }
-            // 返回 false 阻止诅咒踢出玩家
+            // 返回 false 阻止诅咒的睡眠检查（让诅咒认为玩家没在睡觉）
             return false;
         }
         return player.isPlayerSleeping();
@@ -144,12 +145,11 @@ public class MixinEnigmaticEvents {
         EntityPlayer player = event.getEntityPlayer();
         if (player == null || player.world.isRemote) return;
 
-        // 检查是否嵌入了安眠香囊
-        if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SLUMBER_SACHET)) {
+        // 检查是否应该绕过睡眠诅咒（使用统一的检查方法）
+        if (EmbeddedCurseEffectHandler.shouldBypassSleepCurse(player)) {
             // 祝福效果：取消诅咒对睡眠的阻止
             // 直接取消这个事件处理器，让原版睡眠逻辑执行
             ci.cancel();
-            System.out.println("[SacredRelic] 安眠香囊允许玩家睡觉: " + player.getName());
         }
     }
 
