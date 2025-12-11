@@ -63,23 +63,20 @@ public abstract class MixinEntityVillager {
             this.lastInteractingPlayer = player;
 
             // ========== 人性值系统价格调整 (修复版) ==========
-            if (HumanitySpectrumSystem.isSystemActive(player)) {
-                float priceMultiplier = HumanityEffectsManager.getTradePriceMultiplier(player);
-                if (priceMultiplier != 1.0f && priceMultiplier < 999f) {
-                    this.hasHumanityPriceModifier = true;
-                    this.humanityPriceMultiplier = priceMultiplier;
+            // ⭐ 修复：直接获取价格倍率，不再依赖 HumanitySpectrumSystem.isSystemActive
+            // getTradePriceMultiplier 内部已包含所有必要的检查
+            float priceMultiplier = HumanityEffectsManager.getTradePriceMultiplier(player);
+            if (priceMultiplier != 1.0f && priceMultiplier < 999f) {
+                this.hasHumanityPriceModifier = true;
+                this.humanityPriceMultiplier = priceMultiplier;
 
-                    MerchantRecipeList recipes = villager.getRecipes(player);
-                    if (recipes != null) {
-                        // ⭐ 修复：每次交互都重新应用折扣到TradeDiscountHelper
-                        // TradeDiscountHelper 30分钟清理数据，但我们需要确保折扣始终生效
-                        // TradeDiscountHelper.applyDiscount 内部会正确处理重复应用（不会叠加）
-                        applyHumanityPriceModifier(recipes);
+                MerchantRecipeList recipes = villager.getRecipes(player);
+                if (recipes != null) {
+                    applyHumanityPriceModifier(recipes);
 
-                        // 🔒 仅当折扣率变化时更新NBT标记
-                        if (!moremod$hasExistingHumanityDiscount(villager, player, priceMultiplier)) {
-                            moremod$markHumanityDiscountApplied(villager, player, priceMultiplier);
-                        }
+                    // 🔒 仅当折扣率变化时更新NBT标记
+                    if (!moremod$hasExistingHumanityDiscount(villager, player, priceMultiplier)) {
+                        moremod$markHumanityDiscountApplied(villager, player, priceMultiplier);
                     }
                 }
             }
