@@ -6,6 +6,9 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityCreature;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.monster.EntityMob;
+import net.minecraft.entity.monster.EntityPolarBear;
+import net.minecraft.entity.passive.EntityWolf;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.MobEffects;
 import net.minecraft.potion.PotionEffect;
@@ -51,7 +54,7 @@ public class MixinEnigmaticEvents {
             ),
             require = 0
     )
-    private void moremod$redirect_setFire(EntityPlayer player, int seconds) {
+    private static void moremod$redirect_setFire(EntityPlayer player, int seconds) {
         // 检查是否嵌入了霜华之露
         if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.FROST_DEW)) {
             // 祝福效果：立即灭火
@@ -78,7 +81,7 @@ public class MixinEnigmaticEvents {
             ),
             require = 0
     )
-    private boolean moremod$redirect_isBurning(EntityPlayer player) {
+    private static boolean moremod$redirect_isBurning(EntityPlayer player) {
         // 检查是否嵌入了霜华之露
         if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.FROST_DEW)) {
             // 如果正在燃烧，立即灭火并给予抗性
@@ -112,7 +115,7 @@ public class MixinEnigmaticEvents {
             ),
             require = 0
     )
-    private boolean moremod$redirect_isPlayerSleeping(EntityPlayer player) {
+    private static boolean moremod$redirect_isPlayerSleeping(EntityPlayer player) {
         // 检查是否嵌入了安眠香囊
         if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SLUMBER_SACHET)) {
             // 如果正在睡觉，给予再生效果（祝福）
@@ -137,7 +140,7 @@ public class MixinEnigmaticEvents {
             cancellable = true,
             require = 0
     )
-    private void moremod$onSleepEnter_head(PlayerSleepInBedEvent event, CallbackInfo ci) {
+    private static void moremod$onSleepEnter_head(PlayerSleepInBedEvent event, CallbackInfo ci) {
         EntityPlayer player = event.getEntityPlayer();
         if (player == null || player.world.isRemote) return;
 
@@ -169,7 +172,7 @@ public class MixinEnigmaticEvents {
             ),
             require = 0
     )
-    private void moremod$redirect_setAmount(LivingHurtEvent event, float amount) {
+    private static void moremod$redirect_setAmount(LivingHurtEvent event, float amount) {
         Entity entity = event.getEntity();
         if (entity instanceof EntityPlayer) {
             EntityPlayer player = (EntityPlayer) entity;
@@ -197,6 +200,33 @@ public class MixinEnigmaticEvents {
     // ═══════════════════════════════════════════════════════════════
 
     /**
+     * 检查生物是否是条件攻击型（中立/被动攻击）
+     * 这些生物正常情况下不会主动攻击，但七咒会让它们主动攻击
+     */
+    private static boolean isConditionallyHostile(EntityLivingBase entity) {
+        String className = entity.getClass().getSimpleName();
+
+        // 末影人 - 只有被看时才攻击
+        if (className.contains("Enderman")) return true;
+        // 僵尸猪人 - 只有被攻击时才攻击
+        if (className.contains("PigZombie") || className.contains("ZombiePigman")) return true;
+        // 狼（未驯服）- 只有被攻击时才攻击
+        if (entity instanceof EntityWolf) return true;
+        // 北极熊 - 只有有幼崽或被攻击时才攻击
+        if (entity instanceof EntityPolarBear) return true;
+        // 铁傀儡 - 正常不攻击玩家（除非玩家攻击村民）
+        if (className.contains("IronGolem")) return true;
+        // 雪傀儡 - 正常不攻击玩家
+        if (className.contains("SnowMan") || className.contains("Snowman")) return true;
+        // 蜘蛛 - 只在黑暗中攻击
+        if (className.contains("Spider") && !className.contains("CaveSpider")) return true;
+        // 所有非EntityMob的生物（如动物）
+        if (!(entity instanceof EntityMob)) return true;
+
+        return false;
+    }
+
+    /**
      * 拦截 onEntityTarget 事件处理
      * 当有和平徽章时，取消中立生物的攻击目标设置
      */
@@ -206,7 +236,7 @@ public class MixinEnigmaticEvents {
             cancellable = true,
             require = 0
     )
-    private void moremod$onEntityTarget_head(LivingSetAttackTargetEvent event, CallbackInfo ci) {
+    private static void moremod$onEntityTarget_head(LivingSetAttackTargetEvent event, CallbackInfo ci) {
         if (!(event.getTarget() instanceof EntityPlayer)) return;
         if (event.getEntityLiving().world.isRemote) return;
 
@@ -214,8 +244,8 @@ public class MixinEnigmaticEvents {
 
         // 检查是否嵌入了和平徽章
         if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.PEACE_EMBLEM)) {
-            // 检查是否是非敌对生物（中立生物被诅咒影响攻击玩家）
-            if (!(event.getEntityLiving() instanceof EntityMob)) {
+            // 检查是否是条件攻击型生物（中立/被动）
+            if (isConditionallyHostile(event.getEntityLiving())) {
                 // 祝福效果：取消诅咒引起的仇恨
                 ci.cancel();
 

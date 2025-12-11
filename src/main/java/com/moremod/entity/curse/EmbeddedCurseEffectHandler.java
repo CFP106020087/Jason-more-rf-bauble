@@ -11,6 +11,9 @@ import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.attributes.AttributeModifier;
 import net.minecraft.entity.monster.EntityMob;
 import net.minecraft.entity.passive.EntityAnimal;
+import net.minecraft.entity.passive.EntityWolf;
+import net.minecraft.entity.monster.EntityPolarBear;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.DamageSource;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
@@ -46,10 +49,14 @@ public class EmbeddedCurseEffectHandler {
 
     // ========== 反射字段：访问 Entity.fire ==========
     private static final Field FIRE_FIELD;
+    // ========== 反射字段：访问 EntityPlayer.sleepTimer ==========
+    private static final Field SLEEP_TIMER_FIELD;
 
     static {
         // "field_190534_ay" 是 Entity.fire 的 SRG 混淆名
         FIRE_FIELD = ObfuscationReflectionHelper.findField(Entity.class, "field_190534_ay");
+        // "field_71076_b" 是 EntityPlayer.sleepTimer 的 SRG 混淆名
+        SLEEP_TIMER_FIELD = ObfuscationReflectionHelper.findField(EntityPlayer.class, "field_71076_b");
     }
 
     /**
@@ -70,6 +77,29 @@ public class EmbeddedCurseEffectHandler {
     private static void setFireTicks(Entity entity, int ticks) {
         try {
             FIRE_FIELD.setInt(entity, ticks);
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 获取玩家的 sleepTimer
+     */
+    private static int getSleepTimer(EntityPlayer player) {
+        try {
+            return SLEEP_TIMER_FIELD.getInt(player);
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+            return 0;
+        }
+    }
+
+    /**
+     * 设置玩家的 sleepTimer
+     */
+    private static void setSleepTimer(EntityPlayer player, int ticks) {
+        try {
+            SLEEP_TIMER_FIELD.setInt(player, ticks);
         } catch (IllegalAccessException e) {
             e.printStackTrace();
         }
@@ -105,6 +135,34 @@ public class EmbeddedCurseEffectHandler {
     // 用于追踪需要清除攻击目标的生物
     private static final Map<Integer, UUID> pendingTargetClear = new HashMap<>();
 
+    /**
+     * 检查生物是否是条件攻击型（中立/被动攻击）
+     * 这些生物正常情况下不会主动攻击，但七咒会让它们主动攻击
+     * 和平徽章可以抵消这个效果
+     */
+    private static boolean isConditionallyHostile(EntityLivingBase entity) {
+        String className = entity.getClass().getSimpleName();
+
+        // 末影人 - 只有被看时才攻击
+        if (className.contains("Enderman")) return true;
+        // 僵尸猪人 - 只有被攻击时才攻击
+        if (className.contains("PigZombie") || className.contains("ZombiePigman")) return true;
+        // 狼（未驯服）- 只有被攻击时才攻击
+        if (entity instanceof EntityWolf) return true;
+        // 北极熊 - 只有有幼崽或被攻击时才攻击
+        if (entity instanceof EntityPolarBear) return true;
+        // 铁傀儡 - 正常不攻击玩家（除非玩家攻击村民）
+        if (className.contains("IronGolem")) return true;
+        // 雪傀儡 - 正常不攻击玩家
+        if (className.contains("SnowMan") || className.contains("Snowman")) return true;
+        // 蜘蛛 - 只在黑暗中攻击
+        if (className.contains("Spider") && !className.contains("CaveSpider")) return true;
+        // 所有非EntityMob的生物（如动物）
+        if (!(entity instanceof EntityMob)) return true;
+
+        return false;
+    }
+
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onSetAttackTarget(LivingSetAttackTargetEvent event) {
         if (!(event.getTarget() instanceof EntityPlayer)) return;
@@ -117,8 +175,8 @@ public class EmbeddedCurseEffectHandler {
 
         // 检查是否嵌入了和平徽章
         if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.PEACE_EMBLEM)) {
-            // 如果是中立生物（非敌对怪物），立即清除攻击目标
-            if (!(event.getEntityLiving() instanceof EntityMob)) {
+            // 如果是条件攻击型生物（中立/被动），清除攻击目标
+            if (isConditionallyHostile(event.getEntityLiving())) {
                 // 立即清除攻击目标
                 if (event.getEntityLiving() instanceof EntityCreature) {
                     ((EntityCreature) event.getEntityLiving()).setAttackTarget(null);
@@ -227,12 +285,21 @@ public class EmbeddedCurseEffectHandler {
 
         // 检查是否嵌入了安眠香囊 - 睡眠祝福
         if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SLUMBER_SACHET)) {
-            // 安眠香囊祝福效果：睡眠时获得再生
+            // 安眠香囊祝福效果：睡眠时获得再生 + 强制突破睡眠诅咒
             if (player.isPlayerSleeping()) {
                 // 给予再生效果
                 if (!player.isPotionActive(net.minecraft.init.MobEffects.REGENERATION)) {
                     player.addPotionEffect(new net.minecraft.potion.PotionEffect(
                             net.minecraft.init.MobEffects.REGENERATION, 100, 1, false, false));
+                }
+
+                // 强制突破睡眠诅咒：七咒会把 sleepTimer 卡在 90，我们强制推进它
+                // 睡眠需要 sleepTimer >= 100 才能完成，七咒通过 sleepTimer = 90 来阻止
+                int currentSleepTimer = getSleepTimer(player);
+                // 如果 sleepTimer 被卡在 90-91（诅咒会把它设回 90），强制推进
+                if (currentSleepTimer >= 89 && currentSleepTimer <= 91) {
+                    // 每 tick 强制 +2，这样即使诅咒设回 90，下一 tick 也能推进
+                    setSleepTimer(player, currentSleepTimer + 2);
                 }
             }
         }
