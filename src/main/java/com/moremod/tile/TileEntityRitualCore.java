@@ -228,6 +228,15 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         if (activeRecipe == null || !activeRecipe.getCore().apply(inv.getStackInSlot(0))) {
             activeRecipe = findMatchingRecipe(peds);
             process = 0; // 新配方，進度歸零
+
+            // 能量超载：记录仪式开始时的总能量（用于所有CRT配方）
+            if (activeRecipe != null) {
+                initialTotalEnergy = 0;
+                for (TileEntityPedestal ped : peds) {
+                    initialTotalEnergy += ped.getEnergy().getEnergyStored();
+                }
+                System.out.println("[Ritual] Recipe matched, recorded initial energy: " + initialTotalEnergy);
+            }
         }
 
         // 如果還是找不到配方，歸位
@@ -428,6 +437,7 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     private void reset() {
         process = 0;
         activeRecipe = null;
+        initialTotalEnergy = 0;
         updateState(false, false);
     }
 
