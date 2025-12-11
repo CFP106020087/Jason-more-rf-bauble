@@ -235,7 +235,7 @@ public abstract class AbstractSpecialRitual implements ISpecialRitual {
         // 每秒播放环境音效
         if (progress % 20 == 0) {
             world.playSound(null, pos,
-                    SoundEvents.BLOCK_BEACON_AMBIENT, SoundCategory.BLOCKS,
+                    SoundEvents.BLOCK_ENCHANTMENT_TABLE_USE, SoundCategory.BLOCKS,
                     0.5f, 1.2f + world.rand.nextFloat() * 0.2f);
         }
     }
