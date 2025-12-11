@@ -624,6 +624,10 @@ public class moremod {
         UnlockableSlotsInit.init(event);
         RuleChecker.initialize();
         GemSystemInit.init(event);
+
+        // 初始化特殊仪式系统
+        com.moremod.ritual.special.SpecialRitualInit.init();
+        System.out.println("[moremod] ✅ 特殊仪式系统初始化完成");
         // 注册维度类型
         PersonalDimensionType.registerDimension();
         System.out.println("[moremod] ✅ 维度类型注册完成");
