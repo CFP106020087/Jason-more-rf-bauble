@@ -132,6 +132,12 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     private int fabricEnhanceProgress = 0;
     private static final int FABRIC_ENHANCE_TIME = 200; // 10秒
 
+    // 不可破坏仪式系统 (Unbreakable Ritual)
+    private boolean unbreakableRitualActive = false;
+    private int unbreakableProgress = 0;
+    private static final int UNBREAKABLE_TIME = 400; // 20秒
+    private static final float UNBREAKABLE_SUCCESS_RATE = 0.80f; // 80%成功率
+
     // 成功率显示系统
     private RitualInfusionRecipe lastNotifiedRecipe = null;
     private int successRateDisplayCooldown = 0;
@@ -218,6 +224,11 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
 
         // 0.14 检测織印強化儀式
         if (updateFabricEnhanceRitual()) {
+            return;
+        }
+
+        // 0.15 检测不可破坏仪式
+        if (updateUnbreakableRitual()) {
             return;
         }
 
@@ -2700,4 +2711,319 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
             10, 0.5, 0.3, 0.5, 0.0);
     }
+
+    // ========== 不可破坏仪式系统 (Unbreakable Ritual) ==========
+
+    /**
+     * 更新不可破坏仪式
+     * 三阶祭坛 + 任意有耐久的物品 + 地狱之星×2 + 黑曜石×2 + 钻石×4 = 不可破坏物品
+     * @return true 如果正在进行不可破坏仪式
+     */
+    private boolean updateUnbreakableRitual() {
+        // 必须是三阶祭坛
+        if (currentTier != AltarTier.TIER_3) {
+            if (unbreakableRitualActive) {
+                resetUnbreakableRitual();
+            }
+            return false;
+        }
+
+        // 检查中心物品是否是有耐久的物品
+        ItemStack centerItem = inv.getStackInSlot(0);
+        if (centerItem.isEmpty() || !centerItem.isItemStackDamageable()) {
+            if (unbreakableRitualActive) {
+                resetUnbreakableRitual();
+            }
+            return false;
+        }
+
+        // 检查物品是否已经是不可破坏的
+        if (centerItem.hasTagCompound() && centerItem.getTagCompound().getBoolean("Unbreakable")) {
+            if (unbreakableRitualActive) {
+                resetUnbreakableRitual();
+            }
+            return false;
+        }
+
+        // 检查基座材料：地狱之星×2 + 黑曜石×2 + 钻石×4
+        if (!checkUnbreakableMaterials()) {
+            if (unbreakableRitualActive) {
+                resetUnbreakableRitual();
+            }
+            return false;
+        }
+
+        // 开始/继续不可破坏仪式
+        if (!unbreakableRitualActive) {
+            unbreakableRitualActive = true;
+            unbreakableProgress = 0;
+            notifyUnbreakableStart(centerItem);
+        }
+
+        unbreakableProgress++;
+
+        // 进度效果
+        if (unbreakableProgress % 20 == 0) {
+            int seconds = (UNBREAKABLE_TIME - unbreakableProgress) / 20;
+            notifyUnbreakableProgress(seconds);
+            spawnUnbreakableParticles();
+        }
+
+        // 完成不可破坏仪式
+        if (unbreakableProgress >= UNBREAKABLE_TIME) {
+            performUnbreakableRitual(centerItem);
+            resetUnbreakableRitual();
+        }
+
+        return true;
+    }
+
+    private void resetUnbreakableRitual() {
+        unbreakableRitualActive = false;
+        unbreakableProgress = 0;
+    }
+
+    /**
+     * 检查不可破坏仪式所需材料
+     * 地狱之星×2 + 黑曜石×2 + 钻石×4
+     */
+    private boolean checkUnbreakableMaterials() {
+        int netherStarCount = 0;
+        int obsidianCount = 0;
+        int diamondCount = 0;
+
+        for (BlockPos off : OFFS8) {
+            TileEntity te = world.getTileEntity(pos.add(off));
+            if (te instanceof TileEntityPedestal) {
+                TileEntityPedestal ped = (TileEntityPedestal) te;
+                ItemStack stack = ped.getInv().getStackInSlot(0);
+                if (!stack.isEmpty()) {
+                    if (stack.getItem() == Items.NETHER_STAR) {
+                        netherStarCount++;
+                    } else if (stack.getItem() == net.minecraft.item.Item.getItemFromBlock(net.minecraft.init.Blocks.OBSIDIAN)) {
+                        obsidianCount++;
+                    } else if (stack.getItem() == Items.DIAMOND) {
+                        diamondCount++;
+                    }
+                }
+            }
+        }
+
+        return netherStarCount >= 2 && obsidianCount >= 2 && diamondCount >= 4;
+    }
+
+    /**
+     * 执行不可破坏仪式
+     */
+    private void performUnbreakableRitual(ItemStack targetItem) {
+        // 消耗材料：地狱之星×2 + 黑曜石×2 + 钻石×4
+        int starsConsumed = 0;
+        int obsidianConsumed = 0;
+        int diamondsConsumed = 0;
+
+        for (BlockPos off : OFFS8) {
+            TileEntity te = world.getTileEntity(pos.add(off));
+            if (te instanceof TileEntityPedestal) {
+                TileEntityPedestal ped = (TileEntityPedestal) te;
+                ItemStack stack = ped.getInv().getStackInSlot(0);
+                if (!stack.isEmpty()) {
+                    if (stack.getItem() == Items.NETHER_STAR && starsConsumed < 2) {
+                        ped.consumeOne();
+                        starsConsumed++;
+                    } else if (stack.getItem() == net.minecraft.item.Item.getItemFromBlock(net.minecraft.init.Blocks.OBSIDIAN) && obsidianConsumed < 2) {
+                        ped.consumeOne();
+                        obsidianConsumed++;
+                    } else if (stack.getItem() == Items.DIAMOND && diamondsConsumed < 4) {
+                        ped.consumeOne();
+                        diamondsConsumed++;
+                    }
+                }
+            }
+        }
+
+        // 判定成功/失败
+        boolean success = world.rand.nextFloat() < UNBREAKABLE_SUCCESS_RATE;
+
+        if (success) {
+            // 成功：保留所有NBT，添加Unbreakable标签
+            NBTTagCompound nbt = targetItem.hasTagCompound() ? targetItem.getTagCompound() : new NBTTagCompound();
+            nbt.setBoolean("Unbreakable", true);
+            targetItem.setTagCompound(nbt);
+
+            // 修复耐久（可选）
+            targetItem.setItemDamage(0);
+
+            notifyUnbreakableSuccess(targetItem);
+            spawnUnbreakableSuccessEffects();
+        } else {
+            // 失败：物品损坏一半耐久
+            int maxDamage = targetItem.getMaxDamage();
+            int newDamage = Math.min(targetItem.getItemDamage() + maxDamage / 2, maxDamage - 1);
+            targetItem.setItemDamage(newDamage);
+
+            notifyUnbreakableFail(targetItem);
+            spawnUnbreakableFailEffects();
+        }
+
+        syncToClient();
+        markDirty();
+    }
+
+    /**
+     * 通知不可破坏仪式开始
+     */
+    private void notifyUnbreakableStart(ItemStack item) {
+        AxisAlignedBB area = new AxisAlignedBB(pos).grow(10);
+        List<EntityPlayer> players = world.getEntitiesWithinAABB(EntityPlayer.class, area);
+        for (EntityPlayer player : players) {
+            player.sendMessage(new TextComponentString(
+                TextFormatting.DARK_PURPLE + "════════════════════════════════"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.GOLD + "⚒ 不可破坏仪式开始 ⚒"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.GRAY + "目标: " + TextFormatting.WHITE + item.getDisplayName()
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.GREEN + "✓ 成功率: " + TextFormatting.YELLOW + "80%"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.GRAY + "物品NBT将完整保留"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.DARK_PURPLE + "════════════════════════════════"
+            ));
+        }
+
+        world.playSound(null, pos, SoundEvents.BLOCK_ANVIL_USE,
+            SoundCategory.BLOCKS, 1.0f, 0.5f);
+    }
+
+    /**
+     * 通知不可破坏仪式进度
+     */
+    private void notifyUnbreakableProgress(int secondsLeft) {
+        AxisAlignedBB area = new AxisAlignedBB(pos).grow(10);
+        List<EntityPlayer> players = world.getEntitiesWithinAABB(EntityPlayer.class, area);
+        for (EntityPlayer player : players) {
+            player.sendStatusMessage(new TextComponentString(
+                TextFormatting.GOLD + "不可破坏仪式进行中... " +
+                TextFormatting.WHITE + secondsLeft + "秒"
+            ), true);
+        }
+
+        // 播放音效
+        if (unbreakableProgress % 40 == 0) {
+            world.playSound(null, pos, SoundEvents.BLOCK_ANVIL_LAND,
+                SoundCategory.BLOCKS, 0.5f, 1.5f);
+        }
+    }
+
+    /**
+     * 通知不可破坏仪式成功
+     */
+    private void notifyUnbreakableSuccess(ItemStack item) {
+        AxisAlignedBB area = new AxisAlignedBB(pos).grow(10);
+        List<EntityPlayer> players = world.getEntitiesWithinAABB(EntityPlayer.class, area);
+        for (EntityPlayer player : players) {
+            player.sendMessage(new TextComponentString(
+                TextFormatting.GOLD + "═══════════════════════════════"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.GOLD + "★★★ 仪式成功！★★★"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.WHITE + item.getDisplayName() +
+                TextFormatting.GREEN + " 已变得不可破坏！"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.AQUA + "所有NBT数据已完整保留"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.GOLD + "═══════════════════════════════"
+            ));
+        }
+    }
+
+    /**
+     * 通知不可破坏仪式失败
+     */
+    private void notifyUnbreakableFail(ItemStack item) {
+        AxisAlignedBB area = new AxisAlignedBB(pos).grow(10);
+        List<EntityPlayer> players = world.getEntitiesWithinAABB(EntityPlayer.class, area);
+        for (EntityPlayer player : players) {
+            player.sendMessage(new TextComponentString(
+                TextFormatting.RED + "✗ 仪式失败！物品受损！"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.GRAY + item.getDisplayName() + " 的耐久降低了..."
+            ));
+        }
+    }
+
+    /**
+     * 不可破坏仪式粒子效果
+     */
+    private void spawnUnbreakableParticles() {
+        if (!(world instanceof WorldServer)) return;
+        WorldServer ws = (WorldServer) world;
+
+        // 金色粒子环绕
+        for (int i = 0; i < 8; i++) {
+            double angle = i * Math.PI / 4 + (unbreakableProgress * 0.08);
+            double radius = 2.0;
+            double x = pos.getX() + 0.5 + Math.cos(angle) * radius;
+            double z = pos.getZ() + 0.5 + Math.sin(angle) * radius;
+
+            ws.spawnParticle(EnumParticleTypes.CRIT_MAGIC,
+                x, pos.getY() + 1.0, z,
+                3, 0.1, 0.2, 0.1, 0.0);
+        }
+
+        // 中心上升粒子
+        ws.spawnParticle(EnumParticleTypes.VILLAGER_HAPPY,
+            pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
+            5, 0.2, 0.3, 0.2, 0.0);
+    }
+
+    /**
+     * 不可破坏仪式成功特效
+     */
+    private void spawnUnbreakableSuccessEffects() {
+        if (!(world instanceof WorldServer)) return;
+        WorldServer ws = (WorldServer) world;
+
+        // 金色爆发
+        ws.spawnParticle(EnumParticleTypes.TOTEM,
+            pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
+            150, 0.8, 1.0, 0.8, 0.8);
+
+        // 音效
+        world.playSound(null, pos, SoundEvents.BLOCK_ANVIL_USE,
+            SoundCategory.BLOCKS, 1.0f, 1.2f);
+        world.playSound(null, pos, SoundEvents.ENTITY_PLAYER_LEVELUP,
+            SoundCategory.BLOCKS, 1.0f, 1.0f);
+    }
+
+    /**
+     * 不可破坏仪式失败特效
+     */
+    private void spawnUnbreakableFailEffects() {
+        if (!(world instanceof WorldServer)) return;
+        WorldServer ws = (WorldServer) world;
+
+        // 烟雾效果
+        ws.spawnParticle(EnumParticleTypes.SMOKE_LARGE,
+            pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
+            50, 0.5, 0.5, 0.5, 0.1);
+
+        // 失败音效
+        world.playSound(null, pos, SoundEvents.ENTITY_ITEM_BREAK,
+            SoundCategory.BLOCKS, 1.0f, 0.8f);
+    }
+
+    // Getter for unbreakable ritual
+    public boolean isUnbreakableRitualActive() { return unbreakableRitualActive; }
+    public int getUnbreakableProgress() { return unbreakableProgress; }
 }
