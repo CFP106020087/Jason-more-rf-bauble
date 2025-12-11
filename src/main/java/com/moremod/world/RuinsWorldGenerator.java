@@ -50,7 +50,7 @@ public class RuinsWorldGenerator implements IWorldGenerator {
 
     // ============== 生成配置 ==============
     private static final int MIN_Y = 50;
-    private static final int SPAWN_CHANCE = 300;             // 降低生成率 (1/300 区块 ≈ 0.33%)
+    private static final int SPAWN_CHANCE = 900;             // 降低生成率 (1/900 区块 ≈ 0.11%)
     private static final int MIN_DISTANCE_FROM_SPAWN = 400;  // 增加距离要求
 
     // 稀有方块概率系数 (降低为0.3倍)
@@ -1560,8 +1560,8 @@ public class RuinsWorldGenerator implements IWorldGenerator {
             case 12:
                 return new ItemStack(Items.ENDER_PEARL, 1 + random.nextInt(2));
             case 13:
-                // 下界之星极为稀有 (仅tier 5有较高机会)
-                if (tier >= 4 && random.nextFloat() < 0.2f) {
+                // 下界之星极为稀有 (仅tier 4+且4%概率)
+                if (tier >= 4 && random.nextFloat() < 0.04f) {
                     return new ItemStack(Items.NETHER_STAR, 1);
                 }
                 return new ItemStack(Items.BLAZE_POWDER, 1 + random.nextInt(2));
