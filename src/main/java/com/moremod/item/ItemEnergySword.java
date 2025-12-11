@@ -170,8 +170,8 @@ public class ItemEnergySword extends ItemSword {
         IEnergyStorage st = mh.getCapability(CapabilityEnergy.ENERGY, null);
         boolean powered = st != null && st.getEnergyStored() > 0;
 
-        // 满足出鞘条件时添加攻速加成
-        if (powered && allow) {
+        // 有能量时就添加攻速加成（自动攻击不依赖出鞘条件）
+        if (powered) {
             applyAutoAttackSpeedModifier(attackSpeedAttr);
         } else {
             removeAutoAttackSpeedModifier(attackSpeedAttr);
