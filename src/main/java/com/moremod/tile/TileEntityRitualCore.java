@@ -321,11 +321,26 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         // 标记为非活动状态，防止onContentsChanged触发reset
         isActive = false;
 
-        // 使用祭坛阶层调整后的失败率
-        float adjustedFailChance = recipe.getAdjustedFailChance(currentTier);
+        // 计算所有基座的总可用能量（用于超载机制）
+        int totalAvailableEnergy = 0;
+        for (TileEntityPedestal ped : peds) {
+            totalAvailableEnergy += ped.getEnergy().getEnergyStored();
+        }
+
+        // 使用能量超载调整后的失败率
+        float adjustedFailChance = recipe.getOverloadAdjustedFailChance(currentTier, totalAvailableEnergy);
+        float overloadBonus = recipe.getOverloadBonus(totalAvailableEnergy);
+
         System.out.println("[Ritual] Tier: " + currentTier.getDisplayName() +
                          ", Base fail: " + recipe.getFailChance() +
-                         ", Adjusted fail: " + adjustedFailChance);
+                         ", Tier adjusted: " + recipe.getAdjustedFailChance(currentTier) +
+                         ", Overload bonus: " + (int)(overloadBonus * 100) + "%" +
+                         ", Final fail: " + adjustedFailChance);
+
+        // 通知玩家超载信息
+        if (overloadBonus > 0) {
+            notifyOverloadBonus(overloadBonus);
+        }
 
         // 失敗判定 (Risk mechanics)
         if (adjustedFailChance > 0 && world.rand.nextFloat() < adjustedFailChance) {
@@ -520,6 +535,19 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
                 player.sendMessage(new TextComponentString(
                     TextFormatting.RED + "✗ 仪式失败！祭坛爆炸！"));
             }
+        }
+    }
+
+    /**
+     * 通知玩家能量超载加成
+     */
+    private void notifyOverloadBonus(float bonus) {
+        AxisAlignedBB area = new AxisAlignedBB(pos).grow(10);
+        List<EntityPlayer> players = world.getEntitiesWithinAABB(EntityPlayer.class, area);
+        int bonusPercent = (int)(bonus * 100);
+        for (EntityPlayer player : players) {
+            player.sendStatusMessage(new TextComponentString(
+                TextFormatting.AQUA + "⚡ 能量超载！成功率+" + bonusPercent + "%"), true);
         }
     }
 

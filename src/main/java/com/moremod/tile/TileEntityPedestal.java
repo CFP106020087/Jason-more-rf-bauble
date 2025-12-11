@@ -24,7 +24,7 @@ public class TileEntityPedestal extends TileEntity {
         }
     };
 
-    private final EnergyStorage energy = new EnergyStorage(50000);
+    private final EnergyStorage energy = new EnergyStorage(500000);  // 500k RF per pedestal
 
     public ItemStackHandler getInv() { return inv; }
     public EnergyStorage getEnergy() { return energy; }

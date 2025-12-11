@@ -16,12 +16,12 @@ import javax.annotation.Nullable;
 public class TileEntityTimeController extends TileEntity implements ITickable, IEnergyStorage {
 
     public enum Mode {
-        ACCELERATE("加速", 40),
-        SLOW("减速", 20),
-        PAUSE("暂停", 10),
-        REVERSE("倒流", 80),
-        DAY_ONLY("永昼", 30),
-        NIGHT_ONLY("永夜", 30);
+        ACCELERATE("加速", 4000),
+        SLOW("减速", 2000),
+        PAUSE("暂停", 1000),
+        REVERSE("倒流", 8000),
+        DAY_ONLY("永昼", 3000),
+        NIGHT_ONLY("永夜", 3000);
 
         private final String zhName;
         private final int energyCost;
@@ -35,9 +35,9 @@ public class TileEntityTimeController extends TileEntity implements ITickable, I
     }
 
     // ===== 能量参数 =====
-    private static final int MAX_ENERGY = 100000;
-    private static final int MAX_RECEIVE = 1000;
-    private static final int MIN_ENERGY_TO_WORK = 100;
+    private static final int MAX_ENERGY = 2000000;       // 2M RF
+    private static final int MAX_RECEIVE = 100000;       // 100k RF/tick
+    private static final int MIN_ENERGY_TO_WORK = 10000; // 10k RF最低工作能量
 
     // ===== 状态 =====
     private int energyStored = 0;
