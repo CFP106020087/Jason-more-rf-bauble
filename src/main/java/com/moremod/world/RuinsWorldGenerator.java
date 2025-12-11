@@ -25,7 +25,7 @@ import net.minecraftforge.fml.common.IWorldGenerator;
 import java.util.Random;
 
 /**
- * 科技废墟世界生成器 v3.0
+ * 科技废墟世界生成器 v3.1
  *
  * 在主世界野外生成残破的科技感废墟建筑
  * 内含稀有机械方块、打印模版和故障装备
@@ -36,6 +36,13 @@ import java.util.Random;
  * - 提高稀有方块概率
  * - 新增量子采矿机废墟
  * - 新增故障装备系统
+ *
+ * v3.1 改进：
+ * - 新增5种详细结构 (数据方尖碑、生态穹顶、聚变反应环、坠毁空降舱、虚空工厂)
+ * - 新增辅助方法 (fillCylinder, setBlockWithDecay, decorateRuin, adjustToTerrain)
+ * - 结构总数增加至15种
+ * - 改进衰减/风化算法
+ * - 优化地形适应
  */
 public class RuinsWorldGenerator implements IWorldGenerator {
 
@@ -55,10 +62,16 @@ public class RuinsWorldGenerator implements IWorldGenerator {
         UNDERGROUND_VAULT("地下金库", 14, 14, 10, 4),
         CRASHED_TRANSPORT("坠毁运输船", 20, 12, 8, 3),
         FACTORY_RUINS("废弃工厂", 24, 24, 14, 4),
-        QUANTUM_QUARRY_SITE("量子采矿场", 16, 16, 10, 5),      // 新增
-        ENERGY_STATION("能量中继站", 14, 14, 16, 4),           // 新增
-        DATA_CENTER("数据中心废墟", 20, 20, 8, 3),             // 新增
-        TEMPORAL_LAB("时间实验室", 16, 16, 12, 5);             // 新增
+        QUANTUM_QUARRY_SITE("量子采矿场", 16, 16, 10, 5),
+        ENERGY_STATION("能量中继站", 14, 14, 16, 4),
+        DATA_CENTER("数据中心废墟", 20, 20, 8, 3),
+        TEMPORAL_LAB("时间实验室", 16, 16, 12, 5),
+        // v3.1 新增结构
+        DATA_OBELISK("数据方尖碑", 9, 9, 20, 3),
+        BIO_DOME("生态穹顶", 18, 18, 12, 3),
+        FUSION_RING("聚变反应环", 20, 20, 8, 5),
+        CRASHED_POD("坠毁空降舱", 12, 8, 6, 2),
+        VOID_FACTORY("虚空工厂", 26, 20, 16, 5);
 
         public final String name;
         public final int sizeX, sizeZ, sizeY;
@@ -128,6 +141,22 @@ public class RuinsWorldGenerator implements IWorldGenerator {
                 break;
             case TEMPORAL_LAB:
                 generateTemporalLab(world, pos, random);
+                break;
+            // v3.1 新增结构
+            case DATA_OBELISK:
+                generateDataObelisk(world, pos, random);
+                break;
+            case BIO_DOME:
+                generateBioDome(world, pos, random);
+                break;
+            case FUSION_RING:
+                generateFusionRing(world, pos, random);
+                break;
+            case CRASHED_POD:
+                generateCrashedPod(world, pos, random);
+                break;
+            case VOID_FACTORY:
+                generateVoidFactory(world, pos, random);
                 break;
         }
     }
@@ -459,6 +488,541 @@ public class RuinsWorldGenerator implements IWorldGenerator {
         if (random.nextFloat() < 0.7f) {
             placeSpecialBlock(world, pos.add(0, 6, 0), random);
         }
+    }
+
+    // ============== v3.1 新增结构 ==============
+
+    // 数据方尖碑 (9x9x20) - 高耸的数据存储塔
+    private void generateDataObelisk(World world, BlockPos pos, Random random) {
+        clearBuildingArea(world, pos, 5, 5, 22);
+        levelGround(world, pos, 5, 5, 3);
+
+        // 基座 (交错图案)
+        for (int x = -4; x <= 4; x++) {
+            for (int z = -4; z <= 4; z++) {
+                IBlockState base = ((x + z) % 2 == 0) ?
+                    Blocks.CONCRETE.getStateFromMeta(15) : // 黑色混凝土
+                    Blocks.CONCRETE.getStateFromMeta(0);   // 白色混凝土
+                setBlockSafe(world, pos.add(x, -1, z), base);
+            }
+        }
+
+        // 主塔身 (从大到小)
+        for (int y = 0; y <= 16; y++) {
+            int radius = y < 4 ? 3 : (y < 8 ? 2 : (y < 14 ? 1 : 0));
+            float decayChance = 0.05f + (y * 0.015f);
+
+            for (int x = -radius; x <= radius; x++) {
+                for (int z = -radius; z <= radius; z++) {
+                    if (Math.abs(x) == radius || Math.abs(z) == radius) {
+                        if (random.nextFloat() > decayChance) {
+                            IBlockState block;
+                            if (y % 4 == 0) {
+                                block = Blocks.SEA_LANTERN.getDefaultState();
+                            } else if (y % 2 == 0) {
+                                block = Blocks.QUARTZ_BLOCK.getStateFromMeta(2); // 柱子石英
+                            } else {
+                                block = Blocks.CONCRETE.getStateFromMeta(9); // 青色混凝土
+                            }
+                            setBlockWithDecay(world, pos.add(x, y, z), block, random, decayChance);
+                        }
+                    }
+                }
+            }
+
+            // 中央数据核心
+            if (y >= 2 && y <= 12 && y % 2 == 0) {
+                setBlockSafe(world, pos.add(0, y, 0), Blocks.REDSTONE_LAMP.getDefaultState());
+            }
+        }
+
+        // 顶部水晶尖端
+        for (int y = 17; y <= 19; y++) {
+            setBlockSafe(world, pos.add(0, y, 0), Blocks.END_ROD.getDefaultState());
+        }
+
+        // 四角数据柱
+        for (int[] corner : new int[][]{{-3, -3}, {-3, 3}, {3, -3}, {3, 3}}) {
+            for (int y = 0; y <= 6; y++) {
+                if (random.nextFloat() > 0.2f) {
+                    IBlockState pillar = (y % 2 == 0) ?
+                        Blocks.IRON_BLOCK.getDefaultState() :
+                        Blocks.END_ROD.getDefaultState();
+                    setBlockSafe(world, pos.add(corner[0], y, corner[1]), pillar);
+                }
+            }
+        }
+
+        // 散落的数据碎片
+        decorateRuin(world, pos, random, 6, 4);
+
+        placeRuinContents(world, pos.add(2, 0, 0), random, RuinType.DATA_OBELISK.lootTier);
+        placeSpecialBlockGuaranteed(world, pos.add(0, 1, 0), random, 0.6f);
+    }
+
+    // 生态穹顶 (18x18x12) - 废弃的生物圈实验室
+    private void generateBioDome(World world, BlockPos pos, Random random) {
+        clearBuildingArea(world, pos, 10, 10, 14);
+        levelGround(world, pos, 10, 10, 3);
+
+        // 穹顶基座
+        fillCylinder(world, pos.down(), 8, 2, Blocks.STONEBRICK.getDefaultState(), random, 0.1f);
+
+        // 玻璃穹顶 (球形)
+        int radius = 7;
+        for (int y = 0; y <= radius; y++) {
+            int ringRadius = (int) Math.sqrt(radius * radius - y * y);
+            float decayChance = 0.15f + (y * 0.03f);
+
+            for (int x = -ringRadius; x <= ringRadius; x++) {
+                for (int z = -ringRadius; z <= ringRadius; z++) {
+                    double dist = Math.sqrt(x * x + z * z);
+                    if (dist >= ringRadius - 1 && dist <= ringRadius) {
+                        IBlockState glass;
+                        if (random.nextFloat() < 0.3f) {
+                            glass = Blocks.STAINED_GLASS.getStateFromMeta(9); // 青色玻璃
+                        } else {
+                            glass = Blocks.GLASS.getDefaultState();
+                        }
+                        setBlockWithDecay(world, pos.add(x, y, z), glass, random, decayChance);
+                    }
+                }
+            }
+        }
+
+        // 内部植被
+        for (int i = 0; i < 12; i++) {
+            int px = random.nextInt(10) - 5;
+            int pz = random.nextInt(10) - 5;
+            BlockPos plantPos = pos.add(px, 0, pz);
+            if (world.isAirBlock(plantPos)) {
+                int plantType = random.nextInt(5);
+                switch (plantType) {
+                    case 0:
+                        setBlockSafe(world, plantPos, Blocks.TALLGRASS.getStateFromMeta(1));
+                        break;
+                    case 1:
+                        setBlockSafe(world, plantPos, Blocks.SAPLING.getStateFromMeta(random.nextInt(6)));
+                        break;
+                    case 2:
+                        setBlockSafe(world, plantPos, Blocks.RED_FLOWER.getStateFromMeta(random.nextInt(9)));
+                        break;
+                    case 3:
+                        setBlockSafe(world, plantPos, Blocks.YELLOW_FLOWER.getDefaultState());
+                        break;
+                    default:
+                        // 放泥土块生草
+                        setBlockSafe(world, plantPos.down(), Blocks.GRASS.getDefaultState());
+                }
+            }
+        }
+
+        // 中央培养槽
+        setBlockSafe(world, pos, Blocks.WATER.getDefaultState());
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                if (dx == 0 && dz == 0) continue;
+                setBlockSafe(world, pos.add(dx, 0, dz), Blocks.GLASS.getDefaultState());
+            }
+        }
+
+        // 控制室 (一侧)
+        for (int x = 5; x <= 7; x++) {
+            for (int z = -2; z <= 2; z++) {
+                for (int y = 0; y <= 2; y++) {
+                    if (y == 0 || y == 2 || z == -2 || z == 2) {
+                        setBlockWithDecay(world, pos.add(x, y, z),
+                            Blocks.CONCRETE.getStateFromMeta(0), random, 0.2f);
+                    }
+                }
+            }
+        }
+        setBlockSafe(world, pos.add(6, 1, 0), Blocks.AIR.getDefaultState());
+
+        decorateRuin(world, pos, random, 10, 5);
+        placeRuinContents(world, pos.add(6, 0, 0), random, RuinType.BIO_DOME.lootTier);
+        placeSpecialBlockGuaranteed(world, pos.add(-3, 0, 3), random, 0.4f);
+    }
+
+    // 聚变反应环 (20x20x8) - 环形聚变发电设施
+    private void generateFusionRing(World world, BlockPos pos, Random random) {
+        clearBuildingArea(world, pos, 11, 11, 10);
+        levelGround(world, pos, 11, 11, 3);
+
+        // 基座平台
+        fillCylinder(world, pos.down(), 9, 2, Blocks.CONCRETE.getStateFromMeta(8), random, 0.1f);
+
+        // 外环结构
+        int outerRadius = 8;
+        int innerRadius = 5;
+
+        for (int y = 0; y <= 5; y++) {
+            float decayChance = 0.1f + (y * 0.02f);
+
+            for (int angle = 0; angle < 360; angle += 10) {
+                double rad = Math.toRadians(angle);
+
+                // 外环
+                int ox = (int) Math.round(outerRadius * Math.cos(rad));
+                int oz = (int) Math.round(outerRadius * Math.sin(rad));
+                IBlockState outerBlock = (y % 2 == 0) ?
+                    Blocks.IRON_BLOCK.getDefaultState() :
+                    Blocks.QUARTZ_BLOCK.getDefaultState();
+                setBlockWithDecay(world, pos.add(ox, y, oz), outerBlock, random, decayChance);
+
+                // 内环
+                int ix = (int) Math.round(innerRadius * Math.cos(rad));
+                int iz = (int) Math.round(innerRadius * Math.sin(rad));
+                IBlockState innerBlock = (y == 2 || y == 3) ?
+                    Blocks.SEA_LANTERN.getDefaultState() :
+                    Blocks.PURPUR_BLOCK.getDefaultState();
+                setBlockWithDecay(world, pos.add(ix, y, iz), innerBlock, random, decayChance);
+            }
+        }
+
+        // 连接臂 (4条)
+        for (int dir = 0; dir < 4; dir++) {
+            double rad = Math.toRadians(dir * 90);
+            for (int r = innerRadius + 1; r < outerRadius; r++) {
+                int ax = (int) Math.round(r * Math.cos(rad));
+                int az = (int) Math.round(r * Math.sin(rad));
+                for (int y = 0; y <= 4; y++) {
+                    if (y == 0 || y == 4) {
+                        setBlockWithDecay(world, pos.add(ax, y, az),
+                            Blocks.END_ROD.getDefaultState(), random, 0.2f);
+                    } else {
+                        setBlockWithDecay(world, pos.add(ax, y, az),
+                            Blocks.IRON_BARS.getDefaultState(), random, 0.15f);
+                    }
+                }
+            }
+        }
+
+        // 中央核心 (等离子体)
+        for (int y = 1; y <= 4; y++) {
+            setBlockSafe(world, pos.add(0, y, 0), Blocks.BEACON.getDefaultState());
+        }
+        // 核心底座
+        fillCylinder(world, pos, 2, 1, Blocks.OBSIDIAN.getDefaultState(), random, 0.0f);
+
+        // 控制塔
+        for (int y = 0; y <= 6; y++) {
+            if (random.nextFloat() > 0.15f) {
+                setBlockSafe(world, pos.add(outerRadius + 2, y, 0), Blocks.IRON_BLOCK.getDefaultState());
+            }
+        }
+        setBlockSafe(world, pos.add(outerRadius + 2, 3, 0), Blocks.REDSTONE_LAMP.getDefaultState());
+
+        decorateRuin(world, pos, random, 12, 8);
+        placeRuinContents(world, pos.add(outerRadius + 1, 0, 2), random, RuinType.FUSION_RING.lootTier);
+        placeRuinContents(world, pos.add(-outerRadius - 1, 0, -2), random, RuinType.FUSION_RING.lootTier);
+        placeSpecialBlockGuaranteed(world, pos.add(3, 0, 3), random, 0.7f);
+    }
+
+    // 坠毁空降舱 (12x8x6) - 小型坠毁逃生舱
+    private void generateCrashedPod(World world, BlockPos pos, Random random) {
+        // 撞击坑
+        int craterRadius = 4;
+        for (int x = -craterRadius; x <= craterRadius; x++) {
+            for (int z = -craterRadius; z <= craterRadius; z++) {
+                double dist = Math.sqrt(x * x + z * z);
+                if (dist <= craterRadius) {
+                    int depth = (int) (3 * (1 - dist / craterRadius));
+                    for (int y = 0; y >= -depth; y--) {
+                        setBlockSafe(world, pos.add(x, y, z), Blocks.AIR.getDefaultState());
+                    }
+                    // 焦土
+                    if (random.nextFloat() < 0.4f) {
+                        setBlockSafe(world, pos.add(x, -depth - 1, z), Blocks.SOUL_SAND.getDefaultState());
+                    } else {
+                        setBlockSafe(world, pos.add(x, -depth - 1, z), Blocks.DIRT.getDefaultState());
+                    }
+                }
+            }
+        }
+
+        // 倾斜的舱体
+        int tiltAngle = random.nextInt(30) - 15;
+        for (int l = -3; l <= 3; l++) {
+            int tiltY = l / 2;
+            for (int w = -2; w <= 2; w++) {
+                // 舱壁
+                if (Math.abs(w) == 2) {
+                    if (random.nextFloat() > 0.25f) {
+                        setBlockSafe(world, pos.add(l, tiltY, w), Blocks.IRON_BLOCK.getDefaultState());
+                        if (random.nextFloat() > 0.4f) {
+                            setBlockSafe(world, pos.add(l, tiltY + 1, w), Blocks.IRON_BARS.getDefaultState());
+                        }
+                    }
+                }
+                // 舱顶
+                if (l >= -2 && l <= 2 && random.nextFloat() > 0.3f) {
+                    setBlockSafe(world, pos.add(l, tiltY + 2, w), Blocks.IRON_BLOCK.getDefaultState());
+                }
+                // 舱底
+                if (l >= -2 && l <= 2) {
+                    setBlockSafe(world, pos.add(l, tiltY - 1, w), Blocks.IRON_BLOCK.getDefaultState());
+                }
+            }
+        }
+
+        // 窗户
+        setBlockSafe(world, pos.add(0, 1, 2), Blocks.GLASS_PANE.getDefaultState());
+        setBlockSafe(world, pos.add(0, 1, -2), Blocks.GLASS_PANE.getDefaultState());
+
+        // 舱内设施
+        setBlockSafe(world, pos.add(-1, 0, 0), Blocks.REDSTONE_LAMP.getDefaultState());
+        setBlockSafe(world, pos.add(1, 0, 0), Blocks.LEVER.getDefaultState());
+
+        // 散落的货物和碎片
+        for (int i = 0; i < 6; i++) {
+            int dx = random.nextInt(8) - 4;
+            int dz = random.nextInt(8) - 4;
+            BlockPos debrisPos = pos.add(dx, 0, dz);
+            // 调整到地面
+            debrisPos = adjustToTerrain(world, debrisPos);
+            if (world.isAirBlock(debrisPos)) {
+                int debrisType = random.nextInt(4);
+                switch (debrisType) {
+                    case 0:
+                        setBlockSafe(world, debrisPos, Blocks.IRON_BLOCK.getDefaultState());
+                        break;
+                    case 1:
+                        setBlockSafe(world, debrisPos, Blocks.QUARTZ_BLOCK.getDefaultState());
+                        break;
+                    case 2:
+                        setBlockSafe(world, debrisPos, Blocks.CHEST.getDefaultState());
+                        break;
+                    default:
+                        setBlockSafe(world, debrisPos, Blocks.IRON_BARS.getDefaultState());
+                }
+            }
+        }
+
+        placeRuinContents(world, pos, random, RuinType.CRASHED_POD.lootTier);
+        placeSpecialBlockGuaranteed(world, pos.add(0, 0, 0), random, 0.35f);
+    }
+
+    // 虚空工厂 (26x20x16) - 大型工业废墟
+    private void generateVoidFactory(World world, BlockPos pos, Random random) {
+        clearBuildingArea(world, pos, 14, 11, 18);
+        levelGround(world, pos, 14, 11, 5);
+
+        // 工厂地基
+        fillArea(world, pos.add(-13, -2, -10), pos.add(13, -1, 10), Blocks.STONEBRICK.getDefaultState());
+
+        // 主厂房框架
+        for (int y = 0; y <= 14; y++) {
+            float decayChance = 0.1f + (y * 0.015f);
+
+            // 支撑柱
+            for (int[] col : new int[][]{{-12, -9}, {-12, 9}, {12, -9}, {12, 9},
+                                         {-12, 0}, {12, 0}, {0, -9}, {0, 9}}) {
+                if (random.nextFloat() > decayChance * 0.5f) {
+                    setBlockSafe(world, pos.add(col[0], y, col[1]), Blocks.IRON_BLOCK.getDefaultState());
+                }
+            }
+
+            // 墙壁 (底部实心, 上部镂空)
+            if (y <= 4) {
+                for (int x = -12; x <= 12; x++) {
+                    setBlockWithDecay(world, pos.add(x, y, -9), getRandomRuinBlock(random), random, decayChance);
+                    setBlockWithDecay(world, pos.add(x, y, 9), getRandomRuinBlock(random), random, decayChance);
+                }
+                for (int z = -9; z <= 9; z++) {
+                    setBlockWithDecay(world, pos.add(-12, y, z), getRandomRuinBlock(random), random, decayChance);
+                    setBlockWithDecay(world, pos.add(12, y, z), getRandomRuinBlock(random), random, decayChance);
+                }
+            } else if (y >= 5 && y <= 8) {
+                // 窗户层
+                for (int x = -11; x <= 11; x += 4) {
+                    setBlockWithDecay(world, pos.add(x, y, -9), Blocks.IRON_BARS.getDefaultState(), random, decayChance);
+                    setBlockWithDecay(world, pos.add(x, y, 9), Blocks.IRON_BARS.getDefaultState(), random, decayChance);
+                }
+            }
+
+            // 屋顶桁架 (顶层)
+            if (y >= 12 && y <= 14) {
+                for (int x = -10; x <= 10; x += 2) {
+                    setBlockWithDecay(world, pos.add(x, y, 0), Blocks.IRON_BARS.getDefaultState(), random, decayChance);
+                }
+            }
+        }
+
+        // 生产线设备
+        for (int z = -6; z <= 6; z += 3) {
+            // 熔炉阵列
+            setBlockSafe(world, pos.add(-8, 0, z), Blocks.FURNACE.getDefaultState());
+            setBlockSafe(world, pos.add(-8, 1, z), Blocks.HOPPER.getDefaultState());
+
+            // 活塞加工台
+            setBlockSafe(world, pos.add(-4, 0, z), Blocks.PISTON.getDefaultState());
+            setBlockSafe(world, pos.add(-4, 1, z), Blocks.STICKY_PISTON.getDefaultState());
+
+            // 传送带 (用铁块模拟)
+            for (int x = -2; x <= 4; x++) {
+                setBlockWithDecay(world, pos.add(x, 0, z),
+                    Blocks.IRON_BLOCK.getDefaultState(), random, 0.15f);
+            }
+
+            // 储存箱
+            setBlockSafe(world, pos.add(6, 0, z), Blocks.CHEST.getDefaultState());
+            setBlockSafe(world, pos.add(8, 0, z), Blocks.CHEST.getDefaultState());
+        }
+
+        // 中央控制平台
+        fillArea(world, pos.add(-3, 0, -3), pos.add(3, 0, 3), Blocks.QUARTZ_BLOCK.getDefaultState());
+        setBlockSafe(world, pos.add(0, 1, 0), Blocks.ANVIL.getDefaultState());
+        setBlockSafe(world, pos.add(-2, 1, -2), Blocks.REDSTONE_LAMP.getDefaultState());
+        setBlockSafe(world, pos.add(2, 1, 2), Blocks.REDSTONE_LAMP.getDefaultState());
+        setBlockSafe(world, pos.add(-2, 1, 2), Blocks.DAYLIGHT_DETECTOR.getDefaultState());
+        setBlockSafe(world, pos.add(2, 1, -2), Blocks.LEVER.getDefaultState());
+
+        // 烟囱群
+        for (int[] chimney : new int[][]{{10, -7}, {10, 7}}) {
+            for (int y = 0; y <= 20; y++) {
+                float decay = 0.05f + (y * 0.025f);
+                if (random.nextFloat() > decay) {
+                    for (int dx = 0; dx <= 1; dx++) {
+                        for (int dz = 0; dz <= 1; dz++) {
+                            setBlockSafe(world, pos.add(chimney[0] + dx, y, chimney[1] + dz),
+                                Blocks.BRICK_BLOCK.getDefaultState());
+                        }
+                    }
+                }
+            }
+        }
+
+        // 管道网络
+        for (int x = -10; x <= 10; x += 5) {
+            for (int y = 6; y <= 8; y++) {
+                setBlockWithDecay(world, pos.add(x, y, 0),
+                    Blocks.END_ROD.getDefaultState(), random, 0.2f);
+            }
+        }
+
+        // 货物堆
+        for (int i = 0; i < 8; i++) {
+            int gx = random.nextInt(20) - 10;
+            int gz = random.nextInt(14) - 7;
+            BlockPos cargoPos = pos.add(gx, 0, gz);
+            if (world.isAirBlock(cargoPos)) {
+                int cargoType = random.nextInt(3);
+                switch (cargoType) {
+                    case 0:
+                        setBlockSafe(world, cargoPos, Blocks.CHEST.getDefaultState());
+                        break;
+                    case 1:
+                        setBlockSafe(world, cargoPos, Blocks.IRON_BLOCK.getDefaultState());
+                        break;
+                    default:
+                        setBlockSafe(world, cargoPos, Blocks.QUARTZ_BLOCK.getDefaultState());
+                }
+            }
+        }
+
+        decorateRuin(world, pos, random, 14, 10);
+
+        // 多个战利品点
+        placeRuinContents(world, pos.add(-8, 0, 0), random, RuinType.VOID_FACTORY.lootTier);
+        placeRuinContents(world, pos.add(8, 0, 0), random, RuinType.VOID_FACTORY.lootTier);
+        placeRuinContents(world, pos.add(0, 0, 6), random, RuinType.VOID_FACTORY.lootTier);
+
+        // 高概率特殊方块
+        placeSpecialBlockGuaranteed(world, pos.add(0, 1, 0), random, 0.8f);
+        placeSpecialBlockGuaranteed(world, pos.add(-6, 0, -5), random, 0.5f);
+    }
+
+    // ============== v3.1 新增辅助方法 ==============
+
+    // 填充圆柱体
+    private void fillCylinder(World world, BlockPos center, int radius, int height,
+                              IBlockState state, Random random, float decayChance) {
+        for (int y = 0; y < height; y++) {
+            for (int x = -radius; x <= radius; x++) {
+                for (int z = -radius; z <= radius; z++) {
+                    if (x * x + z * z <= radius * radius) {
+                        setBlockWithDecay(world, center.add(x, y, z), state, random, decayChance);
+                    }
+                }
+            }
+        }
+    }
+
+    // 带衰减的方块放置
+    private void setBlockWithDecay(World world, BlockPos pos, IBlockState state,
+                                   Random random, float decayChance) {
+        if (random.nextFloat() > decayChance) {
+            setBlockSafe(world, pos, state);
+        }
+    }
+
+    // 装饰废墟 (散落碎片)
+    private void decorateRuin(World world, BlockPos center, Random random, int radius, int count) {
+        for (int i = 0; i < count; i++) {
+            int dx = random.nextInt(radius * 2) - radius;
+            int dz = random.nextInt(radius * 2) - radius;
+            BlockPos debrisPos = center.add(dx, 0, dz);
+
+            // 寻找地面
+            for (int y = 3; y >= -3; y--) {
+                BlockPos checkPos = debrisPos.add(0, y, 0);
+                if (world.isAirBlock(checkPos) && !world.isAirBlock(checkPos.down())) {
+                    debrisPos = checkPos;
+                    break;
+                }
+            }
+
+            if (world.isAirBlock(debrisPos)) {
+                int debrisType = random.nextInt(6);
+                switch (debrisType) {
+                    case 0:
+                        setBlockSafe(world, debrisPos, Blocks.COBBLESTONE.getDefaultState());
+                        break;
+                    case 1:
+                        setBlockSafe(world, debrisPos, Blocks.IRON_BARS.getDefaultState());
+                        break;
+                    case 2:
+                        setBlockSafe(world, debrisPos, Blocks.STONE_SLAB.getDefaultState());
+                        break;
+                    case 3:
+                        setBlockSafe(world, debrisPos, Blocks.END_ROD.getDefaultState());
+                        break;
+                    case 4:
+                        setBlockSafe(world, debrisPos, Blocks.GRAVEL.getDefaultState());
+                        break;
+                    default:
+                        // 不放置
+                        break;
+                }
+            }
+        }
+    }
+
+    // 保证放置特殊方块 (带概率)
+    private void placeSpecialBlockGuaranteed(World world, BlockPos pos, Random random, float chance) {
+        if (random.nextFloat() < chance * SPECIAL_BLOCK_CHANCE_MULTIPLIER) {
+            placeSpecialBlock(world, pos, random);
+        }
+    }
+
+    // 调整到地形高度
+    private BlockPos adjustToTerrain(World world, BlockPos pos) {
+        // 向上搜索
+        for (int y = 0; y <= 5; y++) {
+            BlockPos checkUp = pos.up(y);
+            if (world.isAirBlock(checkUp) && !world.isAirBlock(checkUp.down())) {
+                return checkUp;
+            }
+        }
+        // 向下搜索
+        for (int y = 0; y <= 5; y++) {
+            BlockPos checkDown = pos.down(y);
+            if (world.isAirBlock(checkDown) && !world.isAirBlock(checkDown.down())) {
+                return checkDown;
+            }
+        }
+        return pos;
     }
 
     // ============== 原有结构 (扩大尺寸) ==============
