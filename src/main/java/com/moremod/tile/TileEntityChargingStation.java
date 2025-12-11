@@ -34,7 +34,8 @@ public class TileEntityChargingStation extends TileEntity implements ITickable {
 
     // 配置
     private static final int ENERGY_CAPACITY = 100000000;    // 100M RF
-    private static final int MAX_RECEIVE = 10000000;         // 每tick最多接收 10M RF
+    private static final int MAX_RECEIVE = 50000000;         // 每tick最多接收 50M RF (大幅提升)
+    private static final int PULL_RATE = 10000000;           // 每tick从周围抽取 10M RF
     private static final int CHARGE_RATE = Integer.MAX_VALUE; // 無限快充電
     private static final int SLOT_COUNT = 9;                 // 9個充電槽
 
@@ -72,6 +73,11 @@ public class TileEntityChargingStation extends TileEntity implements ITickable {
 
         tickCounter++;
 
+        // 主動從周圍方塊抽取能量
+        if (energy.getEnergyStored() < energy.getMaxEnergyStored()) {
+            pullEnergyFromNeighbors();
+        }
+
         // 每tick處理充電
         if (energy.getEnergyStored() > 0) {
             // 充電物品槽中的物品
@@ -80,6 +86,32 @@ public class TileEntityChargingStation extends TileEntity implements ITickable {
             // 充電站上方的玩家
             if (tickCounter % 5 == 0) {
                 chargePlayersOnTop();
+            }
+        }
+    }
+
+    /**
+     * 主動從周圍發電機/管線抽取能量
+     */
+    private void pullEnergyFromNeighbors() {
+        int spaceAvailable = energy.getMaxEnergyStored() - energy.getEnergyStored();
+        if (spaceAvailable <= 0) return;
+
+        int toPull = Math.min(PULL_RATE, spaceAvailable);
+
+        for (EnumFacing facing : EnumFacing.values()) {
+            if (toPull <= 0) break;
+
+            TileEntity neighbor = world.getTileEntity(pos.offset(facing));
+            if (neighbor != null && neighbor.hasCapability(CapabilityEnergy.ENERGY, facing.getOpposite())) {
+                IEnergyStorage neighborEnergy = neighbor.getCapability(CapabilityEnergy.ENERGY, facing.getOpposite());
+                if (neighborEnergy != null && neighborEnergy.canExtract()) {
+                    int extracted = neighborEnergy.extractEnergy(toPull, false);
+                    if (extracted > 0) {
+                        energy.receiveEnergy(extracted, false);
+                        toPull -= extracted;
+                    }
+                }
             }
         }
     }

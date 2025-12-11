@@ -23,8 +23,8 @@ import java.util.List;
 public class ItemPlantOilBucket extends Item {
 
     // 每桶植物油的發電量（比原油低）
-    public static final int RF_PER_BUCKET = 60000;   // 60k RF
-    public static final int BURN_TIME = 1200;        // 60秒 (1200 ticks)
+    public static final int RF_PER_BUCKET = 300000;  // 300k RF (大幅提升)
+    public static final int BURN_TIME = 240;         // 12秒 (240 ticks, 加快处理)
 
     public ItemPlantOilBucket() {
         setMaxStackSize(16);

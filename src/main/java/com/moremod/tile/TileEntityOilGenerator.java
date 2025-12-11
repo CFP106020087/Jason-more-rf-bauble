@@ -41,13 +41,13 @@ import javax.annotation.Nullable;
 public class TileEntityOilGenerator extends TileEntity implements ITickable {
 
     // 配置
-    private static final int ENERGY_CAPACITY = 1000000;    // 1M RF
-    private static final int BASE_RF_PER_TICK = 3000;      // 基礎每tick產生 3000 RF (5倍加速)
+    private static final int ENERGY_CAPACITY = 5000000;    // 5M RF
+    private static final int BASE_RF_PER_TICK = 15000;     // 基礎每tick產生 15000 RF (大幅提升)
     private static final int UPGRADE_SLOTS = 4;            // 增速插件槽數量
     private static final float SPEED_PER_UPGRADE = 0.5f;   // 每個插件增加50%速度
 
     // 自訂能量存儲（對外只輸出，對內可添加）
-    private final GeneratorEnergyStorage energy = new GeneratorEnergyStorage(ENERGY_CAPACITY, 10000);
+    private final GeneratorEnergyStorage energy = new GeneratorEnergyStorage(ENERGY_CAPACITY, 100000);
 
     /**
      * 發電機專用能量存儲 - 對外只允許輸出，內部可添加能量
@@ -307,7 +307,7 @@ public class TileEntityOilGenerator extends TileEntity implements ITickable {
             if (neighbor != null && neighbor.hasCapability(CapabilityEnergy.ENERGY, facing.getOpposite())) {
                 IEnergyStorage neighborEnergy = neighbor.getCapability(CapabilityEnergy.ENERGY, facing.getOpposite());
                 if (neighborEnergy != null && neighborEnergy.canReceive()) {
-                    int toTransfer = Math.min(energy.getEnergyStored(), 10000); // 每次最多傳輸 10k
+                    int toTransfer = Math.min(energy.getEnergyStored(), 100000); // 每次最多傳輸 100k
                     int accepted = neighborEnergy.receiveEnergy(toTransfer, false);
                     if (accepted > 0) {
                         energy.extractEnergy(accepted, false);
