@@ -90,12 +90,18 @@ public class ItemEnergySword extends ItemSword {
             boolean powered = storage != null && storage.getEnergyStored() > 0;
             boolean canUnsheathe = powered && (attacker instanceof EntityPlayer) && canUnsheathe((EntityPlayer) attacker, stack);
 
+            // ⭐ 修复：只要有能量就启用i-frame无视（自动攻击模式）
+            // canUnsheathe 仅用于额外的穿甲伤害
+            if (powered) {
+                // 无敌帧无视：允许快速连击
+                target.hurtResistantTime = 0;
+                noImmunityTargets.put(target.getUniqueID(), NO_IMMUNITY_DURATION);
+            }
+
+            // 出鞘状态：额外穿甲伤害
             if (canUnsheathe) {
                 CapBypassFlag.ASMODEUS_BYPASS.set(true);
                 try {
-                    target.hurtResistantTime = 0;
-                    noImmunityTargets.put(target.getUniqueID(), NO_IMMUNITY_DURATION);
-
                     float extraDamage = 20.0F;
                     int sharp = EnchantmentHelper.getEnchantmentLevel(Enchantments.SHARPNESS, stack);
                     if (sharp > 0) extraDamage += sharp * 1.25F;
@@ -121,7 +127,9 @@ public class ItemEnergySword extends ItemSword {
     // =========================
     @SubscribeEvent
     public static void onWorldTick(TickEvent.WorldTickEvent event) {
-        if (event.phase != TickEvent.Phase.END || event.world.isRemote) return;
+        // ⭐ 关键修复：使用 START 阶段，确保在数据包处理之前清除i-frame
+        // 这样当客户端的自动攻击包到达时，目标的hurtResistantTime已经被清零
+        if (event.phase != TickEvent.Phase.START || event.world.isRemote) return;
         Iterator<Map.Entry<UUID, Integer>> it = noImmunityTargets.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry<UUID, Integer> e = it.next();
