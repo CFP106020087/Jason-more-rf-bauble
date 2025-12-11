@@ -121,8 +121,8 @@ public class SpecialRitualInfo {
                 new ItemStack(Items.DIAMOND_SWORD), // 目标
                 new ItemStack(Items.BOOK),
                 new ItemStack(Items.BOOK),
-                new ItemStack(Items.LAPIS_LAZULI),
-                new ItemStack(Items.LAPIS_LAZULI)
+                new ItemStack(Items.DYE, 1, 4), // 青金石
+                new ItemStack(Items.DYE, 1, 4)  // 青金石
             )),
             Arrays.asList(new ItemStack(Items.DIAMOND_SWORD)), // 目标带附魔
             300, 200000, 0.10f,
@@ -132,16 +132,16 @@ public class SpecialRitualInfo {
         // 4. 诅咒创造 (二阶)
         rituals.add(new SpecialRitualInfo(
             RitualType.CURSE_CREATION,
-            Arrays.asList(new ItemStack(Items.PAPER)),
+            Arrays.asList(new ItemStack(Items.BOOK)),
             createPedestalList(Arrays.asList(
                 new ItemStack(Items.DYE, 1, 0), // 墨囊
                 new ItemStack(Items.DYE, 1, 0),
                 new ItemStack(Items.FERMENTED_SPIDER_EYE),
                 new ItemStack(Items.FERMENTED_SPIDER_EYE)
             )),
-            Arrays.asList(new ItemStack(ModItems.CURSE_SCROLL != null ? ModItems.CURSE_SCROLL : Items.PAPER)),
+            Arrays.asList(new ItemStack(Items.ENCHANTED_BOOK)), // 输出诅咒附魔书
             200, 100000, 0.0f,
-            "创造诅咒卷轴\n可用于给物品附加诅咒"
+            "创造带诅咒的附魔书\n可用于给物品附加诅咒"
         ));
 
         // 5. 武器经验加速 (二阶)
@@ -162,14 +162,14 @@ public class SpecialRitualInfo {
         // 6. 村正攻击提升 (二阶)
         rituals.add(new SpecialRitualInfo(
             RitualType.MURAMASA_BOOST,
-            Arrays.asList(new ItemStack(ModItems.MURAMASA != null ? ModItems.MURAMASA : Items.DIAMOND_SWORD)),
+            Arrays.asList(new ItemStack(Items.DIAMOND_SWORD)), // 村正（用钻石剑代表）
             createPedestalList(Arrays.asList(
                 new ItemStack(Items.BLAZE_POWDER),
                 new ItemStack(Items.BLAZE_POWDER),
                 new ItemStack(Items.MAGMA_CREAM),
                 new ItemStack(Items.MAGMA_CREAM)
             )),
-            Arrays.asList(new ItemStack(ModItems.MURAMASA != null ? ModItems.MURAMASA : Items.DIAMOND_SWORD)),
+            Arrays.asList(new ItemStack(Items.DIAMOND_SWORD)), // 增强后的村正
             150, 100000, 0.0f,
             "临时提升村正攻击力\n持续10分钟"
         ));
@@ -177,16 +177,16 @@ public class SpecialRitualInfo {
         // 7. 织印强化 (二阶)
         rituals.add(new SpecialRitualInfo(
             RitualType.FABRIC_ENHANCE,
-            Arrays.asList(new ItemStack(ModItems.FABRIC_STAMP != null ? ModItems.FABRIC_STAMP : Items.PAPER)),
+            Arrays.asList(new ItemStack(Items.LEATHER_CHESTPLATE)), // 织印盔甲（用皮革胸甲代表）
             createPedestalList(Arrays.asList(
                 new ItemStack(Items.GLOWSTONE_DUST),
                 new ItemStack(Items.GLOWSTONE_DUST),
                 new ItemStack(Items.REDSTONE),
                 new ItemStack(Items.REDSTONE)
             )),
-            Arrays.asList(new ItemStack(ModItems.FABRIC_STAMP != null ? ModItems.FABRIC_STAMP : Items.PAPER)),
+            Arrays.asList(new ItemStack(Items.LEATHER_CHESTPLATE)), // 强化后的织印盔甲
             200, 120000, 0.0f,
-            "强化织印的效果等级"
+            "强化织印盔甲的效果等级"
         ));
 
         // 8. 灵魂绑定 (三阶)
@@ -218,7 +218,7 @@ public class SpecialRitualInfo {
         rituals.add(new SpecialRitualInfo(
             RitualType.EMBEDDING,
             Arrays.asList(
-                ModItems.SACRED_RELIC_HEART != null ? new ItemStack(ModItems.SACRED_RELIC_HEART) : new ItemStack(Items.NETHER_STAR)
+                ModItems.SACRED_HEART != null ? new ItemStack(ModItems.SACRED_HEART) : new ItemStack(Items.NETHER_STAR)
             ),
             new ArrayList<>(), // 嵌入仪式不需要基座物品，需要玩家站在祭坛上
             new ArrayList<>(), // 无物品输出，效果是嵌入玩家
