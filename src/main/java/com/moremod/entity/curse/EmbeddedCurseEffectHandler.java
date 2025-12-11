@@ -75,7 +75,9 @@ public class EmbeddedCurseEffectHandler {
         }
     }
 
-    // ========== 1. 受到伤害加倍 → 圣光之心抵消 ==========
+    // ========== 1. 受到伤害加倍 → 圣光之心祝福 ==========
+    // 原诅咒：受到伤害加倍
+    // 祝福效果：受到伤害减少25%（抵消诅咒后额外减伤）
 
     @SubscribeEvent(priority = EventPriority.HIGH)
     public static void onPlayerHurt(LivingHurtEvent event) {
@@ -89,10 +91,12 @@ public class EmbeddedCurseEffectHandler {
 
         // 检查是否嵌入了圣光之心
         if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SACRED_HEART)) {
-            // 七咒会让伤害翻倍，嵌入后抵消这个效果
-            // 如果伤害被翻倍了，我们减半恢复原值
+            // 七咒会让伤害翻倍（×2），嵌入后转化为祝福
+            // 祝福：不仅抵消翻倍，还额外减伤25%
+            // 原伤害 × 2（诅咒）× 0.5（抵消）× 0.75（祝福）= 原伤害 × 0.375
+            // 相当于 62.5% 减伤
             float currentDamage = event.getAmount();
-            event.setAmount(currentDamage * 0.5f);
+            event.setAmount(currentDamage * 0.375f);
         }
     }
 
@@ -149,10 +153,14 @@ public class EmbeddedCurseEffectHandler {
         });
     }
 
-    // ========== 3. 护甲效力降低30% → 守护鳞片抵消 ==========
-    // 护甲恢复处理在 onPlayerTick 中的 handleGuardianScaleArmor 方法
+    // ========== 3. 护甲效力降低30% → 守护鳞片祝福 ==========
+    // 原诅咒：护甲效力降低30%
+    // 祝福效果：护甲效力提升30%（抵消诅咒后额外加成）
+    // 护甲处理在 onPlayerTick 中的 handleGuardianScaleArmor 方法
 
-    // ========== 4. 对怪物伤害降低50% → 勇气之刃抵消 ==========
+    // ========== 4. 对怪物伤害降低50% → 勇气之刃祝福 ==========
+    // 原诅咒：对怪物伤害降低50%
+    // 祝福效果：对怪物伤害提升25%（抵消诅咒后额外增伤）
 
     @SubscribeEvent(priority = EventPriority.HIGH)
     public static void onPlayerAttack(LivingHurtEvent event) {
@@ -169,14 +177,18 @@ public class EmbeddedCurseEffectHandler {
 
         // 检查是否嵌入了勇气之刃
         if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.COURAGE_BLADE)) {
-            // 七咒会让对怪物伤害减半，嵌入后抵消这个效果
-            // 将伤害恢复（乘以2）
+            // 七咒会让对怪物伤害减半（×0.5），嵌入后转化为祝福
+            // 祝福：不仅抵消减半，还额外增伤25%
+            // 原伤害 × 0.5（诅咒）× 2（抵消）× 1.25（祝福）= 原伤害 × 1.25
+            // 相当于 25% 增伤
             float currentDamage = event.getAmount();
-            event.setAmount(currentDamage * 2.0f);
+            event.setAmount(currentDamage * 2.5f);
         }
     }
 
-    // ========== 5. 着火永燃 → 霜华之露抵消 ==========
+    // ========== 5. 着火永燃 → 霜华之露祝福 ==========
+    // 原诅咒：着火永燃
+    // 祝福效果：火焰抗性（立即灭火 + 火焰抗性 buff）
 
     // 追踪玩家的火焰状态，用于判断火焰是否应该熄灭
     private static final Map<UUID, Integer> playerFireTicks = new HashMap<>();
@@ -193,21 +205,24 @@ public class EmbeddedCurseEffectHandler {
 
         // 检查是否嵌入了霜华之露
         if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.FROST_DEW)) {
-            // 霜华之露效果：如果玩家着火，允许火焰正常减少
-            // 七咒会让火焰永不熄灭（fire ticks 不减少或持续增加）
-            // 嵌入后，我们主动减少 fire ticks 来抵消这个效果
+            // 霜华之露祝福效果：不仅抵消永燃，还给予火焰抗性
             if (player.isBurning()) {
                 UUID playerId = player.getUniqueID();
                 int lastFireTicks = playerFireTicks.getOrDefault(playerId, 0);
                 int currentFireTicks = getFireTicks(player);
 
-                // 如果火焰没有自然减少（被七咒阻止了），我们手动减少
+                // 祝福：快速灭火（每 tick 减少 4 点，比正常快2倍）
                 if (currentFireTicks >= lastFireTicks && lastFireTicks > 0) {
-                    // 每 tick 减少 2 点火焰时间，正常熄灭
-                    setFireTicks(player, Math.max(0, currentFireTicks - 2));
+                    setFireTicks(player, Math.max(0, currentFireTicks - 4));
                 }
 
                 playerFireTicks.put(playerId, getFireTicks(player));
+
+                // 祝福：给予短暂火焰抗性
+                if (!player.isPotionActive(net.minecraft.init.MobEffects.FIRE_RESISTANCE)) {
+                    player.addPotionEffect(new net.minecraft.potion.PotionEffect(
+                            net.minecraft.init.MobEffects.FIRE_RESISTANCE, 60, 0, false, true));
+                }
             } else {
                 // 不着火时清除记录
                 playerFireTicks.remove(player.getUniqueID());
@@ -218,7 +233,7 @@ public class EmbeddedCurseEffectHandler {
         handleGuardianScaleArmor(player);
     }
 
-    // ========== 守护鳞片护甲恢复处理 ==========
+    // ========== 守护鳞片护甲祝福处理 ==========
 
     private static final UUID GUARDIAN_SCALE_ARMOR_UUID = UUID.fromString("a8b3c4d5-e6f7-4a8b-9c0d-1e2f3a4b5c6d");
     private static final Map<UUID, Boolean> armorModifierApplied = new HashMap<>();
@@ -229,14 +244,14 @@ public class EmbeddedCurseEffectHandler {
         boolean wasApplied = armorModifierApplied.getOrDefault(playerId, false);
 
         if (hasGuardianScale && !wasApplied) {
-            // 嵌入了守护鳞片，添加护甲恢复修正
-            // 七咒降低30%护甲，我们添加一个正向修正来抵消
-            // 注意：这里使用Operation 2 (乘法)，值为 0.428 表示 +42.8%
-            // 这样 70% * 1.428 ≈ 100%，恢复原始护甲值
+            // 嵌入了守护鳞片，添加护甲祝福修正
+            // 七咒降低30%护甲（×0.7），祝福效果：不仅抵消，还额外+30%
+            // 目标：原护甲 × 0.7（诅咒）× 1.857（修正）≈ 原护甲 × 1.3（祝福）
+            // 1.857 = 1.3 / 0.7 = 13/7
             AttributeModifier armorBoost = new AttributeModifier(
                     GUARDIAN_SCALE_ARMOR_UUID,
-                    "Guardian Scale Armor Restoration",
-                    0.428D,  // +42.8% 来抵消 -30%
+                    "Guardian Scale Armor Blessing",
+                    0.857D,  // +85.7% 来实现 70% × 185.7% = 130%（+30%祝福）
                     2  // Operation: Multiply
             );
 
@@ -329,17 +344,17 @@ public class EmbeddedCurseEffectHandler {
     }
 
     /**
-     * 获取诅咒抵消状态描述
+     * 获取诅咒状态描述（祝福版）
      */
     public static String[] getCurseStatus(EntityPlayer player) {
         return new String[] {
-                "1.伤害加倍: " + (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SACRED_HEART) ? "§a已抵消" : "§c生效中"),
-                "2.中立生物攻击: " + (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.PEACE_EMBLEM) ? "§a已抵消" : "§c生效中"),
-                "3.护甲降低30%: " + (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.GUARDIAN_SCALE) ? "§a已抵消" : "§c生效中"),
-                "4.伤害降低50%: " + (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.COURAGE_BLADE) ? "§a已抵消" : "§c生效中"),
-                "5.永燃: " + (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.FROST_DEW) ? "§a已抵消" : "§c生效中"),
-                "6.灵魂破碎: " + (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SOUL_ANCHOR) ? "§a已抵消" : "§c生效中"),
-                "7.失眠症: " + (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SLUMBER_SACHET) ? "§a已抵消" : "§c生效中")
+                "1.伤害加倍: " + (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SACRED_HEART) ? "§6祝福§r (减伤62.5%)" : "§c生效中"),
+                "2.中立生物攻击: " + (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.PEACE_EMBLEM) ? "§6祝福§r (和平光环)" : "§c生效中"),
+                "3.护甲降低30%: " + (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.GUARDIAN_SCALE) ? "§6祝福§r (护甲+30%)" : "§c生效中"),
+                "4.伤害降低50%: " + (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.COURAGE_BLADE) ? "§6祝福§r (增伤25%)" : "§c生效中"),
+                "5.永燃: " + (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.FROST_DEW) ? "§6祝福§r (火焰抗性)" : "§c生效中"),
+                "6.灵魂破碎: " + (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SOUL_ANCHOR) ? "§6祝福§r (灵魂护佑)" : "§c生效中"),
+                "7.失眠症: " + (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SLUMBER_SACHET) ? "§6祝福§r (安眠回血)" : "§c生效中")
         };
     }
 }

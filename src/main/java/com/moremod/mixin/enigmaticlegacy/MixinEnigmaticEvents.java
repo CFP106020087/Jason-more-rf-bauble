@@ -4,8 +4,9 @@ import com.moremod.entity.curse.EmbeddedCurseManager;
 import com.moremod.entity.curse.EmbeddedCurseManager.EmbeddedRelicType;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.init.MobEffects;
+import net.minecraft.potion.PotionEffect;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
-import net.minecraftforge.fml.common.gameevent.TickEvent;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.injection.At;
@@ -14,24 +15,26 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Mixin 拦截 EnigmaticEvents 中的各种诅咒效果
+ * Mixin 拦截 EnigmaticEvents 中的诅咒效果，并转化为祝福
  *
  * 目标类: keletu.enigmaticlegacy.event.EnigmaticEvents
  *
- * 拦截效果：
- * 1. 永燃 (FROST_DEW) - 拦截 setFire 调用
- * 2. 失眠症 (SLUMBER_SACHET) - 拦截 sleepTimer 修改
- * 3. 护甲降低30% (GUARDIAN_SCALE) - 拦截伤害倍率
- * 4. 中立生物攻击 (PEACE_EMBLEM) - 通过 onEntityHurt 处理
+ * 祝福效果：
+ * 1. 霜华之露 (FROST_DEW) - 火焰抗性：立即灭火 + 短暂火焰抗性
+ * 2. 安眠香囊 (SLUMBER_SACHET) - 安眠祝福：睡眠时获得生命恢复
+ * 3. 守护鳞片 (GUARDIAN_SCALE) - 护甲强化：减伤30%而非增伤
+ * 4. 和平徽章 (PEACE_EMBLEM) - 和平光环：取消所有仇恨锁定
  */
 @Pseudo
 @Mixin(targets = "keletu.enigmaticlegacy.event.EnigmaticEvents", remap = false)
 public class MixinEnigmaticEvents {
 
-    /**
-     * 拦截永燃效果 - 重定向 player.setFire() 调用
-     * 当玩家嵌入了霜华之露时，不执行 setFire
-     */
+    // ═══════════════════════════════════════════════════════════════
+    // 霜华之露 - 火焰抗性祝福
+    // 原诅咒：着火永燃
+    // 祝福：立即灭火 + 给予火焰抗性 buff
+    // ═══════════════════════════════════════════════════════════════
+
     @Redirect(
             method = "tickHandler(Lnet/minecraftforge/fml/common/gameevent/TickEvent$PlayerTickEvent;)V",
             at = @At(
@@ -43,17 +46,24 @@ public class MixinEnigmaticEvents {
     private void moremod$redirect_setFire(EntityPlayer player, int seconds) {
         // 检查是否嵌入了霜华之露
         if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.FROST_DEW)) {
-            // 霜华之露抵消永燃效果，不执行 setFire
+            // 祝福效果：立即灭火
+            player.extinguish();
+            // 给予 5 秒火焰抗性
+            if (!player.isPotionActive(MobEffects.FIRE_RESISTANCE)) {
+                player.addPotionEffect(new PotionEffect(MobEffects.FIRE_RESISTANCE, 100, 0, false, true));
+            }
             return;
         }
-        // 正常执行 setFire
+        // 正常执行诅咒 setFire
         player.setFire(seconds);
     }
 
-    /**
-     * 拦截失眠症效果 - 重定向 isPlayerSleeping() 检查
-     * 当玩家嵌入了安眠香囊时，让 EnigmaticEvents 认为玩家没在睡觉
-     */
+    // ═══════════════════════════════════════════════════════════════
+    // 安眠香囊 - 安眠祝福
+    // 原诅咒：失眠症（无法睡觉）
+    // 祝福：睡眠时获得生命恢复
+    // ═══════════════════════════════════════════════════════════════
+
     @Redirect(
             method = "tickHandler(Lnet/minecraftforge/fml/common/gameevent/TickEvent$PlayerTickEvent;)V",
             at = @At(
@@ -65,19 +75,26 @@ public class MixinEnigmaticEvents {
     private boolean moremod$redirect_isPlayerSleeping(EntityPlayer player) {
         // 检查是否嵌入了安眠香囊
         if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SLUMBER_SACHET)) {
-            // 安眠香囊抵消失眠症，返回 false 让 EnigmaticEvents 跳过失眠处理
+            // 祝福效果：允许睡觉，并给予睡眠时的生命恢复
+            if (player.isPlayerSleeping()) {
+                // 睡眠中给予再生效果
+                if (!player.isPotionActive(MobEffects.REGENERATION)) {
+                    player.addPotionEffect(new PotionEffect(MobEffects.REGENERATION, 100, 1, false, false));
+                }
+            }
+            // 返回 false 跳过失眠诅咒检查
             return false;
         }
-        // 正常返回睡眠状态
+        // 正常返回睡眠状态（让诅咒生效）
         return player.isPlayerSleeping();
     }
 
-    /**
-     * 拦截护甲降低效果 - 重定向 event.setAmount() 调用
-     * 当玩家嵌入了守护鳞片时，不增加受到的伤害
-     *
-     * 注意：这个拦截点针对 onEntityHurt 中的 setAmount 调用
-     */
+    // ═══════════════════════════════════════════════════════════════
+    // 守护鳞片 - 护甲强化祝福
+    // 原诅咒：护甲效力降低30%（受伤+30%）
+    // 祝福：护甲效力提升（减伤30%）
+    // ═══════════════════════════════════════════════════════════════
+
     @Redirect(
             method = "onEntityHurt(Lnet/minecraftforge/event/entity/living/LivingHurtEvent;)V",
             at = @At(
@@ -93,20 +110,23 @@ public class MixinEnigmaticEvents {
 
             // 检查是否嵌入了守护鳞片
             if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.GUARDIAN_SCALE)) {
-                // 守护鳞片抵消护甲降低效果，不修改伤害
+                // 祝福效果：减伤30%（而非增伤30%）
+                float originalAmount = event.getAmount();
+                float blessedAmount = originalAmount * 0.70f;
+                event.setAmount(blessedAmount);
                 return;
             }
         }
-        // 正常执行 setAmount
+        // 正常执行诅咒 setAmount（增伤）
         event.setAmount(amount);
     }
 
-    /**
-     * 拦截中立生物攻击效果
-     * 当玩家嵌入了和平徽章时，取消诅咒戒指引起的额外仇恨
-     *
-     * 注意：中立生物攻击的处理在 onEntityTarget 中
-     */
+    // ═══════════════════════════════════════════════════════════════
+    // 和平徽章 - 和平光环祝福
+    // 原诅咒：中立生物主动攻击
+    // 祝福：取消所有诅咒引起的仇恨锁定
+    // ═══════════════════════════════════════════════════════════════
+
     @Inject(
             method = "onEntityTarget(Lnet/minecraftforge/event/entity/living/LivingSetAttackTargetEvent;)V",
             at = @At("HEAD"),
@@ -124,8 +144,7 @@ public class MixinEnigmaticEvents {
 
                 // 检查是否嵌入了和平徽章
                 if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.PEACE_EMBLEM)) {
-                    // 和平徽章：检查这是否是诅咒戒指引起的仇恨
-                    // 如果玩家有诅咒戒指，取消这次目标设置
+                    // 祝福效果：和平光环 - 取消诅咒戒指引起的仇恨
                     if (hasCursedRing(player)) {
                         ci.cancel();
                     }
@@ -141,7 +160,6 @@ public class MixinEnigmaticEvents {
      */
     private boolean hasCursedRing(EntityPlayer player) {
         try {
-            // 使用反射检查 SuperpositionHandler.hasCursed
             Class<?> superpositionClass = Class.forName("keletu.enigmaticlegacy.event.SuperpositionHandler");
             java.lang.reflect.Method hasCursed = superpositionClass.getMethod("hasCursed", EntityPlayer.class);
             return (Boolean) hasCursed.invoke(null, player);
