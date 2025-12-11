@@ -5,6 +5,7 @@ import com.moremod.entity.EntityRitualSeat;
 import com.moremod.entity.curse.EmbeddedCurseManager;
 import com.moremod.entity.curse.EmbeddedCurseManager.EmbeddedRelicType;
 import com.moremod.ritual.AltarTier;
+import com.moremod.ritual.LegacyRitualConfig;
 import com.moremod.ritual.RitualInfusionAPI;
 import com.moremod.ritual.RitualInfusionRecipe;
 import com.moremod.ritual.TierRitualHandler;
@@ -85,64 +86,123 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     // 注魔仪式系统 (Enchantment Infusion Ritual)
     private boolean enchantInfusionActive = false;
     private int enchantInfusionProgress = 0;
-    private static final int ENCHANT_INFUSION_TIME = 200; // 10秒注魔时间
-    private static final float ENCHANT_SUCCESS_RATE = 0.05f; // 5%成功率 (七咒之戒佩戴者10%)
+    // 时间和成功率现在从 LegacyRitualConfig 读取
 
     // 复制仪式系统 (Duplication Ritual)
     private boolean duplicationRitualActive = false;
     private int duplicationProgress = 0;
-    private static final int DUPLICATION_TIME = 300; // 15秒复制时间
-    private static final float DUPLICATION_SUCCESS_RATE = 0.01f; // 1%成功率
+    // 时间和成功率现在从 LegacyRitualConfig 读取
 
     // 灵魂绑定仪式系统 (Soul Binding Ritual) - 从玩家头颅创建假玩家核心
     private boolean soulBindingActive = false;
     private int soulBindingProgress = 0;
-    private static final int SOUL_BINDING_TIME = 400; // 20秒绑定时间
-    private static final float SOUL_BINDING_SUCCESS_RATE = 0.50f; // 50%成功率
+    // 时间和成功率现在从 LegacyRitualConfig 读取
 
     // 詛咒淨化儀式系統 (Curse Purification Ritual) - 二階以上
     private boolean cursePurificationActive = false;
     private int cursePurificationProgress = 0;
-    private static final int CURSE_PURIFICATION_TIME = 200; // 10秒
+    // 时间现在从 LegacyRitualConfig 读取
 
     // 附魔轉移儀式系統 (Enchantment Transfer Ritual) - 三階
     private boolean enchantTransferActive = false;
     private int enchantTransferProgress = 0;
-    private static final int ENCHANT_TRANSFER_TIME = 300; // 15秒
+    // 时间现在从 LegacyRitualConfig 读取
 
     // 詛咒創造儀式系統 (Curse Creation Ritual)
     private boolean curseCreationActive = false;
     private int curseCreationProgress = 0;
-    private static final int CURSE_CREATION_TIME = 200; // 10秒
+    // 时间现在从 LegacyRitualConfig 读取
 
     // 武器經驗加速儀式系統 (Weapon Exp Boost Ritual)
     private boolean weaponExpBoostActive = false;
     private int weaponExpBoostProgress = 0;
-    private static final int WEAPON_EXP_BOOST_TIME = 150; // 7.5秒
-    private static final int WEAPON_EXP_BOOST_DURATION = 12000; // 10分鐘效果
+    private static final int WEAPON_EXP_BOOST_DURATION = 12000; // 10分鐘效果（保留）
+    // 仪式时间现在从 LegacyRitualConfig 读取
 
     // 村正攻擊提升儀式系統 (Muramasa Boost Ritual)
     private boolean muramasaBoostActive = false;
     private int muramasaBoostProgress = 0;
-    private static final int MURAMASA_BOOST_TIME = 150; // 7.5秒
-    private static final int MURAMASA_BOOST_DURATION = 12000; // 10分鐘效果
+    private static final int MURAMASA_BOOST_DURATION = 12000; // 10分鐘效果（保留）
+    // 仪式时间现在从 LegacyRitualConfig 读取
 
     // 織印強化儀式系統 (Fabric Enhancement Ritual)
     private boolean fabricEnhanceActive = false;
     private int fabricEnhanceProgress = 0;
-    private static final int FABRIC_ENHANCE_TIME = 200; // 10秒
+    // 时间现在从 LegacyRitualConfig 读取
 
     // 不可破坏仪式系统 (Unbreakable Ritual)
     private boolean unbreakableRitualActive = false;
     private int unbreakableProgress = 0;
-    private static final int UNBREAKABLE_TIME = 400; // 20秒
-    private static final float UNBREAKABLE_SUCCESS_RATE = 0.80f; // 80%成功率
+    // 时间和成功率现在从 LegacyRitualConfig 读取
 
     // 灵魂束缚仪式系统 (Soulbound Ritual) - 死亡不掉落
     private boolean soulboundRitualActive = false;
     private int soulboundProgress = 0;
-    private static final int SOULBOUND_TIME = 300; // 15秒
-    private static final float SOULBOUND_SUCCESS_RATE = 0.90f; // 90%成功率
+    // 时间和成功率现在从 LegacyRitualConfig 读取
+
+    // ========== 配置读取辅助方法 ==========
+
+    private int getEnchantInfusionTime() {
+        return LegacyRitualConfig.getDuration(LegacyRitualConfig.ENCHANT_INFUSION);
+    }
+    private float getEnchantInfusionSuccessRate() {
+        return 1.0f - LegacyRitualConfig.getFailChance(LegacyRitualConfig.ENCHANT_INFUSION);
+    }
+
+    private int getDuplicationTime() {
+        return LegacyRitualConfig.getDuration(LegacyRitualConfig.DUPLICATION);
+    }
+    private float getDuplicationSuccessRate() {
+        return 1.0f - LegacyRitualConfig.getFailChance(LegacyRitualConfig.DUPLICATION);
+    }
+
+    private int getSoulBindingTime() {
+        return LegacyRitualConfig.getDuration(LegacyRitualConfig.SOUL_BINDING);
+    }
+    private float getSoulBindingSuccessRate() {
+        return 1.0f - LegacyRitualConfig.getFailChance(LegacyRitualConfig.SOUL_BINDING);
+    }
+
+    private int getCursePurificationTime() {
+        return LegacyRitualConfig.getDuration(LegacyRitualConfig.CURSE_PURIFICATION);
+    }
+
+    private int getEnchantTransferTime() {
+        return LegacyRitualConfig.getDuration(LegacyRitualConfig.ENCHANT_TRANSFER);
+    }
+    private float getEnchantTransferSuccessRate() {
+        return 1.0f - LegacyRitualConfig.getFailChance(LegacyRitualConfig.ENCHANT_TRANSFER);
+    }
+
+    private int getCurseCreationTime() {
+        return LegacyRitualConfig.getDuration(LegacyRitualConfig.CURSE_CREATION);
+    }
+
+    private int getWeaponExpBoostTime() {
+        return LegacyRitualConfig.getDuration(LegacyRitualConfig.WEAPON_EXP_BOOST);
+    }
+
+    private int getMuramasaBoostTime() {
+        return LegacyRitualConfig.getDuration(LegacyRitualConfig.MURAMASA_BOOST);
+    }
+
+    private int getFabricEnhanceTime() {
+        return LegacyRitualConfig.getDuration(LegacyRitualConfig.FABRIC_ENHANCE);
+    }
+
+    private int getUnbreakableTime() {
+        return LegacyRitualConfig.getDuration(LegacyRitualConfig.UNBREAKABLE);
+    }
+    private float getUnbreakableSuccessRate() {
+        return 1.0f - LegacyRitualConfig.getFailChance(LegacyRitualConfig.UNBREAKABLE);
+    }
+
+    private int getSoulboundTime() {
+        return LegacyRitualConfig.getDuration(LegacyRitualConfig.SOULBOUND);
+    }
+    private float getSoulboundSuccessRate() {
+        return 1.0f - LegacyRitualConfig.getFailChance(LegacyRitualConfig.SOULBOUND);
+    }
 
     // 成功率显示系统
     private RitualInfusionRecipe lastNotifiedRecipe = null;
@@ -974,6 +1034,15 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
      * @return true 如果正在进行注魔仪式
      */
     private boolean updateEnchantInfusionRitual() {
+        // 检查仪式是否启用
+        if (!LegacyRitualConfig.isEnabled(LegacyRitualConfig.ENCHANT_INFUSION)) {
+            if (enchantInfusionActive) {
+                enchantInfusionActive = false;
+                enchantInfusionProgress = 0;
+            }
+            return false;
+        }
+
         // 必须是三阶祭坛
         if (currentTier != AltarTier.TIER_3) {
             if (enchantInfusionActive) {
@@ -1011,13 +1080,13 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
 
         // 进度效果
         if (enchantInfusionProgress % 20 == 0) {
-            int seconds = (ENCHANT_INFUSION_TIME - enchantInfusionProgress) / 20;
+            int seconds = (getEnchantInfusionTime() - enchantInfusionProgress) / 20;
             notifyEnchantInfusionProgress(seconds, bookPedestals.size());
             spawnEnchantInfusionParticles();
         }
 
         // 完成注魔
-        if (enchantInfusionProgress >= ENCHANT_INFUSION_TIME) {
+        if (enchantInfusionProgress >= getEnchantInfusionTime()) {
             performEnchantInfusion(coreItem, bookPedestals);
             enchantInfusionActive = false;
             enchantInfusionProgress = 0;
@@ -1049,7 +1118,7 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
      */
     private void performEnchantInfusion(ItemStack coreItem, List<TileEntityPedestal> bookPedestals) {
         // 计算成功率 (基础5%，七咒之戒佩戴者10%)
-        float successRate = ENCHANT_SUCCESS_RATE;
+        float successRate = getEnchantInfusionSuccessRate();
 
         // 检测附近是否有佩戴七咒之戒的玩家
         AxisAlignedBB area = new AxisAlignedBB(pos).grow(10);
@@ -1315,6 +1384,15 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
      * @return true 如果正在进行复制仪式
      */
     private boolean updateDuplicationRitual() {
+        // 检查仪式是否启用
+        if (!LegacyRitualConfig.isEnabled(LegacyRitualConfig.DUPLICATION)) {
+            if (duplicationRitualActive) {
+                duplicationRitualActive = false;
+                duplicationProgress = 0;
+            }
+            return false;
+        }
+
         // 必须是三阶祭坛
         if (currentTier != AltarTier.TIER_3) {
             if (duplicationRitualActive) {
@@ -1360,13 +1438,13 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
 
         // 进度效果
         if (duplicationProgress % 20 == 0) {
-            int seconds = (DUPLICATION_TIME - duplicationProgress) / 20;
+            int seconds = (getDuplicationTime() - duplicationProgress) / 20;
             notifyDuplicationProgress(seconds);
             spawnDuplicationParticles();
         }
 
         // 完成复制
-        if (duplicationProgress >= DUPLICATION_TIME) {
+        if (duplicationProgress >= getDuplicationTime()) {
             performDuplication(coreItem, essencePedestals);
             duplicationRitualActive = false;
             duplicationProgress = 0;
@@ -1406,7 +1484,7 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         }
 
         // 判定成功/失败 (1%成功率)
-        boolean success = world.rand.nextFloat() < DUPLICATION_SUCCESS_RATE;
+        boolean success = world.rand.nextFloat() < getDuplicationSuccessRate();
 
         if (success) {
             // 成功：复制物品，保留原物品
@@ -1701,6 +1779,15 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
      * @return true 如果正在进行灵魂绑定仪式
      */
     private boolean updateSoulBindingRitual() {
+        // 检查仪式是否启用
+        if (!LegacyRitualConfig.isEnabled(LegacyRitualConfig.SOUL_BINDING)) {
+            if (soulBindingActive) {
+                soulBindingActive = false;
+                soulBindingProgress = 0;
+            }
+            return false;
+        }
+
         // 必须是三阶祭坛
         if (currentTier != AltarTier.TIER_3) {
             if (soulBindingActive) {
@@ -1754,13 +1841,13 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
 
         // 进度效果
         if (soulBindingProgress % 20 == 0) {
-            int seconds = (SOUL_BINDING_TIME - soulBindingProgress) / 20;
+            int seconds = (getSoulBindingTime() - soulBindingProgress) / 20;
             notifySoulBindingProgress(seconds, skullProfile);
             spawnSoulBindingParticles();
         }
 
         // 完成灵魂绑定
-        if (soulBindingProgress >= SOUL_BINDING_TIME) {
+        if (soulBindingProgress >= getSoulBindingTime()) {
             performSoulBinding(coreItem, skullProfile, soulMaterialPedestals);
             soulBindingActive = false;
             soulBindingProgress = 0;
@@ -1812,7 +1899,7 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         }
 
         // 判定成功/失败 (50%成功率)
-        boolean success = world.rand.nextFloat() < SOUL_BINDING_SUCCESS_RATE;
+        boolean success = world.rand.nextFloat() < getSoulBindingSuccessRate();
 
         if (success) {
             // 成功：消耗头颅，创建假玩家核心
@@ -2004,7 +2091,7 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         // 灵魂漩涡粒子
         for (int i = 0; i < 8; i++) {
             double angle = i * Math.PI / 4 + (soulBindingProgress * 0.05);
-            double radius = 2.0 - (soulBindingProgress / (float) SOUL_BINDING_TIME);
+            double radius = 2.0 - (soulBindingProgress / (float) getSoulBindingTime());
             double x = pos.getX() + 0.5 + Math.cos(angle) * radius;
             double z = pos.getZ() + 0.5 + Math.sin(angle) * radius;
 
@@ -2062,6 +2149,15 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
      * 二階以上 + 詛咒物品 + 聖水/金蘋果
      */
     private boolean updateCursePurificationRitual() {
+        // 检查仪式是否启用
+        if (!LegacyRitualConfig.isEnabled(LegacyRitualConfig.CURSE_PURIFICATION)) {
+            if (cursePurificationActive) {
+                cursePurificationActive = false;
+                cursePurificationProgress = 0;
+            }
+            return false;
+        }
+
         // 需要二階以上
         if (currentTier.getLevel() < 2) {
             if (cursePurificationActive) {
@@ -2095,12 +2191,12 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         cursePurificationProgress++;
 
         if (cursePurificationProgress % 20 == 0) {
-            int seconds = (CURSE_PURIFICATION_TIME - cursePurificationProgress) / 20;
+            int seconds = (getCursePurificationTime() - cursePurificationProgress) / 20;
             notifyRitualProgress("詛咒淨化", seconds, TextFormatting.YELLOW);
             spawnPurificationParticles();
         }
 
-        if (cursePurificationProgress >= CURSE_PURIFICATION_TIME) {
+        if (cursePurificationProgress >= getCursePurificationTime()) {
             performCursePurification(centerItem);
             resetCursePurification();
         }
@@ -2149,6 +2245,12 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
      * 三階 + 附魔物品（中心）+ 目標物品（基座）+ 青金石（基座）
      */
     private boolean updateEnchantTransferRitual() {
+        // 检查仪式是否启用
+        if (!LegacyRitualConfig.isEnabled(LegacyRitualConfig.ENCHANT_TRANSFER)) {
+            if (enchantTransferActive) resetEnchantTransfer();
+            return false;
+        }
+
         // 必須是三階
         if (currentTier != AltarTier.TIER_3) {
             if (enchantTransferActive) resetEnchantTransfer();
@@ -2177,12 +2279,12 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         enchantTransferProgress++;
 
         if (enchantTransferProgress % 20 == 0) {
-            int seconds = (ENCHANT_TRANSFER_TIME - enchantTransferProgress) / 20;
+            int seconds = (getEnchantTransferTime() - enchantTransferProgress) / 20;
             notifyRitualProgress("附魔轉移", seconds, TextFormatting.AQUA);
             spawnTransferParticles();
         }
 
-        if (enchantTransferProgress >= ENCHANT_TRANSFER_TIME) {
+        if (enchantTransferProgress >= getEnchantTransferTime()) {
             performEnchantTransfer(centerItem);
             resetEnchantTransfer();
         }
@@ -2250,6 +2352,12 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
      * 書 + 墨囊 + 腐肉/蜘蛛眼
      */
     private boolean updateCurseCreationRitual() {
+        // 检查仪式是否启用
+        if (!LegacyRitualConfig.isEnabled(LegacyRitualConfig.CURSE_CREATION)) {
+            if (curseCreationActive) resetCurseCreation();
+            return false;
+        }
+
         ItemStack centerItem = inv.getStackInSlot(0);
         if (centerItem.isEmpty() || centerItem.getItem() != Items.BOOK) {
             if (curseCreationActive) resetCurseCreation();
@@ -2284,12 +2392,12 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         curseCreationProgress++;
 
         if (curseCreationProgress % 20 == 0) {
-            int seconds = (CURSE_CREATION_TIME - curseCreationProgress) / 20;
+            int seconds = (getCurseCreationTime() - curseCreationProgress) / 20;
             notifyRitualProgress("詛咒創造", seconds, TextFormatting.DARK_PURPLE);
             spawnCurseParticles();
         }
 
-        if (curseCreationProgress >= CURSE_CREATION_TIME) {
+        if (curseCreationProgress >= getCurseCreationTime()) {
             performCurseCreation(Math.min(curseMaterials, 2));
             resetCurseCreation();
         }
@@ -2352,6 +2460,12 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
      * 澄月/勇者之劍/鉅刃劍 + 經驗瓶/附魔書
      */
     private boolean updateWeaponExpBoostRitual() {
+        // 检查仪式是否启用
+        if (!LegacyRitualConfig.isEnabled(LegacyRitualConfig.WEAPON_EXP_BOOST)) {
+            if (weaponExpBoostActive) resetWeaponExpBoost();
+            return false;
+        }
+
         ItemStack centerItem = inv.getStackInSlot(0);
         if (centerItem.isEmpty() || !TierRitualHandler.isExpBoostableWeapon(centerItem)) {
             if (weaponExpBoostActive) resetWeaponExpBoost();
@@ -2385,12 +2499,12 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         weaponExpBoostProgress++;
 
         if (weaponExpBoostProgress % 20 == 0) {
-            int seconds = (WEAPON_EXP_BOOST_TIME - weaponExpBoostProgress) / 20;
+            int seconds = (getWeaponExpBoostTime() - weaponExpBoostProgress) / 20;
             notifyRitualProgress("武器覺醒", seconds, TextFormatting.LIGHT_PURPLE);
             spawnWeaponBoostParticles();
         }
 
-        if (weaponExpBoostProgress >= WEAPON_EXP_BOOST_TIME) {
+        if (weaponExpBoostProgress >= getWeaponExpBoostTime()) {
             performWeaponExpBoost(centerItem);
             resetWeaponExpBoost();
         }
@@ -2446,6 +2560,12 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
      * 村正 + 凋零骷髏頭/烈焰粉
      */
     private boolean updateMuramasaBoostRitual() {
+        // 检查仪式是否启用
+        if (!LegacyRitualConfig.isEnabled(LegacyRitualConfig.MURAMASA_BOOST)) {
+            if (muramasaBoostActive) resetMuramasaBoost();
+            return false;
+        }
+
         ItemStack centerItem = inv.getStackInSlot(0);
         if (centerItem.isEmpty() || !TierRitualHandler.isMuramasa(centerItem)) {
             if (muramasaBoostActive) resetMuramasaBoost();
@@ -2479,12 +2599,12 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         muramasaBoostProgress++;
 
         if (muramasaBoostProgress % 20 == 0) {
-            int seconds = (MURAMASA_BOOST_TIME - muramasaBoostProgress) / 20;
+            int seconds = (getMuramasaBoostTime() - muramasaBoostProgress) / 20;
             notifyRitualProgress("妖刀覺醒", seconds, TextFormatting.RED);
             spawnMuramasaParticles();
         }
 
-        if (muramasaBoostProgress >= MURAMASA_BOOST_TIME) {
+        if (muramasaBoostProgress >= getMuramasaBoostTime()) {
             performMuramasaBoost(centerItem);
             resetMuramasaBoost();
         }
@@ -2623,6 +2743,12 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
      * 織印盔甲 + 強化材料（龍息/終界之眼/地獄之星）
      */
     private boolean updateFabricEnhanceRitual() {
+        // 检查仪式是否启用
+        if (!LegacyRitualConfig.isEnabled(LegacyRitualConfig.FABRIC_ENHANCE)) {
+            if (fabricEnhanceActive) resetFabricEnhance();
+            return false;
+        }
+
         ItemStack centerItem = inv.getStackInSlot(0);
         if (centerItem.isEmpty() || !TierRitualHandler.hasFabricWeave(centerItem)) {
             if (fabricEnhanceActive) resetFabricEnhance();
@@ -2655,12 +2781,12 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         fabricEnhanceProgress++;
 
         if (fabricEnhanceProgress % 20 == 0) {
-            int seconds = (FABRIC_ENHANCE_TIME - fabricEnhanceProgress) / 20;
+            int seconds = (getFabricEnhanceTime() - fabricEnhanceProgress) / 20;
             notifyRitualProgress("織印強化", seconds, TextFormatting.LIGHT_PURPLE);
             spawnFabricEnhanceParticles();
         }
 
-        if (fabricEnhanceProgress >= FABRIC_ENHANCE_TIME) {
+        if (fabricEnhanceProgress >= getFabricEnhanceTime()) {
             performFabricEnhance(centerItem);
             resetFabricEnhance();
         }
@@ -2731,6 +2857,14 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
      * @return true 如果正在进行不可破坏仪式
      */
     private boolean updateUnbreakableRitual() {
+        // 检查仪式是否启用
+        if (!LegacyRitualConfig.isEnabled(LegacyRitualConfig.UNBREAKABLE)) {
+            if (unbreakableRitualActive) {
+                resetUnbreakableRitual();
+            }
+            return false;
+        }
+
         // 必须是三阶祭坛
         if (currentTier != AltarTier.TIER_3) {
             if (unbreakableRitualActive) {
@@ -2775,13 +2909,13 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
 
         // 进度效果
         if (unbreakableProgress % 20 == 0) {
-            int seconds = (UNBREAKABLE_TIME - unbreakableProgress) / 20;
+            int seconds = (getUnbreakableTime() - unbreakableProgress) / 20;
             notifyUnbreakableProgress(seconds);
             spawnUnbreakableParticles();
         }
 
         // 完成不可破坏仪式
-        if (unbreakableProgress >= UNBREAKABLE_TIME) {
+        if (unbreakableProgress >= getUnbreakableTime()) {
             performUnbreakableRitual(centerItem);
             resetUnbreakableRitual();
         }
@@ -2853,7 +2987,7 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         }
 
         // 判定成功/失败
-        boolean success = world.rand.nextFloat() < UNBREAKABLE_SUCCESS_RATE;
+        boolean success = world.rand.nextFloat() < getUnbreakableSuccessRate();
 
         if (success) {
             // 成功：保留所有NBT，添加Unbreakable标签
@@ -3046,6 +3180,14 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
      * @return true 如果正在进行灵魂束缚仪式
      */
     private boolean updateSoulboundRitual() {
+        // 检查仪式是否启用
+        if (!LegacyRitualConfig.isEnabled(LegacyRitualConfig.SOULBOUND)) {
+            if (soulboundRitualActive) {
+                resetSoulboundRitual();
+            }
+            return false;
+        }
+
         // 必须是三阶祭坛
         if (currentTier != AltarTier.TIER_3) {
             if (soulboundRitualActive) {
@@ -3090,13 +3232,13 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
 
         // 进度效果
         if (soulboundProgress % 20 == 0) {
-            int seconds = (SOULBOUND_TIME - soulboundProgress) / 20;
+            int seconds = (getSoulboundTime() - soulboundProgress) / 20;
             notifySoulboundProgress(seconds);
             spawnSoulboundParticles();
         }
 
         // 完成灵魂束缚仪式
-        if (soulboundProgress >= SOULBOUND_TIME) {
+        if (soulboundProgress >= getSoulboundTime()) {
             performSoulboundRitual(centerItem);
             resetSoulboundRitual();
         }
@@ -3168,7 +3310,7 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         }
 
         // 判定成功/失败
-        boolean success = world.rand.nextFloat() < SOULBOUND_SUCCESS_RATE;
+        boolean success = world.rand.nextFloat() < getSoulboundSuccessRate();
 
         if (success) {
             // 成功：添加Soulbound标签
