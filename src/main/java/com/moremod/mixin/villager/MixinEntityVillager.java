@@ -243,18 +243,50 @@ public abstract class MixinEntityVillager {
                 villager.getSoundCategory(), 1.0F, 1.2F);
     }
 
-    // ========== 人性值价格调整 ==========
+    // ========== 人性值价格调整（修复版：使用村民NBT存储原始价格） ==========
+
+    @Unique
+    private static final String NBT_ORIGINAL_PRICES_PREFIX = "MoreMod_OrigPrice_";
 
     @Unique
     private void applyHumanityPriceModifier(MerchantRecipeList recipes) {
         if (recipes == null || !hasHumanityPriceModifier) return;
 
-        for (MerchantRecipe recipe : recipes) {
-            // 应用价格倍率（使用HUMANITY来源）
-            // 折扣: multiplier < 1 (例如 0.85 = -15%)
-            // 加价: multiplier > 1 (例如 1.5 = +50%)
-            double discount = 1.0 - humanityPriceMultiplier; // 转换为折扣率
-            TradeDiscountHelper.applyDiscount(recipe, discount, TradeDiscountHelper.DiscountSource.HUMANITY);
+        EntityVillager villager = (EntityVillager)(Object)this;
+        net.minecraft.nbt.NBTTagCompound data = villager.getEntityData();
+
+        for (int i = 0; i < recipes.size(); i++) {
+            MerchantRecipe recipe = recipes.get(i);
+            String priceKey = NBT_ORIGINAL_PRICES_PREFIX + i;
+
+            // ⭐ 关键修复：每个村民独立存储原始价格到NBT
+            int originalPrice;
+            if (data.hasKey(priceKey)) {
+                // 已有原始价格记录，使用它
+                originalPrice = data.getInteger(priceKey);
+            } else {
+                // 首次应用折扣，保存当前价格为原始价格
+                originalPrice = recipe.getItemToBuy().getCount();
+                data.setInteger(priceKey, originalPrice);
+            }
+
+            // 应用折扣（基于原始价格）
+            int discountedPrice = Math.max(1, (int)(originalPrice * humanityPriceMultiplier));
+            recipe.getItemToBuy().setCount(discountedPrice);
+
+            // 第二个购买物品（如果有）
+            String priceKey2 = priceKey + "_2";
+            if (!recipe.getSecondItemToBuy().isEmpty()) {
+                int originalPrice2;
+                if (data.hasKey(priceKey2)) {
+                    originalPrice2 = data.getInteger(priceKey2);
+                } else {
+                    originalPrice2 = recipe.getSecondItemToBuy().getCount();
+                    data.setInteger(priceKey2, originalPrice2);
+                }
+                int discountedPrice2 = Math.max(1, (int)(originalPrice2 * humanityPriceMultiplier));
+                recipe.getSecondItemToBuy().setCount(discountedPrice2);
+            }
         }
     }
 
