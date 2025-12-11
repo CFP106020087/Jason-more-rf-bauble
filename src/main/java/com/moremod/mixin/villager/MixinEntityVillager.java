@@ -66,11 +66,22 @@ public abstract class MixinEntityVillager {
             // ⭐ 修复：直接获取价格倍率，不再依赖 HumanitySpectrumSystem.isSystemActive
             // getTradePriceMultiplier 内部已包含所有必要的检查
             float priceMultiplier = HumanityEffectsManager.getTradePriceMultiplier(player);
+
+            // 🔍 调试日志
+            System.out.println("[MoreMod-Debug] ========== 村民交互调试 ==========");
+            System.out.println("[MoreMod-Debug] 玩家: " + player.getName());
+            System.out.println("[MoreMod-Debug] priceMultiplier: " + priceMultiplier);
+            System.out.println("[MoreMod-Debug] 条件检查: priceMultiplier != 1.0f = " + (priceMultiplier != 1.0f));
+            System.out.println("[MoreMod-Debug] 条件检查: priceMultiplier < 999f = " + (priceMultiplier < 999f));
+
             if (priceMultiplier != 1.0f && priceMultiplier < 999f) {
                 this.hasHumanityPriceModifier = true;
                 this.humanityPriceMultiplier = priceMultiplier;
 
                 MerchantRecipeList recipes = villager.getRecipes(player);
+                System.out.println("[MoreMod-Debug] recipes是否为null: " + (recipes == null));
+                System.out.println("[MoreMod-Debug] recipes数量: " + (recipes != null ? recipes.size() : 0));
+
                 if (recipes != null) {
                     applyHumanityPriceModifier(recipes);
 
@@ -79,6 +90,8 @@ public abstract class MixinEntityVillager {
                         moremod$markHumanityDiscountApplied(villager, player, priceMultiplier);
                     }
                 }
+            } else {
+                System.out.println("[MoreMod-Debug] ⚠ 折扣条件不满足，跳过");
             }
 
             // ========== 说服器折扣 ==========
@@ -247,7 +260,14 @@ public abstract class MixinEntityVillager {
 
     @Unique
     private void applyHumanityPriceModifier(MerchantRecipeList recipes) {
-        if (recipes == null || !hasHumanityPriceModifier) return;
+        System.out.println("[MoreMod-Debug] applyHumanityPriceModifier 开始执行");
+        System.out.println("[MoreMod-Debug] hasHumanityPriceModifier: " + hasHumanityPriceModifier);
+        System.out.println("[MoreMod-Debug] humanityPriceMultiplier: " + humanityPriceMultiplier);
+
+        if (recipes == null || !hasHumanityPriceModifier) {
+            System.out.println("[MoreMod-Debug] ⚠ 提前返回: recipes=" + recipes + ", hasModifier=" + hasHumanityPriceModifier);
+            return;
+        }
 
         EntityVillager villager = (EntityVillager)(Object)this;
         net.minecraft.nbt.NBTTagCompound data = villager.getEntityData();
@@ -261,14 +281,17 @@ public abstract class MixinEntityVillager {
             if (data.hasKey(priceKey)) {
                 // 已有原始价格记录，使用它
                 originalPrice = data.getInteger(priceKey);
+                System.out.println("[MoreMod-Debug] 交易#" + i + " 使用存储的原始价格: " + originalPrice);
             } else {
                 // 首次应用折扣，保存当前价格为原始价格
                 originalPrice = recipe.getItemToBuy().getCount();
                 data.setInteger(priceKey, originalPrice);
+                System.out.println("[MoreMod-Debug] 交易#" + i + " 首次保存原始价格: " + originalPrice);
             }
 
             // 应用折扣（基于原始价格）
             int discountedPrice = Math.max(1, (int)(originalPrice * humanityPriceMultiplier));
+            System.out.println("[MoreMod-Debug] 交易#" + i + " 折扣计算: " + originalPrice + " * " + humanityPriceMultiplier + " = " + discountedPrice);
             recipe.getItemToBuy().setCount(discountedPrice);
 
             // 第二个购买物品（如果有）
@@ -285,6 +308,7 @@ public abstract class MixinEntityVillager {
                 recipe.getSecondItemToBuy().setCount(discountedPrice2);
             }
         }
+        System.out.println("[MoreMod-Debug] applyHumanityPriceModifier 执行完毕");
     }
 
     // ========== 🔒 防止人性值折扣重复叠加 ==========
