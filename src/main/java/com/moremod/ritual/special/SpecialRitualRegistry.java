@@ -204,7 +204,11 @@ public class SpecialRitualRegistry {
         if (override != null && override.duration != null) {
             return override.duration;
         }
-        return ritual.getDuration();
+        // 使用默认值方法避免无限递归
+        if (ritual instanceof AbstractSpecialRitual) {
+            return ((AbstractSpecialRitual) ritual).getDefaultDuration();
+        }
+        return 200; // 默认10秒
     }
 
     /**
@@ -215,7 +219,11 @@ public class SpecialRitualRegistry {
         if (override != null && override.failChance != null) {
             return override.failChance;
         }
-        return ritual.getFailChance();
+        // 使用默认值方法避免无限递归
+        if (ritual instanceof AbstractSpecialRitual) {
+            return ((AbstractSpecialRitual) ritual).getDefaultFailChance();
+        }
+        return 0.0f; // 默认不失败
     }
 
     /**
@@ -226,7 +234,11 @@ public class SpecialRitualRegistry {
         if (override != null && override.energyPerPedestal != null) {
             return override.energyPerPedestal;
         }
-        return ritual.getEnergyPerPedestal();
+        // 使用默认值方法避免无限递归
+        if (ritual instanceof AbstractSpecialRitual) {
+            return ((AbstractSpecialRitual) ritual).getDefaultEnergyPerPedestal();
+        }
+        return 100000; // 默认100k RF
     }
 
     /**

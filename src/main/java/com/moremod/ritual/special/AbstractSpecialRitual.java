@@ -75,6 +75,27 @@ public abstract class AbstractSpecialRitual implements ISpecialRitual {
         return SpecialRitualRegistry.getEffectiveEnergyPerPedestal(this);
     }
 
+    /**
+     * 获取默认持续时间（不考虑CRT覆盖）
+     */
+    public int getDefaultDuration() {
+        return duration;
+    }
+
+    /**
+     * 获取默认失败率（不考虑CRT覆盖）
+     */
+    public float getDefaultFailChance() {
+        return failChance;
+    }
+
+    /**
+     * 获取默认能量消耗（不考虑CRT覆盖）
+     */
+    public int getDefaultEnergyPerPedestal() {
+        return energyPerPedestal;
+    }
+
     // ==================== 材料系统 ====================
 
     /**
