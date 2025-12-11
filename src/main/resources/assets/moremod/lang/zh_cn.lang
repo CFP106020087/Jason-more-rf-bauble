@@ -545,6 +545,16 @@ gui.moremod.printer.multiblock_required=多方块结构未形成！需要3x3铁�
 # 打印模版（通用CRT模板）
 item.moremod.print_template.name=打印模板
 
+# 空白打印模版（需CRT定义）
+item.moremod.blank_print_template.name=空白打印模版
+tooltip.moremod.blank_template.desc1=一张未定义的模版
+tooltip.moremod.blank_template.desc2=需要通过CraftTweaker脚本定义其用途
+tooltip.moremod.blank_template.hint=Shift+右键查看可用配方
+tooltip.moremod.blank_template.available=可用配方: %d 个
+tooltip.moremod.blank_template.no_recipes=暂无可用配方 (需CRT配置)
+message.moremod.no_printer_recipes=暂无打印机配方，请使用CraftTweaker添加
+message.moremod.available_recipes=可用的打印机配方
+
 # 打印机GUI文字
 gui.moremod.printer.recipe_cost=配方消耗: %s RF
 gui.moremod.printer.build_guide=搭建指南: 3x3铁块底座 + 4红石块
