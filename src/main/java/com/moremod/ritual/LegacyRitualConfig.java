@@ -99,6 +99,39 @@ public class LegacyRitualConfig {
     }
 
     /**
+     * 计算能量超载加成
+     * @param ritualId 仪式ID
+     * @param pedestalCount 基座数量
+     * @param totalEnergy 总能量
+     * @return 超载加成 (0.0 - 0.5)，最多50%额外成功率
+     */
+    public static float getOverloadBonus(String ritualId, int pedestalCount, int totalEnergy) {
+        int energyPerPedestal = getEnergyPerPedestal(ritualId);
+        int requiredEnergy = energyPerPedestal * pedestalCount;
+        if (requiredEnergy <= 0) return 0;
+
+        float energyRatio = (float) totalEnergy / requiredEnergy;
+        if (energyRatio <= 1.0f) return 0;
+
+        // 每超过100%能量，给予10%成功率加成，最多50%
+        float overloadPercent = (energyRatio - 1.0f);
+        return Math.min(0.5f, overloadPercent * 0.1f);
+    }
+
+    /**
+     * 获取能量超载调整后的失败率
+     * @param ritualId 仪式ID
+     * @param pedestalCount 基座数量
+     * @param totalEnergy 总能量
+     * @return 调整后的失败率
+     */
+    public static float getOverloadAdjustedFailChance(String ritualId, int pedestalCount, int totalEnergy) {
+        float baseFailChance = getFailChance(ritualId);
+        float overloadBonus = getOverloadBonus(ritualId, pedestalCount, totalEnergy);
+        return Math.max(0, baseFailChance - overloadBonus);
+    }
+
+    /**
      * 获取仪式所需阶层
      */
     public static int getRequiredTier(String ritualId) {

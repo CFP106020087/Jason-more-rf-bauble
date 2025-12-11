@@ -1089,6 +1089,14 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             enchantInfusionActive = true;
             enchantInfusionProgress = 0;
             notifyEnchantInfusionStart(coreItem, bookPedestals.size());
+
+            // 能量超载：记录仪式开始时的总能量
+            initialTotalEnergy = 0;
+            List<TileEntityPedestal> allPeds = findValidPedestals();
+            for (TileEntityPedestal ped : allPeds) {
+                initialTotalEnergy += ped.getEnergy().getEnergyStored();
+            }
+            System.out.println("[EnchantInfusion] Recorded initial energy: " + initialTotalEnergy);
         }
 
         enchantInfusionProgress++;
@@ -1173,6 +1181,23 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         // 七咒之戒佩戴者概率翻倍（5% -> 10%）
         if (hasCursedRingPlayer) {
             successRate = successRate * 2.0f; // 10%
+        }
+
+        // 计算能量超载加成
+        int pedestalCount = bookPedestals.size();
+        float overloadBonus = LegacyRitualConfig.getOverloadBonus(
+            LegacyRitualConfig.ENCHANT_INFUSION, pedestalCount, initialTotalEnergy);
+        successRate = successRate + overloadBonus;
+
+        System.out.println("[EnchantInfusion] Base success: " + (getEnchantInfusionSuccessRate() * 100) + "%" +
+                         ", Cursed ring bonus: " + hasCursedRingPlayer +
+                         ", Overload bonus: " + (int)(overloadBonus * 100) + "%" +
+                         ", Final success: " + (int)(successRate * 100) + "%" +
+                         ", Initial energy: " + initialTotalEnergy);
+
+        // 通知玩家超载信息
+        if (overloadBonus > 0) {
+            notifyOverloadBonus(overloadBonus);
         }
 
         // 判定成功/失败
@@ -1471,6 +1496,14 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             duplicationProgress = 0;
             ItemStack storedItem = ItemCursedMirror.getStoredItem(coreItem);
             notifyDuplicationStart(storedItem);
+
+            // 能量超载：记录仪式开始时的总能量
+            initialTotalEnergy = 0;
+            List<TileEntityPedestal> allPeds = findValidPedestals();
+            for (TileEntityPedestal ped : allPeds) {
+                initialTotalEnergy += ped.getEnergy().getEnergyStored();
+            }
+            System.out.println("[Duplication] Recorded initial energy: " + initialTotalEnergy);
         }
 
         duplicationProgress++;
@@ -1546,8 +1579,24 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             ped.consumeOne();
         }
 
-        // 判定成功/失败 (1%成功率)
-        boolean success = world.rand.nextFloat() < getDuplicationSuccessRate();
+        // 计算能量超载加成
+        int pedestalCount = essencePedestals.size();
+        float overloadBonus = LegacyRitualConfig.getOverloadBonus(
+            LegacyRitualConfig.DUPLICATION, pedestalCount, initialTotalEnergy);
+        float finalSuccessRate = getDuplicationSuccessRate() + overloadBonus;
+
+        System.out.println("[Duplication] Base success: " + (getDuplicationSuccessRate() * 100) + "%" +
+                         ", Overload bonus: " + (int)(overloadBonus * 100) + "%" +
+                         ", Final success: " + (int)(finalSuccessRate * 100) + "%" +
+                         ", Initial energy: " + initialTotalEnergy);
+
+        // 通知玩家超载信息
+        if (overloadBonus > 0) {
+            notifyOverloadBonus(overloadBonus);
+        }
+
+        // 判定成功/失败
+        boolean success = world.rand.nextFloat() < finalSuccessRate;
 
         if (success) {
             // 成功：复制物品，保留原物品
@@ -1898,6 +1947,14 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             soulBindingActive = true;
             soulBindingProgress = 0;
             notifySoulBindingStart(skullProfile);
+
+            // 能量超载：记录仪式开始时的总能量
+            initialTotalEnergy = 0;
+            List<TileEntityPedestal> allPeds = findValidPedestals();
+            for (TileEntityPedestal ped : allPeds) {
+                initialTotalEnergy += ped.getEnergy().getEnergyStored();
+            }
+            System.out.println("[SoulBinding] Recorded initial energy: " + initialTotalEnergy);
         }
 
         soulBindingProgress++;
@@ -1985,8 +2042,24 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             ped.consumeOne();
         }
 
-        // 判定成功/失败 (50%成功率)
-        boolean success = world.rand.nextFloat() < getSoulBindingSuccessRate();
+        // 计算能量超载加成
+        int pedestalCount = materialPedestals.size();
+        float overloadBonus = LegacyRitualConfig.getOverloadBonus(
+            LegacyRitualConfig.SOUL_BINDING, pedestalCount, initialTotalEnergy);
+        float finalSuccessRate = getSoulBindingSuccessRate() + overloadBonus;
+
+        System.out.println("[SoulBinding] Base success: " + (getSoulBindingSuccessRate() * 100) + "%" +
+                         ", Overload bonus: " + (int)(overloadBonus * 100) + "%" +
+                         ", Final success: " + (int)(finalSuccessRate * 100) + "%" +
+                         ", Initial energy: " + initialTotalEnergy);
+
+        // 通知玩家超载信息
+        if (overloadBonus > 0) {
+            notifyOverloadBonus(overloadBonus);
+        }
+
+        // 判定成功/失败
+        boolean success = world.rand.nextFloat() < finalSuccessRate;
 
         if (success) {
             // 成功：消耗头颅，创建假玩家核心
@@ -2388,6 +2461,13 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             enchantTransferActive = true;
             enchantTransferProgress = 0;
             notifyRitualStart("附魔轉移", TextFormatting.AQUA);
+
+            // 能量超载：记录仪式开始时的总能量
+            initialTotalEnergy = 0;
+            List<TileEntityPedestal> allPeds = findValidPedestals();
+            for (TileEntityPedestal ped : allPeds) {
+                initialTotalEnergy += ped.getEnergy().getEnergyStored();
+            }
         }
 
         enchantTransferProgress++;
@@ -3117,6 +3197,13 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             unbreakableRitualActive = true;
             unbreakableProgress = 0;
             notifyUnbreakableStart(centerItem);
+
+            // 能量超载：记录仪式开始时的总能量
+            initialTotalEnergy = 0;
+            List<TileEntityPedestal> allPeds = findValidPedestals();
+            for (TileEntityPedestal ped : allPeds) {
+                initialTotalEnergy += ped.getEnergy().getEnergyStored();
+            }
         }
 
         unbreakableProgress++;
@@ -3202,8 +3289,24 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             }
         }
 
+        // 计算能量超载加成
+        int pedestalCount = starsConsumed + obsidianConsumed + diamondsConsumed;
+        float overloadBonus = LegacyRitualConfig.getOverloadBonus(
+            LegacyRitualConfig.UNBREAKABLE, pedestalCount, initialTotalEnergy);
+        float finalSuccessRate = getUnbreakableSuccessRate() + overloadBonus;
+
+        System.out.println("[Unbreakable] Base success: " + (getUnbreakableSuccessRate() * 100) + "%" +
+                         ", Overload bonus: " + (int)(overloadBonus * 100) + "%" +
+                         ", Final success: " + (int)(finalSuccessRate * 100) + "%" +
+                         ", Initial energy: " + initialTotalEnergy);
+
+        // 通知玩家超载信息
+        if (overloadBonus > 0) {
+            notifyOverloadBonus(overloadBonus);
+        }
+
         // 判定成功/失败
-        boolean success = world.rand.nextFloat() < getUnbreakableSuccessRate();
+        boolean success = world.rand.nextFloat() < finalSuccessRate;
 
         if (success) {
             // 成功：保留所有NBT，添加Unbreakable标签
@@ -3442,6 +3545,13 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             soulboundRitualActive = true;
             soulboundProgress = 0;
             notifySoulboundStart(centerItem);
+
+            // 能量超载：记录仪式开始时的总能量
+            initialTotalEnergy = 0;
+            List<TileEntityPedestal> allPeds = findValidPedestals();
+            for (TileEntityPedestal ped : allPeds) {
+                initialTotalEnergy += ped.getEnergy().getEnergyStored();
+            }
         }
 
         soulboundProgress++;
@@ -3527,8 +3637,24 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             }
         }
 
+        // 计算能量超载加成
+        int pedestalCount = pearlsConsumed + tearsConsumed + goldConsumed;
+        float overloadBonus = LegacyRitualConfig.getOverloadBonus(
+            LegacyRitualConfig.SOULBOUND, pedestalCount, initialTotalEnergy);
+        float finalSuccessRate = getSoulboundSuccessRate() + overloadBonus;
+
+        System.out.println("[Soulbound] Base success: " + (getSoulboundSuccessRate() * 100) + "%" +
+                         ", Overload bonus: " + (int)(overloadBonus * 100) + "%" +
+                         ", Final success: " + (int)(finalSuccessRate * 100) + "%" +
+                         ", Initial energy: " + initialTotalEnergy);
+
+        // 通知玩家超载信息
+        if (overloadBonus > 0) {
+            notifyOverloadBonus(overloadBonus);
+        }
+
         // 判定成功/失败
-        boolean success = world.rand.nextFloat() < getSoulboundSuccessRate();
+        boolean success = world.rand.nextFloat() < finalSuccessRate;
 
         if (success) {
             // 成功：添加Soulbound标签
