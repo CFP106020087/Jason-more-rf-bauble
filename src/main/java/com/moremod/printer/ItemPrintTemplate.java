@@ -126,6 +126,8 @@ public class ItemPrintTemplate extends Item {
     @Override
     public String getItemStackDisplayName(ItemStack stack) {
         String templateId = getTemplateId(stack);
+        String baseName = getLocalizedName();
+
         if (!templateId.isEmpty()) {
             // 尝试获取配方的自定义名称
             PrinterRecipe recipe = PrinterRecipeRegistry.getRecipe(templateId);
@@ -133,9 +135,18 @@ public class ItemPrintTemplate extends Item {
                 return recipe.getDisplayName();
             }
             // 否则显示 "打印模板: <templateId>"
-            return I18n.format("item.moremod.print_template.name") + ": " + templateId;
+            return baseName + ": " + templateId;
         }
-        return I18n.format("item.moremod.print_template.name");
+        return baseName;
+    }
+
+    /**
+     * 获取本地化名称（服务端安全）
+     */
+    @SuppressWarnings("deprecation")
+    private String getLocalizedName() {
+        // 使用服务端安全的本地化方法（deprecated但双端可用）
+        return net.minecraft.util.text.translation.I18n.translateToLocal("item.moremod.print_template.name");
     }
 
     @Override
