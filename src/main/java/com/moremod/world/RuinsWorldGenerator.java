@@ -5,6 +5,7 @@ import com.moremod.init.ModItems;
 import com.moremod.printer.ItemPrintTemplate;
 import com.moremod.printer.PrinterRecipe;
 import com.moremod.printer.PrinterRecipeRegistry;
+import com.moremod.quarry.QuarryRegistry;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
@@ -242,7 +243,7 @@ public class RuinsWorldGenerator implements IWorldGenerator {
     // 放置破损的量子采矿机多方块结构
     private void placeQuantumQuarry(World world, BlockPos pos, Random random) {
         try {
-            Block quarryCore = ModBlocks.QUANTUM_QUARRY;
+            Block quarryCore = QuarryRegistry.blockQuantumQuarry;
             Block quarryActuator = com.moremod.quarry.QuarryRegistry.blockQuarryActuator;
 
             if (quarryCore != null && quarryActuator != null) {
@@ -1413,7 +1414,7 @@ public class RuinsWorldGenerator implements IWorldGenerator {
                     specialBlock = ModBlocks.PRINTER;
                     break;
                 case 8:
-                    specialBlock = ModBlocks.QUANTUM_QUARRY;
+                    specialBlock = QuarryRegistry.blockQuantumQuarry;
                     break;
                 case 9:
                     specialBlock = ModBlocks.UPGRADE_CHAMBER_CORE;
