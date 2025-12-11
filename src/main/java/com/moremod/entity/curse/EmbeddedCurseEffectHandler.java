@@ -117,27 +117,30 @@ public class EmbeddedCurseEffectHandler {
 
         // 检查是否嵌入了和平徽章
         if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.PEACE_EMBLEM)) {
-            // 如果是中立生物（非敌对怪物），取消攻击目标
+            // 如果是中立生物（非敌对怪物），立即清除攻击目标
             if (!(event.getEntityLiving() instanceof EntityMob)) {
-                if (event.getEntityLiving() instanceof EntityAnimal ||
-                        (event.getEntityLiving() instanceof EntityLiving && !(event.getEntityLiving() instanceof EntityMob))) {
-                    // 标记需要在下一tick清除攻击目标
-                    pendingTargetClear.put(event.getEntityLiving().getEntityId(), player.getUniqueID());
+                // 立即清除攻击目标
+                if (event.getEntityLiving() instanceof EntityCreature) {
+                    ((EntityCreature) event.getEntityLiving()).setAttackTarget(null);
+                } else if (event.getEntityLiving() instanceof EntityLiving) {
+                    ((EntityLiving) event.getEntityLiving()).setAttackTarget(null);
                 }
+                // 也标记以便下一 tick 再次清除，防止诅咒在同一帧内重新设置目标
+                pendingTargetClear.put(event.getEntityLiving().getEntityId(), player.getUniqueID());
             }
         }
     }
 
     /**
-     * 定期清除中立生物的攻击目标（和平徽章效果）
+     * 每 tick 清除中立生物的攻击目标（和平徽章效果）
      */
     @SubscribeEvent
     public static void onWorldTick(TickEvent.WorldTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
         if (event.world.isRemote) return;
 
-        // 每 5 tick 处理一次
-        if (event.world.getTotalWorldTime() % 5 != 0) return;
+        // 每 tick 处理，确保及时清除攻击目标
+        if (pendingTargetClear.isEmpty()) return;
 
         // 清除标记的攻击目标
         pendingTargetClear.entrySet().removeIf(entry -> {
@@ -147,6 +150,12 @@ public class EmbeddedCurseEffectHandler {
                 if (creature.getAttackTarget() != null &&
                         creature.getAttackTarget().getUniqueID().equals(entry.getValue())) {
                     creature.setAttackTarget(null);
+                }
+            } else if (entity instanceof EntityLiving) {
+                EntityLiving living = (EntityLiving) entity;
+                if (living.getAttackTarget() != null &&
+                        living.getAttackTarget().getUniqueID().equals(entry.getValue())) {
+                    living.setAttackTarget(null);
                 }
             }
             return true;
@@ -190,9 +199,6 @@ public class EmbeddedCurseEffectHandler {
     // 原诅咒：着火永燃
     // 祝福效果：火焰抗性（立即灭火 + 火焰抗性 buff）
 
-    // 追踪玩家的火焰状态，用于判断火焰是否应该熄灭
-    private static final Map<UUID, Integer> playerFireTicks = new HashMap<>();
-
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
@@ -205,27 +211,29 @@ public class EmbeddedCurseEffectHandler {
 
         // 检查是否嵌入了霜华之露
         if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.FROST_DEW)) {
-            // 霜华之露祝福效果：不仅抵消永燃，还给予火焰抗性
+            // 霜华之露祝福效果：立即灭火 + 火焰抗性
             if (player.isBurning()) {
-                UUID playerId = player.getUniqueID();
-                int lastFireTicks = playerFireTicks.getOrDefault(playerId, 0);
-                int currentFireTicks = getFireTicks(player);
+                // 立即灭火（强制设置 fire ticks 为 0）
+                player.extinguish();
+                setFireTicks(player, 0);
 
-                // 祝福：快速灭火（每 tick 减少 4 点，比正常快2倍）
-                if (currentFireTicks >= lastFireTicks && lastFireTicks > 0) {
-                    setFireTicks(player, Math.max(0, currentFireTicks - 4));
-                }
-
-                playerFireTicks.put(playerId, getFireTicks(player));
-
-                // 祝福：给予短暂火焰抗性
+                // 祝福：给予火焰抗性
                 if (!player.isPotionActive(net.minecraft.init.MobEffects.FIRE_RESISTANCE)) {
                     player.addPotionEffect(new net.minecraft.potion.PotionEffect(
-                            net.minecraft.init.MobEffects.FIRE_RESISTANCE, 60, 0, false, true));
+                            net.minecraft.init.MobEffects.FIRE_RESISTANCE, 100, 0, false, true));
                 }
-            } else {
-                // 不着火时清除记录
-                playerFireTicks.remove(player.getUniqueID());
+            }
+        }
+
+        // 检查是否嵌入了安眠香囊 - 睡眠祝福
+        if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SLUMBER_SACHET)) {
+            // 安眠香囊祝福效果：睡眠时获得再生
+            if (player.isPlayerSleeping()) {
+                // 给予再生效果
+                if (!player.isPotionActive(net.minecraft.init.MobEffects.REGENERATION)) {
+                    player.addPotionEffect(new net.minecraft.potion.PotionEffect(
+                            net.minecraft.init.MobEffects.REGENERATION, 100, 1, false, false));
+                }
             }
         }
 
@@ -241,9 +249,12 @@ public class EmbeddedCurseEffectHandler {
     private static void handleGuardianScaleArmor(EntityPlayer player) {
         UUID playerId = player.getUniqueID();
         boolean hasGuardianScale = EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.GUARDIAN_SCALE);
-        boolean wasApplied = armorModifierApplied.getOrDefault(playerId, false);
 
-        if (hasGuardianScale && !wasApplied) {
+        // 直接检查实体上是否有修改器，而不是依赖 HashMap（解决死亡后重置问题）
+        boolean actuallyApplied = player.getEntityAttribute(SharedMonsterAttributes.ARMOR) != null &&
+                player.getEntityAttribute(SharedMonsterAttributes.ARMOR).getModifier(GUARDIAN_SCALE_ARMOR_UUID) != null;
+
+        if (hasGuardianScale && !actuallyApplied) {
             // 嵌入了守护鳞片，添加护甲祝福修正
             // 七咒降低30%护甲（×0.7），祝福效果：不仅抵消，还额外+30%
             // 目标：原护甲 × 0.7（诅咒）× 1.857（修正）≈ 原护甲 × 1.3（祝福）
@@ -256,12 +267,10 @@ public class EmbeddedCurseEffectHandler {
             );
 
             if (player.getEntityAttribute(SharedMonsterAttributes.ARMOR) != null) {
-                if (player.getEntityAttribute(SharedMonsterAttributes.ARMOR).getModifier(GUARDIAN_SCALE_ARMOR_UUID) == null) {
-                    player.getEntityAttribute(SharedMonsterAttributes.ARMOR).applyModifier(armorBoost);
-                    armorModifierApplied.put(playerId, true);
-                }
+                player.getEntityAttribute(SharedMonsterAttributes.ARMOR).applyModifier(armorBoost);
+                armorModifierApplied.put(playerId, true);
             }
-        } else if (!hasGuardianScale && wasApplied) {
+        } else if (!hasGuardianScale && actuallyApplied) {
             // 移除了守护鳞片，移除护甲修正
             if (player.getEntityAttribute(SharedMonsterAttributes.ARMOR) != null) {
                 player.getEntityAttribute(SharedMonsterAttributes.ARMOR).removeModifier(GUARDIAN_SCALE_ARMOR_UUID);
@@ -278,11 +287,11 @@ public class EmbeddedCurseEffectHandler {
     // ========== 7. 失眠症 → 安眠香囊抵消 ==========
 
     /**
-     * 在睡眠事件的最高优先级处理
-     * 如果嵌入了安眠香囊，强制设置结果为 OK
+     * 在睡眠事件的最低优先级处理（最后执行）
+     * 如果嵌入了安眠香囊，并且之前被诅咒阻止，强制允许睡觉
      */
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public static void onPlayerSleep(PlayerSleepInBedEvent event) {
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onPlayerSleepLowest(PlayerSleepInBedEvent event) {
         EntityPlayer player = event.getEntityPlayer();
         if (player.world.isRemote) return;
 
@@ -291,35 +300,13 @@ public class EmbeddedCurseEffectHandler {
 
         // 检查是否嵌入了安眠香囊
         if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SLUMBER_SACHET)) {
-            // 安眠香囊抵消失眠症
-            // 如果当前结果是 NOT_POSSIBLE_HERE（七咒造成的失眠），我们尝试允许睡觉
-            // 注意：这里不能直接设置 setResult(OK)，因为还有其他条件需要检查
-            // 但我们可以在 enigmaticlegacy 的事件之后重置结果
-
-            // 保存原始状态，在后续处理中使用
-            player.getEntityData().setBoolean("moremod_slumber_sachet_active", true);
-        }
-    }
-
-    /**
-     * 在较低优先级检查是否需要覆盖失眠结果
-     */
-    @SubscribeEvent(priority = EventPriority.LOW)
-    public static void onPlayerSleepLow(PlayerSleepInBedEvent event) {
-        EntityPlayer player = event.getEntityPlayer();
-        if (player.world.isRemote) return;
-
-        // 检查是否激活了安眠香囊
-        if (player.getEntityData().getBoolean("moremod_slumber_sachet_active")) {
-            player.getEntityData().removeTag("moremod_slumber_sachet_active");
-
-            // 如果结果是 NOT_POSSIBLE_HERE（可能是七咒造成的），尝试重置
-            // 注意：由于 Forge 事件系统的限制，我们不能直接覆盖结果
-            // 但我们可以通过 Mixin 来实现这个功能
-            if (event.getResultStatus() != null &&
-                    event.getResultStatus() == EntityPlayer.SleepResult.NOT_POSSIBLE_HERE) {
-                // 这里需要 Mixin 来完全覆盖
-                // 目前只是标记，让 Mixin 来处理
+            // 如果结果是 NOT_POSSIBLE_HERE（七咒造成的失眠），强制覆盖为 null 让原版逻辑处理
+            // 或者如果其他条件都满足，设置为 OK
+            EntityPlayer.SleepResult currentResult = event.getResultStatus();
+            if (currentResult == EntityPlayer.SleepResult.NOT_POSSIBLE_HERE ||
+                currentResult == EntityPlayer.SleepResult.OTHER_PROBLEM) {
+                // 强制设置结果为 OK，抵消诅咒的失眠效果
+                event.setResult(EntityPlayer.SleepResult.OK);
             }
         }
     }

@@ -48,11 +48,11 @@ public class RuinsWorldGenerator implements IWorldGenerator {
 
     // ============== 生成配置 ==============
     private static final int MIN_Y = 50;
-    private static final int SPAWN_CHANCE = 60;              // 提高生成率 (1/60 区块)
-    private static final int MIN_DISTANCE_FROM_SPAWN = 200;  // 降低距离要求
+    private static final int SPAWN_CHANCE = 150;             // 降低生成率 (1/150 区块 ≈ 0.67%)
+    private static final int MIN_DISTANCE_FROM_SPAWN = 300;  // 增加距离要求
 
-    // 稀有方块概率系数 (原来的2倍)
-    private static final float SPECIAL_BLOCK_CHANCE_MULTIPLIER = 2.0f;
+    // 稀有方块概率系数 (降低为0.5倍)
+    private static final float SPECIAL_BLOCK_CHANCE_MULTIPLIER = 0.5f;
 
     // ============== 结构类型枚举 ==============
     public enum RuinType {
@@ -371,8 +371,8 @@ public class RuinsWorldGenerator implements IWorldGenerator {
 
         placeRuinContents(world, pos.add(-5, 1, -5), random, RuinType.ENERGY_STATION.lootTier);
 
-        // 额外特殊方块
-        if (random.nextFloat() < 0.5f) {
+        // 额外特殊方块 (降低概率)
+        if (random.nextFloat() < 0.2f) {
             placeSpecialBlock(world, pos.add(3, 1, 3), random);
         }
     }
@@ -484,8 +484,8 @@ public class RuinsWorldGenerator implements IWorldGenerator {
         placeRuinContents(world, pos.add(4, 0, 4), random, RuinType.TEMPORAL_LAB.lootTier);
         placeRuinContents(world, pos.add(-4, 0, -4), random, RuinType.TEMPORAL_LAB.lootTier);
 
-        // 高概率特殊方块
-        if (random.nextFloat() < 0.7f) {
+        // 特殊方块 (降低概率)
+        if (random.nextFloat() < 0.3f) {
             placeSpecialBlock(world, pos.add(0, 6, 0), random);
         }
     }
@@ -557,7 +557,7 @@ public class RuinsWorldGenerator implements IWorldGenerator {
         decorateRuin(world, pos, random, 6, 4);
 
         placeRuinContents(world, pos.add(2, 0, 0), random, RuinType.DATA_OBELISK.lootTier);
-        placeSpecialBlockGuaranteed(world, pos.add(0, 1, 0), random, 0.6f);
+        placeSpecialBlockGuaranteed(world, pos.add(0, 1, 0), random, 0.25f);
     }
 
     // 生态穹顶 (18x18x12) - 废弃的生物圈实验室
@@ -641,7 +641,7 @@ public class RuinsWorldGenerator implements IWorldGenerator {
 
         decorateRuin(world, pos, random, 10, 5);
         placeRuinContents(world, pos.add(6, 0, 0), random, RuinType.BIO_DOME.lootTier);
-        placeSpecialBlockGuaranteed(world, pos.add(-3, 0, 3), random, 0.4f);
+        placeSpecialBlockGuaranteed(world, pos.add(-3, 0, 3), random, 0.15f);
     }
 
     // 聚变反应环 (20x20x8) - 环形聚变发电设施
@@ -716,7 +716,7 @@ public class RuinsWorldGenerator implements IWorldGenerator {
         decorateRuin(world, pos, random, 12, 8);
         placeRuinContents(world, pos.add(outerRadius + 1, 0, 2), random, RuinType.FUSION_RING.lootTier);
         placeRuinContents(world, pos.add(-outerRadius - 1, 0, -2), random, RuinType.FUSION_RING.lootTier);
-        placeSpecialBlockGuaranteed(world, pos.add(3, 0, 3), random, 0.7f);
+        placeSpecialBlockGuaranteed(world, pos.add(3, 0, 3), random, 0.3f);
     }
 
     // 坠毁空降舱 (12x8x6) - 小型坠毁逃生舱
@@ -800,7 +800,7 @@ public class RuinsWorldGenerator implements IWorldGenerator {
         }
 
         placeRuinContents(world, pos, random, RuinType.CRASHED_POD.lootTier);
-        placeSpecialBlockGuaranteed(world, pos.add(0, 0, 0), random, 0.35f);
+        placeSpecialBlockGuaranteed(world, pos.add(0, 0, 0), random, 0.12f);
     }
 
     // 虚空工厂 (26x20x16) - 大型工业废墟
@@ -928,9 +928,9 @@ public class RuinsWorldGenerator implements IWorldGenerator {
         placeRuinContents(world, pos.add(8, 0, 0), random, RuinType.VOID_FACTORY.lootTier);
         placeRuinContents(world, pos.add(0, 0, 6), random, RuinType.VOID_FACTORY.lootTier);
 
-        // 高概率特殊方块
-        placeSpecialBlockGuaranteed(world, pos.add(0, 1, 0), random, 0.8f);
-        placeSpecialBlockGuaranteed(world, pos.add(-6, 0, -5), random, 0.5f);
+        // 特殊方块 (降低概率)
+        placeSpecialBlockGuaranteed(world, pos.add(0, 1, 0), random, 0.35f);
+        placeSpecialBlockGuaranteed(world, pos.add(-6, 0, -5), random, 0.2f);
     }
 
     // ============== v3.1 新增辅助方法 ==============
@@ -1092,7 +1092,7 @@ public class RuinsWorldGenerator implements IWorldGenerator {
         setBlockSafe(world, pos.add(0, 2, 0), Blocks.BEACON.getDefaultState());
 
         placeRuinContents(world, pos, random, RuinType.MECHANICAL_COMPLEX.lootTier);
-        if (random.nextFloat() < 0.4f) {
+        if (random.nextFloat() < 0.15f) {
             placeSpecialBlock(world, pos.add(4, 0, 4), random);
         }
     }
@@ -1158,7 +1158,7 @@ public class RuinsWorldGenerator implements IWorldGenerator {
         placeRuinContents(world, vaultPos.up(), random, RuinType.UNDERGROUND_VAULT.lootTier);
         placeRuinContents(world, vaultPos.add(4, 1, 4), random, RuinType.UNDERGROUND_VAULT.lootTier);
 
-        if (random.nextFloat() < 0.6f) {
+        if (random.nextFloat() < 0.25f) {
             placeSpecialBlock(world, vaultPos.add(-4, 1, -4), random);
         }
     }
@@ -1245,7 +1245,7 @@ public class RuinsWorldGenerator implements IWorldGenerator {
         placeRuinContents(world, pos, random, RuinType.FACTORY_RUINS.lootTier);
         placeRuinContents(world, pos.add(-6, 0, 6), random, RuinType.FACTORY_RUINS.lootTier);
 
-        if (random.nextFloat() < 0.5f) {
+        if (random.nextFloat() < 0.2f) {
             placeSpecialBlock(world, pos.add(6, 0, -6), random);
         }
     }
