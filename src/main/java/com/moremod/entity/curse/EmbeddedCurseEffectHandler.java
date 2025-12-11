@@ -11,6 +11,9 @@ import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.attributes.AttributeModifier;
 import net.minecraft.entity.monster.EntityMob;
 import net.minecraft.entity.passive.EntityAnimal;
+import net.minecraft.entity.passive.EntityWolf;
+import net.minecraft.entity.monster.EntityPolarBear;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.DamageSource;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
@@ -132,6 +135,34 @@ public class EmbeddedCurseEffectHandler {
     // 用于追踪需要清除攻击目标的生物
     private static final Map<Integer, UUID> pendingTargetClear = new HashMap<>();
 
+    /**
+     * 检查生物是否是条件攻击型（中立/被动攻击）
+     * 这些生物正常情况下不会主动攻击，但七咒会让它们主动攻击
+     * 和平徽章可以抵消这个效果
+     */
+    private static boolean isConditionallyHostile(EntityLivingBase entity) {
+        String className = entity.getClass().getSimpleName();
+
+        // 末影人 - 只有被看时才攻击
+        if (className.contains("Enderman")) return true;
+        // 僵尸猪人 - 只有被攻击时才攻击
+        if (className.contains("PigZombie") || className.contains("ZombiePigman")) return true;
+        // 狼（未驯服）- 只有被攻击时才攻击
+        if (entity instanceof EntityWolf) return true;
+        // 北极熊 - 只有有幼崽或被攻击时才攻击
+        if (entity instanceof EntityPolarBear) return true;
+        // 铁傀儡 - 正常不攻击玩家（除非玩家攻击村民）
+        if (className.contains("IronGolem")) return true;
+        // 雪傀儡 - 正常不攻击玩家
+        if (className.contains("SnowMan") || className.contains("Snowman")) return true;
+        // 蜘蛛 - 只在黑暗中攻击
+        if (className.contains("Spider") && !className.contains("CaveSpider")) return true;
+        // 所有非EntityMob的生物（如动物）
+        if (!(entity instanceof EntityMob)) return true;
+
+        return false;
+    }
+
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onSetAttackTarget(LivingSetAttackTargetEvent event) {
         if (!(event.getTarget() instanceof EntityPlayer)) return;
@@ -144,8 +175,8 @@ public class EmbeddedCurseEffectHandler {
 
         // 检查是否嵌入了和平徽章
         if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.PEACE_EMBLEM)) {
-            // 如果是中立生物（非敌对怪物），立即清除攻击目标
-            if (!(event.getEntityLiving() instanceof EntityMob)) {
+            // 如果是条件攻击型生物（中立/被动），清除攻击目标
+            if (isConditionallyHostile(event.getEntityLiving())) {
                 // 立即清除攻击目标
                 if (event.getEntityLiving() instanceof EntityCreature) {
                     ((EntityCreature) event.getEntityLiving()).setAttackTarget(null);
