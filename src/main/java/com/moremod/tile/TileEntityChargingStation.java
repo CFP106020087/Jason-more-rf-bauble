@@ -239,8 +239,23 @@ public class TileEntityChargingStation extends TileEntity implements ITickable {
         return energy.getMaxEnergyStored();
     }
 
+    public EnergyStorage getEnergyStorage() {
+        return energy;
+    }
+
     public ItemStackHandler getInventory() {
         return inventory;
+    }
+
+    /**
+     * 客户端设置能量（用于GUI同步）
+     */
+    public void setClientEnergy(int value) {
+        try {
+            java.lang.reflect.Field field = EnergyStorage.class.getDeclaredField("energy");
+            field.setAccessible(true);
+            field.setInt(energy, value);
+        } catch (Exception ignored) {}
     }
 
     // ===== Capabilities =====
@@ -282,7 +297,8 @@ public class TileEntityChargingStation extends TileEntity implements ITickable {
             inventory.deserializeNBT(compound.getCompoundTag("Inventory"));
         }
         int fe = compound.getInteger("Energy");
-        while (energy.getEnergyStored() < fe && energy.receiveEnergy(Integer.MAX_VALUE, false) > 0) {}
+        // 直接设置能量值
+        setClientEnergy(fe);
     }
 
     // ===== 網絡同步 =====

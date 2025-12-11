@@ -328,8 +328,10 @@ public class TileEntityOilExtractorCore extends TileEntity implements ITickable 
     @Override
     public void readFromNBT(NBTTagCompound compound) {
         super.readFromNBT(compound);
+        // 直接设置能量值
         int fe = compound.getInteger("Energy");
-        while (energy.getEnergyStored() < fe && energy.receiveEnergy(Integer.MAX_VALUE, false) > 0) {}
+        setEnergy(fe);
+
         extractedTotal = compound.getInteger("ExtractedTotal");
         isRunning = compound.getBoolean("IsRunning");
         // 讀取液體槽
@@ -350,6 +352,17 @@ public class TileEntityOilExtractorCore extends TileEntity implements ITickable 
                 }
             }
         }
+    }
+
+    /**
+     * 直接设置能量值（用于NBT加载）
+     */
+    private void setEnergy(int value) {
+        try {
+            java.lang.reflect.Field field = EnergyStorage.class.getDeclaredField("energy");
+            field.setAccessible(true);
+            field.setInt(energy, value);
+        } catch (Exception ignored) {}
     }
 
     // ===== 網絡同步 =====
