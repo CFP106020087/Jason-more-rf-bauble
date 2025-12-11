@@ -191,33 +191,57 @@ public class EmbeddedCurseEffectHandler {
 
     /**
      * 每 tick 清除中立生物的攻击目标（和平徽章效果）
+     * 主动扫描所有生物，清除对有和平徽章玩家的攻击目标
      */
     @SubscribeEvent
     public static void onWorldTick(TickEvent.WorldTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
         if (event.world.isRemote) return;
 
-        // 每 tick 处理，确保及时清除攻击目标
-        if (pendingTargetClear.isEmpty()) return;
-
         // 清除标记的攻击目标
-        pendingTargetClear.entrySet().removeIf(entry -> {
-            net.minecraft.entity.Entity entity = event.world.getEntityByID(entry.getKey());
-            if (entity instanceof EntityCreature) {
-                EntityCreature creature = (EntityCreature) entity;
-                if (creature.getAttackTarget() != null &&
-                        creature.getAttackTarget().getUniqueID().equals(entry.getValue())) {
-                    creature.setAttackTarget(null);
+        if (!pendingTargetClear.isEmpty()) {
+            pendingTargetClear.entrySet().removeIf(entry -> {
+                net.minecraft.entity.Entity entity = event.world.getEntityByID(entry.getKey());
+                if (entity instanceof EntityCreature) {
+                    EntityCreature creature = (EntityCreature) entity;
+                    if (creature.getAttackTarget() != null &&
+                            creature.getAttackTarget().getUniqueID().equals(entry.getValue())) {
+                        creature.setAttackTarget(null);
+                    }
+                } else if (entity instanceof EntityLiving) {
+                    EntityLiving living = (EntityLiving) entity;
+                    if (living.getAttackTarget() != null &&
+                            living.getAttackTarget().getUniqueID().equals(entry.getValue())) {
+                        living.setAttackTarget(null);
+                    }
                 }
-            } else if (entity instanceof EntityLiving) {
-                EntityLiving living = (EntityLiving) entity;
-                if (living.getAttackTarget() != null &&
-                        living.getAttackTarget().getUniqueID().equals(entry.getValue())) {
-                    living.setAttackTarget(null);
+                return true;
+            });
+        }
+
+        // 主动扫描：每 tick 清除所有条件攻击型生物对有和平徽章玩家的攻击目标
+        // 这是为了处理诅咒通过 AI 注入等方式设置的攻击目标
+        for (EntityPlayer player : event.world.playerEntities) {
+            if (player.world.isRemote) continue;
+            if (!CurseDeathHook.hasCursedRing(player)) continue;
+            if (!EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.PEACE_EMBLEM)) continue;
+
+            // 获取玩家附近的所有生物（64格范围）
+            java.util.List<EntityLiving> nearbyEntities = event.world.getEntitiesWithinAABB(
+                    EntityLiving.class,
+                    player.getEntityBoundingBox().grow(64, 32, 64),
+                    e -> e.getAttackTarget() == player && isConditionallyHostile(e)
+            );
+
+            // 清除这些生物的攻击目标
+            for (EntityLiving entity : nearbyEntities) {
+                entity.setAttackTarget(null);
+                // 也尝试清除 AI 任务中的目标
+                if (entity instanceof EntityCreature) {
+                    ((EntityCreature) entity).setAttackTarget(null);
                 }
             }
-            return true;
-        });
+        }
     }
 
     // ========== 3. 护甲效力降低30% → 守护鳞片祝福 ==========
@@ -287,20 +311,51 @@ public class EmbeddedCurseEffectHandler {
         if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SLUMBER_SACHET)) {
             // 安眠香囊祝福效果：睡眠时获得再生 + 强制突破睡眠诅咒
             if (player.isPlayerSleeping()) {
+                UUID playerId = player.getUniqueID();
+
                 // 给予再生效果
                 if (!player.isPotionActive(net.minecraft.init.MobEffects.REGENERATION)) {
                     player.addPotionEffect(new net.minecraft.potion.PotionEffect(
                             net.minecraft.init.MobEffects.REGENERATION, 100, 1, false, false));
                 }
 
-                // 强制突破睡眠诅咒：七咒会把 sleepTimer 卡在 90，我们强制推进它
-                // 睡眠需要 sleepTimer >= 100 才能完成，七咒通过 sleepTimer = 90 来阻止
-                int currentSleepTimer = getSleepTimer(player);
-                // 如果 sleepTimer 在 85-100 范围内，直接设置到 101 确保睡眠完成
-                // 这样即使诅咒把它设回 90，下一 tick 我们又会推进到 101
-                if (currentSleepTimer >= 85 && currentSleepTimer <= 100) {
-                    setSleepTimer(player, 101);
+                // 自己追踪睡眠时长，不依赖被诅咒干扰的 sleepTimer
+                int sleepTicks = playerSleepTicks.getOrDefault(playerId, 0) + 1;
+                playerSleepTicks.put(playerId, sleepTicks);
+
+                // 当睡眠时间达到 100 tick 时，强制完成睡眠
+                // 原版需要 sleepTimer >= 100，诅咒把它卡在 90
+                // 我们自己计时，到达 100 后强制唤醒并跳过夜晚
+                if (sleepTicks >= 100) {
+                    // 重置计数
+                    playerSleepTicks.remove(playerId);
+
+                    // 设置 sleepTimer 到 100 让原版逻辑处理
+                    setSleepTimer(player, 100);
+
+                    // 如果是服务端且是单人或所有玩家都在睡觉，跳过夜晚
+                    if (!player.world.isRemote && player.world.provider.isSurfaceWorld()) {
+                        // 检查是否可以跳过夜晚
+                        boolean allSleeping = true;
+                        for (EntityPlayer p : player.world.playerEntities) {
+                            if (!p.isPlayerSleeping() && !p.isSpectator()) {
+                                allSleeping = false;
+                                break;
+                            }
+                        }
+                        if (allSleeping) {
+                            // 设置时间为白天
+                            long time = player.world.getWorldTime();
+                            long dayTime = time - (time % 24000L);
+                            player.world.setWorldTime(dayTime + 24000L);
+                        }
+                        // 唤醒玩家
+                        player.wakeUpPlayer(true, true, true);
+                    }
                 }
+            } else {
+                // 玩家不在睡觉，重置计数
+                playerSleepTicks.remove(player.getUniqueID());
             }
         }
 
@@ -355,6 +410,8 @@ public class EmbeddedCurseEffectHandler {
 
     // 用于标记有安眠香囊的玩家，让后续处理知道应该允许睡眠
     private static final Map<UUID, Long> sleepBypassPlayers = new HashMap<>();
+    // 追踪玩家睡眠时长（自己计数，不依赖 sleepTimer）
+    private static final Map<UUID, Integer> playerSleepTicks = new HashMap<>();
 
     /**
      * 在睡眠事件的最高优先级处理（最先执行）
