@@ -51,7 +51,7 @@ public class MixinEnigmaticEvents {
             ),
             require = 0
     )
-    private void moremod$redirect_setFire(EntityPlayer player, int seconds) {
+    private static void moremod$redirect_setFire(EntityPlayer player, int seconds) {
         // 检查是否嵌入了霜华之露
         if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.FROST_DEW)) {
             // 祝福效果：立即灭火
@@ -78,7 +78,7 @@ public class MixinEnigmaticEvents {
             ),
             require = 0
     )
-    private boolean moremod$redirect_isBurning(EntityPlayer player) {
+    private static boolean moremod$redirect_isBurning(EntityPlayer player) {
         // 检查是否嵌入了霜华之露
         if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.FROST_DEW)) {
             // 如果正在燃烧，立即灭火并给予抗性
@@ -112,7 +112,7 @@ public class MixinEnigmaticEvents {
             ),
             require = 0
     )
-    private boolean moremod$redirect_isPlayerSleeping(EntityPlayer player) {
+    private static boolean moremod$redirect_isPlayerSleeping(EntityPlayer player) {
         // 检查是否嵌入了安眠香囊
         if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SLUMBER_SACHET)) {
             // 如果正在睡觉，给予再生效果（祝福）
@@ -137,7 +137,7 @@ public class MixinEnigmaticEvents {
             cancellable = true,
             require = 0
     )
-    private void moremod$onSleepEnter_head(PlayerSleepInBedEvent event, CallbackInfo ci) {
+    private static void moremod$onSleepEnter_head(PlayerSleepInBedEvent event, CallbackInfo ci) {
         EntityPlayer player = event.getEntityPlayer();
         if (player == null || player.world.isRemote) return;
 
@@ -169,7 +169,7 @@ public class MixinEnigmaticEvents {
             ),
             require = 0
     )
-    private void moremod$redirect_setAmount(LivingHurtEvent event, float amount) {
+    private static void moremod$redirect_setAmount(LivingHurtEvent event, float amount) {
         Entity entity = event.getEntity();
         if (entity instanceof EntityPlayer) {
             EntityPlayer player = (EntityPlayer) entity;
@@ -206,7 +206,7 @@ public class MixinEnigmaticEvents {
             cancellable = true,
             require = 0
     )
-    private void moremod$onEntityTarget_head(LivingSetAttackTargetEvent event, CallbackInfo ci) {
+    private static void moremod$onEntityTarget_head(LivingSetAttackTargetEvent event, CallbackInfo ci) {
         if (!(event.getTarget() instanceof EntityPlayer)) return;
         if (event.getEntityLiving().world.isRemote) return;
 

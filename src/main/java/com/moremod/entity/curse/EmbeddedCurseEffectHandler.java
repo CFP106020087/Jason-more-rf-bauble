@@ -46,10 +46,14 @@ public class EmbeddedCurseEffectHandler {
 
     // ========== 反射字段：访问 Entity.fire ==========
     private static final Field FIRE_FIELD;
+    // ========== 反射字段：访问 EntityPlayer.sleepTimer ==========
+    private static final Field SLEEP_TIMER_FIELD;
 
     static {
         // "field_190534_ay" 是 Entity.fire 的 SRG 混淆名
         FIRE_FIELD = ObfuscationReflectionHelper.findField(Entity.class, "field_190534_ay");
+        // "field_71076_b" 是 EntityPlayer.sleepTimer 的 SRG 混淆名
+        SLEEP_TIMER_FIELD = ObfuscationReflectionHelper.findField(EntityPlayer.class, "field_71076_b");
     }
 
     /**
@@ -70,6 +74,29 @@ public class EmbeddedCurseEffectHandler {
     private static void setFireTicks(Entity entity, int ticks) {
         try {
             FIRE_FIELD.setInt(entity, ticks);
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 获取玩家的 sleepTimer
+     */
+    private static int getSleepTimer(EntityPlayer player) {
+        try {
+            return SLEEP_TIMER_FIELD.getInt(player);
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+            return 0;
+        }
+    }
+
+    /**
+     * 设置玩家的 sleepTimer
+     */
+    private static void setSleepTimer(EntityPlayer player, int ticks) {
+        try {
+            SLEEP_TIMER_FIELD.setInt(player, ticks);
         } catch (IllegalAccessException e) {
             e.printStackTrace();
         }
@@ -227,12 +254,21 @@ public class EmbeddedCurseEffectHandler {
 
         // 检查是否嵌入了安眠香囊 - 睡眠祝福
         if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SLUMBER_SACHET)) {
-            // 安眠香囊祝福效果：睡眠时获得再生
+            // 安眠香囊祝福效果：睡眠时获得再生 + 强制突破睡眠诅咒
             if (player.isPlayerSleeping()) {
                 // 给予再生效果
                 if (!player.isPotionActive(net.minecraft.init.MobEffects.REGENERATION)) {
                     player.addPotionEffect(new net.minecraft.potion.PotionEffect(
                             net.minecraft.init.MobEffects.REGENERATION, 100, 1, false, false));
+                }
+
+                // 强制突破睡眠诅咒：七咒会把 sleepTimer 卡在 90，我们强制推进它
+                // 睡眠需要 sleepTimer >= 100 才能完成，七咒通过 sleepTimer = 90 来阻止
+                int currentSleepTimer = getSleepTimer(player);
+                // 如果 sleepTimer 被卡在 90-91（诅咒会把它设回 90），强制推进
+                if (currentSleepTimer >= 89 && currentSleepTimer <= 91) {
+                    // 每 tick 强制 +2，这样即使诅咒设回 90，下一 tick 也能推进
+                    setSleepTimer(player, currentSleepTimer + 2);
                 }
             }
         }
