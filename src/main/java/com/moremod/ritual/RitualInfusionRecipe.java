@@ -65,6 +65,33 @@ public class RitualInfusionRecipe {
         return Math.max(0, adjusted); // 不能为负
     }
 
+    /**
+     * 计算能量超载加成
+     * 当提供的能量超过所需能量时，每超过100%给予额外成功率加成
+     * @param totalEnergy 所有基座的总能量
+     * @return 超载加成 (0.0 - 0.5)，最多50%额外成功率
+     */
+    public float getOverloadBonus(int totalEnergy) {
+        int requiredEnergy = energyPerPedestal * getPedestalCount();
+        if (requiredEnergy <= 0) return 0;
+
+        float energyRatio = (float) totalEnergy / requiredEnergy;
+        if (energyRatio <= 1.0f) return 0; // 能量不足，无加成
+
+        // 每超过100%能量，给予10%成功率加成，最多50%
+        float overloadPercent = (energyRatio - 1.0f);
+        return Math.min(0.5f, overloadPercent * 0.1f);
+    }
+
+    /**
+     * 计算最终失败率（考虑祭坛加成 + 能量超载）
+     */
+    public float getOverloadAdjustedFailChance(AltarTier tier, int totalEnergy) {
+        float tierAdjusted = getAdjustedFailChance(tier);
+        float overloadBonus = getOverloadBonus(totalEnergy);
+        return Math.max(0, tierAdjusted - overloadBonus);
+    }
+
     public Ingredient getCore() { return core; }
     public ItemStack getOutput() { return output.copy(); }
     public int getTime() { return time; }

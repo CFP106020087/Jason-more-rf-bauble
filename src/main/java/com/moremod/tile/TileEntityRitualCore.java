@@ -321,11 +321,21 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         // 标记为非活动状态，防止onContentsChanged触发reset
         isActive = false;
 
-        // 使用祭坛阶层调整后的失败率
-        float adjustedFailChance = recipe.getAdjustedFailChance(currentTier);
+        // 计算能量超载加成
+        float overloadBonus = recipe.getOverloadBonus(initialTotalEnergy);
+        // 使用祭坛阶层 + 能量超载调整后的失败率
+        float adjustedFailChance = recipe.getOverloadAdjustedFailChance(currentTier, initialTotalEnergy);
         System.out.println("[Ritual] Tier: " + currentTier.getDisplayName() +
                          ", Base fail: " + recipe.getFailChance() +
-                         ", Adjusted fail: " + adjustedFailChance);
+                         ", Tier adjusted: " + recipe.getAdjustedFailChance(currentTier) +
+                         ", Overload bonus: " + (int)(overloadBonus * 100) + "%" +
+                         ", Final fail: " + adjustedFailChance +
+                         ", Initial energy: " + initialTotalEnergy);
+
+        // 通知玩家超载信息
+        if (overloadBonus > 0) {
+            notifyOverloadBonus(overloadBonus);
+        }
 
         // 失敗判定 (Risk mechanics)
         if (adjustedFailChance > 0 && world.rand.nextFloat() < adjustedFailChance) {
@@ -520,6 +530,19 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
                 player.sendMessage(new TextComponentString(
                     TextFormatting.RED + "✗ 仪式失败！祭坛爆炸！"));
             }
+        }
+    }
+
+    /**
+     * 通知玩家能量超载加成
+     */
+    private void notifyOverloadBonus(float bonus) {
+        int bonusPercent = (int)(bonus * 100);
+        AxisAlignedBB area = new AxisAlignedBB(pos).grow(10);
+        List<EntityPlayer> players = world.getEntitiesWithinAABB(EntityPlayer.class, area);
+        for (EntityPlayer player : players) {
+            player.sendStatusMessage(new TextComponentString(
+                TextFormatting.AQUA + "⚡ 能量超载！成功率+" + bonusPercent + "%"), true);
         }
     }
 
@@ -1199,6 +1222,13 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             duplicationProgress = 0;
             ItemStack storedItem = ItemCursedMirror.getStoredItem(coreItem);
             notifyDuplicationStart(storedItem);
+
+            // 能量超载：记录仪式开始时的总能量
+            initialTotalEnergy = 0;
+            List<TileEntityPedestal> allPeds = findValidPedestals();
+            for (TileEntityPedestal ped : allPeds) {
+                initialTotalEnergy += ped.getEnergy().getEnergyStored();
+            }
         }
 
         duplicationProgress++;
@@ -1250,8 +1280,31 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             ped.consumeOne();
         }
 
-        // 判定成功/失败 (1%成功率)
-        boolean success = world.rand.nextFloat() < DUPLICATION_SUCCESS_RATE;
+        // 计算能量超载加成
+        // 复制仪式需要约 800k RF (8个基座 x 100k RF)
+        int requiredEnergy = 800000;
+        float energyRatio = (float) initialTotalEnergy / requiredEnergy;
+        float overloadBonus = 0;
+        if (energyRatio > 1.0f) {
+            // 每超过100%能量，给予10%成功率加成，最多50%
+            overloadBonus = Math.min(0.5f, (energyRatio - 1.0f) * 0.1f);
+        }
+
+        // 最终成功率 = 基础1% + 超载加成
+        float finalSuccessRate = DUPLICATION_SUCCESS_RATE + overloadBonus;
+        System.out.println("[Duplication] Initial energy: " + initialTotalEnergy +
+                         ", Required: " + requiredEnergy +
+                         ", Ratio: " + energyRatio +
+                         ", Overload bonus: " + (int)(overloadBonus * 100) + "%" +
+                         ", Final success rate: " + (int)(finalSuccessRate * 100) + "%");
+
+        // 通知玩家超载信息
+        if (overloadBonus > 0) {
+            notifyOverloadBonus(overloadBonus);
+        }
+
+        // 判定成功/失败
+        boolean success = world.rand.nextFloat() < finalSuccessRate;
 
         if (success) {
             // 成功：复制物品，保留原物品
