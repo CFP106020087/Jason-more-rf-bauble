@@ -1,7 +1,5 @@
 package com.moremod.entity.curse;
 
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Multimap;
 import com.moremod.core.CurseDeathHook;
 import com.moremod.entity.curse.EmbeddedCurseManager.EmbeddedRelicType;
 import net.minecraft.entity.Entity;
@@ -10,16 +8,12 @@ import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.attributes.AttributeModifier;
 import net.minecraft.entity.monster.EntityMob;
-import net.minecraft.entity.passive.EntityAnimal;
 import net.minecraft.entity.passive.EntityWolf;
 import net.minecraft.entity.monster.EntityPolarBear;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.util.DamageSource;
-import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.living.LivingSetAttackTargetEvent;
-import net.minecraftforge.event.entity.player.PlayerSleepInBedEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.ObfuscationReflectionHelper;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
@@ -308,54 +302,15 @@ public class EmbeddedCurseEffectHandler {
         }
 
         // 检查是否嵌入了安眠香囊 - 睡眠祝福
+        // 睡眠诅咒的绕过通过 MixinEnigmaticEvents 假装有泰迪熊实现
+        // 这里只处理祝福效果：睡眠时获得再生
         if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SLUMBER_SACHET)) {
-            // 安眠香囊祝福效果：睡眠时获得再生 + 强制突破睡眠诅咒
             if (player.isPlayerSleeping()) {
-                UUID playerId = player.getUniqueID();
-
-                // 给予再生效果
+                // 安眠香囊祝福效果：睡眠时获得再生
                 if (!player.isPotionActive(net.minecraft.init.MobEffects.REGENERATION)) {
                     player.addPotionEffect(new net.minecraft.potion.PotionEffect(
                             net.minecraft.init.MobEffects.REGENERATION, 100, 1, false, false));
                 }
-
-                // 自己追踪睡眠时长，不依赖被诅咒干扰的 sleepTimer
-                int sleepTicks = playerSleepTicks.getOrDefault(playerId, 0) + 1;
-                playerSleepTicks.put(playerId, sleepTicks);
-
-                // 当睡眠时间达到 100 tick 时，强制完成睡眠
-                // 原版需要 sleepTimer >= 100，诅咒把它卡在 90
-                // 我们自己计时，到达 100 后强制唤醒并跳过夜晚
-                if (sleepTicks >= 100) {
-                    // 重置计数
-                    playerSleepTicks.remove(playerId);
-
-                    // 设置 sleepTimer 到 100 让原版逻辑处理
-                    setSleepTimer(player, 100);
-
-                    // 如果是服务端且是单人或所有玩家都在睡觉，跳过夜晚
-                    if (!player.world.isRemote && player.world.provider.isSurfaceWorld()) {
-                        // 检查是否可以跳过夜晚
-                        boolean allSleeping = true;
-                        for (EntityPlayer p : player.world.playerEntities) {
-                            if (!p.isPlayerSleeping() && !p.isSpectator()) {
-                                allSleeping = false;
-                                break;
-                            }
-                        }
-                        if (allSleeping) {
-                            // 设置时间为白天
-                            long time = player.world.getWorldTime();
-                            long dayTime = time - (time % 24000L);
-                            player.world.setWorldTime(dayTime + 24000L);
-                        }
-                        // 唤醒玩家
-                        player.wakeUpPlayer(true, true, true);
-                    }
-                }
-            } else {
-                // 玩家不在睡觉，重置计数
-                playerSleepTicks.remove(player.getUniqueID());
             }
         }
 
@@ -407,67 +362,8 @@ public class EmbeddedCurseEffectHandler {
     // 灵魂锚点嵌入后，死亡不会导致灵魂破碎
 
     // ========== 7. 失眠症 → 安眠香囊抵消 ==========
-
-    // 用于标记有安眠香囊的玩家，让后续处理知道应该允许睡眠
-    private static final Map<UUID, Long> sleepBypassPlayers = new HashMap<>();
-    // 追踪玩家睡眠时长（自己计数，不依赖 sleepTimer）
-    private static final Map<UUID, Integer> playerSleepTicks = new HashMap<>();
-
-    /**
-     * 在睡眠事件的最高优先级处理（最先执行）
-     * 如果嵌入了安眠香囊，标记这个玩家并设置结果为OK
-     */
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public static void onPlayerSleepHighest(PlayerSleepInBedEvent event) {
-        EntityPlayer player = event.getEntityPlayer();
-        if (player.world.isRemote) return;
-
-        // 检查是否有七咒之戒
-        if (!CurseDeathHook.hasCursedRing(player)) return;
-
-        // 检查是否嵌入了安眠香囊
-        if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SLUMBER_SACHET)) {
-            // 标记这个玩家，让Mixin和后续处理知道应该允许睡眠
-            sleepBypassPlayers.put(player.getUniqueID(), System.currentTimeMillis());
-            // 抢先设置结果为OK
-            event.setResult(EntityPlayer.SleepResult.OK);
-        }
-    }
-
-    /**
-     * 检查玩家是否应该绕过睡眠诅咒
-     */
-    public static boolean shouldBypassSleepCurse(EntityPlayer player) {
-        Long timestamp = sleepBypassPlayers.get(player.getUniqueID());
-        if (timestamp != null) {
-            // 5秒内有效
-            if (System.currentTimeMillis() - timestamp < 5000) {
-                return true;
-            }
-            sleepBypassPlayers.remove(player.getUniqueID());
-        }
-        return EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SLUMBER_SACHET);
-    }
-
-    /**
-     * 在睡眠事件的最低优先级处理（最后执行）
-     * 如果嵌入了安眠香囊，强制覆盖任何阻止睡眠的结果
-     */
-    @SubscribeEvent(priority = EventPriority.LOWEST)
-    public static void onPlayerSleepLowest(PlayerSleepInBedEvent event) {
-        EntityPlayer player = event.getEntityPlayer();
-        if (player.world.isRemote) return;
-
-        // 检查是否有七咒之戒
-        if (!CurseDeathHook.hasCursedRing(player)) return;
-
-        // 检查是否嵌入了安眠香囊
-        if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SLUMBER_SACHET)) {
-            // 无条件强制设置结果为 OK，抵消任何诅咒的失眠效果
-            // 不管之前的结果是什么，都覆盖为OK
-            event.setResult(EntityPlayer.SleepResult.OK);
-        }
-    }
+    // 睡眠诅咒的绕过通过 MixinEnigmaticEvents 假装有泰迪熊实现
+    // 不需要事件处理，Mixin 直接拦截 hasBauble(player, teddyBear) 返回 true
 
     // ========== 辅助方法 ==========
 
