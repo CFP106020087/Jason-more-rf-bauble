@@ -1,6 +1,6 @@
 package com.moremod.mixin.enigmaticlegacy;
 
-import com.moremod.entity.curse.EmbeddedCurseEffectHandler;
+import baubles.api.BaublesApi;
 import com.moremod.entity.curse.EmbeddedCurseManager;
 import com.moremod.entity.curse.EmbeddedCurseManager.EmbeddedRelicType;
 import net.minecraft.entity.Entity;
@@ -22,8 +22,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-
-import java.lang.reflect.Method;
 
 /**
  * Mixin 拦截 EnigmaticEvents 中的诅咒效果，并转化为祝福
@@ -104,70 +102,42 @@ public class MixinEnigmaticEvents {
     // 安眠香囊 - 安眠祝福
     // 原诅咒：失眠症（无法睡觉）
     // 祝福：允许睡觉 + 睡眠时获得生命恢复
+    //
+    // EnigmaticLegacy 的失眠诅咒逻辑：
+    // if (player.isPlayerSleeping() && player.sleepTimer > 90 && hasCursed(player)
+    //     && BaublesApi.isBaubleEquipped(player, teddyBear) == -1) {
+    //     player.sleepTimer = 90;
+    // }
+    //
+    // 我们只需让 "isBaubleEquipped == -1" 变成 false，
+    // 即伪装成"玩家有泰迪熊"，就可以完全解除失眠诅咒。
     // ═══════════════════════════════════════════════════════════════
 
-    // 缓存 hasBauble 方法的反射引用
-    private static Method hasBaubleMethod = null;
-    private static boolean hasBaubleMethodInitialized = false;
-
     /**
-     * 拦截 SuperpositionHandler.hasBauble 调用
-     * 当检查泰迪熊时，如果玩家有安眠香囊就返回 true
-     * 这样 EnigmaticLegacy 会认为玩家有泰迪熊，跳过睡眠诅咒
-     *
-     * 原条件：if (player.isPlayerSleeping() && player.sleepTimer > 90 && hasCursed(player) && !hasBauble(player, teddyBear))
-     * 当 hasBauble(player, teddyBear) 返回 true 时，整个条件为 false，不会执行 sleepTimer = 90
+     * 拦截 BaublesApi.isBaubleEquipped 调用
+     * 当玩家有安眠香囊且正在睡觉时，返回非 -1（伪装有泰迪熊）
      */
     @Redirect(
-            method = "tickHandler(Lnet/minecraftforge/fml/common/gameevent/TickEvent$PlayerTickEvent;)V",
+            method = "onPlayerTick(Lnet/minecraftforge/event/entity/living/LivingEvent$LivingUpdateEvent;)V",
             at = @At(
                     value = "INVOKE",
-                    target = "Lkeletu/enigmaticlegacy/handlers/SuperpositionHandler;hasBauble(Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/item/Item;)Z"
+                    target = "Lbaubles/api/BaublesApi;isBaubleEquipped(Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/item/Item;)I"
             ),
             require = 0
     )
-    private static boolean moremod$redirect_hasBauble(EntityPlayer player, Item item) {
-        // 检查 item 是否是泰迪熊（通过注册名）
-        String itemRegName = item.getRegistryName() != null ? item.getRegistryName().toString() : "";
-        boolean isTeddyBear = itemRegName.toLowerCase().contains("teddy");
+    private static int moremod$redirect_isBaubleEquipped(EntityPlayer player, Item item) {
+        // 只有在玩家拥有安眠香囊 + 正在躺床时才伪装
+        boolean hasSlumber = EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SLUMBER_SACHET);
+        boolean isOnBed = player.isPlayerSleeping();
 
-        // 如果是检查泰迪熊，且玩家有安眠香囊，返回 true（假装有泰迪熊）
-        if (isTeddyBear && EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SLUMBER_SACHET)) {
-            return true;  // 假装有泰迪熊，跳过睡眠诅咒
+        if (hasSlumber && isOnBed) {
+            // 返回非 -1，代表"玩家装备着泰迪熊"
+            return 0;
         }
 
-        // 否则调用原方法
-        return invokeHasBauble(player, item);
+        // 其他情况下维持原本判定逻辑
+        return BaublesApi.isBaubleEquipped(player, item);
     }
-
-    /**
-     * 通过反射调用原始的 SuperpositionHandler.hasBauble 方法
-     */
-    private static boolean invokeHasBauble(EntityPlayer player, Item item) {
-        try {
-            if (!hasBaubleMethodInitialized) {
-                hasBaubleMethodInitialized = true;
-                try {
-                    Class<?> superpositionHandler = Class.forName("keletu.enigmaticlegacy.handlers.SuperpositionHandler");
-                    hasBaubleMethod = superpositionHandler.getMethod("hasBauble", EntityPlayer.class, Item.class);
-                } catch (Exception e) {
-                    // EnigmaticLegacy 可能未安装
-                    hasBaubleMethod = null;
-                }
-            }
-
-            if (hasBaubleMethod != null) {
-                return (Boolean) hasBaubleMethod.invoke(null, player, item);
-            }
-        } catch (Exception e) {
-            // 反射失败，返回 false
-        }
-        return false;
-    }
-
-    // EnigmaticLegacy 睡眠诅咒检查:
-    // if (player.isPlayerSleeping() && player.sleepTimer > 90 && hasCursed(player) && !hasBauble(player, teddyBear))
-    // 当 hasBauble 返回 true 时，整个条件为 false，不会执行诅咒逻辑
 
     // ═══════════════════════════════════════════════════════════════
     // 守护鳞片 - 护甲强化祝福
