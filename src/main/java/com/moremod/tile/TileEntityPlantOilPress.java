@@ -2,6 +2,7 @@ package com.moremod.tile;
 
 import com.moremod.init.ModFluids;
 import com.moremod.init.ModItems;
+import com.moremod.item.energy.ItemSpeedUpgrade;
 import net.minecraft.init.Items;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -30,14 +31,17 @@ import java.util.Map;
  * 功能：
  * - 消耗RF能量
  * - 將農作物壓榨成植物油桶
+ * - 支持升级插件提升效率
  */
 public class TileEntityPlantOilPress extends TileEntity implements ITickable {
 
     // 配置
     private static final int ENERGY_CAPACITY = 100000;     // 100k RF
     private static final int ENERGY_PER_TICK = 50;         // 每tick消耗 50 RF
-    private static final int PROCESS_TIME = 8;             // 0.4秒壓榨時間（5倍加速）
+    private static final int BASE_PROCESS_TIME = 8;        // 基础0.4秒壓榨時間（5倍加速）
     private static final int FLUID_CAPACITY = 16000;       // 16桶液體容量
+    private static final int UPGRADE_SLOTS = 4;
+    private static final float SPEED_PER_UPGRADE = 0.5f;
 
     // 原料轉換率（每種作物產出多少mB植物油）- 產量5倍
     private static final Map<Item, Integer> OIL_YIELD = new HashMap<>();
@@ -55,6 +59,27 @@ public class TileEntityPlantOilPress extends TileEntity implements ITickable {
     }
 
     private static final int MB_PER_BUCKET = 1000;
+
+    // 升级插件槽
+    private final ItemStackHandler upgradeInventory = new ItemStackHandler(UPGRADE_SLOTS) {
+        @Override
+        protected void onContentsChanged(int slot) {
+            markDirty();
+            cachedSpeedMultiplier = -1;
+        }
+
+        @Override
+        public boolean isItemValid(int slot, ItemStack stack) {
+            return isValidUpgrade(stack);
+        }
+
+        @Override
+        public int getSlotLimit(int slot) {
+            return 1;
+        }
+    };
+
+    private float cachedSpeedMultiplier = -1;
 
     // 能量存儲
     private final EnergyStorage energy = new EnergyStorage(ENERGY_CAPACITY, 5000, 0) {
@@ -109,6 +134,57 @@ public class TileEntityPlantOilPress extends TileEntity implements ITickable {
     private int progress = 0;
     private boolean isProcessing = false;
 
+    /**
+     * 检查是否是有效的升级材料
+     */
+    public static boolean isValidUpgrade(ItemStack stack) {
+        if (stack.getItem() instanceof ItemSpeedUpgrade) {
+            return true;
+        }
+        return stack.getItem() == Items.REDSTONE ||
+               stack.getItem() == Items.GLOWSTONE_DUST ||
+               stack.getItem() == Items.BLAZE_POWDER ||
+               stack.getItem() == Items.EMERALD;
+    }
+
+    /**
+     * 计算速度倍率
+     */
+    public float getSpeedMultiplier() {
+        if (cachedSpeedMultiplier < 0) {
+            int upgradeCount = 0;
+            for (int i = 0; i < UPGRADE_SLOTS; i++) {
+                if (!upgradeInventory.getStackInSlot(i).isEmpty()) {
+                    upgradeCount++;
+                }
+            }
+            cachedSpeedMultiplier = 1.0f + (upgradeCount * SPEED_PER_UPGRADE);
+        }
+        return cachedSpeedMultiplier;
+    }
+
+    public int getUpgradeCount() {
+        int count = 0;
+        for (int i = 0; i < UPGRADE_SLOTS; i++) {
+            if (!upgradeInventory.getStackInSlot(i).isEmpty()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    public ItemStackHandler getUpgradeInventory() {
+        return upgradeInventory;
+    }
+
+    /**
+     * 获取实际处理时间（考虑升级）
+     */
+    public int getActualProcessTime() {
+        float speedMultiplier = getSpeedMultiplier();
+        return Math.max(1, (int)(BASE_PROCESS_TIME / speedMultiplier));
+    }
+
     @Override
     public void update() {
         if (world == null || world.isRemote) return;
@@ -127,7 +203,8 @@ public class TileEntityPlantOilPress extends TileEntity implements ITickable {
             energy.extractEnergy(ENERGY_PER_TICK, false);
             progress++;
 
-            if (progress >= PROCESS_TIME) {
+            int actualProcessTime = getActualProcessTime();
+            if (progress >= actualProcessTime) {
                 // 壓榨完成 - 將油存入液體儲罐
                 FluidStack oilStack = new FluidStack(ModFluids.getPlantOil(), yield);
                 fluidTank.fillInternal(oilStack, true);
@@ -197,7 +274,7 @@ public class TileEntityPlantOilPress extends TileEntity implements ITickable {
     }
 
     public int getMaxProgress() {
-        return PROCESS_TIME;
+        return getActualProcessTime();
     }
 
     public boolean isProcessing() {
@@ -248,6 +325,7 @@ public class TileEntityPlantOilPress extends TileEntity implements ITickable {
     public NBTTagCompound writeToNBT(NBTTagCompound compound) {
         super.writeToNBT(compound);
         compound.setTag("Inventory", inventory.serializeNBT());
+        compound.setTag("Upgrades", upgradeInventory.serializeNBT());
         compound.setInteger("Energy", energy.getEnergyStored());
         compound.setInteger("Progress", progress);
         compound.setBoolean("IsProcessing", isProcessing);
@@ -263,6 +341,10 @@ public class TileEntityPlantOilPress extends TileEntity implements ITickable {
         super.readFromNBT(compound);
         if (compound.hasKey("Inventory")) {
             inventory.deserializeNBT(compound.getCompoundTag("Inventory"));
+        }
+        if (compound.hasKey("Upgrades")) {
+            upgradeInventory.deserializeNBT(compound.getCompoundTag("Upgrades"));
+            cachedSpeedMultiplier = -1;
         }
         int fe = compound.getInteger("Energy");
         while (energy.getEnergyStored() < fe && energy.receiveEnergy(Integer.MAX_VALUE, false) > 0) {}

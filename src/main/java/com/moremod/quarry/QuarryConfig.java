@@ -5,9 +5,9 @@ package com.moremod.quarry;
  */
 public class QuarryConfig {
     // 能量配置
-    public static int ENERGY_CAPACITY = 1000000;           // RF 容量
-    public static int ENERGY_PER_OPERATION = 32000;        // 每次操作消耗 (原8000，提升4倍)
-    public static int ENERGY_TRANSFER_RATE = 50000;        // 最大输入速率
+    public static int ENERGY_CAPACITY = 5000000;           // RF 容量 (5M RF)
+    public static int ENERGY_PER_OPERATION = 320000;       // 每次操作消耗 (~16000 RF/tick，略超净输出)
+    public static int ENERGY_TRANSFER_RATE = 200000;       // 最大输入速率
     
     // 操作配置
     public static int BASE_TICKS_PER_OPERATION = 20;       // 基础操作间隔（1秒）
