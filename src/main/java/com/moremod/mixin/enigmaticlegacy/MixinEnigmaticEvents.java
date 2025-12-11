@@ -105,34 +105,31 @@ public class MixinEnigmaticEvents {
 
     /**
      * 拦截 tickHandler 中的 isPlayerSleeping 检查
-     * 当有安眠香囊时，返回 false 阻止诅咒踢出玩家
+     * 当有安眠香囊时，返回 false 让睡眠诅咒条件短路
+     *
+     * 原条件：if (player.isPlayerSleeping() && player.sleepTimer > 90 && hasCursed(player) && ...)
+     * isPlayerSleeping 是第一个条件，返回 false 会短路整个条件
      */
     @Redirect(
             method = "tickHandler(Lnet/minecraftforge/fml/common/gameevent/TickEvent$PlayerTickEvent;)V",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/entity/player/EntityPlayer;isPlayerSleeping()Z"
+                    target = "Lnet/minecraft/entity/player/EntityPlayer;isPlayerSleeping()Z",
+                    ordinal = 0
             ),
             require = 0
     )
     private static boolean moremod$redirect_isPlayerSleeping(EntityPlayer player) {
-        // 检查是否应该绕过睡眠诅咒（使用统一的检查方法）
+        // 检查是否应该绕过睡眠诅咒
         if (EmbeddedCurseEffectHandler.shouldBypassSleepCurse(player)) {
-            // 如果正在睡觉，给予再生效果（祝福）
-            if (player.isPlayerSleeping()) {
-                if (!player.isPotionActive(MobEffects.REGENERATION)) {
-                    player.addPotionEffect(new PotionEffect(MobEffects.REGENERATION, 100, 1, false, false));
-                }
-            }
-            // 返回 false 阻止诅咒的睡眠检查（让诅咒认为玩家没在睡觉）
+            // 返回 false 让睡眠诅咒条件短路，sleepTimer 不会被设为 90
             return false;
         }
         return player.isPlayerSleeping();
     }
 
-    // 注意：EnigmaticLegacy 没有 onSleepEnter 方法
-    // 睡眠诅咒是通过 tickHandler 中设置 sleepTimer = 90 实现的
-    // 我们通过 isPlayerSleeping 重定向 + EmbeddedCurseEffectHandler 中的 sleepTimer 推进来绕过
+    // 睡眠诅咒条件: player.isPlayerSleeping() && player.sleepTimer > 90 && hasCursed(player) && ...
+    // 我们让 isPlayerSleeping 返回 false 来短路整个条件
 
     // ═══════════════════════════════════════════════════════════════
     // 守护鳞片 - 护甲强化祝福
