@@ -390,13 +390,14 @@ public class TierRitualHandler {
     }
 
     /**
-     * 檢查是否為村正
+     * 檢查是否為村正（能量劍）
      */
     public static boolean isMuramasa(ItemStack weapon) {
         if (weapon.isEmpty()) return false;
 
         String regName = weapon.getItem().getRegistryName().toString().toLowerCase();
-        return regName.contains("muramasa") || regName.contains("村正");
+        // 村正 = 能量劍 (energy_sword)
+        return regName.contains("muramasa") || regName.contains("村正") || regName.contains("energy_sword");
     }
 
     // ========== 輔助方法 ==========
