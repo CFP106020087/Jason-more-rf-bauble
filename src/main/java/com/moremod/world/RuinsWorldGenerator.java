@@ -2,6 +2,7 @@ package com.moremod.world;
 
 import com.moremod.init.ModBlocks;
 import com.moremod.init.ModItems;
+import com.moremod.item.RegisterItem;
 import com.moremod.printer.ItemPrintTemplate;
 import com.moremod.printer.PrinterRecipe;
 import com.moremod.printer.PrinterRecipeRegistry;
@@ -49,11 +50,14 @@ public class RuinsWorldGenerator implements IWorldGenerator {
 
     // ============== 生成配置 ==============
     private static final int MIN_Y = 50;
-    private static final int SPAWN_CHANCE = 150;             // 降低生成率 (1/150 区块 ≈ 0.67%)
-    private static final int MIN_DISTANCE_FROM_SPAWN = 300;  // 增加距离要求
+    private static final int SPAWN_CHANCE = 300;             // 降低生成率 (1/300 区块 ≈ 0.33%)
+    private static final int MIN_DISTANCE_FROM_SPAWN = 400;  // 增加距离要求
 
-    // 稀有方块概率系数 (降低为0.5倍)
-    private static final float SPECIAL_BLOCK_CHANCE_MULTIPLIER = 0.5f;
+    // 稀有方块概率系数 (降低为0.3倍)
+    private static final float SPECIAL_BLOCK_CHANCE_MULTIPLIER = 0.3f;
+
+    // Glitch Armor 出现概率 (5%)
+    private static final float GLITCH_ARMOR_CHANCE = 0.05f;
 
     // ============== 结构类型枚举 ==============
     public enum RuinType {
@@ -1310,25 +1314,28 @@ public class RuinsWorldGenerator implements IWorldGenerator {
     }
 
     private void fillChestWithLoot(TileEntityChest chest, Random random, int tier) {
-        int materialCount = 4 + random.nextInt(6);
+        // 减少材料数量 (原: 4-9, 现: 2-4)
+        int materialCount = 2 + random.nextInt(3);
         for (int i = 0; i < materialCount; i++) {
             int slot = random.nextInt(27);
             ItemStack material = getRandomMaterial(random, tier);
             chest.setInventorySlotContents(slot, material);
         }
 
-        // 提高打印模版概率
-        if (random.nextFloat() < 0.15f * tier) {
+        // 打印模版概率降低
+        if (random.nextFloat() < 0.08f * tier) {
             int slot = random.nextInt(27);
             ItemStack template = createRandomTemplate(random);
             chest.setInventorySlotContents(slot, template);
         }
 
-        // ★ 故障装备 (提高概率) ★
-        if (random.nextFloat() < 0.1f * tier) {
+        // ★ Glitch Armor (极低概率 ~5%) ★
+        if (random.nextFloat() < GLITCH_ARMOR_CHANCE) {
             int slot = random.nextInt(27);
-            ItemStack gear = createFaultyGear(random, tier);
-            chest.setInventorySlotContents(slot, gear);
+            ItemStack glitchGear = createGlitchArmorPiece(random);
+            if (!glitchGear.isEmpty()) {
+                chest.setInventorySlotContents(slot, glitchGear);
+            }
         }
     }
 
@@ -1387,6 +1394,56 @@ public class RuinsWorldGenerator implements IWorldGenerator {
         gear.setItemDamage(random.nextInt(maxDamage / 2));
 
         return gear;
+    }
+
+    // ★★★ 创建Glitch Armor ★★★
+    private ItemStack createGlitchArmorPiece(Random random) {
+        try {
+            int type = random.nextInt(4);
+            ItemStack armor;
+
+            switch (type) {
+                case 0:
+                    if (RegisterItem.GLITCH_HELMET != null) {
+                        armor = new ItemStack(RegisterItem.GLITCH_HELMET);
+                    } else return ItemStack.EMPTY;
+                    break;
+                case 1:
+                    if (RegisterItem.GLITCH_CHESTPLATE != null) {
+                        armor = new ItemStack(RegisterItem.GLITCH_CHESTPLATE);
+                    } else return ItemStack.EMPTY;
+                    break;
+                case 2:
+                    if (RegisterItem.GLITCH_LEGGINGS != null) {
+                        armor = new ItemStack(RegisterItem.GLITCH_LEGGINGS);
+                    } else return ItemStack.EMPTY;
+                    break;
+                case 3:
+                    if (RegisterItem.GLITCH_BOOTS != null) {
+                        armor = new ItemStack(RegisterItem.GLITCH_BOOTS);
+                    } else return ItemStack.EMPTY;
+                    break;
+                default:
+                    return ItemStack.EMPTY;
+            }
+
+            // 添加Lore说明来源
+            NBTTagCompound nbt = armor.getTagCompound();
+            if (nbt == null) nbt = new NBTTagCompound();
+
+            NBTTagCompound display = nbt.getCompoundTag("display");
+            NBTTagList lore = new NBTTagList();
+            lore.appendTag(new net.minecraft.nbt.NBTTagString("§7來自遠古科技廢墟的遺物"));
+            lore.appendTag(new net.minecraft.nbt.NBTTagString("§d§o數據異常..."));
+            display.setTag("Lore", lore);
+            nbt.setTag("display", display);
+            armor.setTagCompound(nbt);
+
+            System.out.println("[Ruins] 生成了稀有的 Glitch Armor: " + armor.getDisplayName());
+            return armor;
+        } catch (Exception e) {
+            return ItemStack.EMPTY;
+        }
     }
 
     private void placeSpecialBlock(World world, BlockPos pos, Random random) {
@@ -1476,36 +1533,45 @@ public class RuinsWorldGenerator implements IWorldGenerator {
     }
 
     private ItemStack getRandomMaterial(Random random, int tier) {
-        int type = random.nextInt(12 + tier * 3);
-        int count = 2 + random.nextInt(tier * 3);
+        // 减少奖励数量 (原: 2 + tier*3, 现: 1 + tier)
+        int type = random.nextInt(15 + tier);
+        int count = 1 + random.nextInt(Math.max(1, tier));
 
         switch (type) {
             case 0:
             case 1:
             case 2:
-                return new ItemStack(Items.IRON_INGOT, count);
             case 3:
+                return new ItemStack(Items.IRON_INGOT, count);
             case 4:
-                return new ItemStack(Items.GOLD_INGOT, count);
             case 5:
+                return new ItemStack(Items.GOLD_INGOT, Math.max(1, count - 1));
             case 6:
-                return new ItemStack(Items.REDSTONE, count * 2);
             case 7:
+                return new ItemStack(Items.REDSTONE, count + 1);
             case 8:
-                return new ItemStack(Items.DIAMOND, 1 + random.nextInt(tier));
             case 9:
-                return new ItemStack(Items.EMERALD, 1 + random.nextInt(tier));
+                return new ItemStack(Items.COAL, count + 2);
             case 10:
-                return new ItemStack(Items.ENDER_PEARL, 2 + random.nextInt(4));
+                // 钻石更稀有
+                return new ItemStack(Items.DIAMOND, 1);
             case 11:
-                return new ItemStack(Items.NETHER_STAR, 1);
+                return new ItemStack(Items.EMERALD, 1);
+            case 12:
+                return new ItemStack(Items.ENDER_PEARL, 1 + random.nextInt(2));
+            case 13:
+                // 下界之星极为稀有 (仅tier 5有较高机会)
+                if (tier >= 4 && random.nextFloat() < 0.2f) {
+                    return new ItemStack(Items.NETHER_STAR, 1);
+                }
+                return new ItemStack(Items.BLAZE_POWDER, 1 + random.nextInt(2));
             default:
                 try {
-                    if (ModItems.ANCIENT_CORE_FRAGMENT != null && random.nextBoolean()) {
-                        return new ItemStack(ModItems.ANCIENT_CORE_FRAGMENT, 1 + random.nextInt(2));
+                    if (ModItems.ANCIENT_CORE_FRAGMENT != null && random.nextFloat() < 0.3f) {
+                        return new ItemStack(ModItems.ANCIENT_CORE_FRAGMENT, 1);
                     }
-                    if (ModItems.RIFT_CRYSTAL != null) {
-                        return new ItemStack(ModItems.RIFT_CRYSTAL, 1 + random.nextInt(2));
+                    if (ModItems.RIFT_CRYSTAL != null && random.nextFloat() < 0.3f) {
+                        return new ItemStack(ModItems.RIFT_CRYSTAL, 1);
                     }
                 } catch (Exception ignored) {}
                 return new ItemStack(Items.QUARTZ, count);
