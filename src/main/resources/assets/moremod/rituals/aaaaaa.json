@@ -17,6 +17,6 @@
     {"item": "minecraft:string"}
   ],
   "time": 800,
-  "energy": 25000,
+  "energy": 250000,
   "fail_chance": 0.15
 }

@@ -48,10 +48,10 @@ import java.util.concurrent.ConcurrentHashMap;
 public class TileEntityProtectionField extends TileEntity implements ITickable, IEnergyStorage {
 
     // ===== 能量参数 =====
-    private static final int MAX_ENERGY         = 1_000_000;
-    private static final int MAX_RECEIVE        =   10_000;
-    private static final int ENERGY_PER_TICK    =      100;
-    private static final int MIN_ENERGY_TO_WORK =    1_000;
+    private static final int MAX_ENERGY         = 5_000_000;  // 5M RF
+    private static final int MAX_RECEIVE        =   200_000;  // 200k RF/tick
+    private static final int ENERGY_PER_TICK    =     5_000;  // 5000 RF/tick 消耗
+    private static final int MIN_ENERGY_TO_WORK =    50_000;  // 50k RF 最低工作能量
 
     // ===== 冷却时间 =====
     private static final long COOLDOWN_TIME = 10000; // 10秒 (毫秒)

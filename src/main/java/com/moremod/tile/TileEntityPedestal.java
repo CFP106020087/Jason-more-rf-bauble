@@ -24,12 +24,13 @@ public class TileEntityPedestal extends TileEntity {
         }
     };
 
-    private final EnergyStorage energy = new EnergyStorage(50000);
+    private final EnergyStorage energy = new EnergyStorage(500000);  // 500k RF per pedestal
 
     public ItemStackHandler getInv() { return inv; }
     public EnergyStorage getEnergy() { return energy; }
     public boolean isEmpty() { return inv.getStackInSlot(0).isEmpty(); }
     public void consumeOne() { inv.extractItem(0, 1, false); }
+    public void consumeAmount(int amount) { inv.extractItem(0, amount, false); }
 
     @Override
     public SPacketUpdateTileEntity getUpdatePacket() {

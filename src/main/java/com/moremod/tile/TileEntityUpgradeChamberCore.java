@@ -46,9 +46,9 @@ import java.util.Locale;
 public class TileEntityUpgradeChamberCore extends TileEntity implements ITickable {
 
     // 能量配置
-    private static final int BASE_CAPACITY = 500000;      // 基礎容量 500k RF
-    private static final int BASE_REQUIRED = 50000;       // 基礎所需能量 50k RF
-    private static final int ENERGY_PER_LEVEL = 25000;    // 每級額外能量 25k RF
+    private static final int BASE_CAPACITY = 2000000;     // 基礎容量 2M RF
+    private static final int BASE_REQUIRED = 400000;      // 基礎所需能量 400k RF
+    private static final int ENERGY_PER_LEVEL = 200000;   // 每級額外能量 200k RF
     private static final int UPGRADE_TICKS = 100;         // 升級時間 5秒 (100 ticks)
 
     // 修復配置
@@ -56,7 +56,7 @@ public class TileEntityUpgradeChamberCore extends TileEntity implements ITickabl
     private static final int REPAIR_TICKS = 60;             // 修復時間 3秒 (60 ticks)
 
     // 能量存儲（可接收但不可輸出）
-    private final EnergyStorage energy = new EnergyStorage(BASE_CAPACITY, 10000, 0) {
+    private final EnergyStorage energy = new EnergyStorage(BASE_CAPACITY, 200000, 0) {
         @Override
         public int receiveEnergy(int maxReceive, boolean simulate) {
             int received = super.receiveEnergy(maxReceive, simulate);

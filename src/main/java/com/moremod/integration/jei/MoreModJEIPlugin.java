@@ -2,6 +2,9 @@ package com.moremod.integration.jei;
 
 import com.moremod.init.ModBlocks;
 import com.moremod.integration.jei.generator.*;
+import com.moremod.integration.jei.ritual.SpecialRitualCategory;
+import com.moremod.integration.jei.ritual.SpecialRitualInfo;
+import com.moremod.integration.jei.ritual.SpecialRitualWrapper;
 import com.moremod.moremod;
 import com.moremod.recipe.DimensionLoomRecipes;
 import com.moremod.recipe.SwordUpgradeRegistry;
@@ -38,6 +41,7 @@ public class MoreModJEIPlugin implements IModPlugin {
 
     // 配方类别ID
     public static final String RITUAL_INFUSION_UID = "moremod.ritual_infusion";
+    public static final String SPECIAL_RITUAL_UID = "moremod.special_ritual";
     public static final String DIMENSION_LOOM_UID = "moremod.dimension_loom";
     public static final String SWORD_UPGRADE_UID = "moremod.sword_upgrade_material";
     public static final String OIL_GENERATOR_UID = "moremod.oil_generator";
@@ -69,6 +73,11 @@ public class MoreModJEIPlugin implements IModPlugin {
         // 注册仪式注入类别
         registration.addRecipeCategories(
                 new RitualInfusionCategory(guiHelper)
+        );
+
+        // 注册特殊仪式类别
+        registration.addRecipeCategories(
+                new SpecialRitualCategory(guiHelper)
         );
 
         // 注册维度织机类别
@@ -103,6 +112,9 @@ public class MoreModJEIPlugin implements IModPlugin {
 
         // ========== 仪式注入系统 ==========
         registerRitualInfusion(registry);
+
+        // ========== 特殊仪式系统 ==========
+        registerSpecialRituals(registry);
 
         // ========== 维度织机系统 ==========
         registerDimensionLoom(registry);
@@ -592,6 +604,67 @@ public class MoreModJEIPlugin implements IModPlugin {
                     "生物质发电机\n" +
                             "使用植物、种子、作物等生物质产生RF能量。\n" +
                             "需要红石信号启动。"
+            );
+        }
+    }
+
+    /**
+     * 注册特殊仪式配方
+     * 包括：注魔仪式、诅咒净化、附魔转移、诅咒创造、武器经验加速、
+     * 村正攻击提升、织印强化、灵魂绑定、禁忌复制、七圣遗物嵌入、不可破坏
+     */
+    private void registerSpecialRituals(IModRegistry registry) {
+        // 1. 注册配方处理器
+        registry.handleRecipes(
+                SpecialRitualInfo.class,
+                SpecialRitualWrapper::new,
+                SPECIAL_RITUAL_UID
+        );
+
+        // 2. 添加所有特殊仪式配方
+        List<SpecialRitualInfo> specialRituals = SpecialRitualInfo.getAllSpecialRituals();
+        if (!specialRituals.isEmpty()) {
+            registry.addRecipes(specialRituals, SPECIAL_RITUAL_UID);
+            System.out.println("[MoreMod-JEI] Added " + specialRituals.size() + " special ritual recipes:");
+            for (SpecialRitualInfo ritual : specialRituals) {
+                System.out.println("[MoreMod-JEI]   - " + ritual.getType().name + " (" + ritual.getType().getTierName() + ")");
+            }
+        }
+
+        // 3. 添加催化剂
+        if (moremod.RITUAL_CORE_BLOCK != null) {
+            registry.addRecipeCatalyst(
+                    new ItemStack(moremod.RITUAL_CORE_BLOCK),
+                    SPECIAL_RITUAL_UID
+            );
+        }
+
+        if (moremod.RITUAL_PEDESTAL_BLOCK != null) {
+            registry.addRecipeCatalyst(
+                    new ItemStack(moremod.RITUAL_PEDESTAL_BLOCK),
+                    SPECIAL_RITUAL_UID
+            );
+        }
+
+        // 4. 添加信息说明
+        if (moremod.RITUAL_CORE_BLOCK != null) {
+            registry.addIngredientInfo(
+                    new ItemStack(moremod.RITUAL_CORE_BLOCK),
+                    ItemStack.class,
+                    "注能核心\n" +
+                    "在周围放上注能台，提供注能台能量，以为核心道具注入其他物品。\n\n" +
+                    "特殊仪式：\n" +
+                    "• 注魔仪式 - 三阶祭坛，附魔书×3+\n" +
+                    "• 诅咒净化 - 二阶祭坛，金苹果+恶魂之泪\n" +
+                    "• 附魔转移 - 三阶祭坛，书本+青金石\n" +
+                    "• 诅咒创造 - 二阶祭坛，墨囊+发酵蛛眼\n" +
+                    "• 武器经验加速 - 二阶祭坛，经验瓶\n" +
+                    "• 村正攻击提升 - 二阶祭坛，烈焰粉+岩浆膏\n" +
+                    "• 织印强化 - 二阶祭坛，强化材料\n" +
+                    "• 灵魂绑定 - 三阶祭坛，头颅+灵魂材料\n" +
+                    "• 禁忌复制 - 三阶祭坛，诅咒之镜+虚空精华\n" +
+                    "• 七圣遗物嵌入 - 三阶祭坛，七咒玩家站立\n" +
+                    "• 不可破坏 - 三阶祭坛，地狱之星+黑曜石+钻石"
             );
         }
     }
