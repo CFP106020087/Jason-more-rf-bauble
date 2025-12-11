@@ -132,6 +132,11 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     private int fabricEnhanceProgress = 0;
     private static final int FABRIC_ENHANCE_TIME = 200; // 10秒
 
+    // 成功率显示系统
+    private RitualInfusionRecipe lastNotifiedRecipe = null;
+    private int successRateDisplayCooldown = 0;
+    private static final int SUCCESS_RATE_DISPLAY_INTERVAL = 60; // 每3秒刷新一次成功率显示
+
     // 用於客戶端平滑渲染的緩存變量
     public float clientRotation = 0;
     public float lastClientRotation = 0;
@@ -228,12 +233,22 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         if (activeRecipe == null || !activeRecipe.getCore().apply(inv.getStackInSlot(0))) {
             activeRecipe = findMatchingRecipe(peds);
             process = 0; // 新配方，進度歸零
+            lastNotifiedRecipe = null; // 重置通知状态以便显示新配方信息
         }
 
         // 如果還是找不到配方，歸位
         if (activeRecipe == null) {
             updateState(false, false);
+            lastNotifiedRecipe = null;
             return;
+        }
+
+        // 显示成功率信息（配方首次匹配或定时刷新）
+        successRateDisplayCooldown--;
+        if (lastNotifiedRecipe != activeRecipe || successRateDisplayCooldown <= 0) {
+            notifySuccessRateInfo(peds, activeRecipe);
+            lastNotifiedRecipe = activeRecipe;
+            successRateDisplayCooldown = SUCCESS_RATE_DISPLAY_INTERVAL;
         }
 
         // 3. 運行中完整性檢查 (二次確認)
@@ -548,6 +563,69 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         for (EntityPlayer player : players) {
             player.sendStatusMessage(new TextComponentString(
                 TextFormatting.AQUA + "⚡ 能量超载！成功率+" + bonusPercent + "%"), true);
+        }
+    }
+
+    /**
+     * 通知玩家当前仪式的成功率信息
+     */
+    private void notifySuccessRateInfo(List<TileEntityPedestal> peds, RitualInfusionRecipe recipe) {
+        // 计算总可用能量
+        int totalAvailableEnergy = 0;
+        for (TileEntityPedestal ped : peds) {
+            totalAvailableEnergy += ped.getEnergy().getEnergyStored();
+        }
+
+        // 计算各项数值
+        float baseFailChance = recipe.getFailChance();
+        float tierAdjustedFailChance = recipe.getAdjustedFailChance(currentTier);
+        float overloadBonus = recipe.getOverloadBonus(totalAvailableEnergy);
+        float finalFailChance = recipe.getOverloadAdjustedFailChance(currentTier, totalAvailableEnergy);
+
+        // 计算成功率
+        int baseSuccessRate = (int)((1.0f - baseFailChance) * 100);
+        int tierBonus = (int)(currentTier.getSuccessBonus() * 100);
+        int overloadBonusPercent = (int)(overloadBonus * 100);
+        int finalSuccessRate = (int)((1.0f - finalFailChance) * 100);
+
+        // 计算能量状态
+        int requiredEnergy = recipe.getEnergyPerPedestal() * recipe.getPedestalCount();
+        int energyPercent = requiredEnergy > 0 ? (totalAvailableEnergy * 100 / requiredEnergy) : 100;
+
+        // 构建显示消息
+        AxisAlignedBB area = new AxisAlignedBB(pos).grow(10);
+        List<EntityPlayer> players = world.getEntitiesWithinAABB(EntityPlayer.class, area);
+
+        for (EntityPlayer player : players) {
+            StringBuilder sb = new StringBuilder();
+            sb.append(TextFormatting.GOLD).append("⚗ ");
+            sb.append(TextFormatting.WHITE).append(recipe.getOutput().getDisplayName());
+            sb.append(TextFormatting.GRAY).append(" | ");
+
+            // 成功率显示
+            TextFormatting successColor = finalSuccessRate >= 90 ? TextFormatting.GREEN :
+                                         (finalSuccessRate >= 70 ? TextFormatting.YELLOW :
+                                         (finalSuccessRate >= 50 ? TextFormatting.GOLD : TextFormatting.RED));
+            sb.append(TextFormatting.GRAY).append("成功:");
+            sb.append(successColor).append(finalSuccessRate).append("%");
+
+            // 祭坛加成
+            if (tierBonus > 0) {
+                sb.append(TextFormatting.AQUA).append(" (+").append(tierBonus).append("% ").append(currentTier.getDisplayName()).append(")");
+            }
+
+            // 超载加成
+            if (overloadBonusPercent > 0) {
+                sb.append(TextFormatting.LIGHT_PURPLE).append(" (+").append(overloadBonusPercent).append("% 超载)");
+            }
+
+            // 能量状态
+            sb.append(TextFormatting.GRAY).append(" | 能量:");
+            TextFormatting energyColor = energyPercent >= 100 ? TextFormatting.GREEN :
+                                        (energyPercent >= 50 ? TextFormatting.YELLOW : TextFormatting.RED);
+            sb.append(energyColor).append(energyPercent).append("%");
+
+            player.sendStatusMessage(new TextComponentString(sb.toString()), true);
         }
     }
 
