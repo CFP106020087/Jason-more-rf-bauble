@@ -31,7 +31,7 @@ public class TileEntityCompostBin extends TileEntity implements ITickable {
 
     // 堆肥进度
     private int compostProgress = 0;
-    private static final int COMPOST_TIME = 100; // 5秒完成一次（加速6倍）
+    private static final int COMPOST_TIME = 20; // 1秒完成一次（5倍加速）
 
     // 输出存储
     private final ItemStackHandler output = new ItemStackHandler(1) {

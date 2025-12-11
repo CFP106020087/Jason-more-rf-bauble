@@ -36,22 +36,22 @@ public class TileEntityPlantOilPress extends TileEntity implements ITickable {
     // 配置
     private static final int ENERGY_CAPACITY = 100000;     // 100k RF
     private static final int ENERGY_PER_TICK = 50;         // 每tick消耗 50 RF
-    private static final int PROCESS_TIME = 40;            // 2秒壓榨時間（加速5倍）
+    private static final int PROCESS_TIME = 8;             // 0.4秒壓榨時間（5倍加速）
     private static final int FLUID_CAPACITY = 16000;       // 16桶液體容量
 
-    // 原料轉換率（每種作物產出多少mB植物油）
+    // 原料轉換率（每種作物產出多少mB植物油）- 產量5倍
     private static final Map<Item, Integer> OIL_YIELD = new HashMap<>();
     static {
-        OIL_YIELD.put(Items.WHEAT, 50);           // 小麥 -> 50 mB
-        OIL_YIELD.put(Items.POTATO, 80);          // 馬鈴薯 -> 80 mB
-        OIL_YIELD.put(Items.CARROT, 60);          // 胡蘿蔔 -> 60 mB
-        OIL_YIELD.put(Items.BEETROOT, 70);        // 甜菜根 -> 70 mB
-        OIL_YIELD.put(Items.MELON, 40);           // 西瓜 -> 40 mB
-        OIL_YIELD.put(Items.PUMPKIN_SEEDS, 100);  // 南瓜籽 -> 100 mB
-        OIL_YIELD.put(Items.MELON_SEEDS, 100);    // 西瓜籽 -> 100 mB
-        OIL_YIELD.put(Items.WHEAT_SEEDS, 30);     // 小麥種子 -> 30 mB
-        OIL_YIELD.put(Items.BEETROOT_SEEDS, 40);  // 甜菜根種子 -> 40 mB
-        OIL_YIELD.put(Items.APPLE, 60);           // 蘋果 -> 60 mB
+        OIL_YIELD.put(Items.WHEAT, 250);          // 小麥 -> 250 mB (5倍)
+        OIL_YIELD.put(Items.POTATO, 400);         // 馬鈴薯 -> 400 mB (5倍)
+        OIL_YIELD.put(Items.CARROT, 300);         // 胡蘿蔔 -> 300 mB (5倍)
+        OIL_YIELD.put(Items.BEETROOT, 350);       // 甜菜根 -> 350 mB (5倍)
+        OIL_YIELD.put(Items.MELON, 200);          // 西瓜 -> 200 mB (5倍)
+        OIL_YIELD.put(Items.PUMPKIN_SEEDS, 500);  // 南瓜籽 -> 500 mB (5倍)
+        OIL_YIELD.put(Items.MELON_SEEDS, 500);    // 西瓜籽 -> 500 mB (5倍)
+        OIL_YIELD.put(Items.WHEAT_SEEDS, 150);    // 小麥種子 -> 150 mB (5倍)
+        OIL_YIELD.put(Items.BEETROOT_SEEDS, 200); // 甜菜根種子 -> 200 mB (5倍)
+        OIL_YIELD.put(Items.APPLE, 300);          // 蘋果 -> 300 mB (5倍)
     }
 
     private static final int MB_PER_BUCKET = 1000;
