@@ -191,33 +191,57 @@ public class EmbeddedCurseEffectHandler {
 
     /**
      * 每 tick 清除中立生物的攻击目标（和平徽章效果）
+     * 主动扫描所有生物，清除对有和平徽章玩家的攻击目标
      */
     @SubscribeEvent
     public static void onWorldTick(TickEvent.WorldTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
         if (event.world.isRemote) return;
 
-        // 每 tick 处理，确保及时清除攻击目标
-        if (pendingTargetClear.isEmpty()) return;
-
         // 清除标记的攻击目标
-        pendingTargetClear.entrySet().removeIf(entry -> {
-            net.minecraft.entity.Entity entity = event.world.getEntityByID(entry.getKey());
-            if (entity instanceof EntityCreature) {
-                EntityCreature creature = (EntityCreature) entity;
-                if (creature.getAttackTarget() != null &&
-                        creature.getAttackTarget().getUniqueID().equals(entry.getValue())) {
-                    creature.setAttackTarget(null);
+        if (!pendingTargetClear.isEmpty()) {
+            pendingTargetClear.entrySet().removeIf(entry -> {
+                net.minecraft.entity.Entity entity = event.world.getEntityByID(entry.getKey());
+                if (entity instanceof EntityCreature) {
+                    EntityCreature creature = (EntityCreature) entity;
+                    if (creature.getAttackTarget() != null &&
+                            creature.getAttackTarget().getUniqueID().equals(entry.getValue())) {
+                        creature.setAttackTarget(null);
+                    }
+                } else if (entity instanceof EntityLiving) {
+                    EntityLiving living = (EntityLiving) entity;
+                    if (living.getAttackTarget() != null &&
+                            living.getAttackTarget().getUniqueID().equals(entry.getValue())) {
+                        living.setAttackTarget(null);
+                    }
                 }
-            } else if (entity instanceof EntityLiving) {
-                EntityLiving living = (EntityLiving) entity;
-                if (living.getAttackTarget() != null &&
-                        living.getAttackTarget().getUniqueID().equals(entry.getValue())) {
-                    living.setAttackTarget(null);
+                return true;
+            });
+        }
+
+        // 主动扫描：每 tick 清除所有条件攻击型生物对有和平徽章玩家的攻击目标
+        // 这是为了处理诅咒通过 AI 注入等方式设置的攻击目标
+        for (EntityPlayer player : event.world.playerEntities) {
+            if (player.world.isRemote) continue;
+            if (!CurseDeathHook.hasCursedRing(player)) continue;
+            if (!EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.PEACE_EMBLEM)) continue;
+
+            // 获取玩家附近的所有生物（64格范围）
+            java.util.List<EntityLiving> nearbyEntities = event.world.getEntitiesWithinAABB(
+                    EntityLiving.class,
+                    player.getEntityBoundingBox().grow(64, 32, 64),
+                    e -> e.getAttackTarget() == player && isConditionallyHostile(e)
+            );
+
+            // 清除这些生物的攻击目标
+            for (EntityLiving entity : nearbyEntities) {
+                entity.setAttackTarget(null);
+                // 也尝试清除 AI 任务中的目标
+                if (entity instanceof EntityCreature) {
+                    ((EntityCreature) entity).setAttackTarget(null);
                 }
             }
-            return true;
-        });
+        }
     }
 
     // ========== 3. 护甲效力降低30% → 守护鳞片祝福 ==========

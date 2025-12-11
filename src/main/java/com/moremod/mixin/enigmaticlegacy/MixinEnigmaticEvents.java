@@ -208,16 +208,17 @@ public class MixinEnigmaticEvents {
     }
 
     /**
-     * 拦截 onEntityTarget 事件处理
+     * 拦截 onLivingChangeTarget 事件处理
      * 当有和平徽章时，取消中立生物的攻击目标设置
+     * 注意：EnigmaticLegacy 的方法名是 onLivingChangeTarget，不是 onEntityTarget
      */
     @Inject(
-            method = "onEntityTarget(Lnet/minecraftforge/event/entity/living/LivingSetAttackTargetEvent;)V",
+            method = "onLivingChangeTarget(Lnet/minecraftforge/event/entity/living/LivingSetAttackTargetEvent;)V",
             at = @At("HEAD"),
             cancellable = true,
             require = 0
     )
-    private static void moremod$onEntityTarget_head(LivingSetAttackTargetEvent event, CallbackInfo ci) {
+    private static void moremod$onLivingChangeTarget_head(LivingSetAttackTargetEvent event, CallbackInfo ci) {
         if (!(event.getTarget() instanceof EntityPlayer)) return;
         if (event.getEntityLiving().world.isRemote) return;
 
