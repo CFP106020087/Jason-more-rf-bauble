@@ -129,6 +129,16 @@ gui.moremod.printer.multiblock_required=Multiblock structure not formed! Require
 # Print Template (Generic CRT Template)
 item.moremod.print_template.name=Print Template
 
+# Blank Print Template (Requires CRT Definition)
+item.moremod.blank_print_template.name=Blank Print Template
+tooltip.moremod.blank_template.desc1=An undefined template
+tooltip.moremod.blank_template.desc2=Must be defined via CraftTweaker scripts
+tooltip.moremod.blank_template.hint=Shift+Right-click to view available recipes
+tooltip.moremod.blank_template.available=Available Recipes: %d
+tooltip.moremod.blank_template.no_recipes=No recipes available (requires CRT config)
+message.moremod.no_printer_recipes=No printer recipes available, add via CraftTweaker
+message.moremod.available_recipes=Available Printer Recipes
+
 # Printer GUI Text
 gui.moremod.printer.recipe_cost=Recipe Cost: %s RF
 gui.moremod.printer.build_guide=Build Guide: 3x3 Iron Block Base + 4 Redstone Blocks

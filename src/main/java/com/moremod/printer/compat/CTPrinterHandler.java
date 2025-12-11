@@ -19,6 +19,7 @@ import stanhebben.zenscript.annotations.ZenMethod;
  *
  * 使用方法:
  *
+ * // ========== 基础配方添加 ==========
  * // 添加基础配方
  * mods.moremod.Printer.addRecipe("my_recipe", <minecraft:diamond>, 100000, 200,
  *     [<minecraft:iron_ingot> * 4, <minecraft:gold_ingot> * 2]);
@@ -28,18 +29,29 @@ import stanhebben.zenscript.annotations.ZenMethod;
  *     <minecraft:diamond>, 100000, 200,
  *     [<minecraft:iron_ingot> * 4]);
  *
- * // 创建带有指定模板ID的模板物品（用于合成配方）
- * val template = mods.moremod.Printer.createTemplate("my_recipe");
- * recipes.addShaped("my_template", template,
- *     [[<minecraft:paper>, <minecraft:paper>, <minecraft:paper>],
- *      [<minecraft:paper>, <minecraft:diamond>, <minecraft:paper>],
- *      [<minecraft:paper>, <minecraft:paper>, <minecraft:paper>]]);
+ * // ========== 模板物品创建 ==========
+ * // 获取空白模版（用于合成配方输入）
+ * val blankTemplate = mods.moremod.Printer.getBlankTemplate();
  *
+ * // 创建带有指定模板ID的模板物品（用于合成配方输出）
+ * val definedTemplate = mods.moremod.Printer.createTemplate("my_recipe");
+ *
+ * // 使用空白模版+材料合成定义好的模版
+ * recipes.addShaped("my_template", definedTemplate,
+ *     [[<minecraft:paper>, <minecraft:diamond>, <minecraft:paper>],
+ *      [<minecraft:redstone>, blankTemplate, <minecraft:redstone>],
+ *      [<minecraft:paper>, <minecraft:gold_ingot>, <minecraft:paper>]]);
+ *
+ * // ========== 配方管理 ==========
  * // 移除配方
  * mods.moremod.Printer.removeRecipe("my_recipe");
  *
  * // 移除所有配方
  * mods.moremod.Printer.removeAllRecipes();
+ *
+ * // 列出所有配方ID
+ * val recipeIds = mods.moremod.Printer.getAllRecipeIds();
+ * for id in recipeIds { print(id); }
  */
 @ZenClass("mods.moremod.Printer")
 @ZenRegister
@@ -122,6 +134,85 @@ public class CTPrinterHandler {
     @ZenMethod
     public static boolean hasRecipe(String templateId) {
         return PrinterRecipeRegistry.hasRecipe(templateId);
+    }
+
+    /**
+     * 获取空白模版物品
+     * 用于在CraftTweaker中作为合成配方的输入材料
+     *
+     * @return 空白模版物品
+     */
+    @ZenMethod
+    public static IItemStack getBlankTemplate() {
+        ItemStack stack = new ItemStack(ModItems.BLANK_PRINT_TEMPLATE);
+        return CraftTweakerMC.getIItemStack(stack);
+    }
+
+    /**
+     * 获取多个空白模版
+     *
+     * @param count 数量
+     * @return 空白模版物品
+     */
+    @ZenMethod
+    public static IItemStack getBlankTemplate(int count) {
+        ItemStack stack = new ItemStack(ModItems.BLANK_PRINT_TEMPLATE, count);
+        return CraftTweakerMC.getIItemStack(stack);
+    }
+
+    /**
+     * 获取所有已注册的配方ID列表
+     *
+     * @return 配方ID数组
+     */
+    @ZenMethod
+    public static String[] getAllRecipeIds() {
+        java.util.Collection<PrinterRecipe> recipes = PrinterRecipeRegistry.getAllRecipes();
+        String[] ids = new String[recipes.size()];
+        int i = 0;
+        for (PrinterRecipe recipe : recipes) {
+            ids[i++] = recipe.getTemplateId();
+        }
+        return ids;
+    }
+
+    /**
+     * 获取配方的能量消耗
+     *
+     * @param templateId 模版ID
+     * @return 能量消耗，如果配方不存在返回-1
+     */
+    @ZenMethod
+    public static int getEnergyCost(String templateId) {
+        PrinterRecipe recipe = PrinterRecipeRegistry.getRecipe(templateId);
+        return recipe != null ? recipe.getEnergyCost() : -1;
+    }
+
+    /**
+     * 获取配方的处理时间
+     *
+     * @param templateId 模版ID
+     * @return 处理时间(ticks)，如果配方不存在返回-1
+     */
+    @ZenMethod
+    public static int getProcessingTime(String templateId) {
+        PrinterRecipe recipe = PrinterRecipeRegistry.getRecipe(templateId);
+        return recipe != null ? recipe.getProcessingTime() : -1;
+    }
+
+    /**
+     * 获取配方的输出物品
+     *
+     * @param templateId 模版ID
+     * @return 输出物品，如果配方不存在返回null
+     */
+    @ZenMethod
+    public static IItemStack getRecipeOutput(String templateId) {
+        PrinterRecipe recipe = PrinterRecipeRegistry.getRecipe(templateId);
+        if (recipe != null) {
+            return CraftTweakerMC.getIItemStack(recipe.getOutput());
+        }
+        return null;
     }
 
     /**

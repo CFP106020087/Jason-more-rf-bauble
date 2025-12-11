@@ -63,6 +63,7 @@ import com.moremod.item.ItemModGuide;
 
 // 🖨️ 打印系統
 import com.moremod.printer.ItemPrintTemplate;
+import com.moremod.printer.ItemBlankPrintTemplate;
 
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.item.Item.ToolMaterial;
@@ -181,7 +182,8 @@ public final class ModItems {
     public static Item MOREMOD_GUIDE;        // MoreMod 綜合指南
 
     // 🖨️ 打印系統物品
-    public static Item PRINT_TEMPLATE;       // 打印模版
+    public static Item PRINT_TEMPLATE;       // 打印模版 (已定义)
+    public static Item BLANK_PRINT_TEMPLATE; // 空白打印模版 (未定义，需CRT配置)
 
     //新模块(屎山包装)
 
@@ -360,6 +362,10 @@ public final class ModItems {
         PRINT_TEMPLATE = reg(e, new ItemPrintTemplate());
         System.out.println("[MoreMod] 🖨️ 打印模版已註冊");
 
+        // 🖨️ 註冊空白打印模版
+        BLANK_PRINT_TEMPLATE = reg(e, new ItemBlankPrintTemplate());
+        System.out.println("[MoreMod] 🖨️ 空白打印模版已註冊 (需CRT定義配方)");
+
         //新模块系统
     }
 
@@ -531,6 +537,10 @@ public final class ModItems {
         // 🖨️ 綁定打印模版模型
         bindModel(PRINT_TEMPLATE, "print_template");
         System.out.println("[MoreMod] 🖨️ 打印模版模型已註冊");
+
+        // 🖨️ 綁定空白打印模版模型
+        bindModel(BLANK_PRINT_TEMPLATE, "blank_print_template");
+        System.out.println("[MoreMod] 🖨️ 空白打印模版模型已註冊");
     }
 
     @SideOnly(Side.CLIENT)
