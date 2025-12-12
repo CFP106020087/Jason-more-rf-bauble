@@ -37,55 +37,70 @@ public class GemLootGenerator {
     private static boolean debugMode = false;
 
     // ==========================================
-    // 维度等级上限系统
+    // 维度等级上限系统 (从 ModConfig 读取)
     // ==========================================
 
-    /** 维度ID -> 宝石等级上限 */
-    private static final Map<Integer, Integer> DIMENSION_LEVEL_CAPS = new HashMap<>();
-
-    /** 是否启用维度等级限制 */
-    private static boolean dimensionLevelCapEnabled = true;
-
-    static {
-        // 默认维度等级上限
-        DIMENSION_LEVEL_CAPS.put(0, 30);   // 主世界: 最高30级
-        DIMENSION_LEVEL_CAPS.put(-1, 40);  // 地狱: 最高40级
-        // 其他维度（末地等）不限制
-    }
+    /** 自定义维度等级上限 (用于CT脚本覆盖配置) */
+    private static final Map<Integer, Integer> CUSTOM_DIMENSION_LEVEL_CAPS = new HashMap<>();
 
     /**
-     * 设置维度等级上限
+     * 设置维度等级上限 (CT脚本用，会覆盖配置文件设置)
      * @param dimensionId 维度ID
      * @param maxLevel 最高等级，-1表示不限制
      */
     public static void setDimensionLevelCap(int dimensionId, int maxLevel) {
         if (maxLevel <= 0) {
-            DIMENSION_LEVEL_CAPS.remove(dimensionId);
+            CUSTOM_DIMENSION_LEVEL_CAPS.remove(dimensionId);
         } else {
-            DIMENSION_LEVEL_CAPS.put(dimensionId, maxLevel);
+            CUSTOM_DIMENSION_LEVEL_CAPS.put(dimensionId, maxLevel);
         }
     }
 
     /**
      * 获取维度的宝石等级上限
+     * 优先级: CT自定义 > 配置文件
      * @return 等级上限，-1表示无限制
      */
     public static int getDimensionLevelCap(int dimensionId) {
-        return DIMENSION_LEVEL_CAPS.getOrDefault(dimensionId, -1);
+        // 优先使用CT自定义
+        if (CUSTOM_DIMENSION_LEVEL_CAPS.containsKey(dimensionId)) {
+            return CUSTOM_DIMENSION_LEVEL_CAPS.get(dimensionId);
+        }
+        // 从配置文件读取
+        com.moremod.config.ModConfig.GemDimensionLimits cfg =
+            com.moremod.config.ModConfig.gemDimension;
+        switch (dimensionId) {
+            case 0:  return cfg.overworldMaxLevel;
+            case -1: return cfg.netherMaxLevel;
+            case 1:  return cfg.endMaxLevel;
+            default: return cfg.otherDimensionsMaxLevel;
+        }
     }
 
     /**
-     * 启用/禁用维度等级限制
+     * 是否启用维度等级限制
      */
-    public static void setDimensionLevelCapEnabled(boolean enable) {
-        dimensionLevelCapEnabled = enable;
+    public static boolean isDimensionLevelCapEnabled() {
+        return com.moremod.config.ModConfig.gemDimension.enabled;
     }
 
     /**
-     * 清除所有维度等级限制
+     * 启用/禁用维度等级限制 (兼容旧API，但建议使用配置文件)
+     * @deprecated 请使用配置文件设置
+     */
+    @Deprecated
+    public static void setDimensionLevelCapEnabled(boolean enable) {
+        // 保留方法以兼容旧CT脚本，但实际设置由配置文件控制
+        if (debugMode) {
+            System.out.println("[GemLoot] 警告: setDimensionLevelCapEnabled() 已弃用，请使用配置文件");
+        }
+    }
+
+    /**
+     * 清除所有自定义维度等级限制
      */
     public static void clearDimensionLevelCaps() {
-        DIMENSION_LEVEL_CAPS.clear();
+        CUSTOM_DIMENSION_LEVEL_CAPS.clear();
     }
 
     // ==========================================
@@ -124,7 +139,7 @@ public class GemLootGenerator {
 
         // 获取维度等级上限
         int dimensionId = world.provider.getDimension();
-        int dimensionCap = dimensionLevelCapEnabled ? getDimensionLevelCap(dimensionId) : -1;
+        int dimensionCap = isDimensionLevelCapEnabled() ? getDimensionLevelCap(dimensionId) : -1;
 
         // 生成宝石
         int dropCount = rule.getDropCount(RANDOM);

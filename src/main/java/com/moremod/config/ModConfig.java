@@ -42,6 +42,14 @@ public class ModConfig {
     @Config.LangKey("config.moremod.enigmatic")
     public static final EnigmaticCompat enigmatic = new EnigmaticCompat();
 
+    @Config.Comment("宝石维度等级限制设置")
+    @Config.LangKey("config.moremod.gem_dimension")
+    public static final GemDimensionLimits gemDimension = new GemDimensionLimits();
+
+    @Config.Comment("附魔台强化设置")
+    @Config.LangKey("config.moremod.enchanting")
+    public static final EnchantingConfig enchanting = new EnchantingConfig();
+
     public static class General {
         @Config.Comment("基础运行消耗 (RF/秒)")
         @Config.RangeInt(min = 0, max = 1000)
@@ -382,6 +390,47 @@ public class ModConfig {
 
         @Config.Comment("是否输出详细的Enigmatic物品检测日志(调试用)")
         public boolean verboseEnigmaticDetection = false;
+    }
+
+    public static class GemDimensionLimits {
+        @Config.Comment("是否启用维度等级限制")
+        public boolean enabled = true;
+
+        @Config.Comment("主世界(维度0)宝石等级上限，-1表示不限制")
+        @Config.RangeInt(min = -1, max = 100)
+        public int overworldMaxLevel = 30;
+
+        @Config.Comment("地狱(维度-1)宝石等级上限，-1表示不限制")
+        @Config.RangeInt(min = -1, max = 100)
+        public int netherMaxLevel = 40;
+
+        @Config.Comment("末地(维度1)宝石等级上限，-1表示不限制")
+        @Config.RangeInt(min = -1, max = 100)
+        public int endMaxLevel = -1;
+
+        @Config.Comment("其他维度默认宝石等级上限，-1表示不限制")
+        @Config.RangeInt(min = -1, max = 100)
+        public int otherDimensionsMaxLevel = -1;
+    }
+
+    public static class EnchantingConfig {
+        @Config.Comment("是否启用附魔台强化功能")
+        public boolean enabled = true;
+
+        @Config.Comment("附魔消耗的经验等级上限(超过此值只消耗此值)")
+        @Config.RangeInt(min = 1, max = 100)
+        public int maxExpCost = 30;
+
+        @Config.Comment("附魔等级上限(超过此值只按此值计算附魔效果)")
+        @Config.RangeInt(min = 30, max = 99)
+        public int maxEnchantLevel = 99;
+
+        @Config.Comment("是否允许普通书架(15个以内)也能触发超过30级附魔")
+        public boolean allowVanillaBookshelvesBoost = true;
+
+        @Config.Comment("普通书架的等级提升倍率(默认1.5: 15书架可达45级)")
+        @Config.RangeDouble(min = 1.0, max = 3.0)
+        public double vanillaBookshelfMultiplier = 1.5;
     }
 
     /**

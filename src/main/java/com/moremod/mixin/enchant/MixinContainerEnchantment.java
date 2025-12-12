@@ -1,5 +1,6 @@
 package com.moremod.mixin.enchant;
 
+import com.moremod.config.ModConfig;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.enchantment.EnchantmentData;
 import net.minecraft.enchantment.EnchantmentHelper;
@@ -22,8 +23,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * MoreMod - 附魔台强化 Mixin
- * 支援无限等级附魔、高级附魔池
+ * MoreMod - 附魔台强化 Mixin v2.0
+ *
+ * 改进：
+ * - 经验消耗上限可配置（默认30级，不再吃所有等级）
+ * - 附魔等级上限99级
+ * - 普通书架（15个以内）也能触发超过30级附魔
  */
 @Mixin(ContainerEnchantment.class)
 public abstract class MixinContainerEnchantment {
@@ -35,6 +40,36 @@ public abstract class MixinContainerEnchantment {
 
     @Unique private static final float VANILLA_MAX_POWER = 15.0f;
     @Unique private int[] moremod$serverEnchantLevels = new int[3];
+
+    /** 从配置获取是否启用 */
+    @Unique
+    private boolean moremod$isEnabled() {
+        return ModConfig.enchanting.enabled;
+    }
+
+    /** 从配置获取经验消耗上限 */
+    @Unique
+    private int moremod$getMaxExpCost() {
+        return ModConfig.enchanting.maxExpCost;
+    }
+
+    /** 从配置获取附魔等级上限 */
+    @Unique
+    private int moremod$getMaxEnchantLevel() {
+        return ModConfig.enchanting.maxEnchantLevel;
+    }
+
+    /** 从配置获取是否允许普通书架提升 */
+    @Unique
+    private boolean moremod$allowVanillaBoost() {
+        return ModConfig.enchanting.allowVanillaBookshelvesBoost;
+    }
+
+    /** 从配置获取普通书架倍率 */
+    @Unique
+    private double moremod$getVanillaMultiplier() {
+        return ModConfig.enchanting.vanillaBookshelfMultiplier;
+    }
 
     /** 核心能量计算逻辑 */
     @Unique
@@ -63,30 +98,57 @@ public abstract class MixinContainerEnchantment {
         return power;
     }
 
+    /** 获取超出普通书架的额外能量 */
     @Unique
     private float moremod$getExtraPower() {
         return Math.max(0, moremod$calculateTotalPower() - VANILLA_MAX_POWER);
+    }
+
+    /** 计算最终附魔等级（包含普通书架提升） */
+    @Unique
+    private int moremod$calculateEnchantLevel(int baseLevel, int slotIndex) {
+        float totalPower = moremod$calculateTotalPower();
+        float extraPower = moremod$getExtraPower();
+
+        int finalLevel = baseLevel;
+
+        // 普通书架提升（15个以内）
+        if (moremod$allowVanillaBoost() && totalPower > 0 && totalPower <= VANILLA_MAX_POWER) {
+            // 普通书架倍率提升：15书架 × 1.5 = 22.5 → 第三槽最高45级
+            double multiplier = moremod$getVanillaMultiplier();
+            finalLevel = (int)(baseLevel * multiplier);
+        }
+        // 超出15书架的额外能量提升
+        else if (extraPower > 0) {
+            int bonus = (int)(extraPower * 2);
+            float ratio = (slotIndex + 1) / 3.0f;
+            finalLevel = baseLevel + (int)(bonus * ratio);
+        }
+
+        // 应用等级上限
+        return Math.min(finalLevel, moremod$getMaxEnchantLevel());
     }
 
     /** 修改附魔槽等级（突破30上限） */
     @Inject(method = {"onCraftMatrixChanged","func_75130_a"}, at = @At("RETURN"))
     private void moremod$boostLevels(IInventory inv, CallbackInfo ci) {
         if (world == null || world.isRemote) return;
-
-        float extra = moremod$getExtraPower();
-        if (extra <= 0) {
+        if (!moremod$isEnabled()) {
             System.arraycopy(enchantLevels, 0, moremod$serverEnchantLevels, 0, 3);
             return;
         }
 
-        int bonus = (int)(extra * 2); // 能量换等级
+        float totalPower = moremod$calculateTotalPower();
 
-        for (int i = 0; i < 3; i++) {
-            if (enchantLevels[i] > 0) {
-                float ratio = (i + 1) / 3.0f;
-                enchantLevels[i] += (int)(bonus * ratio);
+        // 普通书架或额外书架都可以触发提升
+        if (totalPower > 0) {
+            for (int i = 0; i < 3; i++) {
+                if (enchantLevels[i] > 0) {
+                    enchantLevels[i] = moremod$calculateEnchantLevel(enchantLevels[i], i);
+                }
             }
         }
+
         System.arraycopy(enchantLevels, 0, moremod$serverEnchantLevels, 0, 3);
     }
 
@@ -95,15 +157,18 @@ public abstract class MixinContainerEnchantment {
     private void moremod$syncLevel(EntityPlayer player, int id, CallbackInfoReturnable<Boolean> cir) {
         if (world.isRemote) return;
         if (id < 0 || id >= 3) return;
-        if (moremod$getExtraPower() <= 0) return;
+        if (!moremod$isEnabled()) return;
 
         enchantLevels[id] = moremod$serverEnchantLevels[id];
     }
 
-    /** 🔥按钮可点击逻辑修补 */
+    /** 按钮可点击逻辑修补 */
     @Inject(method = {"canEnchant","func_82869_a"}, at = @At("HEAD"), cancellable = true)
     private void moremod$unlockButton(EntityPlayer player, int id, CallbackInfoReturnable<Boolean> cir) {
-        if (moremod$getExtraPower() > 0 && id >= 0 && id < 3) {
+        if (!moremod$isEnabled()) return;
+
+        float totalPower = moremod$calculateTotalPower();
+        if (totalPower > 0 && id >= 0 && id < 3) {
             if (moremod$serverEnchantLevels[id] > 0) {
                 cir.setReturnValue(true);
                 cir.cancel();
@@ -111,35 +176,43 @@ public abstract class MixinContainerEnchantment {
         }
     }
 
-    /** 🔥强制高等级附魔逻辑 */
+    /** 强制高等级附魔逻辑 - 经验消耗有上限 */
     @Inject(method = {"enchantItem","func_75140_a"}, at = @At("HEAD"), cancellable = true, require = 0)
     private void moremod$forceEnchant(EntityPlayer player, int id, CallbackInfoReturnable<Boolean> cir) {
         if (world.isRemote) return;
         if (id < 0 || id >= 3) return;
+        if (!moremod$isEnabled()) return;
 
-        int level = moremod$serverEnchantLevels[id];
-        if (level <= 0) return;
+        int enchantLevel = moremod$serverEnchantLevels[id];
+        if (enchantLevel <= 30) return; // 30级以下走原版逻辑
 
         ItemStack item = tableInventory.getStackInSlot(0);
         if (item.isEmpty()) return;
 
-        if (player.experienceLevel < level) {
+        // 经验消耗上限：不再吃掉所有等级
+        int expCost = Math.min(enchantLevel, moremod$getMaxExpCost());
+
+        if (player.experienceLevel < expCost) {
             cir.setReturnValue(false);
             cir.cancel();
             return;
         }
 
-        player.addExperienceLevel(-level);
+        // 只扣除上限内的经验
+        player.addExperienceLevel(-expCost);
+
+        // 附魔等级上限
+        int effectiveLevel = Math.min(enchantLevel, moremod$getMaxEnchantLevel());
 
         List<EnchantmentData> enchList =
-                EnchantmentHelper.buildEnchantmentList(player.getRNG(), item, level, false);
+                EnchantmentHelper.buildEnchantmentList(player.getRNG(), item, effectiveLevel, false);
 
         if (enchList == null || enchList.isEmpty()) {
             enchList = new ArrayList<>();
 
             for (Enchantment ench : Enchantment.REGISTRY) {
                 if (ench != null && ench.canApply(item)) {
-                    int newLvl = Math.max(1, Math.min(ench.getMaxLevel(), level / 30));
+                    int newLvl = Math.max(1, Math.min(ench.getMaxLevel(), effectiveLevel / 30));
                     enchList.add(new EnchantmentData(ench, newLvl));
                 }
             }
