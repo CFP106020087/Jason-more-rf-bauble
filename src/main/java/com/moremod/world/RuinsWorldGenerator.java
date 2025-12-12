@@ -50,7 +50,7 @@ public class RuinsWorldGenerator implements IWorldGenerator {
 
     // ============== 生成配置 ==============
     private static final int MIN_Y = 50;
-    private static final int SPAWN_CHANCE = 900;             // 降低生成率 (1/900 区块 ≈ 0.11%)
+    private static final int SPAWN_CHANCE = 600;             // 适度生成率 (1/600 区块 ≈ 0.17%)
     private static final int MIN_DISTANCE_FROM_SPAWN = 400;  // 增加距离要求
 
     // 稀有方块概率系数 (降低为0.3倍)
