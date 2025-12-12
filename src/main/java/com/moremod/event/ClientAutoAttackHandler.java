@@ -31,7 +31,7 @@ import java.util.List;
  * 重要：攻击间隔计算必须与GemAttackSpeedSystem完全一致！
  */
 @Mod.EventBusSubscriber(modid = "moremod", value = Side.CLIENT)
-public class ClientAutoAttackHandler {
+public class  ClientAutoAttackHandler {
     
     private static boolean wasAttacking = false;
     private static int tickCounter = 0;
