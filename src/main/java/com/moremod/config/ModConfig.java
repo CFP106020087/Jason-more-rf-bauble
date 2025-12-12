@@ -38,6 +38,10 @@ public class ModConfig {
     @Config.LangKey("config.moremod.overload")
     public static final Overload overload = new Overload();
 
+    @Config.Comment("七咒(Enigmatic Legacy)兼容设置")
+    @Config.LangKey("config.moremod.enigmatic")
+    public static final EnigmaticCompat enigmatic = new EnigmaticCompat();
+
     public static class General {
         @Config.Comment("基础运行消耗 (RF/秒)")
         @Config.RangeInt(min = 0, max = 1000)
@@ -370,6 +374,14 @@ public class ModConfig {
         @Config.Comment("第三级惩罚倍率")
         @Config.RangeDouble(min = 1.0, max = 5.0)
         public double tier3Penalty = 2.0;
+    }
+
+    public static class EnigmaticCompat {
+        @Config.Comment("是否阻止所有Enigmatic物品与机械核心同时佩戴")
+        public boolean blockAllEnigmatic = true;
+
+        @Config.Comment("是否输出详细的Enigmatic物品检测日志(调试用)")
+        public boolean verboseEnigmaticDetection = false;
     }
 
     /**

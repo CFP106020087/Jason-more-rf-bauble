@@ -78,9 +78,13 @@ public class ItemMechanicalCore extends Item implements IBauble {
     private static final ThreadLocal<Boolean> isCalculatingEnergy = ThreadLocal.withInitial(() -> false);
     private static final ThreadLocal<Boolean> isCheckingUpgrade  = ThreadLocal.withInitial(() -> false);
 
-    // ===== Enigmatic 冲突配置 =====
-    private static final boolean BLOCK_ALL_ENIGMATIC = true;
-    private static final boolean VERBOSE_ENIGMATIC_DETECTION = false;
+    // ===== Enigmatic 冲突配置 (从 ModConfig 读取) =====
+    private static boolean getBlockAllEnigmatic() {
+        return com.moremod.config.ModConfig.enigmatic.blockAllEnigmatic;
+    }
+    private static boolean getVerboseEnigmaticDetection() {
+        return com.moremod.config.ModConfig.enigmatic.verboseEnigmaticDetection;
+    }
 
     // ===== 电池缓存 =====
     private static class BatteryCache {
@@ -376,8 +380,8 @@ public class ItemMechanicalCore extends Item implements IBauble {
             for (int i = 0; i < baubles.getSlots(); i++) {
                 ItemStack bauble = baubles.getStackInSlot(i);
                 // 使用新的检测方法，排除 lost_engine
-                if (BLOCK_ALL_ENIGMATIC && isBlockedEnigmaticItem(bauble)) {
-                    if (VERBOSE_ENIGMATIC_DETECTION && !player.world.isRemote) {
+                if (getBlockAllEnigmatic() && isBlockedEnigmaticItem(bauble)) {
+                    if (getVerboseEnigmaticDetection() && !player.world.isRemote) {
                         System.out.println("[MechanicalCore] 检测到被阻止的 Enigmatic 物品: " + getItemDisplayName(bauble));
                     }
                     return true;
@@ -1269,7 +1273,7 @@ public class ItemMechanicalCore extends Item implements IBauble {
                 }
 
                 // ✨ 修改：检测并移除被阻止的 Enigmatic 物品（lost_engine 不会被移除）
-                if (!isUnequippingCore && (BLOCK_ALL_ENIGMATIC && isBlockedEnigmaticItem(bauble))) {
+                if (!isUnequippingCore && (getBlockAllEnigmatic() && isBlockedEnigmaticItem(bauble))) {
                     ItemStack removed = baubles.extractItem(i, 1, false);
                     if (!removed.isEmpty()) {
                         if (!player.inventory.addItemStackToInventory(removed)) {
@@ -2085,7 +2089,7 @@ public class ItemMechanicalCore extends Item implements IBauble {
                     }
 
                     // ✨ 修改：只检测被阻止的 Enigmatic 物品（lost_engine 不会被移除）
-                    if (BLOCK_ALL_ENIGMATIC && isBlockedEnigmaticItem(bauble)) {
+                    if (getBlockAllEnigmatic() && isBlockedEnigmaticItem(bauble)) {
                         enigmaticSlots.add(i);
                         enigmaticNames.add(getItemDisplayName(bauble));
                     }
