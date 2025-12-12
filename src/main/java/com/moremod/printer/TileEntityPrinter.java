@@ -78,7 +78,9 @@ public class TileEntityPrinter extends TileEntity implements ITickable, IAnimata
         @Override
         public boolean isItemValid(int slot, ItemStack stack) {
             if (slot == TEMPLATE_SLOT) {
-                return stack.getItem() instanceof ItemPrintTemplate;
+                // 支持普通模版和自定义模版
+                return stack.getItem() instanceof ItemPrintTemplate ||
+                       stack.getItem() instanceof ItemCustomPrintTemplate;
             }
             if (slot == OUTPUT_SLOT) {
                 return false;  // 输出槽不接受放入
@@ -153,13 +155,57 @@ public class TileEntityPrinter extends TileEntity implements ITickable, IAnimata
      */
     private void checkRecipe() {
         ItemStack templateStack = inventory.getStackInSlot(TEMPLATE_SLOT);
-        if (templateStack.isEmpty() || !(templateStack.getItem() instanceof ItemPrintTemplate)) {
+        if (templateStack.isEmpty()) {
             currentRecipe = null;
             return;
         }
 
-        String templateId = ItemPrintTemplate.getTemplateId(templateStack);
-        currentRecipe = PrinterRecipeRegistry.getRecipe(templateId);
+        // 处理自定义模版
+        if (templateStack.getItem() instanceof ItemCustomPrintTemplate) {
+            if (ItemCustomPrintTemplate.isValidTemplate(templateStack)) {
+                // 从NBT创建虚拟配方
+                currentRecipe = createRecipeFromCustomTemplate(templateStack);
+            } else {
+                currentRecipe = null;
+            }
+            return;
+        }
+
+        // 处理普通模版
+        if (templateStack.getItem() instanceof ItemPrintTemplate) {
+            String templateId = ItemPrintTemplate.getTemplateId(templateStack);
+            currentRecipe = PrinterRecipeRegistry.getRecipe(templateId);
+            return;
+        }
+
+        currentRecipe = null;
+    }
+
+    /**
+     * 从自定义模版创建虚拟配方
+     */
+    private PrinterRecipe createRecipeFromCustomTemplate(ItemStack customTemplate) {
+        String displayName = ItemCustomPrintTemplate.getDisplayName(customTemplate);
+        ItemStack output = ItemCustomPrintTemplate.getOutput(customTemplate);
+        int energyCost = ItemCustomPrintTemplate.getEnergyCost(customTemplate);
+        int processingTime = ItemCustomPrintTemplate.getProcessingTime(customTemplate);
+        List<ItemStack> materials = ItemCustomPrintTemplate.getMaterials(customTemplate);
+        String rarity = ItemCustomPrintTemplate.getRarityString(customTemplate);
+
+        // 使用Builder创建虚拟配方
+        PrinterRecipe.Builder builder = new PrinterRecipe.Builder()
+            .setTemplateId("custom_" + System.identityHashCode(customTemplate))
+            .setDisplayName(displayName.isEmpty() ? "自定义模版" : displayName)
+            .setRarity(rarity)
+            .setOutput(output)
+            .setEnergyCost(energyCost)
+            .setProcessingTime(processingTime);
+
+        for (ItemStack material : materials) {
+            builder.addMaterial(material);
+        }
+
+        return builder.build();
     }
 
     /**

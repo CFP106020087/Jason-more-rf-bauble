@@ -1,6 +1,7 @@
 package com.moremod.printer.compat;
 
 import com.moremod.init.ModItems;
+import com.moremod.printer.ItemCustomPrintTemplate;
 import com.moremod.printer.ItemPrintTemplate;
 import com.moremod.printer.PrinterRecipe;
 import com.moremod.printer.PrinterRecipeRegistry;
@@ -213,6 +214,95 @@ public class CTPrinterHandler {
             return CraftTweakerMC.getIItemStack(recipe.getOutput());
         }
         return null;
+    }
+
+    // ==================== 自定义模版相关方法 ====================
+
+    /**
+     * 创建自定义打印模版（配方数据存储在NBT中）
+     *
+     * 此模版无需预先注册配方，所有配方数据直接存储在物品NBT中
+     * 适用于战利品、一次性物品或动态生成的模版
+     *
+     * @param displayName 显示名称
+     * @param output 输出物品
+     * @param energyCost 能量消耗 (RF)
+     * @param processingTime 处理时间 (ticks)
+     * @param materials 所需材料
+     * @return 自定义模版物品
+     */
+    @ZenMethod
+    public static IItemStack createCustomTemplate(String displayName, IItemStack output,
+                                                   int energyCost, int processingTime, IIngredient[] materials) {
+        ItemStack stack = new ItemStack(ModItems.CUSTOM_PRINT_TEMPLATE);
+        ItemCustomPrintTemplate.setDisplayName(stack, displayName);
+        ItemCustomPrintTemplate.setOutput(stack, CraftTweakerMC.getItemStack(output));
+        ItemCustomPrintTemplate.setEnergyCost(stack, energyCost);
+        ItemCustomPrintTemplate.setProcessingTime(stack, processingTime);
+
+        java.util.List<ItemStack> materialList = new java.util.ArrayList<>();
+        for (IIngredient material : materials) {
+            if (material instanceof IItemStack) {
+                materialList.add(CraftTweakerMC.getItemStack((IItemStack) material));
+            }
+        }
+        ItemCustomPrintTemplate.setMaterials(stack, materialList);
+
+        return CraftTweakerMC.getIItemStack(stack);
+    }
+
+    /**
+     * 创建自定义打印模版（带稀有度）
+     *
+     * @param displayName 显示名称
+     * @param rarity 稀有度 ("common", "uncommon", "rare", "epic")
+     * @param output 输出物品
+     * @param energyCost 能量消耗 (RF)
+     * @param processingTime 处理时间 (ticks)
+     * @param materials 所需材料
+     * @return 自定义模版物品
+     */
+    @ZenMethod
+    public static IItemStack createCustomTemplateAdvanced(String displayName, String rarity,
+                                                           IItemStack output, int energyCost,
+                                                           int processingTime, IIngredient[] materials) {
+        ItemStack stack = new ItemStack(ModItems.CUSTOM_PRINT_TEMPLATE);
+        ItemCustomPrintTemplate.setDisplayName(stack, displayName);
+        ItemCustomPrintTemplate.setRarityString(stack, rarity);
+        ItemCustomPrintTemplate.setOutput(stack, CraftTweakerMC.getItemStack(output));
+        ItemCustomPrintTemplate.setEnergyCost(stack, energyCost);
+        ItemCustomPrintTemplate.setProcessingTime(stack, processingTime);
+
+        java.util.List<ItemStack> materialList = new java.util.ArrayList<>();
+        for (IIngredient material : materials) {
+            if (material instanceof IItemStack) {
+                materialList.add(CraftTweakerMC.getItemStack((IItemStack) material));
+            }
+        }
+        ItemCustomPrintTemplate.setMaterials(stack, materialList);
+
+        return CraftTweakerMC.getIItemStack(stack);
+    }
+
+    /**
+     * 获取空白自定义模版
+     *
+     * @return 空白自定义模版物品
+     */
+    @ZenMethod
+    public static IItemStack getCustomTemplate() {
+        return CraftTweakerMC.getIItemStack(new ItemStack(ModItems.CUSTOM_PRINT_TEMPLATE));
+    }
+
+    /**
+     * 检查物品是否是有效的自定义模版
+     *
+     * @param stack 物品
+     * @return 是否有效
+     */
+    @ZenMethod
+    public static boolean isValidCustomTemplate(IItemStack stack) {
+        return ItemCustomPrintTemplate.isValidTemplate(CraftTweakerMC.getItemStack(stack));
     }
 
     /**
