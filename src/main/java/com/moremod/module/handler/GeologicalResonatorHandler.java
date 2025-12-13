@@ -125,7 +125,7 @@ public class GeologicalResonatorHandler implements IModuleEventHandler {
     }
 
     /**
-     * 提取矿物并替换
+     * 提取矿物并替换为石头
      */
     private void extractOre(World world, EntityPlayer player, BlockPos pos, IBlockState state) {
         Block block = state.getBlock();
@@ -136,13 +136,25 @@ public class GeologicalResonatorHandler implements IModuleEventHandler {
             block.getDrops(drops, world, pos, state, 0);
         } catch (Exception e) {
             // 捕获某些mod方块可能出现的异常
+            System.err.println("[GeologicalResonator] 获取掉落物失败: " + e.getMessage());
             return;
         }
 
-        if (drops.isEmpty()) return;
+        if (drops.isEmpty()) {
+            System.out.println("[GeologicalResonator] 警告: 矿物无掉落物 " + block.getRegistryName());
+            return;
+        }
 
-        // 2. 替换方块为石头 (使用 flag 3 通知客户端更新)
-        world.setBlockState(pos, Blocks.STONE.getDefaultState(), 3);
+        // 2. 先替换方块为石头，再生成掉落物
+        // 使用 flag 2 (SEND_TO_CLIENTS) 确保客户端同步
+        boolean replaced = world.setBlockState(pos, Blocks.STONE.getDefaultState(), 2);
+
+        if (!replaced) {
+            // 尝试使用破坏再放置的方式
+            world.destroyBlock(pos, false); // 不掉落
+            world.setBlockState(pos, Blocks.STONE.getDefaultState(), 2);
+            System.out.println("[GeologicalResonator] 使用备用方式替换方块: " + pos);
+        }
 
         // 3. 生成掉落物在玩家位置
         for (ItemStack drop : drops) {
@@ -151,6 +163,8 @@ public class GeologicalResonatorHandler implements IModuleEventHandler {
 
         // 4. 播放粒子效果
         playResonanceEffect(world, pos);
+
+        System.out.println("[GeologicalResonator] 成功提取: " + block.getRegistryName() + " @ " + pos);
     }
 
     /**

@@ -23,7 +23,7 @@ public class CursedRingRestrictionHandler {
 
     // Cyclic方块的资源位置
     private static final ResourceLocation CYCLIC_ENCHANTER = new ResourceLocation("cyclicmagic", "block_enchanter");
-    private static final ResourceLocation CYCLIC_DISENCHANTER = new ResourceLocation("cyclicmagic", "block_disenchanter");
+    // block_disenchanter 不再受限制
 
     /**
      * 检查玩家是否装备了受限戒指
@@ -58,6 +58,7 @@ public class CursedRingRestrictionHandler {
 
     /**
      * 检查方块是否是受限制的Cyclic方块
+     * 只限制 block_enchanter，不限制 block_disenchanter
      */
     private static boolean isRestrictedBlock(Block block) {
         if (block == null || block.getRegistryName() == null) {
@@ -65,7 +66,7 @@ public class CursedRingRestrictionHandler {
         }
 
         ResourceLocation blockId = block.getRegistryName();
-        return blockId.equals(CYCLIC_ENCHANTER) || blockId.equals(CYCLIC_DISENCHANTER);
+        return blockId.equals(CYCLIC_ENCHANTER);
     }
 
     /**
