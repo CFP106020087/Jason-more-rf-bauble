@@ -10,11 +10,15 @@ import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.items.CapabilityItemHandler;
 import net.minecraftforge.items.ItemStackHandler;
 
+/**
+ * 物品升级台 TileEntity
+ * v2.0: 支持任意物品升级，不限于剑
+ */
 public class TileEntitySwordUpgradeStationMaterial extends TileEntity {
 
-    public static final int SLOT_BASE = 0; // 基底剑
-    public static final int SLOT_MAT  = 1; // 材料
-    public static final int SLOT_OUT  = 2; // 产物
+    public static final int SLOT_BASE = 0; // 输入物品A
+    public static final int SLOT_MAT  = 1; // 材料物品B
+    public static final int SLOT_OUT  = 2; // 输出物品C
 
     private final ItemStackHandler items = new ItemStackHandler(3) {
         @Override
@@ -26,35 +30,52 @@ public class TileEntitySwordUpgradeStationMaterial extends TileEntity {
         @Override
         public boolean isItemValid(int slot, ItemStack stack) {
             if (slot == SLOT_OUT) return false; // 输出槽禁止放
-            if (slot == SLOT_BASE) return isSword(stack);
-            // ✅ 修复：使用新的 isValidMaterial 方法检查材料
-            if (slot == SLOT_MAT)  return SwordUpgradeRegistry.isValidMaterial(stack.getItem());
+            // v2.0: 基底槽接受任意物品（不再限制为剑）
+            if (slot == SLOT_BASE) return !stack.isEmpty();
+            // 材料槽检查是否有匹配的配方
+            if (slot == SLOT_MAT) return SwordUpgradeRegistry.isValidMaterial(stack);
             return true;
         }
     };
 
     public ItemStack getStackInSlot(int slot) { return items.getStackInSlot(slot); }
 
-    /** 生成预览产物（不消耗）：复制 NBT、保持耐久比例 */
+    /**
+     * 生成预览产物（不消耗）
+     * v2.0: 支持任意物品，根据配方决定是否复制输入NBT
+     */
     public void recalcOutput() {
         ItemStack base = items.getStackInSlot(SLOT_BASE);
         ItemStack mat  = items.getStackInSlot(SLOT_MAT);
 
-        if (base.isEmpty() || mat.isEmpty() || !isSword(base)) {
+        // v2.0: 不再要求必须是剑
+        if (base.isEmpty() || mat.isEmpty()) {
             items.setStackInSlot(SLOT_OUT, ItemStack.EMPTY);
             markDirty();
             return;
         }
 
-        // 使用NBT匹配的配方查找：传递完整ItemStack
-        SwordUpgradeRegistry.Recipe r = SwordUpgradeRegistry.getRecipe(base, mat.getItem());
-        if (r == null || r.targetSword == null) {
+        // 使用完整ItemStack查找配方（支持材料NBT匹配）
+        SwordUpgradeRegistry.Recipe r = SwordUpgradeRegistry.getRecipe(base, mat);
+        if (r == null) {
             items.setStackInSlot(SLOT_OUT, ItemStack.EMPTY);
             markDirty();
             return;
         }
 
-        ItemStack out = new ItemStack(r.targetSword);
+        // 使用新版outputStack（支持完整NBT）
+        ItemStack out;
+        if (!r.outputStack.isEmpty()) {
+            out = r.outputStack.copy();
+        } else if (r.targetSword != null) {
+            // 兼容旧版配方
+            out = new ItemStack(r.targetSword);
+        } else {
+            items.setStackInSlot(SLOT_OUT, ItemStack.EMPTY);
+            markDirty();
+            return;
+        }
+
         if (out.isEmpty()) {
             items.setStackInSlot(SLOT_OUT, ItemStack.EMPTY);
             markDirty();
@@ -62,12 +83,22 @@ public class TileEntitySwordUpgradeStationMaterial extends TileEntity {
         }
         out.setCount(1);
 
-        // 复制全部 NBT
-        if (base.hasTagCompound()) {
-            out.setTagCompound(base.getTagCompound().copy());
+        // 根据配方设置决定是否复制输入NBT
+        if (r.copyInputNBT && base.hasTagCompound()) {
+            // 合并NBT：先复制输入NBT，再叠加输出NBT
+            NBTTagCompound baseNBT = base.getTagCompound().copy();
+            if (out.hasTagCompound()) {
+                // 输出NBT覆盖输入NBT中的同名键
+                NBTTagCompound outNBT = out.getTagCompound();
+                for (String key : outNBT.getKeySet()) {
+                    baseNBT.setTag(key, outNBT.getTag(key).copy());
+                }
+            }
+            out.setTagCompound(baseNBT);
         }
+        // 如果 copyInputNBT = false，则仅使用配方指定的输出NBT（已在outputStack中）
 
-        // 复制耐久"比例"
+        // 复制耐久"比例"（仅当两者都可损坏时）
         if (base.isItemStackDamageable() && out.isItemStackDamageable()) {
             double ratio = base.getItemDamage() / (double) base.getMaxDamage();
             int newDamage = (int) Math.floor(ratio * out.getMaxDamage());

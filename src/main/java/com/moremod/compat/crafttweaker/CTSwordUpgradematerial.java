@@ -15,9 +15,15 @@ import stanhebben.zenscript.annotations.ZenClass;
 import stanhebben.zenscript.annotations.ZenMethod;
 
 /**
- * CraftTweaker 剑升级配方接口 - 支持NBT匹配
+ * CraftTweaker 物品升级配方接口 - 支持任意物品与NBT匹配
  *
- * 支持三种配方模式：
+ * v2.0 新增功能：
+ * - 支持任意物品升级，不限于剑
+ * - 完整NBT支持：输入A、材料B、输出C都可以带NBT
+ * - addFull(A, B, C, XP) - 完整配方，A+B->C
+ * - addFull(A, B, C, XP, copyNBT) - 可选是否复制输入NBT到输出
+ *
+ * 原有模式（兼容旧版）：
  * 1. NBT精确配方：addRecipe(带NBT的剑, 材料, 输出剑, XP)
  * 2. Item精确配方：addRecipe(不带NBT的剑, 材料, 输出剑, XP)
  * 3. 通用配方：add(材料, 输出剑, XP) - 任意剑适用
@@ -151,6 +157,141 @@ public class CTSwordUpgradematerial {
     public static void remove(IItemStack material) {
         final Item mat = getItem(material, "material");
         CraftTweakerAPI.apply(new ActionRemove(mat));
+    }
+
+    // ==================== 新版 API (v2.0) - 任意物品升级 ====================
+
+    /**
+     * 添加完整配方：物品A + 材料B -> 输出物品C
+     * 支持任意物品（不限于剑），支持完整NBT匹配和输出
+     *
+     * 示例1（基础用法）：
+     * // 铁锭 + 钻石 -> 钻石锭
+     * mods.moremod.SwordUpgradematerial.addFull(
+     *     <minecraft:iron_ingot>,
+     *     <minecraft:diamond>,
+     *     <minecraft:diamond> * 2,
+     *     10
+     * );
+     *
+     * 示例2（带NBT输入）：
+     * // 锋利5的铁剑 + 下界之星 -> 锋利5的钻石剑
+     * mods.moremod.SwordUpgradematerial.addFull(
+     *     <minecraft:iron_sword>.withTag({ench:[{id:16,lvl:5}]}),
+     *     <minecraft:nether_star>,
+     *     <minecraft:diamond_sword>,
+     *     50
+     * );
+     *
+     * 示例3（带NBT材料）：
+     * // 任意剑 + 特定NBT的书 -> 附魔剑
+     * mods.moremod.SwordUpgradematerial.addFull(
+     *     <minecraft:iron_sword>,
+     *     <minecraft:enchanted_book>.withTag({StoredEnchantments:[{id:16,lvl:5}]}),
+     *     <minecraft:diamond_sword>.withTag({ench:[{id:16,lvl:5}]}),
+     *     30
+     * );
+     *
+     * 示例4（带NBT输出，不复制输入NBT）：
+     * mods.moremod.SwordUpgradematerial.addFull(
+     *     <minecraft:iron_sword>,
+     *     <minecraft:diamond>,
+     *     <minecraft:diamond_sword>.withTag({display:{Name:"神剑"}}),
+     *     20,
+     *     false  // 不复制输入NBT，仅使用输出指定的NBT
+     * );
+     */
+    @ZenMethod
+    public static void addFull(IItemStack inputItem, IItemStack materialItem, IItemStack outputItem, int xpCost, boolean copyInputNBT) {
+        final ItemStack input = CraftTweakerMC.getItemStack(inputItem);
+        final ItemStack material = CraftTweakerMC.getItemStack(materialItem);
+        final ItemStack output = CraftTweakerMC.getItemStack(outputItem);
+
+        if (input.isEmpty()) {
+            CraftTweakerAPI.logError("[ItemUpgrade] inputItem is empty!");
+            return;
+        }
+        if (material.isEmpty()) {
+            CraftTweakerAPI.logError("[ItemUpgrade] materialItem is empty!");
+            return;
+        }
+        if (output.isEmpty()) {
+            CraftTweakerAPI.logError("[ItemUpgrade] outputItem is empty!");
+            return;
+        }
+
+        final int cost = Math.max(0, xpCost);
+        CraftTweakerAPI.apply(new ActionAddFull(input.copy(), material.copy(), output.copy(), cost, copyInputNBT));
+    }
+
+    /**
+     * 添加完整配方（默认复制输入NBT）
+     */
+    @ZenMethod
+    public static void addFull(IItemStack inputItem, IItemStack materialItem, IItemStack outputItem, int xpCost) {
+        addFull(inputItem, materialItem, outputItem, xpCost, true);
+    }
+
+    /**
+     * 添加完整配方（无经验消耗，复制输入NBT）
+     */
+    @ZenMethod
+    public static void addFull(IItemStack inputItem, IItemStack materialItem, IItemStack outputItem) {
+        addFull(inputItem, materialItem, outputItem, 0, true);
+    }
+
+    /**
+     * 移除完整配方
+     */
+    @ZenMethod
+    public static void removeFull(IItemStack inputItem, IItemStack materialItem) {
+        final ItemStack input = CraftTweakerMC.getItemStack(inputItem);
+        final ItemStack material = CraftTweakerMC.getItemStack(materialItem);
+
+        if (input.isEmpty() || material.isEmpty()) {
+            CraftTweakerAPI.logError("[ItemUpgrade] removeFull: input or material is empty!");
+            return;
+        }
+
+        CraftTweakerAPI.apply(new ActionRemoveFull(input.copy(), material.copy()));
+    }
+
+    /**
+     * 添加通配配方：任意物品 + 材料B -> 输出物品C
+     * 输入物品的NBT会被复制到输出
+     *
+     * 示例：
+     * // 任意物品 + 魔法水晶 -> 魔法版物品
+     * mods.moremod.SwordUpgradematerial.addWildcard(
+     *     <moremod:magic_crystal>,
+     *     <moremod:magic_item>,
+     *     25
+     * );
+     */
+    @ZenMethod
+    public static void addWildcard(IItemStack materialItem, IItemStack outputItem, int xpCost) {
+        final ItemStack material = CraftTweakerMC.getItemStack(materialItem);
+        final ItemStack output = CraftTweakerMC.getItemStack(outputItem);
+
+        if (material.isEmpty()) {
+            CraftTweakerAPI.logError("[ItemUpgrade] materialItem is empty!");
+            return;
+        }
+        if (output.isEmpty()) {
+            CraftTweakerAPI.logError("[ItemUpgrade] outputItem is empty!");
+            return;
+        }
+
+        final int cost = Math.max(0, xpCost);
+        CraftTweakerAPI.apply(new ActionAddWildcard(material.copy(), output.copy(), cost));
+    }
+
+    /**
+     * 添加通配配方（无经验消耗）
+     */
+    @ZenMethod
+    public static void addWildcard(IItemStack materialItem, IItemStack outputItem) {
+        addWildcard(materialItem, outputItem, 0);
     }
 
     // ==================== 管理 API ====================
@@ -441,6 +582,89 @@ public class CTSwordUpgradematerial {
         @Override
         public String describe() {
             return "[SwordUpgrade] Dump all recipes";
+        }
+    }
+
+    // ==================== 新版 Actions (v2.0) ====================
+
+    /** 添加完整配方 */
+    private static final class ActionAddFull implements IAction {
+        private final ItemStack input, material, output;
+        private final int xp;
+        private final boolean copyNBT;
+
+        private ActionAddFull(ItemStack input, ItemStack material, ItemStack output, int xp, boolean copyNBT) {
+            this.input = input;
+            this.material = material;
+            this.output = output;
+            this.xp = xp;
+            this.copyNBT = copyNBT;
+        }
+
+        @Override
+        public void apply() {
+            SwordUpgradeRegistry.registerFull(input, material, output, xp, copyNBT);
+            scheduleJEIRefresh();
+        }
+
+        @Override
+        public String describe() {
+            String inputNBT = input.hasTagCompound() ? input.getTagCompound().toString() : "";
+            String matNBT = material.hasTagCompound() ? material.getTagCompound().toString() : "";
+            String outNBT = output.hasTagCompound() ? output.getTagCompound().toString() : "";
+            return String.format("[ItemUpgrade] Full: %s%s + %s%s -> %s%s (xp=%d, copyNBT=%b)",
+                    input.getItem().getRegistryName(), inputNBT,
+                    material.getItem().getRegistryName(), matNBT,
+                    output.getItem().getRegistryName(), outNBT,
+                    xp, copyNBT);
+        }
+    }
+
+    /** 移除完整配方 */
+    private static final class ActionRemoveFull implements IAction {
+        private final ItemStack input, material;
+
+        private ActionRemoveFull(ItemStack input, ItemStack material) {
+            this.input = input;
+            this.material = material;
+        }
+
+        @Override
+        public void apply() {
+            SwordUpgradeRegistry.removeFull(input, material);
+        }
+
+        @Override
+        public String describe() {
+            return String.format("[ItemUpgrade] Remove Full: %s + %s",
+                    input.getItem().getRegistryName(), material.getItem().getRegistryName());
+        }
+    }
+
+    /** 添加通配配方 */
+    private static final class ActionAddWildcard implements IAction {
+        private final ItemStack material, output;
+        private final int xp;
+
+        private ActionAddWildcard(ItemStack material, ItemStack output, int xp) {
+            this.material = material;
+            this.output = output;
+            this.xp = xp;
+        }
+
+        @Override
+        public void apply() {
+            SwordUpgradeRegistry.registerWildcard(material, output, xp);
+            scheduleJEIRefresh();
+        }
+
+        @Override
+        public String describe() {
+            String matNBT = material.hasTagCompound() ? material.getTagCompound().toString() : "";
+            String outNBT = output.hasTagCompound() ? output.getTagCompound().toString() : "";
+            return String.format("[ItemUpgrade] Wildcard: ANY + %s%s -> %s%s (xp=%d)",
+                    material.getItem().getRegistryName(), matNBT,
+                    output.getItem().getRegistryName(), outNBT, xp);
         }
     }
 }

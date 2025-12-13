@@ -9,14 +9,19 @@ import net.minecraft.nbt.NBTTagList;
 import java.util.*;
 
 /**
- * 剑升级配方注册表 - 支持NBT子集匹配
- * 
+ * 物品升级配方注册表 - 支持任意物品与NBT匹配
+ *
  * 配方类型：
- * 1. 精确配方（带NBT）：特定剑（含NBT） + 材料 -> 输出剑
- * 2. 精确配方（无NBT）：特定剑类型 + 材料 -> 输出剑
- * 3. 通用配方：任意剑 + 材料 -> 输出剑
- * 
+ * 1. 精确配方（带NBT）：特定物品A（含NBT） + 材料B -> 输出物品C
+ * 2. 精确配方（无NBT）：特定物品类型A + 材料B -> 输出物品C
+ * 3. 通用配方：任意物品 + 材料B -> 输出物品C
+ *
  * 查询优先级：带NBT精确 > 无NBT精确 > 通用
+ *
+ * v2.0 更新：
+ * - 支持任意物品，不限于剑
+ * - 输出物品支持完整NBT（ItemStack）
+ * - 材料支持NBT匹配
  */
 public final class SwordUpgradeRegistry {
 
@@ -24,14 +29,32 @@ public final class SwordUpgradeRegistry {
     public static final class Recipe {
         public final ItemStack inputRequirement;  // 输入要求（可能包含NBT）
         public final boolean requireNBT;          // 是否要求NBT匹配
-        public final Item targetSword;            // 输出剑
+        public final Item targetSword;            // 输出物品（兼容旧版）
+        public final ItemStack outputStack;       // 输出物品（新版，支持NBT）
+        public final ItemStack materialStack;     // 材料物品（新版，支持NBT匹配）
         public final int xpCost;                  // 经验消耗
+        public final boolean copyInputNBT;        // 是否复制输入物品的NBT到输出
 
+        // 兼容旧版构造器
         private Recipe(ItemStack inputReq, boolean requireNBT, Item targetSword, int xpCost) {
             this.inputRequirement = inputReq;
             this.requireNBT = requireNBT;
             this.targetSword = targetSword;
+            this.outputStack = targetSword != null ? new ItemStack(targetSword) : ItemStack.EMPTY;
+            this.materialStack = ItemStack.EMPTY;
             this.xpCost = Math.max(0, xpCost);
+            this.copyInputNBT = true; // 旧版默认复制NBT
+        }
+
+        // 新版构造器：支持完整ItemStack
+        private Recipe(ItemStack inputReq, boolean requireNBT, ItemStack output, ItemStack material, int xpCost, boolean copyInputNBT) {
+            this.inputRequirement = inputReq;
+            this.requireNBT = requireNBT;
+            this.targetSword = output.isEmpty() ? null : output.getItem();
+            this.outputStack = output.copy();
+            this.materialStack = material.copy();
+            this.xpCost = Math.max(0, xpCost);
+            this.copyInputNBT = copyInputNBT;
         }
     }
 
@@ -97,37 +120,154 @@ public final class SwordUpgradeRegistry {
         register(material, targetSword, 0);
     }
 
-    // ==================== 查询 API ====================
-    
+    // ==================== 新版 API (v2.0) - 支持任意物品与NBT ====================
+
     /**
-     * 根据输入剑ItemStack和材料查找配方
+     * 注册完整配方：输入物品A + 材料B -> 输出物品C
+     * 支持完整的NBT匹配和输出
+     *
+     * @param inputStack 输入物品A（可带NBT要求）
+     * @param materialStack 材料物品B（可带NBT要求）
+     * @param outputStack 输出物品C（可带NBT）
+     * @param xpCost 经验消耗
+     * @param copyInputNBT 是否将输入物品的NBT复制到输出（true=合并，false=仅使用outputStack的NBT）
+     */
+    public static void registerFull(ItemStack inputStack, ItemStack materialStack, ItemStack outputStack, int xpCost, boolean copyInputNBT) {
+        if (inputStack.isEmpty() || materialStack.isEmpty() || outputStack.isEmpty()) {
+            System.err.println("[ItemUpgrade] registerFull: 参数不能为空！");
+            return;
+        }
+
+        // 检查是否需要NBT匹配
+        boolean requireInputNBT = inputStack.hasTagCompound() && !inputStack.getTagCompound().isEmpty();
+
+        // 创建配方标识
+        ItemStack requirement = inputStack.copy();
+        if (!requirement.hasTagCompound()) {
+            requirement.setTagCompound(new NBTTagCompound());
+        }
+        // 存储材料信息
+        requirement.getTagCompound().setString("_upgrade_material", materialStack.getItem().getRegistryName().toString());
+        if (materialStack.hasTagCompound()) {
+            requirement.getTagCompound().setTag("_upgrade_material_nbt", materialStack.getTagCompound().copy());
+        }
+
+        RECIPES.add(new Recipe(requirement, requireInputNBT, outputStack, materialStack, xpCost, copyInputNBT));
+
+        System.out.println("[ItemUpgrade] 注册配方: " +
+            inputStack.getItem().getRegistryName() + " + " +
+            materialStack.getItem().getRegistryName() + " -> " +
+            outputStack.getItem().getRegistryName() + " (XP=" + xpCost + ", copyNBT=" + copyInputNBT + ")");
+    }
+
+    /**
+     * 注册完整配方（默认复制输入NBT）
+     */
+    public static void registerFull(ItemStack inputStack, ItemStack materialStack, ItemStack outputStack, int xpCost) {
+        registerFull(inputStack, materialStack, outputStack, xpCost, true);
+    }
+
+    /**
+     * 注册通配符配方：任意物品 + 材料B -> 输出物品C
+     * 输入物品的NBT会被复制到输出
+     *
+     * @param materialStack 材料物品B（可带NBT要求）
+     * @param outputStack 输出物品C（可带NBT）
+     * @param xpCost 经验消耗
+     */
+    public static void registerWildcard(ItemStack materialStack, ItemStack outputStack, int xpCost) {
+        if (materialStack.isEmpty() || outputStack.isEmpty()) {
+            System.err.println("[ItemUpgrade] registerWildcard: 参数不能为空！");
+            return;
+        }
+
+        ItemStack requirement = new ItemStack(Items.AIR);
+        NBTTagCompound tag = new NBTTagCompound();
+        tag.setString("_upgrade_material", materialStack.getItem().getRegistryName().toString());
+        tag.setBoolean("_any_item", true);
+        if (materialStack.hasTagCompound()) {
+            tag.setTag("_upgrade_material_nbt", materialStack.getTagCompound().copy());
+        }
+        requirement.setTagCompound(tag);
+
+        RECIPES.add(new Recipe(requirement, false, outputStack, materialStack, xpCost, true));
+
+        System.out.println("[ItemUpgrade] 注册通配配方: ANY + " +
+            materialStack.getItem().getRegistryName() + " -> " +
+            outputStack.getItem().getRegistryName() + " (XP=" + xpCost + ")");
+    }
+
+    /**
+     * 移除完整配方
+     */
+    public static void removeFull(ItemStack inputStack, ItemStack materialStack) {
+        if (inputStack.isEmpty() || materialStack.isEmpty()) return;
+
+        String materialName = materialStack.getItem().getRegistryName().toString();
+        NBTTagCompound materialNBT = materialStack.hasTagCompound() ? materialStack.getTagCompound() : null;
+
+        RECIPES.removeIf(recipe -> {
+            if (!recipe.inputRequirement.hasTagCompound()) return false;
+            NBTTagCompound reqTag = recipe.inputRequirement.getTagCompound();
+
+            String recipeMaterial = reqTag.getString("_upgrade_material");
+            if (!materialName.equals(recipeMaterial)) return false;
+
+            // 检查材料NBT是否匹配
+            if (materialNBT != null) {
+                if (!reqTag.hasKey("_upgrade_material_nbt")) return false;
+                if (!materialNBT.equals(reqTag.getCompoundTag("_upgrade_material_nbt"))) return false;
+            }
+
+            if (recipe.inputRequirement.getItem() != inputStack.getItem()) return false;
+
+            // 检查输入NBT是否匹配
+            if (recipe.requireNBT) {
+                return nbtMatches(inputStack, recipe.inputRequirement);
+            }
+            return true;
+        });
+    }
+
+    // ==================== 查询 API ====================
+
+    /**
+     * 根据输入物品和材料查找配方（新版，支持材料NBT）
      * 自动按优先级匹配：NBT精确 > Item精确 > 通用
      */
-    public static Recipe getRecipe(ItemStack inputStack, Item material) {
-        if (inputStack.isEmpty() || material == null) return null;
-        
-        String materialName = material.getRegistryName().toString();
+    public static Recipe getRecipe(ItemStack inputStack, ItemStack materialStack) {
+        if (inputStack.isEmpty() || materialStack.isEmpty()) return null;
+
+        String materialName = materialStack.getItem().getRegistryName().toString();
         Recipe bestMatch = null;
         int bestPriority = -1;  // 优先级：2=NBT精确, 1=Item精确, 0=通用
-        
+
         for (Recipe recipe : RECIPES) {
             if (!recipe.inputRequirement.hasTagCompound()) continue;
-            
-            String recipeMaterial = recipe.inputRequirement.getTagCompound().getString("_upgrade_material");
+
+            NBTTagCompound reqTag = recipe.inputRequirement.getTagCompound();
+            String recipeMaterial = reqTag.getString("_upgrade_material");
             if (!materialName.equals(recipeMaterial)) continue;
-            
-            // 检查是否为通用配方
-            if (recipe.inputRequirement.getTagCompound().getBoolean("_any_sword")) {
+
+            // 检查材料NBT是否匹配（如果配方要求）
+            if (reqTag.hasKey("_upgrade_material_nbt")) {
+                NBTTagCompound requiredMatNBT = reqTag.getCompoundTag("_upgrade_material_nbt");
+                if (!materialStack.hasTagCompound()) continue;
+                if (!containsAllNBT(materialStack.getTagCompound(), requiredMatNBT)) continue;
+            }
+
+            // 检查是否为通用配方（_any_sword 或 _any_item）
+            if (reqTag.getBoolean("_any_sword") || reqTag.getBoolean("_any_item")) {
                 if (bestPriority < 0) {
                     bestMatch = recipe;
                     bestPriority = 0;
                 }
                 continue;
             }
-            
+
             // 检查Item类型是否匹配
             if (recipe.inputRequirement.getItem() != inputStack.getItem()) continue;
-            
+
             // 如果配方要求NBT匹配
             if (recipe.requireNBT) {
                 if (nbtMatches(inputStack, recipe.inputRequirement)) {
@@ -144,8 +284,17 @@ public final class SwordUpgradeRegistry {
                 }
             }
         }
-        
+
         return bestMatch;
+    }
+
+    /**
+     * 根据输入物品和材料Item查找配方（兼容旧版）
+     * 自动按优先级匹配：NBT精确 > Item精确 > 通用
+     */
+    public static Recipe getRecipe(ItemStack inputStack, Item material) {
+        if (inputStack.isEmpty() || material == null) return null;
+        return getRecipe(inputStack, new ItemStack(material));
     }
 
     /**
@@ -239,18 +388,38 @@ public final class SwordUpgradeRegistry {
     }
 
     /**
-     * ✅ 新增：检查材料是否在任意配方中存在（用于槽位验证）
+     * 检查材料是否在任意配方中存在（用于槽位验证）
      * 不管是精确配方还是通用配方，只要材料被注册过就返回true
      */
     public static boolean isValidMaterial(Item material) {
         if (material == null) return false;
-        String materialName = material.getRegistryName().toString();
-        
+        return isValidMaterial(new ItemStack(material));
+    }
+
+    /**
+     * 检查材料ItemStack是否在任意配方中存在（支持NBT匹配）
+     */
+    public static boolean isValidMaterial(ItemStack materialStack) {
+        if (materialStack.isEmpty()) return false;
+        String materialName = materialStack.getItem().getRegistryName().toString();
+
         for (Recipe recipe : RECIPES) {
             if (!recipe.inputRequirement.hasTagCompound()) continue;
-            String recipeMaterial = recipe.inputRequirement.getTagCompound().getString("_upgrade_material");
+            NBTTagCompound reqTag = recipe.inputRequirement.getTagCompound();
+            String recipeMaterial = reqTag.getString("_upgrade_material");
+
             if (materialName.equals(recipeMaterial)) {
-                return true;
+                // 如果配方要求材料NBT，也需要检查
+                if (reqTag.hasKey("_upgrade_material_nbt")) {
+                    NBTTagCompound requiredMatNBT = reqTag.getCompoundTag("_upgrade_material_nbt");
+                    if (materialStack.hasTagCompound() && containsAllNBT(materialStack.getTagCompound(), requiredMatNBT)) {
+                        return true;
+                    }
+                    // NBT不匹配，继续检查其他配方
+                } else {
+                    // 配方不要求材料NBT，只要Item匹配即可
+                    return true;
+                }
             }
         }
         return false;
