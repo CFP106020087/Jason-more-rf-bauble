@@ -3,6 +3,7 @@ package com.moremod.printer;
 import com.moremod.creativetab.moremodCreativeTab;
 import com.moremod.init.ModItems;
 import net.minecraft.client.resources.I18n;
+import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.EnumRarity;
@@ -59,7 +60,8 @@ public class ItemBlankPrintTemplate extends Item {
 
     @Override
     public String getItemStackDisplayName(ItemStack stack) {
-        return I18n.format("item.moremod.blank_print_template.name");
+        // 使用服务端兼容的翻译方法
+        return net.minecraft.util.text.translation.I18n.translateToLocal("item.moremod.blank_print_template.name");
     }
 
     @Override
@@ -98,14 +100,14 @@ public class ItemBlankPrintTemplate extends Item {
     @Override
     public ActionResult<ItemStack> onItemRightClick(World worldIn, EntityPlayer playerIn, EnumHand handIn) {
         if (!worldIn.isRemote && playerIn.isSneaking()) {
-            // Shift+右键显示可用配方
+            // Shift+右键显示可用配方 - 使用服务端兼容的翻译
             java.util.Collection<PrinterRecipe> recipes = PrinterRecipeRegistry.getAllRecipes();
             if (recipes.isEmpty()) {
                 playerIn.sendMessage(new TextComponentString(
-                    TextFormatting.RED + I18n.format("message.moremod.no_printer_recipes")));
+                    TextFormatting.RED + net.minecraft.util.text.translation.I18n.translateToLocal("message.moremod.no_printer_recipes")));
             } else {
                 playerIn.sendMessage(new TextComponentString(
-                    TextFormatting.GOLD + "=== " + I18n.format("message.moremod.available_recipes") + " ==="));
+                    TextFormatting.GOLD + "=== " + net.minecraft.util.text.translation.I18n.translateToLocal("message.moremod.available_recipes") + " ==="));
                 for (PrinterRecipe recipe : recipes) {
                     String name = recipe.getDisplayName().isEmpty() ?
                         recipe.getTemplateId() : recipe.getDisplayName();
