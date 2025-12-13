@@ -92,6 +92,7 @@ import net.minecraft.init.Items;
 import com.moremod.world.SpacetimeOreWorldGenerator;
 import com.moremod.world.VoidStructureWorldGenerator;
 import com.moremod.world.RuinsWorldGenerator;
+import com.moremod.world.OverworldSchematicGenerator;
 import com.moremod.printer.PrinterRecipeRegistry;
 import net.minecraftforge.fml.common.registry.GameRegistry;
 import net.minecraftforge.fml.common.Loader;
@@ -654,7 +655,9 @@ public class moremod {
         GameRegistry.registerWorldGenerator(new SpacetimeOreWorldGenerator(), 5);
         GameRegistry.registerWorldGenerator(new VoidStructureWorldGenerator(), 1000);
         GameRegistry.registerWorldGenerator(new RuinsWorldGenerator(), 10);
+        GameRegistry.registerWorldGenerator(new OverworldSchematicGenerator(), 15);
         System.out.println("[moremod] 🏚️ 科技废墟世界生成器注册完成");
+        System.out.println("[moremod] 🏛️ 主世界自定义结构生成器注册完成");
 
         // 打印机配方系统 - 注册预设配方 + CraftTweaker扩展
         com.moremod.printer.PrinterRecipeRegistry.registerDefaultRecipes();
