@@ -46,6 +46,12 @@ public class PrinterRenderer extends GeoBlockRenderer<TileEntityPrinter> {
         GlStateManager.enableRescaleNormal();
         GlStateManager.enableBlend();
         GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+
+        // 启用深度测试和背面剔除
+        GlStateManager.enableDepth();
+        GlStateManager.depthMask(true);
+        GlStateManager.disableCull(); // 禁用背面剔除，确保所有面都渲染
+
         RenderHelper.disableStandardItemLighting();
 
         try {
@@ -58,6 +64,7 @@ public class PrinterRenderer extends GeoBlockRenderer<TileEntityPrinter> {
         }
 
         RenderHelper.enableStandardItemLighting();
+        GlStateManager.enableCull();
         GlStateManager.disableRescaleNormal();
         GlStateManager.disableBlend();
         GlStateManager.popMatrix();
