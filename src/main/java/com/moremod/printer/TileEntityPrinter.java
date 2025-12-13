@@ -464,16 +464,15 @@ public class TileEntityPrinter extends TileEntity implements ITickable, IAnimata
 
     /**
      * 动画控制器 - 根据状态播放不同动画
+     * 多方块形成时播放 idle 动画，否则停止
      */
     private <E extends IAnimatable> PlayState animationPredicate(AnimationEvent<E> event) {
-        if (isProcessing && multiblockFormed) {
-            // 使用 idle 动画作为工作动画（动画文件只有 idle）
-            event.getController().setAnimation(new AnimationBuilder().addAnimation("animation.3d_printer.idle", true));
-            return PlayState.CONTINUE;
-        } else if (multiblockFormed) {
+        // 只有多方块形成时才播放动画
+        if (multiblockFormed) {
             event.getController().setAnimation(new AnimationBuilder().addAnimation("animation.3d_printer.idle", true));
             return PlayState.CONTINUE;
         }
+        // 多方块未形成时停止动画
         return PlayState.STOP;
     }
 

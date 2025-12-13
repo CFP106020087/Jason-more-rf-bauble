@@ -1,6 +1,3 @@
 {
-  "parent": "block/cube_all",
-  "textures": {
-    "all": "moremod:blocks/printer_active"
-  }
+  "parent": "builtin/entity"
 }
