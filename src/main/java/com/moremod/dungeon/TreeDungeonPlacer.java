@@ -171,25 +171,42 @@ public class TreeDungeonPlacer {
                 break;
 
             case TREASURE:
-                // 只添加守衛刷怪籠
+                // 添加守衛刷怪籠 + 戰利品箱
                 setupTreasureGuards(innerBase, innerSize);
+                setupTreasureLoot(innerBase, innerSize);
                 break;
 
             case TRAP:
-                // 只設置陷阱機制
+                // 設置陷阱機制 + 少量補償箱
                 setupTrapMechanics(innerBase, innerSize);
+                setupTrapLoot(innerBase, innerSize);
                 break;
 
             case NORMAL:
-            case MONSTER:
-                // 只添加刷怪籠
+                // 添加刷怪籠 + 普通戰利品箱
                 setupCombatSpawners(innerBase, innerSize);
+                setupNormalLoot(innerBase, innerSize);
+                break;
+
+            case MONSTER:
+                // 添加更多刷怪籠 + 戰利品箱
+                setupCombatSpawners(innerBase, innerSize);
+                setupMonsterLoot(innerBase, innerSize);
                 break;
 
             case ENTRANCE:
+                // 入口房間 - 添加基礎補給箱
+                setupEntranceLoot(innerBase, innerSize);
+                break;
+
             case EXIT:
+                // 出口房間 - 添加完成獎勵箱
+                setupExitLoot(innerBase, innerSize);
+                break;
+
             case HUB:
-                // 這些房間完全依賴模板
+                // 樞紐房間 - 添加探索輔助箱
+                setupHubLoot(innerBase, innerSize);
                 break;
 
             case STAIRCASE_UP:
@@ -301,6 +318,90 @@ public class TreeDungeonPlacer {
         for (BlockPos pos : spawnerPositions) {
             placeRandomSpawner(pos, 1);
         }
+    }
+
+    // ========== 戰利品箱設置方法 ==========
+
+    /**
+     * 藏寶房 - 放置多個高級戰利品箱
+     */
+    private void setupTreasureLoot(BlockPos origin, int innerSize) {
+        int center = innerSize / 2;
+        // 中央主箱 (陷阱箱)
+        lootManager.createSpecialChest(world, origin.add(center, 1, center), RoomType.TREASURE, true);
+        // 四角輔助箱
+        lootManager.createSpecialChest(world, origin.add(4, 1, 4), RoomType.TREASURE, false);
+        lootManager.createSpecialChest(world, origin.add(innerSize - 5, 1, 4), RoomType.TREASURE, false);
+        lootManager.createSpecialChest(world, origin.add(4, 1, innerSize - 5), RoomType.TREASURE, false);
+        lootManager.createSpecialChest(world, origin.add(innerSize - 5, 1, innerSize - 5), RoomType.TREASURE, false);
+        System.out.println("[藏寶房] 放置5個戰利品箱");
+    }
+
+    /**
+     * 陷阱房 - 放置少量補償箱 (部分為陷阱箱)
+     */
+    private void setupTrapLoot(BlockPos origin, int innerSize) {
+        int center = innerSize / 2;
+        // 房間盡頭的補償箱 (50%概率是陷阱)
+        boolean trapped = random.nextBoolean();
+        lootManager.createSpecialChest(world, origin.add(center, 1, innerSize - 4), RoomType.TRAP, trapped);
+        System.out.println("[陷阱房] 放置1個補償箱 (陷阱=" + trapped + ")");
+    }
+
+    /**
+     * 普通房 - 放置1-2個普通戰利品箱
+     */
+    private void setupNormalLoot(BlockPos origin, int innerSize) {
+        // 隨機位置放置1-2個箱子
+        if (random.nextBoolean()) {
+            lootManager.createSpecialChest(world, origin.add(5, 1, innerSize - 5), RoomType.NORMAL, false);
+        }
+        lootManager.createSpecialChest(world, origin.add(innerSize - 5, 1, 5), RoomType.NORMAL, false);
+        System.out.println("[普通房] 放置戰利品箱");
+    }
+
+    /**
+     * 怪物房 - 放置戰利品箱作為擊殺獎勵
+     */
+    private void setupMonsterLoot(BlockPos origin, int innerSize) {
+        int center = innerSize / 2;
+        // 房間中央放置獎勵箱
+        lootManager.createSpecialChest(world, origin.add(center, 1, center - 3), RoomType.NORMAL, false);
+        lootManager.createSpecialChest(world, origin.add(center, 1, center + 3), RoomType.NORMAL, false);
+        System.out.println("[怪物房] 放置2個戰利品箱");
+    }
+
+    /**
+     * 入口房 - 放置基礎補給箱
+     */
+    private void setupEntranceLoot(BlockPos origin, int innerSize) {
+        int center = innerSize / 2;
+        // 入口處放置起始補給
+        lootManager.createSpecialChest(world, origin.add(center + 3, 1, center), RoomType.ENTRANCE, false);
+        System.out.println("[入口房] 放置1個起始補給箱");
+    }
+
+    /**
+     * 出口房 - 放置完成獎勵箱
+     */
+    private void setupExitLoot(BlockPos origin, int innerSize) {
+        int center = innerSize / 2;
+        // 出口處放置完成獎勵
+        lootManager.createSpecialChest(world, origin.add(center, 1, center), RoomType.EXIT, false);
+        lootManager.createSpecialChest(world, origin.add(center - 2, 1, center), RoomType.EXIT, false);
+        lootManager.createSpecialChest(world, origin.add(center + 2, 1, center), RoomType.EXIT, false);
+        System.out.println("[出口房] 放置3個完成獎勵箱");
+    }
+
+    /**
+     * 樞紐房 - 放置探索輔助箱
+     */
+    private void setupHubLoot(BlockPos origin, int innerSize) {
+        int center = innerSize / 2;
+        // 樞紐中央放置補給箱
+        lootManager.createSpecialChest(world, origin.add(center, 1, center - 4), RoomType.HUB, false);
+        lootManager.createSpecialChest(world, origin.add(center, 1, center + 4), RoomType.HUB, false);
+        System.out.println("[樞紐房] 放置2個探索輔助箱");
     }
 
     /**
