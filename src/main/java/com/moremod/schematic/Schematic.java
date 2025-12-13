@@ -103,6 +103,134 @@ public class Schematic {
     }
 
     public static Schematic loadFromNBT(NBTTagCompound nbt) {
+        // 检测 schematic 格式
+        // MCEdit/WorldEdit 格式: 有 Blocks 和 Data 标签
+        // Sponge 格式: 有 Palette 和 BlockData 标签
+        if (nbt.hasKey("Blocks") && nbt.hasKey("Data")) {
+            return loadFromMCEditNBT(nbt);
+        }
+        return loadFromSpongeNBT(nbt);
+    }
+
+    /**
+     * 加载 MCEdit/WorldEdit 格式的 schematic 文件
+     * 这是旧版格式，使用 Blocks (方块ID) + Data (元数据)
+     */
+    private static Schematic loadFromMCEditNBT(NBTTagCompound nbt) {
+        Schematic schematic = new Schematic();
+        schematic.version = 1; // MCEdit 格式视为版本1
+
+        schematic.width = nbt.getShort("Width");
+        schematic.height = nbt.getShort("Height");
+        schematic.length = nbt.getShort("Length");
+
+        System.out.println("[Schematic] 加载MCEdit格式 - 尺寸: " + schematic.width + "x" + schematic.height + "x" + schematic.length);
+
+        // 读取 WorldEdit 偏移量（如果有）
+        if (nbt.hasKey("WEOffsetX")) {
+            schematic.offset = new int[] {
+                nbt.getInteger("WEOffsetX"),
+                nbt.getInteger("WEOffsetY"),
+                nbt.getInteger("WEOffsetZ")
+            };
+        }
+
+        // 读取方块数据
+        byte[] blocks = nbt.getByteArray("Blocks");
+        byte[] data = nbt.getByteArray("Data");
+        byte[] addBlocks = nbt.hasKey("AddBlocks") ? nbt.getByteArray("AddBlocks") : null;
+
+        // 初始化方块数据数组
+        schematic.blockData = new short[schematic.width][schematic.height][schematic.length];
+
+        // 构建调色板映射 (blockId:meta -> palette index)
+        Map<String, Integer> paletteMap = new HashMap<>();
+        schematic.palette.clear();
+        schematic.paletteMax = -1;
+
+        // 遍历所有方块位置
+        for (int y = 0; y < schematic.height; y++) {
+            for (int z = 0; z < schematic.length; z++) {
+                for (int x = 0; x < schematic.width; x++) {
+                    int index = (y * schematic.length + z) * schematic.width + x;
+                    if (index >= blocks.length) continue;
+
+                    // 计算方块ID (支持 AddBlocks 扩展)
+                    int blockId = blocks[index] & 0xFF;
+                    if (addBlocks != null && index / 2 < addBlocks.length) {
+                        int addBlockValue = addBlocks[index / 2] & 0xFF;
+                        if ((index & 1) == 0) {
+                            blockId |= (addBlockValue & 0x0F) << 8;
+                        } else {
+                            blockId |= (addBlockValue & 0xF0) << 4;
+                        }
+                    }
+
+                    // 获取元数据
+                    int meta = (index < data.length) ? (data[index] & 0x0F) : 0;
+
+                    // 获取或创建调色板条目
+                    String key = blockId + ":" + meta;
+                    Integer paletteIndex = paletteMap.get(key);
+                    if (paletteIndex == null) {
+                        // 根据ID和meta获取方块状态
+                        IBlockState state = getBlockStateFromIdMeta(blockId, meta);
+                        paletteIndex = ++schematic.paletteMax;
+                        schematic.palette.add(state);
+                        paletteMap.put(key, paletteIndex);
+                    }
+
+                    schematic.blockData[x][y][z] = paletteIndex.shortValue();
+                }
+            }
+        }
+
+        System.out.println("[Schematic] MCEdit格式加载完成 - 调色板大小: " + schematic.palette.size());
+
+        // 读取 TileEntities
+        if (nbt.hasKey("TileEntities")) {
+            NBTTagList tileEntitiesTagList = (NBTTagList) nbt.getTag("TileEntities");
+            for (int i = 0; i < tileEntitiesTagList.tagCount(); i++) {
+                NBTTagCompound tileEntityTagCompound = tileEntitiesTagList.getCompoundTagAt(i);
+                schematic.tileEntities.add(tileEntityTagCompound);
+            }
+        }
+
+        // 读取 Entities
+        if (nbt.hasKey("Entities")) {
+            NBTTagList entitiesTagList = (NBTTagList) nbt.getTag("Entities");
+            for (int i = 0; i < entitiesTagList.tagCount(); i++) {
+                NBTTagCompound entityTagCompound = entitiesTagList.getCompoundTagAt(i);
+                schematic.entities.add(entityTagCompound);
+            }
+        }
+
+        return schematic;
+    }
+
+    /**
+     * 根据旧版方块ID和元数据获取方块状态
+     */
+    @SuppressWarnings("deprecation")
+    private static IBlockState getBlockStateFromIdMeta(int blockId, int meta) {
+        Block block = Block.getBlockById(blockId);
+        if (block == null || block == Blocks.AIR) {
+            if (blockId != 0) {
+                System.err.println("[Schematic] 警告: 未知方块ID " + blockId + ", 替换为空气");
+            }
+            return Blocks.AIR.getDefaultState();
+        }
+        try {
+            return block.getStateFromMeta(meta);
+        } catch (Exception e) {
+            return block.getDefaultState();
+        }
+    }
+
+    /**
+     * 加载 Sponge Schematic 格式
+     */
+    private static Schematic loadFromSpongeNBT(NBTTagCompound nbt) {
         Schematic schematic = new Schematic();
         schematic.version = nbt.getInteger("Version");
 
