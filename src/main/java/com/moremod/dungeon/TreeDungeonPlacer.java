@@ -21,21 +21,21 @@ import java.util.*;
 
 public class TreeDungeonPlacer {
 
-    // 標準房間參數 (加大版: 模板+4)
-    private static final int STANDARD_SHELL_SIZE   = 34;
-    private static final int STANDARD_SHELL_HEIGHT = 19;
+    // 標準房間參數 (加大版: 模板+5)
+    private static final int STANDARD_SHELL_SIZE   = 35;
+    private static final int STANDARD_SHELL_HEIGHT = 20;
 
     // Mini-Boss房間參數 (加大版)
-    private static final int MINI_BOSS_SHELL_SIZE   = 40;
-    private static final int MINI_BOSS_SHELL_HEIGHT = 23;
+    private static final int MINI_BOSS_SHELL_SIZE   = 41;
+    private static final int MINI_BOSS_SHELL_HEIGHT = 24;
 
     // Boss房間參數 (加大版)
-    private static final int BOSS_SHELL_SIZE   = 44;
-    private static final int BOSS_SHELL_HEIGHT = 27;
+    private static final int BOSS_SHELL_SIZE   = 45;
+    private static final int BOSS_SHELL_HEIGHT = 28;
 
     // 樓梯房間參數 (加大版)
-    private static final int STAIRCASE_SHELL_SIZE   = 34;
-    private static final int STAIRCASE_SHELL_HEIGHT = 21;
+    private static final int STAIRCASE_SHELL_SIZE   = 35;
+    private static final int STAIRCASE_SHELL_HEIGHT = 22;
 
     private static final int THICK        = 2;
     private static final int INNER_Y      = 2;
