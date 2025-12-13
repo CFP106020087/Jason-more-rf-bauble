@@ -7,6 +7,7 @@ import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.util.ResourceLocation;
 import software.bernie.geckolib3.geo.render.built.GeoModel;
+import software.bernie.geckolib3.model.AnimatedGeoModel;
 import software.bernie.geckolib3.renderers.geo.GeoBlockRenderer;
 
 /**
@@ -17,8 +18,11 @@ import software.bernie.geckolib3.renderers.geo.GeoBlockRenderer;
  */
 public class PrinterRenderer extends GeoBlockRenderer<TileEntityPrinter> {
 
+    private final AnimatedGeoModel<TileEntityPrinter> model;
+
     public PrinterRenderer() {
         super(new PrinterModel());
+        this.model = new PrinterModel();
     }
 
     @Override
@@ -45,10 +49,10 @@ public class PrinterRenderer extends GeoBlockRenderer<TileEntityPrinter> {
         RenderHelper.disableStandardItemLighting();
 
         try {
-            GeoModel model = modelProvider.getModel(modelProvider.getModelLocation(te));
-            modelProvider.setLivingAnimations(te, this.getUniqueID(te));
+            GeoModel geoModel = model.getModel(model.getModelLocation(te));
+            model.setLivingAnimations(te, this.getUniqueID(te));
 
-            this.render(model, te, partialTicks, 1.0F, 1.0F, 1.0F, 1.0F);
+            this.render(geoModel, te, partialTicks, 1.0F, 1.0F, 1.0F, 1.0F);
         } catch (Exception e) {
             // 静默处理渲染错误
         }
