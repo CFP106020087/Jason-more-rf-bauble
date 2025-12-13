@@ -463,11 +463,11 @@ public class TileEntityPrinter extends TileEntity implements ITickable, IAnimata
     // ===== GeckoLib动画 =====
 
     /**
-     * 动画控制器 - 根据状态播放不同动画
+     * 动画控制器 - 只在工作时播放动画
      */
     private <E extends IAnimatable> PlayState animationPredicate(AnimationEvent<E> event) {
-        if (multiblockFormed) {
-            // 使用统一的 idle 动画（新模型只有一个动画）
+        if (isProcessing && multiblockFormed) {
+            // 只在工作时播放动画
             event.getController().setAnimation(new AnimationBuilder().addAnimation("animation.3d_printer.idle", true));
             return PlayState.CONTINUE;
         }
