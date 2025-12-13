@@ -10,16 +10,11 @@ import net.minecraft.client.renderer.tileentity.TileEntitySpecialRenderer;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.util.ResourceLocation;
 import org.lwjgl.opengl.GL11;
-import software.bernie.geckolib3.core.IAnimatable;
-import software.bernie.geckolib3.core.controller.AnimationController;
-import software.bernie.geckolib3.core.event.predicate.AnimationEvent;
 import software.bernie.geckolib3.geo.render.built.GeoBone;
 import software.bernie.geckolib3.geo.render.built.GeoCube;
 import software.bernie.geckolib3.geo.render.built.GeoModel;
 import software.bernie.geckolib3.geo.render.built.GeoQuad;
 import software.bernie.geckolib3.geo.render.built.GeoVertex;
-
-import java.util.Collections;
 
 /**
  * 打印机渲染器 - 手动渲染 GeckoLib 模型
@@ -52,9 +47,6 @@ public class PrinterRenderer extends TileEntitySpecialRenderer<TileEntityPrinter
             // 获取模型
             GeoModel model = modelProvider.getModel(modelProvider.getModelLocation(te));
             if (model != null) {
-                // 处理动画
-                processAnimations(te, partialTicks);
-
                 // 渲染所有顶级骨骼
                 for (GeoBone bone : model.topLevelBones) {
                     renderBone(bone);
@@ -66,35 +58,6 @@ public class PrinterRenderer extends TileEntitySpecialRenderer<TileEntityPrinter
 
         GlStateManager.disableBlend();
         GlStateManager.popMatrix();
-    }
-
-    /**
-     * 处理动画
-     */
-    private void processAnimations(TileEntityPrinter te, float partialTicks) {
-        try {
-            // 创建动画事件
-            AnimationEvent<TileEntityPrinter> event = new AnimationEvent<>(
-                te, 0, 0, partialTicks, false, Collections.emptyList()
-            );
-
-            // 获取动画控制器并更新
-            for (AnimationController<?> controller : te.getFactory().getOrCreateAnimationData(te.hashCode()).getAnimationControllers().values()) {
-                controller.process(
-                    te.getFactory().getOrCreateAnimationData(te.hashCode()).tick,
-                    event,
-                    modelProvider.getBakedAnimations(),
-                    modelProvider.getBakedModel(modelProvider.getModelLocation(te)),
-                    modelProvider,
-                    true
-                );
-            }
-
-            // 更新 tick
-            te.getFactory().getOrCreateAnimationData(te.hashCode()).tick += partialTicks;
-        } catch (Exception e) {
-            // 动画处理失败时静默忽略
-        }
     }
 
     /**
