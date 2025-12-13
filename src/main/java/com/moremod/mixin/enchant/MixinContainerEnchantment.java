@@ -170,7 +170,11 @@ public abstract class MixinContainerEnchantment {
         }
     }
 
-    /** 强制高等级附魔逻辑 - 经验消耗有上限 */
+    /**
+     * 强制高等级附魔逻辑
+     * 经验消耗固定为 1/2/3 级（对应三个槽位）
+     * 附魔等级上限99级
+     */
     @Inject(method = {"enchantItem","func_75140_a"}, at = @At("HEAD"), cancellable = true, require = 0)
     private void moremod$forceEnchant(EntityPlayer player, int id, CallbackInfoReturnable<Boolean> cir) {
         if (world.isRemote) return;
@@ -183,8 +187,8 @@ public abstract class MixinContainerEnchantment {
         ItemStack item = tableInventory.getStackInSlot(0);
         if (item.isEmpty()) return;
 
-        // 经验消耗上限：不再吃掉所有等级
-        int expCost = Math.min(enchantLevel, moremod$getMaxExpCost());
+        // 经验消耗固定为 1/2/3 级（对应三个槽位）
+        int expCost = id + 1;
 
         if (player.experienceLevel < expCost) {
             cir.setReturnValue(false);
@@ -192,10 +196,10 @@ public abstract class MixinContainerEnchantment {
             return;
         }
 
-        // 只扣除上限内的经验
+        // 只扣除固定的经验 (1/2/3级)
         player.addExperienceLevel(-expCost);
 
-        // 附魔等级上限
+        // 附魔等级上限99级
         int effectiveLevel = Math.min(enchantLevel, moremod$getMaxEnchantLevel());
 
         List<EnchantmentData> enchList =
