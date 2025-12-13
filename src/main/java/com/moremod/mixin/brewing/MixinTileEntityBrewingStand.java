@@ -40,7 +40,7 @@ import java.util.List;
 @Mixin(TileEntityBrewingStand.class)
 public abstract class MixinTileEntityBrewingStand {
 
-    @Shadow
+    @Shadow(aliases = {"field_145945_j"})
     private NonNullList<ItemStack> brewingItemStacks;
 
     @Shadow
@@ -60,7 +60,7 @@ public abstract class MixinTileEntityBrewingStand {
      * 如果原版返回false但有炼药师术石玩家在附近，检查是否可以进行增强炼制
      * SRG: func_145936_c
      */
-    @Inject(method = {"canBrew", "func_145936_c"}, at = @At("RETURN"), cancellable = true)
+    @Inject(method = {"canBrew", "func_145936_c"}, at = @At("RETURN"), cancellable = true, remap = false)
     private void moremod$allowEnhancedBrewing(CallbackInfoReturnable<Boolean> cir) {
         // 如果原版已经允许，不需要干预
         if (cir.getReturnValue()) return;
@@ -103,7 +103,7 @@ public abstract class MixinTileEntityBrewingStand {
      * 在 brewPotions 方法中注入，处理增强炼制
      * SRG: func_145935_i
      */
-    @Inject(method = {"brewPotions", "func_145935_i"}, at = @At("HEAD"), cancellable = true)
+    @Inject(method = {"brewPotions", "func_145935_i"}, at = @At("HEAD"), cancellable = true, remap = false)
     private void moremod$handleEnhancedBrewing(CallbackInfo ci) {
         TileEntityBrewingStand te = (TileEntityBrewingStand) (Object) this;
         World world = te.getWorld();
