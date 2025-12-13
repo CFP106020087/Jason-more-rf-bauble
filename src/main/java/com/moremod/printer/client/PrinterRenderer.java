@@ -66,11 +66,11 @@ public class PrinterRenderer extends TileEntitySpecialRenderer<TileEntityPrinter
     private void renderBone(GeoBone bone) {
         GlStateManager.pushMatrix();
 
-        // 应用骨骼变换
+        // 应用骨骼变换 (GeckoLib 坐标已经是方块单位)
         GlStateManager.translate(
-            bone.getPivotX() / 16.0,
-            bone.getPivotY() / 16.0,
-            bone.getPivotZ() / 16.0
+            bone.getPivotX(),
+            bone.getPivotY(),
+            bone.getPivotZ()
         );
 
         // 应用旋转
@@ -88,9 +88,9 @@ public class PrinterRenderer extends TileEntitySpecialRenderer<TileEntityPrinter
         GlStateManager.scale(bone.getScaleX(), bone.getScaleY(), bone.getScaleZ());
 
         GlStateManager.translate(
-            -bone.getPivotX() / 16.0,
-            -bone.getPivotY() / 16.0,
-            -bone.getPivotZ() / 16.0
+            -bone.getPivotX(),
+            -bone.getPivotY(),
+            -bone.getPivotZ()
         );
 
         // 渲染立方体
@@ -126,9 +126,9 @@ public class PrinterRenderer extends TileEntitySpecialRenderer<TileEntityPrinter
 
             for (GeoVertex vertex : quad.vertices) {
                 buffer.pos(
-                    vertex.position.x / 16.0,
-                    vertex.position.y / 16.0,
-                    vertex.position.z / 16.0
+                    vertex.position.x,
+                    vertex.position.y,
+                    vertex.position.z
                 ).tex(vertex.textureU, vertex.textureV)
                  .normal(nx, ny, nz)
                  .endVertex();
