@@ -31,11 +31,16 @@ import java.util.List;
  * 当附近有佩戴炼药师术石的玩家时：
  * - 允许荧光石连续使用，最多增加5级
  * - 允许红石连续使用，无限延长时间
+ *
+ * SRG映射 (1.12.2):
+ * - canBrew -> func_145936_c
+ * - brewPotions -> func_145935_i
+ * - brewingItemStacks -> field_145945_j
  */
 @Mixin(TileEntityBrewingStand.class)
 public abstract class MixinTileEntityBrewingStand {
 
-    @Shadow
+    @Shadow(aliases = {"field_145945_j"})
     private NonNullList<ItemStack> brewingItemStacks;
 
     @Shadow
@@ -53,8 +58,9 @@ public abstract class MixinTileEntityBrewingStand {
     /**
      * 在 canBrew 方法返回前注入
      * 如果原版返回false但有炼药师术石玩家在附近，检查是否可以进行增强炼制
+     * SRG: func_145936_c
      */
-    @Inject(method = "canBrew", at = @At("RETURN"), cancellable = true)
+    @Inject(method = {"canBrew", "func_145936_c"}, at = @At("RETURN"), cancellable = true, remap = false)
     private void moremod$allowEnhancedBrewing(CallbackInfoReturnable<Boolean> cir) {
         // 如果原版已经允许，不需要干预
         if (cir.getReturnValue()) return;
@@ -95,8 +101,9 @@ public abstract class MixinTileEntityBrewingStand {
 
     /**
      * 在 brewPotions 方法中注入，处理增强炼制
+     * SRG: func_145935_i
      */
-    @Inject(method = "brewPotions", at = @At("HEAD"), cancellable = true)
+    @Inject(method = {"brewPotions", "func_145935_i"}, at = @At("HEAD"), cancellable = true, remap = false)
     private void moremod$handleEnhancedBrewing(CallbackInfo ci) {
         TileEntityBrewingStand te = (TileEntityBrewingStand) (Object) this;
         World world = te.getWorld();
