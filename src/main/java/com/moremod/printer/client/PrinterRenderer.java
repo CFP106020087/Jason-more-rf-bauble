@@ -1,7 +1,6 @@
 package com.moremod.printer.client;
 
 import com.moremod.printer.TileEntityPrinter;
-import net.minecraft.client.renderer.tileentity.TileEntitySpecialRenderer;
 import net.minecraft.util.ResourceLocation;
 import software.bernie.geckolib3.renderers.geo.GeoBlockRenderer;
 
@@ -12,13 +11,14 @@ import software.bernie.geckolib3.renderers.geo.GeoBlockRenderer;
  */
 public class PrinterRenderer extends GeoBlockRenderer<TileEntityPrinter> {
 
+    private static final ResourceLocation TEXTURE = new ResourceLocation("moremod", "textures/blocks/printer.png");
+
     public PrinterRenderer() {
         super(new PrinterModel());
     }
 
     @Override
     public ResourceLocation getTextureLocation(TileEntityPrinter instance) {
-        // 使用统一的打印机纹理
-        return new ResourceLocation("moremod", "textures/blocks/printer.png");
+        return TEXTURE;
     }
 }
