@@ -425,12 +425,9 @@ public class ModConfig {
         @Config.RangeInt(min = 30, max = 99)
         public int maxEnchantLevel = 99;
 
-        @Config.Comment("是否允许普通书架(15个以内)也能触发超过30级附魔")
-        public boolean allowVanillaBookshelvesBoost = true;
-
-        @Config.Comment("普通书架的等级提升倍率(默认1.5: 15书架可达45级)")
-        @Config.RangeDouble(min = 1.0, max = 3.0)
-        public double vanillaBookshelfMultiplier = 1.5;
+        @Config.Comment("特殊书架每点额外能量增加的附魔等级(普通书架无法突破30级)")
+        @Config.RangeDouble(min = 1.0, max = 5.0)
+        public double specialBookshelfMultiplier = 2.0;
     }
 
     /**
