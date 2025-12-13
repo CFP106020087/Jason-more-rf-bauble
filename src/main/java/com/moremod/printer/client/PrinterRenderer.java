@@ -18,10 +18,7 @@ public class PrinterRenderer extends GeoBlockRenderer<TileEntityPrinter> {
 
     @Override
     public ResourceLocation getTextureLocation(TileEntityPrinter instance) {
-        // 根据激活状态切换纹理
-        if (instance != null && instance.isProcessing()) {
-            return new ResourceLocation("moremod", "textures/blocks/printer_active.png");
-        }
+        // 使用统一的打印机纹理
         return new ResourceLocation("moremod", "textures/blocks/printer.png");
     }
 }
