@@ -31,6 +31,8 @@ import com.moremod.network.PacketSyncRejectionData;
 import com.moremod.tile.TileEntityPedestal;
 import com.moremod.tile.TileEntityProtectionField;
 import com.moremod.tile.TileEntityRitualCore;
+import com.moremod.printer.TileEntityPrinter;
+import com.moremod.printer.client.PrinterRenderer;
 
 import net.minecraft.block.Block;
 import net.minecraft.client.Minecraft;
@@ -88,6 +90,7 @@ public class ClientProxy extends CommonProxy {
         ClientRegistry.bindTileEntitySpecialRenderer(TileEntityRitualCore.class, new TileEntityRitualCoreRenderer());
         ClientRegistry.bindTileEntitySpecialRenderer(TileEntityPedestal.class, new TileEntityPedestalRenderer());
         ClientRegistry.bindTileEntitySpecialRenderer(TileEntityProtectionField.class, new TESRProtectionField());
+        ClientRegistry.bindTileEntitySpecialRenderer(TileEntityPrinter.class, new PrinterRenderer());
 
         registerEntityRenderers();
     }
