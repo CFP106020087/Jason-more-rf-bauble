@@ -3,138 +3,59 @@ package com.moremod.printer.client;
 import com.moremod.moremod;
 import com.moremod.printer.TileEntityPrinter;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.client.renderer.Tessellator;
-import net.minecraft.client.renderer.tileentity.TileEntitySpecialRenderer;
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
+import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.util.ResourceLocation;
-import org.lwjgl.opengl.GL11;
-import software.bernie.geckolib3.geo.render.built.GeoBone;
-import software.bernie.geckolib3.geo.render.built.GeoCube;
 import software.bernie.geckolib3.geo.render.built.GeoModel;
-import software.bernie.geckolib3.geo.render.built.GeoQuad;
-import software.bernie.geckolib3.geo.render.built.GeoVertex;
+import software.bernie.geckolib3.renderers.geo.GeoBlockRenderer;
 
 /**
- * 打印机渲染器 - 手动渲染 GeckoLib 模型
+ * 打印机渲染器 - AMD 兼容版本
  *
- * 完全绕过 GeoBlockRenderer 以避免 AMD 显卡驱动崩溃
- * AMD 驱动在 OpenGlHelper.setLightmapTextureCoords 调用时会崩溃
+ * Override render 方法避免调用 OpenGlHelper.setLightmapTextureCoords
+ * 该调用会导致 AMD 显卡驱动崩溃 (atio6axx.dll)
  */
-public class PrinterRenderer extends TileEntitySpecialRenderer<TileEntityPrinter> {
+public class PrinterRenderer extends GeoBlockRenderer<TileEntityPrinter> {
 
-    private static final ResourceLocation TEXTURE = new ResourceLocation(moremod.MODID, "textures/blocks/printer.png");
-    private final PrinterModel modelProvider = new PrinterModel();
+    public PrinterRenderer() {
+        super(new PrinterModel());
+    }
+
+    @Override
+    public ResourceLocation getTextureLocation(TileEntityPrinter instance) {
+        return new ResourceLocation(moremod.MODID, "textures/blocks/printer.png");
+    }
 
     @Override
     public void render(TileEntityPrinter te, double x, double y, double z, float partialTicks, int destroyStage, float alpha) {
         if (te == null) return;
 
         GlStateManager.pushMatrix();
-        GlStateManager.translate(x + 0.5, y, z + 0.5);
+        GlStateManager.translate(x, y, z);
+        GlStateManager.translate(0.5, 0, 0.5);
 
         // 绑定纹理
-        Minecraft.getMinecraft().getTextureManager().bindTexture(TEXTURE);
+        Minecraft.getMinecraft().getTextureManager().bindTexture(getTextureLocation(te));
 
-        // 设置渲染状态
-        GlStateManager.enableTexture2D();
+        // 设置渲染状态 - 不调用 setLightmapTextureCoords 以避免 AMD 崩溃
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        GlStateManager.enableRescaleNormal();
         GlStateManager.enableBlend();
         GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
-        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        RenderHelper.disableStandardItemLighting();
 
         try {
-            // 获取模型
             GeoModel model = modelProvider.getModel(modelProvider.getModelLocation(te));
-            if (model != null) {
-                // 渲染所有顶级骨骼
-                for (GeoBone bone : model.topLevelBones) {
-                    renderBone(bone);
-                }
-            }
+            modelProvider.setLivingAnimations(te, this.getUniqueID(te));
+
+            this.render(model, te, partialTicks, 1.0F, 1.0F, 1.0F, 1.0F);
         } catch (Exception e) {
             // 静默处理渲染错误
         }
 
+        RenderHelper.enableStandardItemLighting();
+        GlStateManager.disableRescaleNormal();
         GlStateManager.disableBlend();
         GlStateManager.popMatrix();
-    }
-
-    /**
-     * 递归渲染骨骼
-     */
-    private void renderBone(GeoBone bone) {
-        GlStateManager.pushMatrix();
-
-        // 应用骨骼变换 (GeckoLib 坐标已经是方块单位)
-        GlStateManager.translate(
-            bone.getPivotX(),
-            bone.getPivotY(),
-            bone.getPivotZ()
-        );
-
-        // 应用旋转
-        if (bone.getRotationZ() != 0) {
-            GlStateManager.rotate((float) Math.toDegrees(bone.getRotationZ()), 0, 0, 1);
-        }
-        if (bone.getRotationY() != 0) {
-            GlStateManager.rotate((float) Math.toDegrees(bone.getRotationY()), 0, 1, 0);
-        }
-        if (bone.getRotationX() != 0) {
-            GlStateManager.rotate((float) Math.toDegrees(bone.getRotationX()), 1, 0, 0);
-        }
-
-        // 应用缩放
-        GlStateManager.scale(bone.getScaleX(), bone.getScaleY(), bone.getScaleZ());
-
-        GlStateManager.translate(
-            -bone.getPivotX(),
-            -bone.getPivotY(),
-            -bone.getPivotZ()
-        );
-
-        // 渲染立方体
-        if (!bone.isHidden()) {
-            for (GeoCube cube : bone.childCubes) {
-                renderCube(cube);
-            }
-        }
-
-        // 递归渲染子骨骼
-        for (GeoBone child : bone.childBones) {
-            renderBone(child);
-        }
-
-        GlStateManager.popMatrix();
-    }
-
-    /**
-     * 渲染立方体
-     */
-    private void renderCube(GeoCube cube) {
-        Tessellator tessellator = Tessellator.getInstance();
-        BufferBuilder buffer = tessellator.getBuffer();
-
-        for (GeoQuad quad : cube.quads) {
-            if (quad == null) continue;
-
-            buffer.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX_NORMAL);
-
-            float nx = quad.normal.getX();
-            float ny = quad.normal.getY();
-            float nz = quad.normal.getZ();
-
-            for (GeoVertex vertex : quad.vertices) {
-                buffer.pos(
-                    vertex.position.x,
-                    vertex.position.y,
-                    vertex.position.z
-                ).tex(vertex.textureU, vertex.textureV)
-                 .normal(nx, ny, nz)
-                 .endVertex();
-            }
-
-            tessellator.draw();
-        }
     }
 }
