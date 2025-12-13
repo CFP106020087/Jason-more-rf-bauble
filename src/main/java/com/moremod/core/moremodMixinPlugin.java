@@ -34,6 +34,9 @@ public class moremodMixinPlugin implements IFMLLoadingPlugin {
             // Enigmatic Legacy 七圣遗物效果拦截
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.enigmaticlegacy.json");
 
+            // 炼药增强 - 炼药师的术石
+            FermiumRegistryAPI.enqueueMixin(false, "mixins.moremod.brewing.json");
+
             // FermiumMixins 兼容 - 绕过假玩家检测
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.fermiummixins.json");
 

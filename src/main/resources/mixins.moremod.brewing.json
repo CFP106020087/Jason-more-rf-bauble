@@ -1,0 +1,19 @@
+{
+  "required": false,
+  "package": "com.moremod.mixin.brewing",
+  "refmap": "mixins.moremod.brewing.refmap.json",
+  "compatibilityLevel": "JAVA_8",
+  "target": "@env(DEFAULT)",
+  "minVersion": "0.8",
+  "priority": 1000,
+  "verbose": true,
+  "mixins": [
+    "MixinTileEntityBrewingStand"
+  ],
+  "client": [],
+  "server": [],
+  "injectors": {
+    "defaultRequire": 0,
+    "maxShiftBy": 10
+  }
+}

@@ -15,6 +15,7 @@ import com.moremod.item.ItemCausalGateband;
 // 🧠 添加行為分析晶片導入
 import com.moremod.item.ItemBehaviorAnalysisChip;
 // 👻 添加诅咒蔓延导入
+import com.moremod.item.ItemAlchemistStone;
 import com.moremod.item.ItemCurseSpread;
 // 🌹 荆棘王冠之碎片（七咒联动）
 import com.moremod.item.curse.ItemThornShard;
@@ -129,6 +130,7 @@ public final class ModItems {
     public static Item CAUSAL_GATEBAND;         // ⭕ 因果闕帶（智能沉默）
     public static Item BEHAVIOR_ANALYSIS_CHIP;  // 🧠 行為分析晶片
     public static Item CURSE_SPREAD;            // 👻 诅咒蔓延
+    public static Item ALCHEMIST_STONE;         // 🧪 炼药师的术石（七咒联动）
     public static Item THORN_SHARD;             // 🌹 荆棘王冠之碎片（七咒联动）
     public static Item VOID_GAZE;               // 👁 虚无之眸（七咒联动）
     public static Item GLUTTONOUS_PHALANX;      // 🦴 饕餮指骨（七咒联动）
@@ -260,6 +262,10 @@ public final class ModItems {
         // 👻 注册诅咒蔓延
         CURSE_SPREAD = reg(e, new ItemCurseSpread());
         System.out.println("[MoreMod] 👻 诅咒蔓延已注册");
+
+        // 🧪 注册炼药师的术石
+        ALCHEMIST_STONE = reg(e, new ItemAlchemistStone());
+        System.out.println("[MoreMod] 🧪 炼药师的术石已注册");
 
         // 🌹 注册荆棘王冠之碎片
         THORN_SHARD = reg(e, new ItemThornShard());
@@ -448,6 +454,10 @@ public final class ModItems {
         // 👻 绑定诅咒蔓延模型
         bindModel(CURSE_SPREAD, "curse_spread");
         System.out.println("[MoreMod] 👻 诅咒蔓延模型已注册");
+
+        // 🧪 绑定炼药师的术石模型
+        bindModel(ALCHEMIST_STONE, "alchemist_stone");
+        System.out.println("[MoreMod] 🧪 炼药师的术石模型已注册");
 
         // 🌹 绑定荆棘王冠之碎片模型
         bindModel(THORN_SHARD, "thorn_shard");
