@@ -467,10 +467,11 @@ public class TileEntityPrinter extends TileEntity implements ITickable, IAnimata
      */
     private <E extends IAnimatable> PlayState animationPredicate(AnimationEvent<E> event) {
         if (isProcessing && multiblockFormed) {
-            event.getController().setAnimation(new AnimationBuilder().addAnimation("animation.printer.printing", true));
+            // 使用 idle 动画作为工作动画（动画文件只有 idle）
+            event.getController().setAnimation(new AnimationBuilder().addAnimation("animation.3d_printer.idle", true));
             return PlayState.CONTINUE;
         } else if (multiblockFormed) {
-            event.getController().setAnimation(new AnimationBuilder().addAnimation("animation.printer.idle", true));
+            event.getController().setAnimation(new AnimationBuilder().addAnimation("animation.3d_printer.idle", true));
             return PlayState.CONTINUE;
         }
         return PlayState.STOP;
