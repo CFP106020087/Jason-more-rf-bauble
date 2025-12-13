@@ -9,6 +9,7 @@ import net.minecraft.nbt.NBTTagCompound;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.InputStream;
 import java.util.*;
 
 public class DungeonTemplateRegistry {
@@ -17,8 +18,26 @@ public class DungeonTemplateRegistry {
     private final Map<DungeonTree.RoomType, List<Schematic>> templatesByType = new HashMap<>();
     private final Random random = new Random();
 
+    // 设为 true 启用从资源加载用户自定义 schematic 模板
+    private static final boolean LOAD_RESOURCE_TEMPLATES = true;
     // 设为 false 可彻底禁用磁盘上的旧 .schematic 模板
     private static final boolean LOAD_FILE_TEMPLATES = false;
+
+    // 用户自定义 schematic 房间类型映射
+    // 1=入口, 2=藏宝, 3=普通, 4=怪物, 5=出口, 6-9=陷阱, 10=枢纽
+    private static final Map<Integer, DungeonTree.RoomType> SCHEMATIC_ROOM_TYPE_MAP = new HashMap<>();
+    static {
+        SCHEMATIC_ROOM_TYPE_MAP.put(1, DungeonTree.RoomType.ENTRANCE);
+        SCHEMATIC_ROOM_TYPE_MAP.put(2, DungeonTree.RoomType.TREASURE);
+        SCHEMATIC_ROOM_TYPE_MAP.put(3, DungeonTree.RoomType.NORMAL);
+        SCHEMATIC_ROOM_TYPE_MAP.put(4, DungeonTree.RoomType.MONSTER);
+        SCHEMATIC_ROOM_TYPE_MAP.put(5, DungeonTree.RoomType.EXIT);
+        SCHEMATIC_ROOM_TYPE_MAP.put(6, DungeonTree.RoomType.TRAP);
+        SCHEMATIC_ROOM_TYPE_MAP.put(7, DungeonTree.RoomType.TRAP);
+        SCHEMATIC_ROOM_TYPE_MAP.put(8, DungeonTree.RoomType.TRAP);
+        SCHEMATIC_ROOM_TYPE_MAP.put(9, DungeonTree.RoomType.TRAP);
+        SCHEMATIC_ROOM_TYPE_MAP.put(10, DungeonTree.RoomType.HUB);
+    }
 
     private DungeonTemplateRegistry() {
         for (DungeonTree.RoomType type : DungeonTree.RoomType.values()) {
@@ -62,8 +81,34 @@ public class DungeonTemplateRegistry {
     }
 
     private void loadTemplates() {
+        if (LOAD_RESOURCE_TEMPLATES) loadFromResources();
         if (LOAD_FILE_TEMPLATES) loadFromFiles();
         ensureAllBuiltins(); // 无论是否读磁盘，都保证箱内模板齐全
+    }
+
+    /**
+     * 从 mod 资源加载用户自定义 schematic 模板
+     * 路径: assets/moremod/schematics/dungeon/1.schematic ~ 10.schematic
+     */
+    private void loadFromResources() {
+        for (Map.Entry<Integer, DungeonTree.RoomType> entry : SCHEMATIC_ROOM_TYPE_MAP.entrySet()) {
+            int num = entry.getKey();
+            DungeonTree.RoomType type = entry.getValue();
+            String resourcePath = "/assets/moremod/schematics/dungeon/" + num + ".schematic";
+
+            try (InputStream is = getClass().getResourceAsStream(resourcePath)) {
+                if (is == null) {
+                    System.err.println("[DungeonTemplateRegistry] 未找到资源: " + resourcePath);
+                    continue;
+                }
+                NBTTagCompound nbt = CompressedStreamTools.readCompressed(is);
+                Schematic schematic = Schematic.loadFromNBT(nbt);
+                templatesByType.get(type).add(schematic);
+                System.out.println("[DungeonTemplateRegistry] 加载自定义模板: " + num + ".schematic -> " + type);
+            } catch (Exception e) {
+                System.err.println("[DungeonTemplateRegistry] 无法加载资源模板: " + resourcePath + " - " + e.getMessage());
+            }
+        }
     }
 
     private void loadFromFiles() {
