@@ -99,6 +99,39 @@ public class LegacyRitualConfig {
     }
 
     /**
+     * 计算能量超载加成
+     * @param ritualId 仪式ID
+     * @param pedestalCount 基座数量
+     * @param totalEnergy 总能量
+     * @return 超载加成 (0.0 - 0.5)，最多50%额外成功率
+     */
+    public static float getOverloadBonus(String ritualId, int pedestalCount, int totalEnergy) {
+        int energyPerPedestal = getEnergyPerPedestal(ritualId);
+        int requiredEnergy = energyPerPedestal * pedestalCount;
+        if (requiredEnergy <= 0) return 0;
+
+        float energyRatio = (float) totalEnergy / requiredEnergy;
+        if (energyRatio <= 1.0f) return 0;
+
+        // 每超过100%能量，给予10%成功率加成，最多50%
+        float overloadPercent = (energyRatio - 1.0f);
+        return Math.min(0.5f, overloadPercent * 0.1f);
+    }
+
+    /**
+     * 获取能量超载调整后的失败率
+     * @param ritualId 仪式ID
+     * @param pedestalCount 基座数量
+     * @param totalEnergy 总能量
+     * @return 调整后的失败率
+     */
+    public static float getOverloadAdjustedFailChance(String ritualId, int pedestalCount, int totalEnergy) {
+        float baseFailChance = getFailChance(ritualId);
+        float overloadBonus = getOverloadBonus(ritualId, pedestalCount, totalEnergy);
+        return Math.max(0, baseFailChance - overloadBonus);
+    }
+
+    /**
      * 获取仪式所需阶层
      */
     public static int getRequiredTier(String ritualId) {
@@ -318,7 +351,7 @@ public class LegacyRitualConfig {
                     return stack.getItem() == exactItem.getItem();
                 }
                 return stack.getItem() == exactItem.getItem() &&
-                       stack.getMetadata() == exactItem.getMetadata();
+                        stack.getMetadata() == exactItem.getMetadata();
             }
             return false;
         }
@@ -338,7 +371,7 @@ public class LegacyRitualConfig {
     static {
         // 注魔仪式 - 附魔书 ×3 (最少)
         DEFAULT_MATERIALS.put(ENCHANT_INFUSION, Arrays.asList(
-            new MaterialRequirement(Items.ENCHANTED_BOOK, 3)
+                new MaterialRequirement(Items.ENCHANTED_BOOK, 3)
         ));
 
         // 复制仪式 - 虚空精华 ×8 (需要从ModItems获取，这里用占位符)
@@ -351,77 +384,77 @@ public class LegacyRitualConfig {
 
         // 诅咒净化仪式 - 圣水/金苹果 ×1
         DEFAULT_MATERIALS.put(CURSE_PURIFICATION, Arrays.asList(
-            new MaterialRequirement(
-                stack -> stack.getItem() == Items.GOLDEN_APPLE ||
-                         (stack.getItem() == Items.POTIONITEM), // 简化检查
-                1, "Holy Item"
-            )
+                new MaterialRequirement(
+                        stack -> stack.getItem() == Items.GOLDEN_APPLE ||
+                                (stack.getItem() == Items.POTIONITEM), // 简化检查
+                        1, "Holy Item"
+                )
         ));
 
         // 附魔转移仪式 - 青金石/龙息 ×1 + 目标物品 ×1
         DEFAULT_MATERIALS.put(ENCHANT_TRANSFER, Arrays.asList(
-            new MaterialRequirement(
-                stack -> (stack.getItem() == Items.DYE && stack.getMetadata() == 4) ||
-                         stack.getItem() == Items.DRAGON_BREATH,
-                1, "Lapis/Dragon Breath"
-            )
+                new MaterialRequirement(
+                        stack -> (stack.getItem() == Items.DYE && stack.getMetadata() == 4) ||
+                                stack.getItem() == Items.DRAGON_BREATH,
+                        1, "Lapis/Dragon Breath"
+                )
         ));
 
         // 诅咒创造仪式 - 墨囊 ×1 + 腐肉/蜘蛛眼 ×1
         DEFAULT_MATERIALS.put(CURSE_CREATION, Arrays.asList(
-            new MaterialRequirement(Items.DYE, 0, 1), // 墨囊
-            new MaterialRequirement(
-                stack -> stack.getItem() == Items.ROTTEN_FLESH ||
-                         stack.getItem() == Items.SPIDER_EYE ||
-                         stack.getItem() == Items.FERMENTED_SPIDER_EYE,
-                1, "Curse Material"
-            )
+                new MaterialRequirement(Items.DYE, 0, 1), // 墨囊
+                new MaterialRequirement(
+                        stack -> stack.getItem() == Items.ROTTEN_FLESH ||
+                                stack.getItem() == Items.SPIDER_EYE ||
+                                stack.getItem() == Items.FERMENTED_SPIDER_EYE,
+                        1, "Curse Material"
+                )
         ));
 
         // 武器经验加速仪式 - 经验瓶/附魔书/绿宝石 ×1
         DEFAULT_MATERIALS.put(WEAPON_EXP_BOOST, Arrays.asList(
-            new MaterialRequirement(
-                stack -> stack.getItem() == Items.EXPERIENCE_BOTTLE ||
-                         stack.getItem() == Items.ENCHANTED_BOOK ||
-                         stack.getItem() == Items.EMERALD,
-                1, "Exp Material"
-            )
+                new MaterialRequirement(
+                        stack -> stack.getItem() == Items.EXPERIENCE_BOTTLE ||
+                                stack.getItem() == Items.ENCHANTED_BOOK ||
+                                stack.getItem() == Items.EMERALD,
+                        1, "Exp Material"
+                )
         ));
 
         // 村正攻击提升仪式 - 烈焰粉/恶魂之泪/金粒 ×1
         DEFAULT_MATERIALS.put(MURAMASA_BOOST, Arrays.asList(
-            new MaterialRequirement(
-                stack -> stack.getItem() == Items.BLAZE_POWDER ||
-                         stack.getItem() == Items.GHAST_TEAR ||
-                         stack.getItem() == Items.GOLD_NUGGET,
-                1, "Muramasa Material"
-            )
+                new MaterialRequirement(
+                        stack -> stack.getItem() == Items.BLAZE_POWDER ||
+                                stack.getItem() == Items.GHAST_TEAR ||
+                                stack.getItem() == Items.GOLD_NUGGET,
+                        1, "Muramasa Material"
+                )
         ));
 
         // 织印强化仪式 - 龙息/末影之眼/下界之星/海晶碎片/烈焰粉 ×1
         DEFAULT_MATERIALS.put(FABRIC_ENHANCE, Arrays.asList(
-            new MaterialRequirement(
-                stack -> stack.getItem() == Items.DRAGON_BREATH ||
-                         stack.getItem() == Items.ENDER_EYE ||
-                         stack.getItem() == Items.NETHER_STAR ||
-                         stack.getItem() == Items.PRISMARINE_SHARD ||
-                         stack.getItem() == Items.BLAZE_POWDER,
-                1, "Fabric Material"
-            )
+                new MaterialRequirement(
+                        stack -> stack.getItem() == Items.DRAGON_BREATH ||
+                                stack.getItem() == Items.ENDER_EYE ||
+                                stack.getItem() == Items.NETHER_STAR ||
+                                stack.getItem() == Items.PRISMARINE_SHARD ||
+                                stack.getItem() == Items.BLAZE_POWDER,
+                        1, "Fabric Material"
+                )
         ));
 
         // 不可破坏仪式 - 下界之星×2 + 黑曜石×2 + 钻石×4
         DEFAULT_MATERIALS.put(UNBREAKABLE, Arrays.asList(
-            new MaterialRequirement(Items.NETHER_STAR, 2),
-            new MaterialRequirement(Item.getItemFromBlock(Blocks.OBSIDIAN), 2),
-            new MaterialRequirement(Items.DIAMOND, 4)
+                new MaterialRequirement(Items.NETHER_STAR, 2),
+                new MaterialRequirement(Item.getItemFromBlock(Blocks.OBSIDIAN), 2),
+                new MaterialRequirement(Items.DIAMOND, 4)
         ));
 
         // 灵魂束缚仪式 - 末影珍珠×4 + 恶魂之泪×2 + 金块×2
         DEFAULT_MATERIALS.put(SOULBOUND, Arrays.asList(
-            new MaterialRequirement(Items.ENDER_PEARL, 4),
-            new MaterialRequirement(Items.GHAST_TEAR, 2),
-            new MaterialRequirement(Item.getItemFromBlock(Blocks.GOLD_BLOCK), 2)
+                new MaterialRequirement(Items.ENDER_PEARL, 4),
+                new MaterialRequirement(Items.GHAST_TEAR, 2),
+                new MaterialRequirement(Item.getItemFromBlock(Blocks.GOLD_BLOCK), 2)
         ));
 
         // 嵌入仪式 - 无材料需求（由七圣遗物自动触发）

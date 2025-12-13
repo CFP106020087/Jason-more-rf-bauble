@@ -11,7 +11,7 @@
     "MixinContainerEnchantment"
   ],
   "client": [
-    "MixinGuiEnchantment"
+
   ],
   "server": [],
   "injectors": {
