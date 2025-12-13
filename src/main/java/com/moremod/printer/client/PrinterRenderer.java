@@ -47,9 +47,9 @@ public class PrinterRenderer extends TileEntitySpecialRenderer<TileEntityPrinter
             // 获取模型
             GeoModel model = modelProvider.getModel(modelProvider.getModelLocation(te));
             if (model != null) {
-                // 渲染所有顶级骨骼
+                // GeckoLib 的顶点坐标已经是最终位置，直接渲染所有骨骼
                 for (GeoBone bone : model.topLevelBones) {
-                    renderBone(bone);
+                    renderBoneSimple(bone);
                 }
             }
         } catch (Exception e) {
@@ -61,38 +61,9 @@ public class PrinterRenderer extends TileEntitySpecialRenderer<TileEntityPrinter
     }
 
     /**
-     * 递归渲染骨骼
+     * 简单渲染骨骼 - 不做额外变换，因为顶点已经是最终坐标
      */
-    private void renderBone(GeoBone bone) {
-        GlStateManager.pushMatrix();
-
-        // 应用骨骼变换 (GeckoLib 坐标已经是方块单位)
-        GlStateManager.translate(
-            bone.getPivotX(),
-            bone.getPivotY(),
-            bone.getPivotZ()
-        );
-
-        // 应用旋转
-        if (bone.getRotationZ() != 0) {
-            GlStateManager.rotate((float) Math.toDegrees(bone.getRotationZ()), 0, 0, 1);
-        }
-        if (bone.getRotationY() != 0) {
-            GlStateManager.rotate((float) Math.toDegrees(bone.getRotationY()), 0, 1, 0);
-        }
-        if (bone.getRotationX() != 0) {
-            GlStateManager.rotate((float) Math.toDegrees(bone.getRotationX()), 1, 0, 0);
-        }
-
-        // 应用缩放
-        GlStateManager.scale(bone.getScaleX(), bone.getScaleY(), bone.getScaleZ());
-
-        GlStateManager.translate(
-            -bone.getPivotX(),
-            -bone.getPivotY(),
-            -bone.getPivotZ()
-        );
-
+    private void renderBoneSimple(GeoBone bone) {
         // 渲染立方体
         if (!bone.isHidden()) {
             for (GeoCube cube : bone.childCubes) {
@@ -102,10 +73,8 @@ public class PrinterRenderer extends TileEntitySpecialRenderer<TileEntityPrinter
 
         // 递归渲染子骨骼
         for (GeoBone child : bone.childBones) {
-            renderBone(child);
+            renderBoneSimple(child);
         }
-
-        GlStateManager.popMatrix();
     }
 
     /**
