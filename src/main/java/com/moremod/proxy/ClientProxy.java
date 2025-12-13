@@ -33,8 +33,6 @@ import com.moremod.tile.TileEntityProtectionField;
 import com.moremod.tile.TileEntityRitualCore;
 import com.moremod.printer.TileEntityPrinter;
 import com.moremod.printer.client.PrinterRenderer;
-import com.moremod.printer.client.PrinterItemRenderer;
-import com.moremod.init.ModBlocks;
 
 import net.minecraft.block.Block;
 import net.minecraft.client.Minecraft;
@@ -141,15 +139,6 @@ public class ClientProxy extends CommonProxy {
         RenderDebugConfig.loadConfig();
 
         tryBindSwordTEISR("init");
-
-        // 打印机物品 TEISR 绑定
-        if (ModBlocks.PRINTER != null) {
-            Item printerItem = Item.getItemFromBlock(ModBlocks.PRINTER);
-            if (printerItem != null) {
-                printerItem.setTileEntityItemStackRenderer(PrinterItemRenderer.INSTANCE);
-                System.out.println("[moremod] Printer TEISR bound");
-            }
-        }
 
         ItemMechanicalCore.registerEnergyGenerationEvents();
         MinecraftForge.EVENT_BUS.register(new JetpackBaubleRenderer());
