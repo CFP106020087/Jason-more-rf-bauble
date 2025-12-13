@@ -59,16 +59,10 @@ public abstract class MixinContainerEnchantment {
         return ModConfig.enchanting.maxEnchantLevel;
     }
 
-    /** 从配置获取是否允许普通书架提升 */
+    /** 从配置获取特殊书架倍率 */
     @Unique
-    private boolean moremod$allowVanillaBoost() {
-        return ModConfig.enchanting.allowVanillaBookshelvesBoost;
-    }
-
-    /** 从配置获取普通书架倍率 */
-    @Unique
-    private double moremod$getVanillaMultiplier() {
-        return ModConfig.enchanting.vanillaBookshelfMultiplier;
+    private double moremod$getSpecialMultiplier() {
+        return ModConfig.enchanting.specialBookshelfMultiplier;
     }
 
     /** 核心能量计算逻辑 */
@@ -104,32 +98,31 @@ public abstract class MixinContainerEnchantment {
         return Math.max(0, moremod$calculateTotalPower() - VANILLA_MAX_POWER);
     }
 
-    /** 计算最终附魔等级（包含普通书架提升） */
+    /**
+     * 计算最终附魔等级
+     * 普通书架(<=15)无法突破30级
+     * 只有特殊书架(额外能量>0)才能突破30级上限
+     */
     @Unique
     private int moremod$calculateEnchantLevel(int baseLevel, int slotIndex) {
-        float totalPower = moremod$calculateTotalPower();
         float extraPower = moremod$getExtraPower();
 
         int finalLevel = baseLevel;
 
-        // 普通书架提升（15个以内）
-        if (moremod$allowVanillaBoost() && totalPower > 0 && totalPower <= VANILLA_MAX_POWER) {
-            // 普通书架倍率提升：15书架 × 1.5 = 22.5 → 第三槽最高45级
-            double multiplier = moremod$getVanillaMultiplier();
-            finalLevel = (int)(baseLevel * multiplier);
-        }
-        // 超出15书架的额外能量提升
-        else if (extraPower > 0) {
-            int bonus = (int)(extraPower * 2);
+        // 只有特殊书架(额外能量>0)才能突破30级
+        if (extraPower > 0) {
+            // 特殊书架提升：每点额外能量增加 multiplier 级
+            int bonus = (int)(extraPower * moremod$getSpecialMultiplier());
             float ratio = (slotIndex + 1) / 3.0f;
             finalLevel = baseLevel + (int)(bonus * ratio);
         }
+        // 普通书架(<=15)维持原版逻辑，不突破30级
 
         // 应用等级上限
         return Math.min(finalLevel, moremod$getMaxEnchantLevel());
     }
 
-    /** 修改附魔槽等级（突破30上限） */
+    /** 修改附魔槽等级（只有特殊书架能突破30上限） */
     @Inject(method = {"onCraftMatrixChanged","func_75130_a"}, at = @At("RETURN"))
     private void moremod$boostLevels(IInventory inv, CallbackInfo ci) {
         if (world == null || world.isRemote) return;
@@ -138,10 +131,10 @@ public abstract class MixinContainerEnchantment {
             return;
         }
 
-        float totalPower = moremod$calculateTotalPower();
+        float extraPower = moremod$getExtraPower();
 
-        // 普通书架或额外书架都可以触发提升
-        if (totalPower > 0) {
+        // 只有特殊书架(额外能量>0)才能突破30级
+        if (extraPower > 0) {
             for (int i = 0; i < 3; i++) {
                 if (enchantLevels[i] > 0) {
                     enchantLevels[i] = moremod$calculateEnchantLevel(enchantLevels[i], i);
@@ -162,13 +155,14 @@ public abstract class MixinContainerEnchantment {
         enchantLevels[id] = moremod$serverEnchantLevels[id];
     }
 
-    /** 按钮可点击逻辑修补 */
+    /** 按钮可点击逻辑修补（只有特殊书架时才需要修补） */
     @Inject(method = {"canEnchant","func_82869_a"}, at = @At("HEAD"), cancellable = true)
     private void moremod$unlockButton(EntityPlayer player, int id, CallbackInfoReturnable<Boolean> cir) {
         if (!moremod$isEnabled()) return;
 
-        float totalPower = moremod$calculateTotalPower();
-        if (totalPower > 0 && id >= 0 && id < 3) {
+        float extraPower = moremod$getExtraPower();
+        // 只有特殊书架(额外能量>0)时才需要修补按钮逻辑
+        if (extraPower > 0 && id >= 0 && id < 3) {
             if (moremod$serverEnchantLevels[id] > 0) {
                 cir.setReturnValue(true);
                 cir.cancel();
