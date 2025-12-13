@@ -8,9 +8,11 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
+import software.bernie.geckolib3.core.IAnimatable;
+import software.bernie.geckolib3.core.manager.AnimationData;
+import software.bernie.geckolib3.core.manager.AnimationFactory;
 import software.bernie.geckolib3.geo.render.built.GeoModel;
 import software.bernie.geckolib3.model.AnimatedGeoModel;
-import software.bernie.geckolib3.renderer.geo.GeoRenderer;
 
 /**
  * 打印机物品渲染器
@@ -67,7 +69,7 @@ public class PrinterItemRenderer extends TileEntityItemStackRenderer {
         GlStateManager.pushMatrix();
 
         // 应用骨骼变换
-        GlStateManager.translate(bone.pivotX / 16.0, bone.pivotY / 16.0, bone.pivotZ / 16.0);
+        GlStateManager.translate(bone.getPivotX() / 16.0, bone.getPivotY() / 16.0, bone.getPivotZ() / 16.0);
 
         if (bone.getRotationX() != 0) {
             GlStateManager.rotate((float) Math.toDegrees(bone.getRotationX()), 1, 0, 0);
@@ -79,7 +81,7 @@ public class PrinterItemRenderer extends TileEntityItemStackRenderer {
             GlStateManager.rotate((float) Math.toDegrees(bone.getRotationZ()), 0, 0, 1);
         }
 
-        GlStateManager.translate(-bone.pivotX / 16.0, -bone.pivotY / 16.0, -bone.pivotZ / 16.0);
+        GlStateManager.translate(-bone.getPivotX() / 16.0, -bone.getPivotY() / 16.0, -bone.getPivotZ() / 16.0);
 
         // 渲染立方体
         for (software.bernie.geckolib3.geo.render.built.GeoCube cube : bone.childCubes) {
@@ -106,12 +108,16 @@ public class PrinterItemRenderer extends TileEntityItemStackRenderer {
 
             buffer.begin(org.lwjgl.opengl.GL11.GL_QUADS, net.minecraft.client.renderer.vertex.DefaultVertexFormats.POSITION_TEX_NORMAL);
 
-            javax.vecmath.Vector3f normal = quad.normal;
+            // quad.normal is Vec3i in GeckoLib 3.0.31, convert to float
+            net.minecraft.util.math.Vec3i normal = quad.normal;
+            float nx = normal.getX();
+            float ny = normal.getY();
+            float nz = normal.getZ();
 
             for (software.bernie.geckolib3.geo.render.built.GeoVertex vertex : quad.vertices) {
                 buffer.pos(vertex.position.x / 16.0, vertex.position.y / 16.0, vertex.position.z / 16.0)
                       .tex(vertex.textureU, vertex.textureV)
-                      .normal(normal.x, normal.y, normal.z)
+                      .normal(nx, ny, nz)
                       .endVertex();
             }
 
@@ -120,21 +126,38 @@ public class PrinterItemRenderer extends TileEntityItemStackRenderer {
     }
 
     /**
+     * 虚拟 IAnimatable 实现，用于物品渲染
+     */
+    private static class DummyAnimatable implements IAnimatable {
+        private final AnimationFactory factory = new AnimationFactory(this);
+
+        @Override
+        public void registerControllers(AnimationData data) {
+            // 物品渲染不需要动画控制器
+        }
+
+        @Override
+        public AnimationFactory getFactory() {
+            return factory;
+        }
+    }
+
+    /**
      * 专用于物品渲染的简化模型
      */
-    private static class PrinterItemModel extends AnimatedGeoModel<Object> {
+    private static class PrinterItemModel extends AnimatedGeoModel<DummyAnimatable> {
         @Override
-        public ResourceLocation getModelLocation(Object object) {
+        public ResourceLocation getModelLocation(DummyAnimatable object) {
             return new ResourceLocation(moremod.MODID, "geo/printer.geo.json");
         }
 
         @Override
-        public ResourceLocation getTextureLocation(Object object) {
+        public ResourceLocation getTextureLocation(DummyAnimatable object) {
             return new ResourceLocation(moremod.MODID, "textures/blocks/printer.png");
         }
 
         @Override
-        public ResourceLocation getAnimationFileLocation(Object animatable) {
+        public ResourceLocation getAnimationFileLocation(DummyAnimatable animatable) {
             return new ResourceLocation(moremod.MODID, "animations/printer.animation.json");
         }
     }
