@@ -96,6 +96,7 @@ tile.oil_extractor_core.name=Oil Extractor Core
 tile.plant_oil_press.name=Plant Oil Press
 tile.oil_generator.name=Oil Generator
 tile.charging_station.name=Charging Station
+tile.energy_link.name=Energy Link
 
 # Items
 item.oil_prospector.name=Oil Prospector
