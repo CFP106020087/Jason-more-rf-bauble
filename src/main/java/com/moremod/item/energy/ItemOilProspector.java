@@ -36,8 +36,8 @@ public class ItemOilProspector extends Item {
 
     // 石油生成配置
     private static final double OIL_CHANCE = 0.15;        // 15% 區塊有石油
-    private static final int MIN_OIL_AMOUNT = 10000;      // 最小儲量 10k mB
-    private static final int MAX_OIL_AMOUNT = 500000;     // 最大儲量 500k mB
+    private static final int MIN_OIL_AMOUNT = 60000;      // 最小儲量 60k mB (6倍)
+    private static final int MAX_OIL_AMOUNT = 3000000;    // 最大儲量 3M mB (6倍)
     private static final int MIN_DEPTH = 10;              // 最淺深度 Y=10
     private static final int MAX_DEPTH = 40;              // 最深深度 Y=40
     private static final int SCAN_COOLDOWN = 100;         // 5秒冷卻
