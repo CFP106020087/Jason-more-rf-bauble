@@ -1,6 +1,7 @@
 package com.moremod.item.energy;
 
 import com.moremod.creativetab.moremodCreativeTab;
+import com.moremod.world.OilExtractionData;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.SoundEvents;
@@ -101,18 +102,41 @@ public class ItemOilProspector extends Item {
         ));
 
         if (oilData.hasOil) {
+            // 獲取已提取量，計算剩餘量
+            OilExtractionData extractionData = OilExtractionData.get(world);
+            int extracted = extractionData.getExtractedAmount(chunkPos);
+            int remaining = Math.max(0, oilData.amount - extracted);
+
             player.sendMessage(new TextComponentString(
                     TextFormatting.GREEN + "✓ 發現石油礦脈！"
             ));
             player.sendMessage(new TextComponentString(
-                    TextFormatting.AQUA + "預估儲量: " + formatAmount(oilData.amount) + " mB"
+                    TextFormatting.AQUA + "總儲量: " + formatAmount(oilData.amount) + " mB"
             ));
+
+            // 顯示剩餘量
+            if (extracted > 0) {
+                if (remaining > 0) {
+                    player.sendMessage(new TextComponentString(
+                            TextFormatting.YELLOW + "剩餘可採: " + formatAmount(remaining) + " mB (" +
+                            (remaining * 100 / oilData.amount) + "%)"
+                    ));
+                } else {
+                    player.sendMessage(new TextComponentString(
+                            TextFormatting.RED + "⚠ 此區塊石油已被開採完畢！"
+                    ));
+                }
+            }
+
             player.sendMessage(new TextComponentString(
                     TextFormatting.YELLOW + "深度: Y=" + oilData.depth
             ));
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.GRAY + "在此區塊建造抽油機即可開採"
-            ));
+
+            if (remaining > 0) {
+                player.sendMessage(new TextComponentString(
+                        TextFormatting.GRAY + "在此區塊建造抽油機即可開採"
+                ));
+            }
 
             // 檢查周圍區塊
             int nearbyOilChunks = countNearbyOilChunks(world, chunkPos);
