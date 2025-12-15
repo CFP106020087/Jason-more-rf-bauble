@@ -622,16 +622,16 @@ public class Schematic {
                                 if (sx >= 0 && sy >= 0 && sz >= 0 && sx < width && sy < height && sz < length) {
                                     IBlockState state = palette.get(blockData[sx][sy][sz]);
 
-                                    if (!state.getBlock().equals(Blocks.AIR)) {
+                                    // 跳过空气方块，避免覆盖已有墙壁
+                                if (!state.getBlock().equals(Blocks.AIR)) {
                                         if (needsNewStorage) {
                                             storage = new ExtendedBlockStorage(storageY << 4, world.provider.hasSkyLight());
                                             storageArray[storageIndex] = storage;
                                             needsNewStorage = false;
                                         }
                                         storage.set(x, y, z, state);
-                                    } else if (storage != null) {
-                                        storage.set(x, y, z, state);
                                     }
+                                    // 不再放置空气方块，保留原有方块
                                 }
                             }
                         }
