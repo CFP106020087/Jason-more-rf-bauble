@@ -144,10 +144,17 @@ public class AuxiliaryUpgradeManager {
                 debug("开始初始化矿物透视系统...");
 
                 // 0. 添加特定模组矿物（通过注册名查找）
+                // Astral Sorcery 矿物
                 addModOreByName("astralsorcery:blockcustomore", "星辉矿石");
-                addModOreByName("nb:netherite_ore", "下界合金矿");
-                addModOreByName("minecraft:ancient_debris", "远古残骸");
                 addModOreByName("astralsorcery:blockcelestialcrystals", "天辉水晶");
+                addModOreByName("astralsorcery:celestialcrystals", "天辉水晶");
+                addModOreByName("astralsorcery:blockcollectorcrystal", "集星水晶");
+                addModOreByName("astralsorcery:blockcelestialcollectorcrystal", "天辉收集水晶");
+                // NetherBound 下界合金
+                addModOreByName("nb:netherite_ore", "下界合金矿");
+                addModOreByName("nb:ancient_debris", "远古残骸");
+                // 原版 (1.16+ backport)
+                addModOreByName("minecraft:ancient_debris", "远古残骸");
 
                 // 1. 从矿物词典加载所有矿物（支持所有模组）
                 for (String oreName : OreDictionary.getOreNames()) {
