@@ -22,7 +22,7 @@ public class SwordChengYueModel extends AnimatedGeoModel<ItemSwordChengYue> {
     private static final ResourceLocation TEXTURE_NORMAL = new ResourceLocation("moremod", "textures/item/sword_chengyue.png");
     private static final ResourceLocation TEXTURE_SKILL = new ResourceLocation("moremod", "geo/moon_sword.png");
 
-    private static final ResourceLocation ANIMATION_SKILL = new ResourceLocation("moremod", "geo/moon_sword.animation.json");
+    private static final ResourceLocation ANIMATION_SKILL = new ResourceLocation("moremod", "animations/moon_sword.animation.json");
 
     public enum VisibilityMode {
         NORMAL,           // 全部显示（GUI用）
