@@ -396,21 +396,26 @@ public class ModConfig {
         @Config.Comment("是否启用维度等级限制")
         public boolean enabled = true;
 
-        @Config.Comment("主世界(维度0)宝石等级上限，-1表示不限制")
-        @Config.RangeInt(min = -1, max = 100)
-        public int overworldMaxLevel = 30;
+        @Config.Comment({
+            "维度宝石等级上限配置 (可精确指定任意维度)",
+            "格式: \"维度ID:最高等级\"",
+            "例如: \"0:30\" 表示主世界(维度0)最高30级",
+            "      \"-1:40\" 表示地狱(维度-1)最高40级",
+            "      \"1:-1\" 表示末地(维度1)不限制",
+            "      \"111:50\" 表示暮色森林(维度111)最高50级",
+            "      \"-9999:60\" 表示裂缝维度最高60级",
+            "等级设为-1表示该维度不限制"
+        })
+        public String[] dimensionLevelCaps = {
+            "0:30",      // 主世界: 30级
+            "-1:40",     // 地狱: 40级
+            "1:-1",      // 末地: 不限制
+            "-9999:50"   // 裂缝维度: 50级
+        };
 
-        @Config.Comment("地狱(维度-1)宝石等级上限，-1表示不限制")
+        @Config.Comment("未在上方列表中指定的维度的默认等级上限，-1表示不限制")
         @Config.RangeInt(min = -1, max = 100)
-        public int netherMaxLevel = 40;
-
-        @Config.Comment("末地(维度1)宝石等级上限，-1表示不限制")
-        @Config.RangeInt(min = -1, max = 100)
-        public int endMaxLevel = -1;
-
-        @Config.Comment("其他维度默认宝石等级上限，-1表示不限制")
-        @Config.RangeInt(min = -1, max = 100)
-        public int otherDimensionsMaxLevel = -1;
+        public int defaultMaxLevel = -1;
     }
 
     public static class EnchantingConfig {

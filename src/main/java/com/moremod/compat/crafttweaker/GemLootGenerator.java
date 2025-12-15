@@ -58,7 +58,7 @@ public class GemLootGenerator {
 
     /**
      * 获取维度的宝石等级上限
-     * 优先级: CT自定义 > 配置文件
+     * 优先级: CT自定义 > 配置文件维度列表 > 默认值
      * @return 等级上限，-1表示无限制
      */
     public static int getDimensionLevelCap(int dimensionId) {
@@ -66,15 +66,34 @@ public class GemLootGenerator {
         if (CUSTOM_DIMENSION_LEVEL_CAPS.containsKey(dimensionId)) {
             return CUSTOM_DIMENSION_LEVEL_CAPS.get(dimensionId);
         }
-        // 从配置文件读取
+        // 从配置文件读取 (解析维度:等级格式)
         com.moremod.config.ModConfig.GemDimensionLimits cfg =
             com.moremod.config.ModConfig.gemDimension;
-        switch (dimensionId) {
-            case 0:  return cfg.overworldMaxLevel;
-            case -1: return cfg.netherMaxLevel;
-            case 1:  return cfg.endMaxLevel;
-            default: return cfg.otherDimensionsMaxLevel;
+
+        // 解析配置数组查找匹配的维度
+        if (cfg.dimensionLevelCaps != null) {
+            for (String entry : cfg.dimensionLevelCaps) {
+                if (entry == null || entry.isEmpty()) continue;
+                try {
+                    String[] parts = entry.split(":");
+                    if (parts.length == 2) {
+                        int dimId = Integer.parseInt(parts[0].trim());
+                        int maxLevel = Integer.parseInt(parts[1].trim());
+                        if (dimId == dimensionId) {
+                            return maxLevel;
+                        }
+                    }
+                } catch (NumberFormatException e) {
+                    // 忽略无效的配置项
+                    if (debugMode) {
+                        System.err.println("[GemLoot] 无效的维度配置: " + entry);
+                    }
+                }
+            }
         }
+
+        // 返回默认值
+        return cfg.defaultMaxLevel;
     }
 
     /**
@@ -101,6 +120,70 @@ public class GemLootGenerator {
      */
     public static void clearDimensionLevelCaps() {
         CUSTOM_DIMENSION_LEVEL_CAPS.clear();
+    }
+
+    /**
+     * 获取所有已配置的维度及其等级上限
+     * @return Map<维度ID, 等级上限>
+     */
+    public static Map<Integer, Integer> getAllDimensionLevelCaps() {
+        Map<Integer, Integer> result = new HashMap<>();
+
+        // 添加配置文件中的设置
+        com.moremod.config.ModConfig.GemDimensionLimits cfg =
+            com.moremod.config.ModConfig.gemDimension;
+        if (cfg.dimensionLevelCaps != null) {
+            for (String entry : cfg.dimensionLevelCaps) {
+                if (entry == null || entry.isEmpty()) continue;
+                try {
+                    String[] parts = entry.split(":");
+                    if (parts.length == 2) {
+                        int dimId = Integer.parseInt(parts[0].trim());
+                        int maxLevel = Integer.parseInt(parts[1].trim());
+                        result.put(dimId, maxLevel);
+                    }
+                } catch (NumberFormatException e) {
+                    // 忽略无效配置
+                }
+            }
+        }
+
+        // CT自定义覆盖配置文件
+        result.putAll(CUSTOM_DIMENSION_LEVEL_CAPS);
+
+        return result;
+    }
+
+    /**
+     * 打印所有维度等级配置 (调试用)
+     */
+    public static void printDimensionLevelCaps() {
+        System.out.println("========== 宝石维度等级限制配置 ==========");
+        System.out.println("启用状态: " + isDimensionLevelCapEnabled());
+        System.out.println("默认等级上限: " + com.moremod.config.ModConfig.gemDimension.defaultMaxLevel);
+        System.out.println("维度配置列表:");
+        Map<Integer, Integer> caps = getAllDimensionLevelCaps();
+        for (Map.Entry<Integer, Integer> entry : caps.entrySet()) {
+            String dimName = getDimensionName(entry.getKey());
+            System.out.println("  维度 " + entry.getKey() + " (" + dimName + "): " +
+                (entry.getValue() < 0 ? "不限制" : "最高" + entry.getValue() + "级"));
+        }
+        System.out.println("==========================================");
+    }
+
+    /**
+     * 获取维度名称 (仅供显示用)
+     */
+    private static String getDimensionName(int dimensionId) {
+        switch (dimensionId) {
+            case 0: return "主世界";
+            case -1: return "地狱";
+            case 1: return "末地";
+            case 7: return "暮色森林";
+            case 111: return "暮色森林(旧版)";
+            case -9999: return "裂缝维度";
+            default: return "未知维度";
+        }
     }
 
     // ==========================================
