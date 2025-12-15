@@ -1311,40 +1311,77 @@ public class RuinsWorldGenerator implements IWorldGenerator {
     }
 
     private void placeRuinContents(World world, BlockPos center, Random random, int lootTier) {
-        // ★ 放置多个奖励箱 (根据等级) ★
+        // 根据等级计算建筑内部半径 (确保在结构内)
+        int innerRadius = Math.max(2, lootTier);  // 等级越高，结构越大
+
+        // ★ 放置多个奖励箱 (根据等级，确保在建筑内) ★
         int chestCount = 1 + (lootTier / 2);
         for (int i = 0; i < chestCount; i++) {
-            BlockPos chestPos = center.add(random.nextInt(5) - 2, 0, random.nextInt(5) - 2);
-            // 寻找合适位置
-            for (int attempt = 0; attempt < 5; attempt++) {
-                if (world.isAirBlock(chestPos) || world.getBlockState(chestPos).getBlock() == Blocks.TALLGRASS) {
-                    setBlockSafe(world, chestPos, Blocks.CHEST.getDefaultState());
-                    TileEntity te = world.getTileEntity(chestPos);
-                    if (te instanceof TileEntityChest) {
-                        fillChestWithLoot((TileEntityChest) te, random, lootTier);
-                    }
-                    break;
+            BlockPos chestPos = findValidInteriorPos(world, center, innerRadius, random);
+            if (chestPos != null) {
+                setBlockSafe(world, chestPos, Blocks.CHEST.getDefaultState());
+                TileEntity te = world.getTileEntity(chestPos);
+                if (te instanceof TileEntityChest) {
+                    fillChestWithLoot((TileEntityChest) te, random, lootTier);
                 }
-                chestPos = center.add(random.nextInt(7) - 3, 0, random.nextInt(7) - 3);
             }
         }
 
-        // ★ 放置多个功能性方块 ★
+        // ★ 放置多个功能性方块 (确保在建筑内) ★
         int specialBlockCount = 1 + random.nextInt(lootTier);
         for (int i = 0; i < specialBlockCount; i++) {
             float chance = 0.4f * SPECIAL_BLOCK_CHANCE_MULTIPLIER;
             if (random.nextFloat() < chance) {
-                BlockPos specialPos = center.add(random.nextInt(7) - 3, 0, random.nextInt(7) - 3);
-                placeSpecialBlock(world, specialPos, random);
+                BlockPos specialPos = findValidInteriorPos(world, center, innerRadius, random);
+                if (specialPos != null) {
+                    placeSpecialBlock(world, specialPos, random);
+                }
             }
         }
 
-        // ★ 放置哭泣天使刷怪笼 ★
+        // ★ 放置哭泣天使刷怪笼 (确保在建筑内) ★
         int spawnerCount = MIN_SPAWNERS + random.nextInt(MAX_SPAWNERS - MIN_SPAWNERS + 1);
         for (int i = 0; i < spawnerCount; i++) {
-            BlockPos spawnerPos = center.add(random.nextInt(9) - 4, 0, random.nextInt(9) - 4);
-            placeWeepingAngelSpawner(world, spawnerPos, random);
+            BlockPos spawnerPos = findValidInteriorPos(world, center, innerRadius, random);
+            if (spawnerPos != null) {
+                placeWeepingAngelSpawner(world, spawnerPos, random);
+            }
         }
+    }
+
+    // ★★★ 在建筑内部寻找有效位置 ★★★
+    private BlockPos findValidInteriorPos(World world, BlockPos center, int radius, Random random) {
+        // 尝试多次寻找合适的位置
+        for (int attempt = 0; attempt < 15; attempt++) {
+            int dx = random.nextInt(radius * 2 + 1) - radius;
+            int dz = random.nextInt(radius * 2 + 1) - radius;
+
+            // 检查多个Y层级
+            for (int dy = 0; dy <= 3; dy++) {
+                BlockPos checkPos = center.add(dx, dy, dz);
+
+                // 确保位置有效: 空气方块且下方有实心方块
+                if (world.isAirBlock(checkPos) && !world.isAirBlock(checkPos.down())) {
+                    // 额外检查: 确保不在建筑边缘 (周围有方块包围)
+                    int surroundingBlocks = 0;
+                    for (int cx = -1; cx <= 1; cx++) {
+                        for (int cz = -1; cz <= 1; cz++) {
+                            if (cx == 0 && cz == 0) continue;
+                            if (!world.isAirBlock(checkPos.add(cx, 0, cz)) ||
+                                !world.isAirBlock(checkPos.add(cx, 1, cz))) {
+                                surroundingBlocks++;
+                            }
+                        }
+                    }
+                    // 至少有2个方向有墙壁/方块
+                    if (surroundingBlocks >= 2) {
+                        return checkPos;
+                    }
+                }
+            }
+        }
+        // 如果找不到理想位置，返回中心附近
+        return center.add(random.nextInt(3) - 1, 0, random.nextInt(3) - 1);
     }
 
     // ★★★ 放置哭泣天使刷怪笼 ★★★
@@ -1410,18 +1447,21 @@ public class RuinsWorldGenerator implements IWorldGenerator {
             chest.setInventorySlotContents(slot, faultyGear);
         }
 
-        // ★ 稀有物品 (下界之星、龙息等) ★
-        if (tier >= 3 && random.nextFloat() < 0.15f) {
+        // ★ 下界之星 (1% 概率，最多1个) ★
+        if (tier >= 4 && random.nextFloat() < 0.01f) {
             int slot = random.nextInt(27);
-            int rareType = random.nextInt(4);
+            chest.setInventorySlotContents(slot, new ItemStack(Items.NETHER_STAR, 1));
+        }
+
+        // ★ 其他稀有物品 (龙息、不死图腾、鞘翅) ★
+        if (tier >= 3 && random.nextFloat() < 0.12f) {
+            int slot = random.nextInt(27);
+            int rareType = random.nextInt(3);
             switch (rareType) {
                 case 0:
-                    chest.setInventorySlotContents(slot, new ItemStack(Items.NETHER_STAR, 1));
-                    break;
-                case 1:
                     chest.setInventorySlotContents(slot, new ItemStack(Items.DRAGON_BREATH, 2 + random.nextInt(3)));
                     break;
-                case 2:
+                case 1:
                     chest.setInventorySlotContents(slot, new ItemStack(Items.TOTEM_OF_UNDYING, 1));
                     break;
                 default:
