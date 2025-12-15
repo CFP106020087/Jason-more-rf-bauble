@@ -514,6 +514,7 @@ tile.oil_extractor_core.name=抽油機核心
 tile.plant_oil_press.name=植物油壓榨機
 tile.oil_generator.name=石油發電機
 tile.charging_station.name=充能站
+tile.energy_link.name=能量鏈接器
 
 # 物品
 item.oil_prospector.name=石油探測器

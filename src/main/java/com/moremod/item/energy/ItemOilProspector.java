@@ -1,6 +1,7 @@
 package com.moremod.item.energy;
 
 import com.moremod.creativetab.moremodCreativeTab;
+import com.moremod.world.OilExtractionData;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.SoundEvents;
@@ -35,8 +36,8 @@ public class ItemOilProspector extends Item {
 
     // 石油生成配置
     private static final double OIL_CHANCE = 0.15;        // 15% 區塊有石油
-    private static final int MIN_OIL_AMOUNT = 10000;      // 最小儲量 10k mB
-    private static final int MAX_OIL_AMOUNT = 500000;     // 最大儲量 500k mB
+    private static final int MIN_OIL_AMOUNT = 60000;      // 最小儲量 60k mB (6倍)
+    private static final int MAX_OIL_AMOUNT = 3000000;    // 最大儲量 3M mB (6倍)
     private static final int MIN_DEPTH = 10;              // 最淺深度 Y=10
     private static final int MAX_DEPTH = 40;              // 最深深度 Y=40
     private static final int SCAN_COOLDOWN = 100;         // 5秒冷卻
@@ -101,18 +102,41 @@ public class ItemOilProspector extends Item {
         ));
 
         if (oilData.hasOil) {
+            // 獲取已提取量，計算剩餘量
+            OilExtractionData extractionData = OilExtractionData.get(world);
+            int extracted = extractionData.getExtractedAmount(chunkPos);
+            int remaining = Math.max(0, oilData.amount - extracted);
+
             player.sendMessage(new TextComponentString(
                     TextFormatting.GREEN + "✓ 發現石油礦脈！"
             ));
             player.sendMessage(new TextComponentString(
-                    TextFormatting.AQUA + "預估儲量: " + formatAmount(oilData.amount) + " mB"
+                    TextFormatting.AQUA + "總儲量: " + formatAmount(oilData.amount) + " mB"
             ));
+
+            // 顯示剩餘量
+            if (extracted > 0) {
+                if (remaining > 0) {
+                    player.sendMessage(new TextComponentString(
+                            TextFormatting.YELLOW + "剩餘可採: " + formatAmount(remaining) + " mB (" +
+                            (remaining * 100 / oilData.amount) + "%)"
+                    ));
+                } else {
+                    player.sendMessage(new TextComponentString(
+                            TextFormatting.RED + "⚠ 此區塊石油已被開採完畢！"
+                    ));
+                }
+            }
+
             player.sendMessage(new TextComponentString(
                     TextFormatting.YELLOW + "深度: Y=" + oilData.depth
             ));
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.GRAY + "在此區塊建造抽油機即可開採"
-            ));
+
+            if (remaining > 0) {
+                player.sendMessage(new TextComponentString(
+                        TextFormatting.GRAY + "在此區塊建造抽油機即可開採"
+                ));
+            }
 
             // 檢查周圍區塊
             int nearbyOilChunks = countNearbyOilChunks(world, chunkPos);
