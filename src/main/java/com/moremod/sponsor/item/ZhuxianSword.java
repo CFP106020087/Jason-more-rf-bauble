@@ -12,6 +12,7 @@ import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.effect.EntityLightningBolt;
 import net.minecraft.entity.ai.attributes.AttributeModifier;
 import net.minecraft.entity.monster.EntityMob;
+import net.minecraft.entity.passive.EntityVillager;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.MobEffects;
 import net.minecraft.inventory.EntityEquipmentSlot;
@@ -724,10 +725,12 @@ public class ZhuxianSword extends ItemSword {
     private void summonFormationLightning(EntityPlayer player, World world, double radius) {
         if (world.isRemote) return;
 
-        // 获取范围内所有生物（不是玩家）
+        // 获取范围内所有生物（除了玩家和村民）
         world.getEntitiesWithinAABB(EntityLivingBase.class,
             player.getEntityBoundingBox().grow(radius),
-            entity -> entity != player && !entity.isDead && !(entity instanceof EntityPlayer)
+            entity -> entity != player && !entity.isDead
+                && !(entity instanceof EntityPlayer)
+                && !(entity instanceof EntityVillager)  // 保护村民
         ).forEach(entity -> {
             // 召唤雷电打在目标位置
             EntityLightningBolt lightning = new EntityLightningBolt(world, entity.posX, entity.posY, entity.posZ, false);
