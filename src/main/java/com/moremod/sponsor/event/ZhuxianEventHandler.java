@@ -1,7 +1,7 @@
 package com.moremod.sponsor.event;
 
 import com.moremod.sponsor.item.ZhuxianSword;
-import com.moremod.sponsor.util.TrueDamageHelper;
+import com.moremod.util.combat.TrueDamageHelper;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.monster.EntityMob;
@@ -262,7 +262,8 @@ public class ZhuxianEventHandler {
 
             for (EntityMob mob : mobs) {
                 // 5%最大生命真伤
-                TrueDamageHelper.dealPercentTrueDamage(player, mob, 0.05f);
+                float damage = mob.getMaxHealth() * 0.05f;
+                TrueDamageHelper.applyWrappedTrueDamage(mob, player, damage, TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE);
             }
         }
     }
@@ -343,7 +344,8 @@ public class ZhuxianEventHandler {
 
             if (worldTime < endTime) {
                 // 每秒20%最大生命真伤
-                TrueDamageHelper.dealPercentTrueDamage(null, entity, 0.20f);
+                float damage = entity.getMaxHealth() * 0.20f;
+                TrueDamageHelper.applyWrappedTrueDamage(entity, null, damage, TrueDamageHelper.TrueDamageFlag.REFLECT);
             } else {
                 // 流血结束
                 entity.getEntityData().setBoolean("ZhuxianBleeding", false);
@@ -395,7 +397,6 @@ public class ZhuxianEventHandler {
         // 每5秒清理一次
         if (System.currentTimeMillis() % 5000 < 50) {
             PROCESSING_KILLS.clear();
-            TrueDamageHelper.cleanup();
         }
     }
 }

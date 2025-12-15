@@ -1,6 +1,6 @@
 package com.moremod.sponsor.item;
 
-import com.moremod.sponsor.util.TrueDamageHelper;
+import com.moremod.util.combat.TrueDamageHelper;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import net.minecraft.client.resources.I18n;
@@ -388,12 +388,12 @@ public class ZhuxianSword extends ItemSword {
         }
 
         // 应用真伤
-        TrueDamageHelper.dealTrueDamage(player, target, damage);
+        TrueDamageHelper.applyWrappedTrueDamage(target, player, damage, TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE);
 
         // 范围伤害
         if (hasAoe(stack)) {
             float aoeDamage = damage * 0.5f; // 范围伤害为50%
-            TrueDamageHelper.dealAoeTrueDamage(player, target, 5.0, aoeDamage, target);
+            dealAoeTrueDamage(player, target, 5.0, aoeDamage);
         }
 
         // 绝仙形态：20%最大生命流血
@@ -466,7 +466,7 @@ public class ZhuxianSword extends ItemSword {
         // 诛仙剑阵
         if (form == SwordForm.JUEXIAN && isFormationActive(stack)) {
             if (world.getTotalWorldTime() % 20 == 0) { // 每秒
-                TrueDamageHelper.dealAoeTrueDamage(player, player, 10.0, 999999, null);
+                dealAoeTrueDamage(player, null, 10.0, 999999);
             }
         }
 
@@ -580,6 +580,26 @@ public class ZhuxianSword extends ItemSword {
     @Override
     public boolean hasEffect(ItemStack stack) {
         return getForm(stack) == SwordForm.JUEXIAN || isFormationActive(stack);
+    }
+
+    // ==================== AOE伤害辅助方法 ====================
+
+    /**
+     * 对范围内的敌对生物造成真伤
+     */
+    private void dealAoeTrueDamage(EntityPlayer attacker, EntityLivingBase center, double radius, float damage) {
+        EntityLivingBase centerEntity = center != null ? center : attacker;
+        if (centerEntity.world.isRemote) return;
+
+        centerEntity.world.getEntitiesWithinAABB(EntityLivingBase.class,
+            centerEntity.getEntityBoundingBox().grow(radius),
+            entity -> entity != attacker && entity != center && !entity.isDead && entity instanceof EntityMob
+        ).forEach(entity -> {
+            double dist = entity.getDistance(centerEntity);
+            if (dist <= radius) {
+                TrueDamageHelper.applyWrappedTrueDamage(entity, attacker, damage, TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE);
+            }
+        });
     }
 
     // ==================== 静态工具方法 ====================
