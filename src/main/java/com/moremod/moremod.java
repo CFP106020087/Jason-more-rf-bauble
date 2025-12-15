@@ -406,7 +406,8 @@ public class moremod {
                 "void_ripper",
                 nextEntityId++,        // 4
                 INSTANCE,
-                64, 1, false
+                64, 1, false,
+                0x1A1A3A, 0x4169E1    // 刷怪蛋颜色: 深蓝色/皇家蓝
         );
 
         EntityRegistry.registerModEntity(
