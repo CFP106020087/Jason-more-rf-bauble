@@ -132,35 +132,33 @@ public class SwordChengYueRenderer extends GeoItemRenderer<ItemSwordChengYue> {
 
     /**
      * 技能模式渲染变换（双手拔刀动画）
+     * 模型枢轴点: 右手(6,22,0), 刀鞘(0,19,9), 刀(0,19,21)
      */
     private void renderSkillMode(ItemCameraTransforms.TransformType transformType) {
-        // 技能模式使用不同的基础变换，适配新的 moon_sword 模型
-        // 模型枢轴点约在 (0, 20, -20)，需要相应调整
-
         if (transformType != null) {
             switch (transformType) {
                 case FIRST_PERSON_RIGHT_HAND:
                 case FIRST_PERSON_LEFT_HAND:
                     // 第一人称：显示双手持剑
-                    GlStateManager.translate(0.5, 1.5, 0.5);
-                    GlStateManager.scale(0.04f, 0.04f, 0.04f);
-                    GlStateManager.rotate(180f, 0.0f, 1.0f, 0.0f);
-                    GlStateManager.translate(0, -20, 10); // 补偿模型枢轴点偏移
+                    GlStateManager.translate(0.5, 0.5, 0.5);
+                    GlStateManager.scale(0.05f, 0.05f, 0.05f);
+                    // 补偿枢轴点: Y=-19, Z=-15 (刀鞘和刀之间)
+                    GlStateManager.translate(0, -19, -15);
                     break;
 
                 case THIRD_PERSON_RIGHT_HAND:
                 case THIRD_PERSON_LEFT_HAND:
                     // 第三人称
-                    GlStateManager.translate(0.5, 1.2, 0.5);
-                    GlStateManager.scale(0.035f, 0.035f, 0.035f);
-                    GlStateManager.rotate(180f, 0.0f, 1.0f, 0.0f);
-                    GlStateManager.translate(0, -20, 10);
+                    GlStateManager.translate(0.5, 0.8, 0.5);
+                    GlStateManager.scale(0.04f, 0.04f, 0.04f);
+                    GlStateManager.translate(0, -19, -15);
                     break;
 
                 default:
                     // GUI 等其他模式
                     GlStateManager.translate(0.5, 0.5, 0.5);
-                    GlStateManager.scale(0.02f, 0.02f, 0.02f);
+                    GlStateManager.scale(0.025f, 0.025f, 0.025f);
+                    GlStateManager.translate(0, -19, -15);
                     break;
             }
         }
