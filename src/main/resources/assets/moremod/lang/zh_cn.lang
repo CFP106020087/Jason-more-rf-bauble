@@ -576,3 +576,25 @@ item.structure_capsule_medium.name=中型结构胶囊
 item.structure_capsule_large.name=大型结构胶囊
 item.structure_capsule_huge.name=巨型结构胶囊
 item.structure_capsule_mega.name=超巨型结构胶囊
+
+# ===== 赞助者物品 (Sponsor Items) =====
+
+# 诛仙四剑
+item.moremod.zhuxian_sword.name=诛仙剑
+
+# 快捷键分类
+key.categories.moremod.sponsor=MoreMod 赞助者物品
+
+# 横渠四句技能快捷键
+key.moremod.zhuxian.tianxin=为天地立心
+key.moremod.zhuxian.liming=为生民立命
+key.moremod.zhuxian.juexue=为往圣继绝学
+key.moremod.zhuxian.taiping=为万世开太平
+key.moremod.zhuxian.formation=诛仙剑阵
+
+# 配置
+config.moremod.sponsor.title=赞助者物品
+config.moremod.sponsor.items=物品设置
+config.moremod.sponsor.weapons=武器设置
+config.moremod.sponsor.armor=盔甲设置
+config.moremod.sponsor.baubles=饰品设置

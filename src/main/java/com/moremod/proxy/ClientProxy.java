@@ -26,6 +26,7 @@ import com.moremod.item.ItemSwordChengYue;
 // ✨ 新增导入：锯刃剑渲染层
 import com.moremod.item.sawblade.client.BloodEuphoriaRenderer;
 import com.moremod.moremod;
+import com.moremod.sponsor.client.SponsorKeyBindings;
 import com.moremod.network.PacketHandler;
 import com.moremod.network.PacketSyncRejectionData;
 import com.moremod.tile.TileEntityPedestal;
@@ -95,6 +96,9 @@ public class ClientProxy extends CommonProxy {
         ClientRegistry.bindTileEntitySpecialRenderer(TileEntityProtectionField.class, new TESRProtectionField());
 
         // 打印机渲染器 - 由用户手动实现
+
+        // 赞助者物品快捷键
+        SponsorKeyBindings.registerKeyBindings();
 
         registerEntityRenderers();
     }
