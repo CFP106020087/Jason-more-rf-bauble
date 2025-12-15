@@ -188,27 +188,8 @@ public class ZhuxianEventHandler {
         }
     }
 
-    // ==================== 经验加成（为天地立心） ====================
-
-    /**
-     * 为天地立心：经验获取+30%
-     */
-    @SubscribeEvent
-    public static void onPlayerPickupXp(PlayerPickupXpEvent event) {
-        if (!isZhuxianEnabled()) return;
-        EntityPlayer player = event.getEntityPlayer();
-        if (player.world.isRemote) return;
-
-        if (ZhuxianSword.isPlayerSkillActive(player, ZhuxianSword.NBT_SKILL_TIANXIN)) {
-            // 单手持剑时才生效
-            ItemStack sword = ZhuxianSword.getZhuxianSword(player);
-            if (!sword.isEmpty() && player.getHeldItemOffhand().isEmpty()) {
-                int originalXp = event.getOrb().xpValue;
-                int bonusXp = (int) (originalXp * 0.3f);
-                event.getOrb().xpValue = originalXp + bonusXp;
-            }
-        }
-    }
+    // ==================== 经验加成已移除 ====================
+    // 原为天地立心技能，现已整合到其他形态
 
     // ==================== Tick处理 ====================
 
@@ -238,22 +219,25 @@ public class ZhuxianEventHandler {
 
             ZhuxianSword item = (ZhuxianSword) sword.getItem();
 
-            // 为往圣继绝学：村民附近敌人每秒5%真伤
-            if (item.isSkillActive(sword, ZhuxianSword.NBT_SKILL_JUEXUE)) {
+            ZhuxianSword.SwordForm form = item.getForm(sword);
+
+            // 戮仙形态 + 为往圣继绝学：村民附近敌人每秒5%真伤
+            if (form == ZhuxianSword.SwordForm.LUXIAN && item.isSkillActive(sword, ZhuxianSword.NBT_SKILL_JUEXUE)) {
                 processJuexueEffect(player, world);
             }
 
-            // 为生民立命：村民无敌
-            if (item.isSkillActive(sword, ZhuxianSword.NBT_SKILL_LIMING)) {
-                processLimingVillagerProtection(player, world);
-            }
+            // 陷仙形态 + 为万世开太平：村民无敌/打折 + 太平领域
+            if (form == ZhuxianSword.SwordForm.XIANXIAN && item.isSkillActive(sword, ZhuxianSword.NBT_SKILL_TAIPING)) {
+                // 村民保护
+                processVillagerProtection(player, world);
 
-            // 太平领域
-            NBTTagCompound tag = sword.getTagCompound();
-            if (tag != null) {
-                long taipingEndTime = tag.getLong(ZhuxianSword.NBT_TAIPING_END_TIME);
-                if (taipingEndTime > worldTime) {
-                    processTaipingDomain(player, world);
+                // 太平领域
+                NBTTagCompound tag = sword.getTagCompound();
+                if (tag != null) {
+                    long taipingEndTime = tag.getLong(ZhuxianSword.NBT_TAIPING_END_TIME);
+                    if (taipingEndTime > worldTime) {
+                        processTaipingDomain(player, world);
+                    }
                 }
             }
         }
@@ -286,9 +270,9 @@ public class ZhuxianEventHandler {
     }
 
     /**
-     * 为生民立命：村民获得无敌
+     * 陷仙形态+为万世开太平：村民获得无敌
      */
-    private static void processLimingVillagerProtection(EntityPlayer player, World world) {
+    private static void processVillagerProtection(EntityPlayer player, World world) {
         double range = 16.0;
 
         List<EntityVillager> villagers = world.getEntitiesWithinAABB(EntityVillager.class,

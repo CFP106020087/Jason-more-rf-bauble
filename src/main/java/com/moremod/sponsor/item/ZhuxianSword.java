@@ -94,6 +94,52 @@ public class ZhuxianSword extends ItemSword {
             }
             return ZHUXIAN;
         }
+
+        /**
+         * 获取该形态对应的技能Key
+         * 诛仙->不死(为生民立命), 戮仙->范围真伤(为往圣继绝学), 陷仙->太平领域+村民(为万世开太平), 绝仙->剑阵
+         */
+        public String getBoundSkillKey() {
+            switch (this) {
+                case ZHUXIAN: return NBT_SKILL_LIMING;      // 不死锁血
+                case LUXIAN: return NBT_SKILL_JUEXUE;       // 范围真伤
+                case XIANXIAN: return NBT_SKILL_TAIPING;    // 太平领域+村民保护
+                case JUEXIAN: return NBT_FORMATION_ACTIVE;  // 剑阵
+                default: return null;
+            }
+        }
+
+        /**
+         * 获取该形态对应的技能名称
+         */
+        public String getBoundSkillName() {
+            switch (this) {
+                case ZHUXIAN: return "为生民立命";   // 不死
+                case LUXIAN: return "为往圣继绝学"; // 范围真伤
+                case XIANXIAN: return "为万世开太平"; // 太平领域
+                case JUEXIAN: return "诛仙剑阵";    // 剑阵
+                default: return "";
+            }
+        }
+    }
+
+    /**
+     * 获取技能对应的形态
+     */
+    public static SwordForm getSkillBoundForm(String skillKey) {
+        if (NBT_SKILL_LIMING.equals(skillKey)) return SwordForm.ZHUXIAN;
+        if (NBT_SKILL_JUEXUE.equals(skillKey)) return SwordForm.LUXIAN;
+        if (NBT_SKILL_TAIPING.equals(skillKey)) return SwordForm.XIANXIAN;
+        if (NBT_FORMATION_ACTIVE.equals(skillKey)) return SwordForm.JUEXIAN;
+        return null;
+    }
+
+    /**
+     * 检查技能是否可以在当前形态使用
+     */
+    public static boolean canUseSkillInForm(String skillKey, SwordForm currentForm) {
+        SwordForm requiredForm = getSkillBoundForm(skillKey);
+        return requiredForm == null || requiredForm == currentForm;
     }
 
     // 武器类型（绝仙形态可切换）
@@ -137,6 +183,9 @@ public class ZhuxianSword extends ItemSword {
     /** 技能状态备份：玩家UUID -> 技能Key -> 是否激活 */
     private static final Map<UUID, Map<String, Boolean>> skillStateBackup = new HashMap<>();
 
+    /** 形态备份：玩家UUID -> 当前形态 */
+    private static final Map<UUID, SwordForm> formBackup = new HashMap<>();
+
     /**
      * 注册玩家为诛仙剑持有者（当玩家装备剑时调用）
      */
@@ -151,6 +200,21 @@ public class ZhuxianSword extends ItemSword {
         UUID playerId = player.getUniqueID();
         zhuxianHolderBackup.remove(playerId);
         skillStateBackup.remove(playerId);
+        formBackup.remove(playerId);
+    }
+
+    /**
+     * 更新形态备份
+     */
+    public static void updateFormBackup(EntityPlayer player, SwordForm form) {
+        formBackup.put(player.getUniqueID(), form);
+    }
+
+    /**
+     * 获取备份的形态
+     */
+    public static SwordForm getFormFromBackup(EntityPlayer player) {
+        return formBackup.get(player.getUniqueID());
     }
 
     /**
@@ -197,6 +261,7 @@ public class ZhuxianSword extends ItemSword {
     public static void cleanupPlayer(UUID playerId) {
         zhuxianHolderBackup.remove(playerId);
         skillStateBackup.remove(playerId);
+        formBackup.remove(playerId);
     }
 
     /**
@@ -205,6 +270,7 @@ public class ZhuxianSword extends ItemSword {
     public static void clearAllState() {
         zhuxianHolderBackup.clear();
         skillStateBackup.clear();
+        formBackup.clear();
     }
 
     public ZhuxianSword() {
@@ -338,11 +404,14 @@ public class ZhuxianSword extends ItemSword {
     }
 
     /**
-     * 同步剑的所有技能状态到备份
+     * 同步剑的所有状态到备份（技能+形态）
      * 在玩家装备剑或技能改变时调用
      */
     public void syncAllSkillsToBackup(ItemStack stack, EntityPlayer player) {
         registerHolder(player);
+        // 同步形态
+        updateFormBackup(player, getForm(stack));
+        // 同步技能
         updateSkillBackup(player, NBT_SKILL_TIANXIN, isSkillActive(stack, NBT_SKILL_TIANXIN));
         updateSkillBackup(player, NBT_SKILL_LIMING, isSkillActive(stack, NBT_SKILL_LIMING));
         updateSkillBackup(player, NBT_SKILL_JUEXUE, isSkillActive(stack, NBT_SKILL_JUEXUE));
@@ -637,48 +706,59 @@ public class ZhuxianSword extends ItemSword {
 
         tooltip.add("");
 
-        // 形态效果说明
+        // 形态效果说明（含绑定技能）
         tooltip.add(TextFormatting.GOLD + "◆ 形态效果:");
         switch (form) {
             case ZHUXIAN:
                 tooltip.add(TextFormatting.GRAY + "  - 击杀获得力量II+急迫III");
                 tooltip.add(TextFormatting.GRAY + "  - 每10击杀+1伤害(最高40)");
                 tooltip.add(TextFormatting.GRAY + "  - 无视无敌帧，真实伤害");
+                tooltip.add(TextFormatting.GREEN + "  ◇ 为生民立命: " + TextFormatting.WHITE + "锁血20%不死");
+                tooltip.add(skillFormStatus(stack, form));
                 break;
             case LUXIAN:
                 tooltip.add(TextFormatting.GRAY + "  - 获得急迫IX+力量V");
                 tooltip.add(TextFormatting.GRAY + "  - 每10击杀解锁范围伤害");
                 tooltip.add(TextFormatting.GRAY + "  - 无视无敌帧，真实伤害");
+                tooltip.add(TextFormatting.GREEN + "  ◇ 为往圣继绝学: " + TextFormatting.WHITE + "村民附近敌人5%/秒真伤");
+                tooltip.add(skillFormStatus(stack, form));
                 break;
             case XIANXIAN:
                 tooltip.add(TextFormatting.GRAY + "  - 每次攻击造成范围伤害");
                 tooltip.add(TextFormatting.GRAY + "  - 获得力量XV+急迫IX+抗性IV");
                 tooltip.add(TextFormatting.GRAY + "  - 击杀获得免疫一次伤害");
+                tooltip.add(TextFormatting.GREEN + "  ◇ 为万世开太平: " + TextFormatting.WHITE + "太平领域+村民保护/打折");
+                tooltip.add(skillFormStatus(stack, form));
                 break;
             case JUEXIAN:
                 tooltip.add(TextFormatting.GRAY + "  - 可切换武器类型(右键)");
                 tooltip.add(TextFormatting.GRAY + "  - 20%最大生命流血");
                 tooltip.add(TextFormatting.GRAY + "  - 800%暴击伤害");
                 tooltip.add(TextFormatting.GRAY + "  - 免疫所有负面效果");
-                tooltip.add(TextFormatting.GRAY + "  - 可开启诛仙剑阵(999999真伤)");
+                tooltip.add(TextFormatting.GREEN + "  ◇ 诛仙剑阵: " + TextFormatting.WHITE + "雷击+999999真伤(除村民)");
+                tooltip.add(TextFormatting.GRAY + "    状态: " + (isFormationActive(stack) ? TextFormatting.GREEN + "开启" : TextFormatting.RED + "关闭"));
                 break;
         }
 
         tooltip.add("");
 
-        // 横渠四句
-        tooltip.add(TextFormatting.AQUA + "◆ 横渠四句 (主动技能):");
+        // 横渠四句诗词
+        tooltip.add(TextFormatting.AQUA + "◆ 横渠四句:");
         tooltip.add(TextFormatting.WHITE + "  为天地立心，为生民立命，");
         tooltip.add(TextFormatting.WHITE + "  为往圣继绝学，为万世开太平。");
-        tooltip.add("");
-        tooltip.add(skillStatus(stack, NBT_SKILL_TIANXIN, "为天地立心", "抗性VII+30%经验-20%附魔消耗"));
-        tooltip.add(skillStatus(stack, NBT_SKILL_LIMING, "为生民立命", "村民无敌+特价+血量≥20%"));
-        tooltip.add(skillStatus(stack, NBT_SKILL_JUEXUE, "为往圣继绝学", "村民附近敌人5%/秒真伤"));
-        tooltip.add(skillStatus(stack, NBT_SKILL_TAIPING, "为万世开太平", "太平领域(右键长按3秒)"));
 
         tooltip.add("");
         tooltip.add(TextFormatting.DARK_GRAY + "潜行+右键: 切换形态");
-        tooltip.add(TextFormatting.DARK_GRAY + "使用快捷键切换技能");
+        tooltip.add(TextFormatting.DARK_GRAY + "快捷键: 切换当前形态技能");
+    }
+
+    /**
+     * 显示形态绑定技能状态
+     */
+    private String skillFormStatus(ItemStack stack, SwordForm form) {
+        String skillKey = form.getBoundSkillKey();
+        boolean active = isSkillActive(stack, skillKey);
+        return TextFormatting.GRAY + "    状态: " + (active ? TextFormatting.GREEN + "开启" : TextFormatting.RED + "关闭");
     }
 
     private String skillStatus(ItemStack stack, String key, String name, String desc) {
@@ -761,31 +841,46 @@ public class ZhuxianSword extends ItemSword {
     /**
      * 检查技能是否激活（支持物品掉落后的备份检测）
      *
-     * 检查顺序：
-     * 1. 优先检查静态备份（防止物品掉落导致检测失败）
-     * 2. 再检查实际持有的剑
+     * 技能必须满足两个条件：
+     * 1. 技能NBT开关为ON
+     * 2. 当前形态与技能绑定的形态匹配
      *
      * 参考香巴拉的 isShambhala 实现
      */
     public static boolean isPlayerSkillActive(EntityPlayer player, String skillKey) {
-        // 1. 优先检查备份（即使物品掉落也能工作）
-        if (getSkillFromBackup(player, skillKey)) {
-            return true;
-        }
-
-        // 2. 检查实际持有的剑
+        // 获取当前形态（优先从剑，其次从备份）
+        SwordForm currentForm = null;
         ItemStack sword = getZhuxianSword(player);
+
         if (!sword.isEmpty()) {
-            boolean active = ((ZhuxianSword) sword.getItem()).isSkillActive(sword, skillKey);
+            ZhuxianSword item = (ZhuxianSword) sword.getItem();
+            currentForm = item.getForm(sword);
+
             // 同步到备份
-            if (active) {
+            updateFormBackup(player, currentForm);
+            registerHolder(player);
+
+            // 检查技能开关和形态匹配
+            boolean skillOn = item.isSkillActive(sword, skillKey);
+            if (skillOn) {
                 updateSkillBackup(player, skillKey, true);
-                registerHolder(player);
             }
-            return active;
+
+            // 技能必须开启 且 形态匹配
+            SwordForm requiredForm = getSkillBoundForm(skillKey);
+            return skillOn && (requiredForm == null || requiredForm == currentForm);
         }
 
-        return false;
+        // 物品掉落时使用备份
+        currentForm = getFormFromBackup(player);
+        if (currentForm == null) {
+            return false;
+        }
+
+        // 检查备份的技能状态和形态匹配
+        boolean skillOn = getSkillFromBackup(player, skillKey);
+        SwordForm requiredForm = getSkillBoundForm(skillKey);
+        return skillOn && (requiredForm == null || requiredForm == currentForm);
     }
 
     /**
