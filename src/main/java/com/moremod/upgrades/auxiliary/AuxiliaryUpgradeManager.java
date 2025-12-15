@@ -140,6 +140,10 @@ public class AuxiliaryUpgradeManager {
             new Thread(() -> {
                 debug("开始初始化矿物透视系统...");
 
+                // 0. 添加特定模组矿物（通过注册名查找）
+                addModOreByName("astralsorcery:blockcustomore", "星辉矿石");
+                addModOreByName("nb:netherite_ore", "下界合金矿");
+
                 // 1. 从矿物词典加载所有矿物（支持所有模组）
                 for (String oreName : OreDictionary.getOreNames()) {
                     // 支持所有矿物词典前缀: ore, denseore, poorore, oreNether, oreEnd
@@ -245,6 +249,23 @@ public class AuxiliaryUpgradeManager {
             name = name.replace("_ore", "").replace("ore_", "").replace("ore", "");
             if (!name.isEmpty()) name = Character.toUpperCase(name.charAt(0)) + name.substring(1);
             return name.isEmpty() ? "未知矿物" : name;
+        }
+
+        /**
+         * 通过注册名添加特定模组矿物
+         */
+        private static void addModOreByName(String registryName, String displayName) {
+            try {
+                net.minecraft.util.ResourceLocation rl = new net.minecraft.util.ResourceLocation(registryName);
+                Block block = ForgeRegistries.BLOCKS.getValue(rl);
+                if (block != null && block != Blocks.AIR) {
+                    ALL_ORE_BLOCKS.add(block);
+                    ORE_DISPLAY_NAMES.put(block, displayName);
+                    debug("已添加模组矿物: " + registryName + " -> " + displayName);
+                }
+            } catch (Exception e) {
+                debug("无法添加模组矿物: " + registryName + " - " + e.getMessage());
+            }
         }
 
         private static boolean isLikelyOre(Block block) {
