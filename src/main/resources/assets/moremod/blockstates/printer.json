@@ -18,11 +18,7 @@
         },
         "active": {
             "false": {},
-            "true": {
-                "textures": {
-                    "#m_1888dfa4-2f05-8b41-5567-8608a3e0c856": "moremod:blocks/printer_active"
-                }
-            }
+            "true": {}
         }
     }
 }
