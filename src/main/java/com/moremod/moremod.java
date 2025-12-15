@@ -84,6 +84,7 @@ import com.moremod.tile.TileEntityMegaChest;
 
 import com.moremod.recipe.BottlingMachineRecipe;
 import net.minecraft.item.ItemStack;
+import net.minecraftforge.client.model.obj.OBJLoader;
 import net.minecraftforge.fluids.FluidRegistry;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraft.init.Items;
@@ -225,6 +226,7 @@ public class moremod {
     public void preInit(FMLPreInitializationEvent event) {
         // 初始化兼容性别名
         instance = INSTANCE;
+        OBJLoader.INSTANCE.addDomain("moremod");
 
         System.out.println("[moremod] ========== 开始预初始化 ==========");
 

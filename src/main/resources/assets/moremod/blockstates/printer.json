@@ -1,16 +1,28 @@
 {
     "forge_marker": 1,
     "defaults": {
-        "model": "moremod:3d_printer.obj",
+        "model": "moremod:printer.obj",
         "custom": {
             "flip-v": true
         },
         "textures": {
-            "#m_1888dfa4-2f05-8b41-5567-8608a3e0c856": "moremod:blocks/3d_printer"
+            "#m_1888dfa4-2f05-8b41-5567-8608a3e0c856": "moremod:blocks/printer"
         }
     },
     "variants": {
-        "normal": [{}],
-        "inventory": [{}]
+        "facing": {
+            "north": {},
+            "south": { "y": 180 },
+            "west": { "y": 270 },
+            "east": { "y": 90 }
+        },
+        "active": {
+            "false": {},
+            "true": {
+                "textures": {
+                    "#m_1888dfa4-2f05-8b41-5567-8608a3e0c856": "moremod:blocks/printer_active"
+                }
+            }
+        }
     }
 }
