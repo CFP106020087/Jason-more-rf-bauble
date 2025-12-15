@@ -43,6 +43,9 @@ public class PacketChengYueSkill implements IMessage {
                     ChengYueCapability cap = player.getCapability(ChengYueCapability.CAPABILITY, null);
                     if (cap != null) {
                         cap.activateSkill(message.skillType);
+                        System.out.println("[ChengYue] 客户端收到技能包: skillType=" + message.skillType);
+                    } else {
+                        System.out.println("[ChengYue] 客户端警告: cap 为 null!");
                     }
                 }
             });

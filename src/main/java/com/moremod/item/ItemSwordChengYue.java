@@ -109,13 +109,18 @@ public class ItemSwordChengYue extends ItemSword implements IAnimatable {
             int skillType = attackToggle ? 1 : 2;
             cap.activateSkill(skillType);
 
+            System.out.println("[ChengYue] 服务端触发技能动画: skillType=" + skillType);
+
             // 同步到客户端
             if (player instanceof net.minecraft.entity.player.EntityPlayerMP) {
                 com.moremod.network.NetworkHandler.CHANNEL.sendTo(
                     new com.moremod.network.PacketChengYueSkill(skillType),
                     (net.minecraft.entity.player.EntityPlayerMP) player
                 );
+                System.out.println("[ChengYue] 已发送网络包到客户端");
             }
+        } else {
+            System.out.println("[ChengYue] 警告: cap 为 null!");
         }
     }
 

@@ -30,7 +30,7 @@ public class ChengYueCapability implements INBTSerializable<NBTTagCompound> {
     private boolean skillActive = false;
     private long skillStartTime = 0;
     private int skillType = 0;  // 0=无, 1=attack1, 2=attack2
-    private static final long SKILL_DURATION = 600; // 技能动画持续时间(ms)
+    private static final long SKILL_DURATION = 2000; // 技能动画持续时间(ms) - 增加到2秒便于测试
     
     // ==================== Getter/Setter ====================
     
