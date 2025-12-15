@@ -139,8 +139,13 @@ public class AuxiliaryUpgradeManager {
 
             new Thread(() -> {
                 debug("开始初始化矿物透视系统...");
+
+                // 1. 从矿物词典加载所有矿物（支持所有模组）
                 for (String oreName : OreDictionary.getOreNames()) {
-                    if (oreName.startsWith("ore") && !oreName.contains("Nugget") && !oreName.contains("Block")) {
+                    // 支持所有矿物词典前缀: ore, denseore, poorore, oreNether, oreEnd
+                    if ((oreName.startsWith("ore") || oreName.startsWith("denseore") ||
+                         oreName.startsWith("poorore") || oreName.contains("Ore")) &&
+                        !oreName.contains("Nugget") && !oreName.contains("Block") && !oreName.contains("Storage")) {
                         for (ItemStack ore : OreDictionary.getOres(oreName, false)) {
                             if (ore.getItem() instanceof ItemBlock) {
                                 Block block = ((ItemBlock) ore.getItem()).getBlock();
@@ -151,12 +156,23 @@ public class AuxiliaryUpgradeManager {
                     }
                 }
 
-                int scanned = 0;
+                // 2. 扫描所有注册方块（无数量限制，支持所有模组矿物）
                 for (Block block : ForgeRegistries.BLOCKS) {
-                    if (scanned++ > 1000) break;
                     if (block.getRegistryName() == null) continue;
                     String rn = block.getRegistryName().toString().toLowerCase();
-                    if (rn.contains("ore") && !rn.contains("storage")) {
+                    String path = block.getRegistryName().getPath().toLowerCase();
+
+                    // 检测矿物命名模式: xxx_ore, ore_xxx, xxxore, orexxx
+                    boolean isOreByName = path.endsWith("_ore") || path.startsWith("ore_") ||
+                                          path.endsWith("ore") || path.contains("_ore_") ||
+                                          rn.contains(":ore") || rn.contains("_ore:");
+
+                    // 排除非矿物方块
+                    boolean isExcluded = rn.contains("storage") || rn.contains("block_") ||
+                                        rn.contains("_block") || rn.contains("bricks") ||
+                                        rn.contains("stairs") || rn.contains("slab");
+
+                    if (isOreByName && !isExcluded) {
                         if (isLikelyOre(block)) {
                             ALL_ORE_BLOCKS.add(block);
                             ORE_DISPLAY_NAMES.putIfAbsent(block, extractOreName(rn));
@@ -168,20 +184,57 @@ public class AuxiliaryUpgradeManager {
         }
 
         private static String getOreDisplayName(String oreName, Block block) {
-            if (oreName.startsWith("ore")) {
-                String name = oreName.substring(3).toLowerCase(Locale.ROOT);
-                switch (name) {
-                    case "copper": return "铜";
-                    case "tin": return "锡";
-                    case "silver": return "银";
-                    case "lead": return "铅";
-                    case "aluminum":
-                    case "aluminium": return "铝";
-                    case "nickel": return "镍";
-                    case "platinum": return "铂";
-                    case "uranium": return "铀";
-                    default: return name;
-                }
+            // 提取矿物名称（移除前缀）
+            String name = oreName.toLowerCase(Locale.ROOT);
+            if (name.startsWith("denseore")) name = name.substring(8);
+            else if (name.startsWith("poorore")) name = name.substring(7);
+            else if (name.startsWith("ore")) name = name.substring(3);
+
+            // 常见矿物翻译（支持各种模组）
+            switch (name) {
+                // 基础金属
+                case "copper": return "铜";
+                case "tin": return "锡";
+                case "silver": return "银";
+                case "lead": return "铅";
+                case "aluminum": case "aluminium": case "bauxite": return "铝";
+                case "nickel": return "镍";
+                case "platinum": return "铂";
+                case "uranium": return "铀";
+                case "zinc": return "锌";
+                case "titanium": return "钛";
+                case "tungsten": case "wolframium": return "钨";
+                case "cobalt": return "钴";
+                case "ardite": return "阿迪特";
+                case "osmium": return "锇";
+                case "iridium": return "铱";
+                case "mithril": case "mana": return "秘银";
+                case "adamantine": case "adamantium": return "精金";
+                // 宝石类
+                case "ruby": return "红宝石";
+                case "sapphire": return "蓝宝石";
+                case "peridot": return "橄榄石";
+                case "topaz": return "黄玉";
+                case "amethyst": return "紫水晶";
+                case "apatite": return "磷灰石";
+                case "certusquartz": return "赛特斯石英";
+                case "chargedcertusquartz": return "充能石英";
+                // 魔法/科技模组
+                case "yellorite": case "yellorium": return "黄铀";
+                case "draconium": return "龙矿石";
+                case "inferium": return "下级精华矿";
+                case "prosperity": return "繁荣矿";
+                case "soulium": return "灵魂矿";
+                case "niter": case "saltpeter": return "硝石";
+                case "sulfur": return "硫磺";
+                case "cinnabar": return "朱砂";
+                case "nikolite": case "electrotine": return "蓝石";
+                case "dimensional": case "dimensionalshard": return "维度碎片";
+                // 其他
+                default:
+                    if (!name.isEmpty()) {
+                        return Character.toUpperCase(name.charAt(0)) + name.substring(1);
+                    }
             }
             String rn = String.valueOf(block.getRegistryName());
             return rn.contains(":") ? rn.substring(rn.indexOf(':') + 1) : rn;
