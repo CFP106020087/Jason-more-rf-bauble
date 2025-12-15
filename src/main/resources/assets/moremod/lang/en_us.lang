@@ -153,3 +153,10 @@ tooltip.moremod.processing_time=Processing Time
 tooltip.moremod.unknown_recipe=Unknown Recipe
 tooltip.moremod.no_template_id=No Template ID Set
 tooltip.moremod.template_desc=A generic template for the printer, configure recipes via CraftTweaker
+
+# ===== Structure Capsules =====
+item.structure_capsule_small.name=Small Structure Capsule
+item.structure_capsule_medium.name=Medium Structure Capsule
+item.structure_capsule_large.name=Large Structure Capsule
+item.structure_capsule_huge.name=Huge Structure Capsule
+item.structure_capsule_mega.name=Mega Structure Capsule

@@ -17,7 +17,9 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
 import net.minecraft.init.MobEffects;
 import net.minecraft.init.SoundEvents;
+import net.minecraft.inventory.EntityEquipmentSlot;
 import net.minecraft.item.ItemBlock;
+import net.minecraft.util.EnumHandSide;
 import net.minecraft.item.ItemStack;
 import net.minecraft.potion.PotionEffect;
 import net.minecraft.util.EnumParticleTypes;
@@ -32,6 +34,7 @@ import net.minecraft.world.chunk.Chunk;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.energy.IEnergyStorage;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.event.entity.living.LivingSetAttackTargetEvent;
 import net.minecraftforge.event.entity.player.PlayerPickupXpEvent;
 import net.minecraftforge.event.world.BlockEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -139,8 +142,17 @@ public class AuxiliaryUpgradeManager {
 
             new Thread(() -> {
                 debug("开始初始化矿物透视系统...");
+
+                // 0. 添加特定模组矿物（通过注册名查找）
+                addModOreByName("astralsorcery:blockcustomore", "星辉矿石");
+                addModOreByName("nb:netherite_ore", "下界合金矿");
+
+                // 1. 从矿物词典加载所有矿物（支持所有模组）
                 for (String oreName : OreDictionary.getOreNames()) {
-                    if (oreName.startsWith("ore") && !oreName.contains("Nugget") && !oreName.contains("Block")) {
+                    // 支持所有矿物词典前缀: ore, denseore, poorore, oreNether, oreEnd
+                    if ((oreName.startsWith("ore") || oreName.startsWith("denseore") ||
+                         oreName.startsWith("poorore") || oreName.contains("Ore")) &&
+                        !oreName.contains("Nugget") && !oreName.contains("Block") && !oreName.contains("Storage")) {
                         for (ItemStack ore : OreDictionary.getOres(oreName, false)) {
                             if (ore.getItem() instanceof ItemBlock) {
                                 Block block = ((ItemBlock) ore.getItem()).getBlock();
@@ -151,12 +163,23 @@ public class AuxiliaryUpgradeManager {
                     }
                 }
 
-                int scanned = 0;
+                // 2. 扫描所有注册方块（无数量限制，支持所有模组矿物）
                 for (Block block : ForgeRegistries.BLOCKS) {
-                    if (scanned++ > 1000) break;
                     if (block.getRegistryName() == null) continue;
                     String rn = block.getRegistryName().toString().toLowerCase();
-                    if (rn.contains("ore") && !rn.contains("storage")) {
+                    String path = block.getRegistryName().getPath().toLowerCase();
+
+                    // 检测矿物命名模式: xxx_ore, ore_xxx, xxxore, orexxx
+                    boolean isOreByName = path.endsWith("_ore") || path.startsWith("ore_") ||
+                                          path.endsWith("ore") || path.contains("_ore_") ||
+                                          rn.contains(":ore") || rn.contains("_ore:");
+
+                    // 排除非矿物方块
+                    boolean isExcluded = rn.contains("storage") || rn.contains("block_") ||
+                                        rn.contains("_block") || rn.contains("bricks") ||
+                                        rn.contains("stairs") || rn.contains("slab");
+
+                    if (isOreByName && !isExcluded) {
                         if (isLikelyOre(block)) {
                             ALL_ORE_BLOCKS.add(block);
                             ORE_DISPLAY_NAMES.putIfAbsent(block, extractOreName(rn));
@@ -168,20 +191,57 @@ public class AuxiliaryUpgradeManager {
         }
 
         private static String getOreDisplayName(String oreName, Block block) {
-            if (oreName.startsWith("ore")) {
-                String name = oreName.substring(3).toLowerCase(Locale.ROOT);
-                switch (name) {
-                    case "copper": return "铜";
-                    case "tin": return "锡";
-                    case "silver": return "银";
-                    case "lead": return "铅";
-                    case "aluminum":
-                    case "aluminium": return "铝";
-                    case "nickel": return "镍";
-                    case "platinum": return "铂";
-                    case "uranium": return "铀";
-                    default: return name;
-                }
+            // 提取矿物名称（移除前缀）
+            String name = oreName.toLowerCase(Locale.ROOT);
+            if (name.startsWith("denseore")) name = name.substring(8);
+            else if (name.startsWith("poorore")) name = name.substring(7);
+            else if (name.startsWith("ore")) name = name.substring(3);
+
+            // 常见矿物翻译（支持各种模组）
+            switch (name) {
+                // 基础金属
+                case "copper": return "铜";
+                case "tin": return "锡";
+                case "silver": return "银";
+                case "lead": return "铅";
+                case "aluminum": case "aluminium": case "bauxite": return "铝";
+                case "nickel": return "镍";
+                case "platinum": return "铂";
+                case "uranium": return "铀";
+                case "zinc": return "锌";
+                case "titanium": return "钛";
+                case "tungsten": case "wolframium": return "钨";
+                case "cobalt": return "钴";
+                case "ardite": return "阿迪特";
+                case "osmium": return "锇";
+                case "iridium": return "铱";
+                case "mithril": case "mana": return "秘银";
+                case "adamantine": case "adamantium": return "精金";
+                // 宝石类
+                case "ruby": return "红宝石";
+                case "sapphire": return "蓝宝石";
+                case "peridot": return "橄榄石";
+                case "topaz": return "黄玉";
+                case "amethyst": return "紫水晶";
+                case "apatite": return "磷灰石";
+                case "certusquartz": return "赛特斯石英";
+                case "chargedcertusquartz": return "充能石英";
+                // 魔法/科技模组
+                case "yellorite": case "yellorium": return "黄铀";
+                case "draconium": return "龙矿石";
+                case "inferium": return "下级精华矿";
+                case "prosperity": return "繁荣矿";
+                case "soulium": return "灵魂矿";
+                case "niter": case "saltpeter": return "硝石";
+                case "sulfur": return "硫磺";
+                case "cinnabar": return "朱砂";
+                case "nikolite": case "electrotine": return "蓝石";
+                case "dimensional": case "dimensionalshard": return "维度碎片";
+                // 其他
+                default:
+                    if (!name.isEmpty()) {
+                        return Character.toUpperCase(name.charAt(0)) + name.substring(1);
+                    }
             }
             String rn = String.valueOf(block.getRegistryName());
             return rn.contains(":") ? rn.substring(rn.indexOf(':') + 1) : rn;
@@ -192,6 +252,23 @@ public class AuxiliaryUpgradeManager {
             name = name.replace("_ore", "").replace("ore_", "").replace("ore", "");
             if (!name.isEmpty()) name = Character.toUpperCase(name.charAt(0)) + name.substring(1);
             return name.isEmpty() ? "未知矿物" : name;
+        }
+
+        /**
+         * 通过注册名添加特定模组矿物
+         */
+        private static void addModOreByName(String registryName, String displayName) {
+            try {
+                net.minecraft.util.ResourceLocation rl = new net.minecraft.util.ResourceLocation(registryName);
+                Block block = ForgeRegistries.BLOCKS.getValue(rl);
+                if (block != null && block != Blocks.AIR) {
+                    ALL_ORE_BLOCKS.add(block);
+                    ORE_DISPLAY_NAMES.put(block, displayName);
+                    debug("已添加模组矿物: " + registryName + " -> " + displayName);
+                }
+            } catch (Exception e) {
+                debug("无法添加模组矿物: " + registryName + " - " + e.getMessage());
+            }
         }
 
         private static boolean isLikelyOre(Block block) {
@@ -525,7 +602,7 @@ public class AuxiliaryUpgradeManager {
         }
     }
 
-    // ========================= 隐身系统 =========================
+    // ========================= 隐身系统 (不朽护符同款逻辑) =========================
     public static class StealthSystem {
         private static final boolean DEBUG_MODE_LOCAL = false;
 
@@ -542,6 +619,103 @@ public class AuxiliaryUpgradeManager {
         private static final float CONSECUTIVE_PENALTY = 1.5f;
         private static final long MESSAGE_COOLDOWN_LOCAL = 3000L;
         private static final long CONSECUTIVE_RESET_TIME = 120000L;
+
+        // 清除仇恨范围 (按等级)
+        private static final double[] CLEAR_AGGRO_RANGE = { 16.0, 24.0, 32.0 };
+
+        /**
+         * 阻止敌对生物锁定玩家 - 不朽护符同款逻辑
+         * 当隐身激活时，怪物无法将玩家设为攻击目标
+         */
+        @SubscribeEvent(priority = EventPriority.HIGHEST)
+        public static void onSetAttackTarget(LivingSetAttackTargetEvent event) {
+            // 只处理怪物锁定玩家的情况
+            if (!(event.getTarget() instanceof EntityPlayer)) return;
+            if (event.getEntityLiving() instanceof EntityPlayer) return;
+
+            EntityPlayer targetPlayer = (EntityPlayer) event.getTarget();
+
+            // 检查玩家是否有隐身效果
+            if (!isStealthActive(targetPlayer)) return;
+
+            EntityLivingBase attacker = event.getEntityLiving();
+
+            if (attacker instanceof EntityLiving) {
+                EntityLiving livingAttacker = (EntityLiving) attacker;
+
+                // 清除攻击目标
+                livingAttacker.setAttackTarget(null);
+
+                // 使用假目标替换复仇目标，防止生物继续追踪
+                if (targetPlayer.equals(attacker.getRevengeTarget())) {
+                    attacker.setRevengeTarget(new DummyTarget(attacker.world));
+                }
+
+                // 清除导航路径
+                if (livingAttacker.getNavigator() != null) {
+                    livingAttacker.getNavigator().clearPath();
+                }
+
+                // 让生物看向随机方向
+                livingAttacker.getLookHelper().setLookPosition(
+                        livingAttacker.posX + livingAttacker.world.rand.nextGaussian() * 10,
+                        livingAttacker.posY,
+                        livingAttacker.posZ + livingAttacker.world.rand.nextGaussian() * 10,
+                        10.0F, 10.0F
+                );
+            }
+        }
+
+        /**
+         * 清除玩家周围所有生物的仇恨
+         */
+        public static int clearNearbyAggro(EntityPlayer player, double range) {
+            if (player.world.isRemote) return 0;
+
+            AxisAlignedBB aabb = new AxisAlignedBB(
+                    player.posX - range, player.posY - range, player.posZ - range,
+                    player.posX + range, player.posY + range, player.posZ + range
+            );
+
+            List<EntityLiving> mobs = player.world.getEntitiesWithinAABB(EntityLiving.class, aabb);
+            int affected = 0;
+
+            DummyTarget dummyTarget = new DummyTarget(player.world);
+
+            for (EntityLiving mob : mobs) {
+                // 跳过玩家自身
+                if (mob instanceof EntityPlayer) continue;
+
+                // 检查是否在圆形范围内
+                double distSq = mob.getDistanceSq(player.posX, player.posY, player.posZ);
+                if (distSq > range * range) continue;
+
+                // 清除所有仇恨相关
+                if (mob.getAttackTarget() != null) {
+                    mob.setAttackTarget(null);
+                    affected++;
+                }
+
+                // 使用假目标替换复仇目标
+                mob.setRevengeTarget(dummyTarget);
+                mob.setLastAttackedEntity(null);
+
+                // 清除导航路径
+                if (mob.getNavigator() != null) {
+                    mob.getNavigator().clearPath();
+                }
+
+                // 让生物看向随机方向
+                mob.getLookHelper().setLookPosition(
+                        mob.posX + mob.world.rand.nextGaussian() * 10,
+                        mob.posY,
+                        mob.posZ + mob.world.rand.nextGaussian() * 10,
+                        10.0F, 10.0F
+                );
+            }
+
+            return affected;
+        }
 
         public static void updateStealth(EntityPlayer p, ItemStack core) {
             try {
@@ -580,7 +754,12 @@ public class AuxiliaryUpgradeManager {
                 }
 
                 // 维持效果（每秒）
-                if (p.world.getTotalWorldTime() % 20 == 0) maintainStealthEffects(p, level);
+                if (p.world.getTotalWorldTime() % 20 == 0) {
+                    maintainStealthEffects(p, level);
+                    // 每秒清除一次周围仇恨
+                    double range = CLEAR_AGGRO_RANGE[Math.min(level - 1, 2)];
+                    clearNearbyAggro(p, range);
+                }
 
                 // 高等级粒子
                 if (level >= 3 && p.world.getTotalWorldTime() % 10 == 0 && !p.world.isRemote) spawnStealthParticles(p);
@@ -684,9 +863,14 @@ public class AuxiliaryUpgradeManager {
             if (level >= 2) p.setSilent(true);
             p.addPotionEffect(new PotionEffect(MobEffects.INVISIBILITY, Integer.MAX_VALUE, 0, false, false));
 
+            // 激活时立即清除周围仇恨
+            double range = CLEAR_AGGRO_RANGE[Math.min(level - 1, 2)];
+            int cleared = clearNearbyAggro(p, range);
+
             long dur = DURATION_BY_LEVEL[Math.min(level - 1, 2)];
             int sec = (int) (dur / 1000);
             String msg = getStealthMessage(level) + String.format(" %s(持续%d秒)", TextFormatting.WHITE, sec);
+            if (cleared > 0) msg += String.format(" %s清除%d个仇恨", TextFormatting.AQUA, cleared);
             int uses = consecutiveUses.getOrDefault(id, 0);
             if (uses > 0) msg += String.format(" %s连续×%d", TextFormatting.YELLOW, uses + 1);
             p.sendStatusMessage(new TextComponentString(msg), true);
@@ -775,6 +959,58 @@ public class AuxiliaryUpgradeManager {
             stealthStartTime.clear();
             stealthCooldownEnd.clear();
             consecutiveUses.clear();
+        }
+
+        /**
+         * 假目标实体类 - 用于迷惑敌对生物 (不朽护符同款)
+         */
+        public static class DummyTarget extends EntityLivingBase {
+            public DummyTarget(World world) {
+                super(world);
+                this.setInvisible(true);
+                this.setSize(0.0F, 0.0F);
+                this.setEntityInvulnerable(true);
+                this.isDead = true;
+            }
+
+            @Override
+            public void onUpdate() {
+                this.isDead = true;
+            }
+
+            @Override
+            public boolean isEntityAlive() {
+                return false;
+            }
+
+            @Override
+            public boolean canBeCollidedWith() {
+                return false;
+            }
+
+            @Override
+            public boolean canBePushed() {
+                return false;
+            }
+
+            @Override
+            public ItemStack getItemStackFromSlot(EntityEquipmentSlot slotIn) {
+                return ItemStack.EMPTY;
+            }
+
+            @Override
+            public void setItemStackToSlot(EntityEquipmentSlot slotIn, ItemStack stack) {
+            }
+
+            @Override
+            public Iterable<ItemStack> getArmorInventoryList() {
+                return java.util.Collections.emptyList();
+            }
+
+            @Override
+            public EnumHandSide getPrimaryHand() {
+                return EnumHandSide.RIGHT;
+            }
         }
     }
 

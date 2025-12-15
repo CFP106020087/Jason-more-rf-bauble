@@ -22,8 +22,8 @@ import java.util.List;
 public class ItemOilBucket extends Item {
 
     // 每桶石油的發電量
-    public static final int RF_PER_BUCKET = 100000;  // 100k RF
-    public static final int BURN_TIME = 2000;        // 100秒 (2000 ticks)
+    public static final int RF_PER_BUCKET = 2000000;  // 2M RF
+    public static final int BURN_TIME = 2000;         // 100秒 (2000 ticks) → 1000 RF/tick
 
     public ItemOilBucket() {
         setMaxStackSize(16);
