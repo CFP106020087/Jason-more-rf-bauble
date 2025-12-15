@@ -386,7 +386,8 @@ public class moremod {
                 "weeping_angel",
                 nextEntityId++,        // 2
                 INSTANCE,
-                64, 1, false
+                64, 1, false,
+                0x4A4A4A, 0x1A1A1A    // 刷怪蛋颜色: 灰色/深灰色
         );
 
         EntityRegistry.registerModEntity(
@@ -395,7 +396,8 @@ public class moremod {
                 "curse_knight",
                 nextEntityId++,        // 3
                 INSTANCE,
-                64, 1, false
+                64, 1, false,
+                0x2D1B1B, 0x8B0000    // 刷怪蛋颜色: 深棕红色/暗红色
         );
 
         EntityRegistry.registerModEntity(
