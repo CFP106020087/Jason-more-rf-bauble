@@ -1,6 +1,7 @@
 package com.moremod.mixin.enchant;
 
 import com.moremod.config.ModConfig;
+import com.moremod.sponsor.item.ZhuxianSword;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.enchantment.EnchantmentData;
 import net.minecraft.enchantment.EnchantmentHelper;
@@ -223,5 +224,34 @@ public abstract class MixinContainerEnchantment {
         world.playEvent(1030, position, 0);
         cir.setReturnValue(true);
         cir.cancel();
+    }
+
+    /**
+     * 诛仙剑-为天地立心：附魔消耗减少20%
+     * 在附魔完成后返还20%经验
+     */
+    @Inject(method = {"enchantItem","func_75140_a"}, at = @At("RETURN"))
+    private void moremod$zhuxianEnchantXpReduce(EntityPlayer player, int id, CallbackInfoReturnable<Boolean> cir) {
+        if (world.isRemote) return;
+        if (!cir.getReturnValue()) return; // 附魔失败不处理
+        if (id < 0 || id >= 3) return;
+
+        // 检查是否激活"为天地立心"技能且单手持剑
+        try {
+            if (ZhuxianSword.isPlayerSkillActive(player, ZhuxianSword.NBT_SKILL_TIANXIN)) {
+                if (player.getHeldItemOffhand().isEmpty()) {
+                    // 返还20%经验（约等于-20%消耗）
+                    // 原版消耗是 id+1 级 (1/2/3)，高级附魔也是 id+1
+                    int baseCost = id + 1;
+                    int refund = Math.max(1, (int)(baseCost * 0.2f));
+
+                    // 直接添加经验值（而非等级）
+                    int xpToAdd = refund * 17; // 大约每级17点经验
+                    player.addExperience(xpToAdd);
+                }
+            }
+        } catch (Throwable ignored) {
+            // ZhuxianSword可能未加载，忽略
+        }
     }
 }

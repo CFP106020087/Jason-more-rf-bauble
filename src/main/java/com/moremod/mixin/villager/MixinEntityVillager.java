@@ -4,6 +4,7 @@ import com.moremod.item.MerchantPersuader;
 import com.moremod.util.TradeDiscountHelper;
 import com.moremod.system.humanity.HumanitySpectrumSystem;
 import com.moremod.system.humanity.HumanityEffectsManager;
+import com.moremod.sponsor.item.ZhuxianSword;
 import net.minecraft.entity.passive.EntityVillager;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
@@ -39,6 +40,12 @@ public abstract class MixinEntityVillager {
 
     @Unique
     private EntityPlayer lastInteractingPlayer = null;
+
+    // ========== 诛仙剑-为生民立命折扣 ==========
+    @Unique
+    private boolean hasZhuxianDiscount = false;
+    @Unique
+    private static final double ZHUXIAN_DISCOUNT_RATE = 0.3; // 30%折扣
 
     // 🔒 防止人性值折扣重复叠加 - NBT标签
     @Unique
@@ -78,6 +85,23 @@ public abstract class MixinEntityVillager {
                             moremod$markHumanityDiscountApplied(villager, player, priceMultiplier);
                         }
                     }
+                }
+            }
+
+            // ========== 诛仙剑-为生民立命折扣 ==========
+            if (ZhuxianSword.isPlayerSkillActive(player, ZhuxianSword.NBT_SKILL_LIMING)) {
+                if (!hasZhuxianDiscount) {
+                    hasZhuxianDiscount = true;
+                    MerchantRecipeList recipes = villager.getRecipes(player);
+                    if (recipes != null) {
+                        for (MerchantRecipe recipe : recipes) {
+                            TradeDiscountHelper.applyDiscount(recipe, ZHUXIAN_DISCOUNT_RATE, TradeDiscountHelper.DiscountSource.HUMANITY);
+                        }
+                    }
+                    // 播放效果
+                    villager.world.playSound(null, villager.posX, villager.posY, villager.posZ,
+                            net.minecraft.init.SoundEvents.ENTITY_VILLAGER_YES,
+                            villager.getSoundCategory(), 1.0F, 1.5F);
                 }
             }
 

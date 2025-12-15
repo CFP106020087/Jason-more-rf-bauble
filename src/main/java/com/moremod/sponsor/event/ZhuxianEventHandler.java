@@ -1,6 +1,7 @@
 package com.moremod.sponsor.event;
 
 import com.moremod.sponsor.item.ZhuxianSword;
+import com.moremod.util.ThirstHelper;
 import com.moremod.util.combat.TrueDamageHelper;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.EntityLivingBase;
@@ -12,9 +13,11 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.potion.PotionEffect;
 import net.minecraft.util.math.AxisAlignedBB;
+import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
+import net.minecraft.world.WorldServer;
 import net.minecraftforge.event.entity.living.*;
 import net.minecraftforge.event.entity.player.PlayerPickupXpEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -287,9 +290,15 @@ public class ZhuxianEventHandler {
 
     /**
      * 太平领域：敌对生物停止攻击
+     * 参考香巴拉圣域实现，添加粒子效果和完整的和平效果
      */
     private static void processTaipingDomain(EntityPlayer player, World world) {
         double range = 5.0;
+
+        // 太平领域粒子效果（每秒一次）
+        if (world instanceof WorldServer && world.getTotalWorldTime() % 20 == 0) {
+            spawnTaipingParticles(player, (WorldServer) world, range);
+        }
 
         List<EntityLiving> entities = world.getEntitiesWithinAABB(EntityLiving.class,
             player.getEntityBoundingBox().grow(range));
@@ -307,28 +316,56 @@ public class ZhuxianEventHandler {
                     mob.getNavigator().clearPath();
                 }
 
-                // 添加缓慢效果
+                // 添加缓慢效果（10级缓慢=完全停止）
                 mob.addPotionEffect(new PotionEffect(MobEffects.SLOWNESS, 40, 9));
+
+                // 添加失明效果使其无法定位玩家
+                mob.addPotionEffect(new PotionEffect(MobEffects.BLINDNESS, 40, 0));
             }
         }
 
-        // 尝试恢复SimpleDifficulty口渴值
+        // 恢复饥饿值
+        if (player.getFoodStats().getFoodLevel() < 20) {
+            player.getFoodStats().addStats(1, 0.5f);
+        }
+
+        // 恢复SimpleDifficulty口渴值
         tryRefillThirst(player);
     }
 
     /**
-     * 尝试恢复SimpleDifficulty口渴值
+     * 生成太平领域粒子效果（参考香巴拉圣域）
+     * 画圆形光环边界
+     */
+    private static void spawnTaipingParticles(EntityPlayer player, WorldServer world, double range) {
+        // 画圆形边界 - 使用END_ROD粒子（淡蓝色发光）
+        for (int i = 0; i < 24; i++) {
+            double angle = (i / 24.0) * Math.PI * 2;
+            double x = player.posX + Math.cos(angle) * range;
+            double z = player.posZ + Math.sin(angle) * range;
+
+            // 底部光环
+            world.spawnParticle(EnumParticleTypes.END_ROD, x, player.posY + 0.1, z,
+                    1, 0, 0.05, 0, 0.01);
+
+            // 顶部光环（半高）
+            world.spawnParticle(EnumParticleTypes.END_ROD, x, player.posY + 1.5, z,
+                    1, 0, 0.05, 0, 0.01);
+        }
+
+        // 中心光柱效果
+        for (int i = 0; i < 4; i++) {
+            world.spawnParticle(EnumParticleTypes.PORTAL, player.posX, player.posY + 0.5 + i * 0.5, player.posZ,
+                    3, 0.2, 0.2, 0.2, 0.05);
+        }
+    }
+
+    /**
+     * 恢复SimpleDifficulty口渴值（为万世开太平效果）
      */
     private static void tryRefillThirst(EntityPlayer player) {
-        try {
-            // 尝试通过反射调用SimpleDifficulty
-            Class<?> thirstClass = Class.forName("com.charles445.simpledifficulty.api.SDCapabilities");
-            // 具体实现取决于SimpleDifficulty的API
-        } catch (ClassNotFoundException e) {
-            // SimpleDifficulty未安装，忽略
-        } catch (Exception e) {
-            // 其他错误，忽略
-        }
+        // 使用现有的 ThirstHelper 完全恢复口渴值
+        ThirstHelper.fullyRestoreThirst(player);
     }
 
     /**
