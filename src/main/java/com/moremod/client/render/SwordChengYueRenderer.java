@@ -132,22 +132,28 @@ public class SwordChengYueRenderer extends GeoItemRenderer<ItemSwordChengYue> {
 
     /**
      * 技能模式渲染变换（双手拔刀动画）
-     * 使用 ChengYueDebugKey 的调试偏移量
+     * 使用 ChengYueDebugKey 的调试参数
      */
     private void renderSkillMode(ItemCameraTransforms.TransformType transformType) {
-        // 从调试类读取偏移量
+        // 从调试类读取参数
         float ox = com.moremod.client.debug.ChengYueDebugKey.offsetX;
         float oy = com.moremod.client.debug.ChengYueDebugKey.offsetY;
         float oz = com.moremod.client.debug.ChengYueDebugKey.offsetZ;
+        float rx = com.moremod.client.debug.ChengYueDebugKey.rotateX;
+        float ry = com.moremod.client.debug.ChengYueDebugKey.rotateY;
+        float rz = com.moremod.client.debug.ChengYueDebugKey.rotateZ;
         float sc = com.moremod.client.debug.ChengYueDebugKey.scale;
 
         if (transformType != null) {
             switch (transformType) {
                 case FIRST_PERSON_RIGHT_HAND:
                 case FIRST_PERSON_LEFT_HAND:
-                    // 第一人称：显示双手持剑
+                    // 第一人称
                     GlStateManager.translate(0.5, 0.5, 0.5);
                     GlStateManager.scale(sc, sc, sc);
+                    GlStateManager.rotate(rx, 1, 0, 0);
+                    GlStateManager.rotate(ry, 0, 1, 0);
+                    GlStateManager.rotate(rz, 0, 0, 1);
                     GlStateManager.translate(ox, oy, oz);
                     break;
 
@@ -156,6 +162,9 @@ public class SwordChengYueRenderer extends GeoItemRenderer<ItemSwordChengYue> {
                     // 第三人称
                     GlStateManager.translate(0.5, 0.8, 0.5);
                     GlStateManager.scale(sc * 0.8f, sc * 0.8f, sc * 0.8f);
+                    GlStateManager.rotate(rx, 1, 0, 0);
+                    GlStateManager.rotate(ry, 0, 1, 0);
+                    GlStateManager.rotate(rz, 0, 0, 1);
                     GlStateManager.translate(ox, oy, oz);
                     break;
 
@@ -163,6 +172,9 @@ public class SwordChengYueRenderer extends GeoItemRenderer<ItemSwordChengYue> {
                     // GUI 等其他模式
                     GlStateManager.translate(0.5, 0.5, 0.5);
                     GlStateManager.scale(sc * 0.5f, sc * 0.5f, sc * 0.5f);
+                    GlStateManager.rotate(rx, 1, 0, 0);
+                    GlStateManager.rotate(ry, 0, 1, 0);
+                    GlStateManager.rotate(rz, 0, 0, 1);
                     GlStateManager.translate(ox, oy, oz);
                     break;
             }
