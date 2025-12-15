@@ -29,8 +29,7 @@ import javax.annotation.Nullable;
 /**
  * 打印机核心方块
  *
- * 多方块结构的核心，负责打印物品
- * 使用 GeckoLib 渲染动画
+ * 单方块机器，使用TESR渲染动画模型
  */
 public class BlockPrinter extends Block implements ITileEntityProvider {
 
@@ -55,7 +54,6 @@ public class BlockPrinter extends Block implements ITileEntityProvider {
         if (!world.isRemote) {
             TileEntity te = world.getTileEntity(pos);
             if (te instanceof TileEntityPrinter) {
-                // 单方块机器，直接打开GUI
                 player.openGui(moremod.instance, GuiHandler.PRINTER_GUI, world, pos.getX(), pos.getY(), pos.getZ());
             }
         }
@@ -114,6 +112,8 @@ public class BlockPrinter extends Block implements ITileEntityProvider {
         super.breakBlock(world, pos, state);
     }
 
+    // ===== TESR渲染配置 =====
+
     @Override
     public boolean isOpaqueCube(IBlockState state) {
         return false;
@@ -125,32 +125,27 @@ public class BlockPrinter extends Block implements ITileEntityProvider {
     }
 
     /**
-     * 使用标准方块模型渲染 (OBJ)
+     * 使用ENTITYBLOCK_ANIMATED让TESR渲染
+     * 方块本身不渲染任何东西，全部由TileEntityRendererPrinter处理
      */
     @Override
     public EnumBlockRenderType getRenderType(IBlockState state) {
-        return EnumBlockRenderType.MODEL;
+        return EnumBlockRenderType.ENTITYBLOCK_ANIMATED;
     }
 
-    /**
-     * 渲染层 - 使用 CUTOUT 以支持透明
-     */
     @Override
     @SideOnly(Side.CLIENT)
     public BlockRenderLayer getRenderLayer() {
         return BlockRenderLayer.CUTOUT;
     }
 
-    /**
-     * 碰撞箱 - 完整方块
-     */
     @Override
     public AxisAlignedBB getBoundingBox(IBlockState state, IBlockAccess source, BlockPos pos) {
         return FULL_BLOCK_AABB;
     }
 
     /**
-     * 设置激活状态（用于动画）
+     * 设置激活状态
      */
     public static void setActive(World world, BlockPos pos, boolean active) {
         IBlockState state = world.getBlockState(pos);

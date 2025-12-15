@@ -26,6 +26,7 @@ import com.moremod.item.ItemSwordChengYue;
 // ✨ 新增导入：锯刃剑渲染层
 import com.moremod.item.sawblade.client.BloodEuphoriaRenderer;
 import com.moremod.moremod;
+import com.moremod.printer.TileEntityPrinter;
 import com.moremod.sponsor.client.SponsorKeyBindings;
 import com.moremod.network.PacketHandler;
 import com.moremod.network.PacketSyncRejectionData;
@@ -69,7 +70,7 @@ public class ClientProxy extends CommonProxy {
     @Override
     public void preInit(FMLPreInitializationEvent event) {
         super.preInit(event);
-
+        ClientRegistry.bindTileEntitySpecialRenderer(TileEntityPrinter.class, new TileEntityRendererPrinter());
         MinecraftForge.EVENT_BUS.register(new EventHUDOverlay());
 
         // 注册 OBJLoader 域名
