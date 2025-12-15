@@ -19,8 +19,8 @@ public class IntelDataHelper {
     // 每种生物的最大情报等级 (防止无限堆叠)
     public static final int MAX_INTEL_LEVEL = 90;
 
-    // 最大伤害倍率上限 (10x = +900%)
-    public static final float MAX_DAMAGE_MULTIPLIER = 10.0f;
+    // 最大伤害倍率上限 (30x = +2900%，原10x的3倍)
+    public static final float MAX_DAMAGE_MULTIPLIER = 30.0f;
 
     /**
      * 获取玩家对特定生物的情报等级
