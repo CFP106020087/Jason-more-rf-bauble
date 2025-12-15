@@ -151,7 +151,7 @@ public class TileEntityOilGenerator extends TileEntity implements ITickable {
     }
 
     // 液體燃料槽（支持管道輸入）
-    private static final int FLUID_CAPACITY = 16000; // 16桶
+    private static final int FLUID_CAPACITY = 64000; // 64桶
     private final FluidTank fluidTank = new FluidTank(FLUID_CAPACITY) {
         @Override
         public int fill(FluidStack resource, boolean doFill) {
@@ -241,22 +241,24 @@ public class TileEntityOilGenerator extends TileEntity implements ITickable {
 
         // 如果正在燃燒
         if (burnTime > 0) {
-            burnTime--;
-
-            // 產生能量（使用內部添加方法，考慮速度倍率）
+            // 只有當能量未滿時才消耗燃料並產生能量（防止燃料浪費）
             if (energy.getEnergyStored() < energy.getMaxEnergyStored()) {
+                burnTime--;
+
+                // 產生能量（使用內部添加方法，考慮速度倍率）
                 float speedMultiplier = getSpeedMultiplier();
                 int actualRFPerTick = (int)(currentRFPerTick * speedMultiplier);
                 int toAdd = Math.min(actualRFPerTick, energy.getMaxEnergyStored() - energy.getEnergyStored());
                 energy.addEnergyInternal(toAdd);
                 markDirty();
-            }
 
-            // 粒子效果（更多插件=更多粒子）
-            int particleInterval = Math.max(3, 10 - (int)(getSpeedMultiplier() * 2));
-            if (tickCounter % particleInterval == 0) {
-                spawnBurningParticles();
+                // 粒子效果（更多插件=更多粒子）
+                int particleInterval = Math.max(3, 10 - (int)(getSpeedMultiplier() * 2));
+                if (tickCounter % particleInterval == 0) {
+                    spawnBurningParticles();
+                }
             }
+            // 能量滿時暫停燃燒，保持燃料不浪費
         }
 
         // 嘗試消耗新燃料
