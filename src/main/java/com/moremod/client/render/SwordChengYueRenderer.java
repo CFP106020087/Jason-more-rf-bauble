@@ -135,28 +135,31 @@ public class SwordChengYueRenderer extends GeoItemRenderer<ItemSwordChengYue> {
      */
     private void renderSkillMode(ItemCameraTransforms.TransformType transformType) {
         // 技能模式使用不同的基础变换，适配新的 moon_sword 模型
-        GlStateManager.translate(0.5, 0.5, 0.5);
+        // 模型枢轴点约在 (0, 20, -20)，需要相应调整
 
         if (transformType != null) {
             switch (transformType) {
                 case FIRST_PERSON_RIGHT_HAND:
                 case FIRST_PERSON_LEFT_HAND:
                     // 第一人称：显示双手持剑
-                    GlStateManager.translate(0, 0.5, -0.5);
-                    GlStateManager.scale(0.03f, 0.03f, 0.03f);
+                    GlStateManager.translate(0.5, 1.5, 0.5);
+                    GlStateManager.scale(0.04f, 0.04f, 0.04f);
                     GlStateManager.rotate(180f, 0.0f, 1.0f, 0.0f);
+                    GlStateManager.translate(0, -20, 10); // 补偿模型枢轴点偏移
                     break;
 
                 case THIRD_PERSON_RIGHT_HAND:
                 case THIRD_PERSON_LEFT_HAND:
                     // 第三人称
-                    GlStateManager.translate(0, 0, -0.3);
-                    GlStateManager.scale(0.025f, 0.025f, 0.025f);
+                    GlStateManager.translate(0.5, 1.2, 0.5);
+                    GlStateManager.scale(0.035f, 0.035f, 0.035f);
                     GlStateManager.rotate(180f, 0.0f, 1.0f, 0.0f);
+                    GlStateManager.translate(0, -20, 10);
                     break;
 
                 default:
-                    // GUI 等其他模式不应该显示技能模型
+                    // GUI 等其他模式
+                    GlStateManager.translate(0.5, 0.5, 0.5);
                     GlStateManager.scale(0.02f, 0.02f, 0.02f);
                     break;
             }
