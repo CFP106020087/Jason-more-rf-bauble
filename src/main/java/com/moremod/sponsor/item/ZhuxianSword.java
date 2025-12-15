@@ -594,17 +594,22 @@ public class ZhuxianSword extends ItemSword {
         // 应用真伤
         TrueDamageHelper.applyWrappedTrueDamage(target, player, damage, TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE);
 
-        // 范围伤害
-        if (hasAoe(stack)) {
-            float aoeDamage = damage * 0.5f; // 范围伤害为50%
-            dealAoeTrueDamage(player, target, 5.0, aoeDamage);
-        }
-
-        // 绝仙形态：20%最大生命流血
-        if (form == SwordForm.JUEXIAN) {
-            // 流血效果在事件处理器中实现
+        // 诛仙形态：真伤流血（20%最大生命，5秒）
+        if (form == SwordForm.ZHUXIAN && isSkillActive(stack, NBT_SKILL_LIMING)) {
             target.getEntityData().setBoolean("ZhuxianBleeding", true);
             target.getEntityData().setLong("ZhuxianBleedEndTime", player.world.getTotalWorldTime() + 100);
+        }
+
+        // 戮仙形态：范围真伤打击（攻击时周围8格敌人受到50%真伤）
+        if (form == SwordForm.LUXIAN && isSkillActive(stack, NBT_SKILL_JUEXUE)) {
+            float aoeDamage = damage * 0.5f;
+            dealAoeTrueDamage(player, target, 8.0, aoeDamage);
+        }
+
+        // 其他形态的范围伤害
+        if (form != SwordForm.LUXIAN && hasAoe(stack)) {
+            float aoeDamage = damage * 0.5f;
+            dealAoeTrueDamage(player, target, 5.0, aoeDamage);
         }
 
         // 应用BUFF给玩家
@@ -747,26 +752,24 @@ public class ZhuxianSword extends ItemSword {
                 tooltip.add(TextFormatting.GRAY + "  - 击杀获得力量II+急迫III");
                 tooltip.add(TextFormatting.GRAY + "  - 每10击杀+1伤害(最高40)");
                 tooltip.add(TextFormatting.GRAY + "  - 无视无敌帧，真实伤害");
-                tooltip.add(TextFormatting.GREEN + "  ◇ 为生民立命: " + TextFormatting.WHITE + "锁血20%不死");
+                tooltip.add(TextFormatting.GREEN + "  ◇ 为生民立命: " + TextFormatting.WHITE + "锁血20%不死 + 真伤流血");
                 tooltip.add(skillFormStatus(stack, form));
                 break;
             case LUXIAN:
                 tooltip.add(TextFormatting.GRAY + "  - 获得急迫IX+力量V");
-                tooltip.add(TextFormatting.GRAY + "  - 每10击杀解锁范围伤害");
                 tooltip.add(TextFormatting.GRAY + "  - 无视无敌帧，真实伤害");
-                tooltip.add(TextFormatting.GREEN + "  ◇ 为往圣继绝学: " + TextFormatting.WHITE + "村民附近敌人5%/秒真伤");
+                tooltip.add(TextFormatting.GREEN + "  ◇ 为往圣继绝学: " + TextFormatting.WHITE + "攻击时8格范围50%真伤");
                 tooltip.add(skillFormStatus(stack, form));
                 break;
             case XIANXIAN:
                 tooltip.add(TextFormatting.GRAY + "  - 每次攻击造成范围伤害");
                 tooltip.add(TextFormatting.GRAY + "  - 获得力量XV+急迫IX+抗性IV");
                 tooltip.add(TextFormatting.GRAY + "  - 击杀获得免疫一次伤害");
-                tooltip.add(TextFormatting.GREEN + "  ◇ 为万世开太平: " + TextFormatting.WHITE + "太平领域+村民保护/打折");
+                tooltip.add(TextFormatting.GREEN + "  ◇ 为万世开太平: " + TextFormatting.WHITE + "和平领域+怪物混乱+村民保护");
                 tooltip.add(skillFormStatus(stack, form));
                 break;
             case JUEXIAN:
                 tooltip.add(TextFormatting.GRAY + "  - 可切换武器类型(右键)");
-                tooltip.add(TextFormatting.GRAY + "  - 20%最大生命流血");
                 tooltip.add(TextFormatting.GRAY + "  - 800%暴击伤害");
                 tooltip.add(TextFormatting.GRAY + "  - 免疫所有负面效果");
                 tooltip.add(TextFormatting.GREEN + "  ◇ 诛仙剑阵: " + TextFormatting.WHITE + "雷击+999999真伤(除村民)");
@@ -775,7 +778,7 @@ public class ZhuxianSword extends ItemSword {
             case GUIXU:
                 tooltip.add(TextFormatting.GRAY + "  - 免疫所有负面效果");
                 tooltip.add(TextFormatting.GRAY + "  - 万物归于虚无");
-                tooltip.add(TextFormatting.DARK_RED + "  ◇ 归墟灭世: " + TextFormatting.WHITE + "灰烬化周围生物(化为灰烬)");
+                tooltip.add(TextFormatting.DARK_RED + "  ◇ 归墟灭世: " + TextFormatting.WHITE + "60格灰烬化(掉落灰烬)");
                 tooltip.add(TextFormatting.GRAY + "    状态: " + (isFormationActive(stack) ? TextFormatting.GREEN + "开启" : TextFormatting.RED + "关闭"));
                 break;
         }
