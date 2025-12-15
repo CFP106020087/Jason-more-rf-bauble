@@ -1,5 +1,6 @@
 package com.moremod.sponsor.event;
 
+import com.moremod.accessorybox.EarlyConfigLoader;
 import com.moremod.sponsor.item.ZhuxianSword;
 import com.moremod.util.ThirstHelper;
 import com.moremod.util.combat.TrueDamageHelper;
@@ -48,6 +49,14 @@ public class ZhuxianEventHandler {
     // 防止重复处理
     private static final Set<Integer> PROCESSING_KILLS = new HashSet<>();
 
+    /**
+     * 快速检查诛仙剑是否启用
+     * 用于所有事件处理器的早期返回
+     */
+    private static boolean isZhuxianEnabled() {
+        return EarlyConfigLoader.isZhuxianSwordEnabled();
+    }
+
     // ==================== 击杀处理 ====================
 
     /**
@@ -55,6 +64,7 @@ public class ZhuxianEventHandler {
      */
     @SubscribeEvent(priority = EventPriority.HIGH)
     public static void onEntityDeath(LivingDeathEvent event) {
+        if (!isZhuxianEnabled()) return; // 配置关闭则跳过
         if (event.getSource() == null) return;
         if (!(event.getSource().getTrueSource() instanceof EntityPlayer)) return;
 
@@ -112,6 +122,7 @@ public class ZhuxianEventHandler {
      */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onPlayerAttacked(LivingAttackEvent event) {
+        if (!isZhuxianEnabled()) return;
         if (!(event.getEntityLiving() instanceof EntityPlayer)) return;
 
         EntityPlayer player = (EntityPlayer) event.getEntityLiving();
@@ -159,6 +170,7 @@ public class ZhuxianEventHandler {
      */
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onPlayerHurt(LivingHurtEvent event) {
+        if (!isZhuxianEnabled()) return;
         if (!(event.getEntityLiving() instanceof EntityPlayer)) return;
 
         EntityPlayer player = (EntityPlayer) event.getEntityLiving();
@@ -183,6 +195,7 @@ public class ZhuxianEventHandler {
      */
     @SubscribeEvent
     public static void onPlayerPickupXp(PlayerPickupXpEvent event) {
+        if (!isZhuxianEnabled()) return;
         EntityPlayer player = event.getEntityPlayer();
         if (player.world.isRemote) return;
 
@@ -208,6 +221,7 @@ public class ZhuxianEventHandler {
      */
     @SubscribeEvent
     public static void onWorldTick(TickEvent.WorldTickEvent event) {
+        if (!isZhuxianEnabled()) return;
         if (event.phase != TickEvent.Phase.END) return;
         if (event.world.isRemote) return;
 
@@ -397,6 +411,7 @@ public class ZhuxianEventHandler {
      */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onVillagerAttacked(LivingAttackEvent event) {
+        if (!isZhuxianEnabled()) return;
         if (!(event.getEntityLiving() instanceof EntityVillager)) return;
 
         EntityVillager villager = (EntityVillager) event.getEntityLiving();
@@ -411,6 +426,7 @@ public class ZhuxianEventHandler {
      */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onSetTarget(LivingSetAttackTargetEvent event) {
+        if (!isZhuxianEnabled()) return;
         if (!(event.getTarget() instanceof EntityVillager)) return;
 
         EntityVillager villager = (EntityVillager) event.getTarget();

@@ -77,8 +77,13 @@ public class SponsorItems {
 
         // ========== 赞助者武器 ==========
         if (SponsorConfig.isWeaponsEnabled()) {
-            // 诛仙四剑
-            ZHUXIAN_SWORD = newSafe(ZhuxianSword::new, "zhuxian_sword");
+            // 诛仙四剑 - 使用独立开关
+            if (SponsorConfig.isZhuxianSwordEnabled()) {
+                ZHUXIAN_SWORD = newSafe(ZhuxianSword::new, "zhuxian_sword");
+                System.out.println("[moremod] 诛仙剑已注册");
+            } else {
+                System.out.println("[moremod] 诛仙剑已禁用（配置关闭）");
+            }
         }
 
         // 示例：赞助者盔甲

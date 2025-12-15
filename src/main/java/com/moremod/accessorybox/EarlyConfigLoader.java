@@ -12,7 +12,7 @@ public class EarlyConfigLoader {
 
     private static boolean loaded = false;
 
-    // 配置值
+    // 配置值 - 饰品槽位
     public static boolean enableExtraSlots = true;
     public static int extraAmulets = 0;
     public static int extraRings = 0;
@@ -21,6 +21,10 @@ public class EarlyConfigLoader {
     public static int extraBodies = 0;
     public static int extraCharms = 0;
     public static int extraTrinkets = 0;
+
+    // 配置值 - 赞助者武器
+    public static boolean enableSponsorWeapons = true;  // 总开关
+    public static boolean enableZhuxianSword = true;    // 诛仙剑开关
 
     /**
      * 早期加载配置
@@ -138,6 +142,15 @@ public class EarlyConfigLoader {
                     extraTrinkets = parseInt(line);
                     System.out.println("[EarlyConfigLoader] 解析: extraTrinkets = " + extraTrinkets);
                 }
+                // ========== 赞助者武器配置 ==========
+                else if (line.contains("赞助者武器") || line.contains("Sponsor Weapons") || line.contains("enableSponsorWeapons")) {
+                    enableSponsorWeapons = parseBoolean(line);
+                    System.out.println("[EarlyConfigLoader] 解析: enableSponsorWeapons = " + enableSponsorWeapons);
+                }
+                else if (line.contains("诛仙剑") || line.contains("Zhuxian Sword") || line.contains("enableZhuxianSword")) {
+                    enableZhuxianSword = parseBoolean(line);
+                    System.out.println("[EarlyConfigLoader] 解析: enableZhuxianSword = " + enableZhuxianSword);
+                }
             }
         }
 
@@ -186,7 +199,17 @@ public class EarlyConfigLoader {
         System.out.println("[EarlyConfigLoader]   挂饰: " + extraCharms);
         System.out.println("[EarlyConfigLoader]   万能: " + extraTrinkets);
         System.out.println("[EarlyConfigLoader]   总计: " + getTotalExtraSlots());
+        System.out.println("[EarlyConfigLoader] --- 赞助者武器 ---");
+        System.out.println("[EarlyConfigLoader]   赞助者武器总开关: " + enableSponsorWeapons);
+        System.out.println("[EarlyConfigLoader]   诛仙剑: " + enableZhuxianSword);
         System.out.println("[EarlyConfigLoader] ========================================");
+    }
+
+    /**
+     * 检查诛仙剑是否启用（总开关 && 单独开关）
+     */
+    public static boolean isZhuxianSwordEnabled() {
+        return enableSponsorWeapons && enableZhuxianSword;
     }
 
     /**

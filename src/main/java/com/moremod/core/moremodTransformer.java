@@ -27,8 +27,9 @@ public class moremodTransformer implements IClassTransformer {
     private static final boolean ENABLE_TEMPORAL_DEATH      = true;  // 时序织印死亡回溯
     private static final boolean ENABLE_CURSE_DEATH         = true;  // 七咒之戒-虚无之眸死亡保护
     private static final boolean ENABLE_GLITCH_ARMOR_DEATH  = true;  // 故障盔甲NULL异常
-    private static final boolean ENABLE_ZHUXIAN_DEATH       = true;  // 诛仙剑-为生民立命锁血
-    private static final boolean ENABLE_ZHUXIAN_VILLAGER    = true;  // 诛仙剑-为生民立命村民无敌(ASM)
+    // 诛仙剑ASM开关 - 从配置动态读取
+    private static boolean ENABLE_ZHUXIAN_DEATH = true;      // 诛仙剑-为生民立命锁血
+    private static boolean ENABLE_ZHUXIAN_VILLAGER = true;   // 诛仙剑-为生民立命村民无敌(ASM)
     public static final boolean ENABLE_RS_INFINITY_BOOSTER = true;
 
     public static Side side;
@@ -39,6 +40,11 @@ public class moremodTransformer implements IClassTransformer {
 
         // ⭐ 早期加载配置（在任何转换前）
         EarlyConfigLoader.loadEarly();
+
+        // ⭐ 从配置读取诛仙剑ASM开关
+        ENABLE_ZHUXIAN_DEATH = EarlyConfigLoader.isZhuxianSwordEnabled();
+        ENABLE_ZHUXIAN_VILLAGER = EarlyConfigLoader.isZhuxianSwordEnabled();
+        System.out.println("[moremodTransformer] Zhuxian ASM enabled: " + ENABLE_ZHUXIAN_DEATH);
     }
 
     @Override
