@@ -57,17 +57,28 @@ public class GeologicalResonatorHandler implements IModuleEventHandler {
         }
 
         // 添加特殊可提取方块（非标准矿物词典）
-        // Astral Sorcery
+        // Astral Sorcery - 各种可能的注册名
         SPECIAL_VALUABLE_BLOCKS.add("astralsorcery:blockcustomore");
         SPECIAL_VALUABLE_BLOCKS.add("astralsorcery:blockcelestialcrystals");
         SPECIAL_VALUABLE_BLOCKS.add("astralsorcery:celestialcrystals");
         SPECIAL_VALUABLE_BLOCKS.add("astralsorcery:blockcollectorcrystal");
         SPECIAL_VALUABLE_BLOCKS.add("astralsorcery:blockcelestialcollectorcrystal");
-        // NetherBound
+        SPECIAL_VALUABLE_BLOCKS.add("astralsorcery:blockcelestialcrystalcluster");
+        SPECIAL_VALUABLE_BLOCKS.add("astralsorcery:celestialcrystalcluster");
+        SPECIAL_VALUABLE_BLOCKS.add("astralsorcery:block_celestial_crystals");
+        SPECIAL_VALUABLE_BLOCKS.add("astralsorcery:celestial_crystals");
+        SPECIAL_VALUABLE_BLOCKS.add("astralsorcery:rockcrystalore");
+        SPECIAL_VALUABLE_BLOCKS.add("astralsorcery:rock_crystal_ore");
+        // NetherBound - 各种可能的注册名
         SPECIAL_VALUABLE_BLOCKS.add("nb:netherite_ore");
         SPECIAL_VALUABLE_BLOCKS.add("nb:ancient_debris");
-        // 原版 (1.16+ backport)
+        SPECIAL_VALUABLE_BLOCKS.add("nb:nether_gold_ore");
+        SPECIAL_VALUABLE_BLOCKS.add("nb:quartz_ore");
+        // Future MC / 其他 1.16 backport 模组
         SPECIAL_VALUABLE_BLOCKS.add("minecraft:ancient_debris");
+        SPECIAL_VALUABLE_BLOCKS.add("futuremc:ancient_debris");
+        SPECIAL_VALUABLE_BLOCKS.add("nether_backport:ancient_debris");
+        SPECIAL_VALUABLE_BLOCKS.add("nether_backport:netherite_ore");
 
         System.out.println("[GeologicalResonator] 缓存了 " + KNOWN_ORE_IDS.size() + " 种矿物类型，" + SPECIAL_VALUABLE_BLOCKS.size() + " 种特殊方块。");
     }

@@ -144,17 +144,31 @@ public class AuxiliaryUpgradeManager {
                 debug("开始初始化矿物透视系统...");
 
                 // 0. 添加特定模组矿物（通过注册名查找）
-                // Astral Sorcery 矿物
+                // Astral Sorcery 矿物 - 各种可能的注册名
                 addModOreByName("astralsorcery:blockcustomore", "星辉矿石");
                 addModOreByName("astralsorcery:blockcelestialcrystals", "天辉水晶");
                 addModOreByName("astralsorcery:celestialcrystals", "天辉水晶");
                 addModOreByName("astralsorcery:blockcollectorcrystal", "集星水晶");
                 addModOreByName("astralsorcery:blockcelestialcollectorcrystal", "天辉收集水晶");
-                // NetherBound 下界合金
+                addModOreByName("astralsorcery:blockcelestialcrystalcluster", "天辉水晶簇");
+                addModOreByName("astralsorcery:celestialcrystalcluster", "天辉水晶簇");
+                addModOreByName("astralsorcery:block_celestial_crystals", "天辉水晶");
+                addModOreByName("astralsorcery:celestial_crystals", "天辉水晶");
+                addModOreByName("astralsorcery:rockcrystalore", "岩石水晶矿");
+                addModOreByName("astralsorcery:rock_crystal_ore", "岩石水晶矿");
+                // NetherBound 下界合金 - 各种可能的注册名
                 addModOreByName("nb:netherite_ore", "下界合金矿");
                 addModOreByName("nb:ancient_debris", "远古残骸");
-                // 原版 (1.16+ backport)
+                addModOreByName("nb:nether_gold_ore", "下界金矿");
+                addModOreByName("nb:quartz_ore", "下界石英矿");
+                // Future MC / 其他 1.16 backport 模组
                 addModOreByName("minecraft:ancient_debris", "远古残骸");
+                addModOreByName("futuremc:ancient_debris", "远古残骸");
+                addModOreByName("nether_backport:ancient_debris", "远古残骸");
+                addModOreByName("nether_backport:netherite_ore", "下界合金矿");
+
+                // 打印已加载的特殊矿物数量
+                System.out.println("[OreVision] 已添加特殊模组矿物，当前矿物总数: " + ALL_ORE_BLOCKS.size());
 
                 // 1. 从矿物词典加载所有矿物（支持所有模组）
                 for (String oreName : OreDictionary.getOreNames()) {
