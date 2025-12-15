@@ -37,11 +37,9 @@ import java.util.UUID;
  * 处理:
  * - 击杀计数与形态升级
  * - 免疫伤害（陷仙形态）
- * - 流血效果（绝仙形态）
- * - 太平领域效果
- * - 为天地立心：经验加成
- * - 为生民立命：血量保护、村民保护
- * - 为往圣继绝学：村民附近敌人真伤
+ * - 流血效果（诛仙形态）
+ * - 陷仙形态：和平领域+怪物AI混乱+村民保护
+ * - 为生民立命：血量保护（诛仙形态）
  */
 @Mod.EventBusSubscriber(modid = "moremod")
 public class ZhuxianEventHandler {
@@ -188,27 +186,8 @@ public class ZhuxianEventHandler {
         }
     }
 
-    // ==================== 经验加成（为天地立心） ====================
-
-    /**
-     * 为天地立心：经验获取+30%
-     */
-    @SubscribeEvent
-    public static void onPlayerPickupXp(PlayerPickupXpEvent event) {
-        if (!isZhuxianEnabled()) return;
-        EntityPlayer player = event.getEntityPlayer();
-        if (player.world.isRemote) return;
-
-        if (ZhuxianSword.isPlayerSkillActive(player, ZhuxianSword.NBT_SKILL_TIANXIN)) {
-            // 单手持剑时才生效
-            ItemStack sword = ZhuxianSword.getZhuxianSword(player);
-            if (!sword.isEmpty() && player.getHeldItemOffhand().isEmpty()) {
-                int originalXp = event.getOrb().xpValue;
-                int bonusXp = (int) (originalXp * 0.3f);
-                event.getOrb().xpValue = originalXp + bonusXp;
-            }
-        }
-    }
+    // ==================== 经验加成已移除 ====================
+    // 原为天地立心技能，现已整合到其他形态
 
     // ==================== Tick处理 ====================
 
@@ -238,22 +217,23 @@ public class ZhuxianEventHandler {
 
             ZhuxianSword item = (ZhuxianSword) sword.getItem();
 
-            // 为往圣继绝学：村民附近敌人每秒5%真伤
-            if (item.isSkillActive(sword, ZhuxianSword.NBT_SKILL_JUEXUE)) {
-                processJuexueEffect(player, world);
-            }
+            ZhuxianSword.SwordForm form = item.getForm(sword);
 
-            // 为生民立命：村民无敌
-            if (item.isSkillActive(sword, ZhuxianSword.NBT_SKILL_LIMING)) {
-                processLimingVillagerProtection(player, world);
-            }
+            // 陷仙形态 + 为万世开太平：村民无敌/打折 + 太平领域 + 怪物AI混乱
+            if (form == ZhuxianSword.SwordForm.XIANXIAN && item.isSkillActive(sword, ZhuxianSword.NBT_SKILL_TAIPING)) {
+                // 村民保护
+                processVillagerProtection(player, world);
 
-            // 太平领域
-            NBTTagCompound tag = sword.getTagCompound();
-            if (tag != null) {
-                long taipingEndTime = tag.getLong(ZhuxianSword.NBT_TAIPING_END_TIME);
-                if (taipingEndTime > worldTime) {
-                    processTaipingDomain(player, world);
+                // 怪物AI混乱（16格内）
+                processMobConfusion(player, world);
+
+                // 太平领域
+                NBTTagCompound tag = sword.getTagCompound();
+                if (tag != null) {
+                    long taipingEndTime = tag.getLong(ZhuxianSword.NBT_TAIPING_END_TIME);
+                    if (taipingEndTime > worldTime) {
+                        processTaipingDomain(player, world);
+                    }
                 }
             }
         }
@@ -263,32 +243,45 @@ public class ZhuxianEventHandler {
     }
 
     /**
-     * 为往圣继绝学：村民附近敌人每秒5%真伤
+     * 陷仙形态：怪物AI混乱（16格内怪物随机攻击目标/迷路）
      */
-    private static void processJuexueEffect(EntityPlayer player, World world) {
-        double range = 32.0; // 检测范围
+    private static void processMobConfusion(EntityPlayer player, World world) {
+        double range = 16.0;
 
-        // 找到附近所有村民
-        List<EntityVillager> villagers = world.getEntitiesWithinAABB(EntityVillager.class,
+        List<EntityMob> mobs = world.getEntitiesWithinAABB(EntityMob.class,
             player.getEntityBoundingBox().grow(range));
 
-        for (EntityVillager villager : villagers) {
-            // 村民附近10格内的敌对生物
-            List<EntityMob> mobs = world.getEntitiesWithinAABB(EntityMob.class,
-                villager.getEntityBoundingBox().grow(10.0));
+        for (EntityMob mob : mobs) {
+            // 50%概率清除攻击目标
+            if (world.rand.nextFloat() < 0.5f) {
+                mob.setAttackTarget(null);
+                mob.setRevengeTarget(null);
+            }
 
-            for (EntityMob mob : mobs) {
-                // 5%最大生命真伤
-                float damage = mob.getMaxHealth() * 0.05f;
-                TrueDamageHelper.applyWrappedTrueDamage(mob, player, damage, TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE);
+            // 添加反胃效果（视觉混乱）
+            mob.addPotionEffect(new PotionEffect(MobEffects.NAUSEA, 60, 0));
+
+            // 20%概率让怪物互相攻击
+            if (world.rand.nextFloat() < 0.2f && !mobs.isEmpty()) {
+                EntityMob randomTarget = mobs.get(world.rand.nextInt(mobs.size()));
+                if (randomTarget != mob) {
+                    mob.setAttackTarget(randomTarget);
+                }
+            }
+
+            // 随机改变移动方向
+            if (world.rand.nextFloat() < 0.3f && mob.getNavigator() != null) {
+                double randomX = mob.posX + (world.rand.nextDouble() - 0.5) * 10;
+                double randomZ = mob.posZ + (world.rand.nextDouble() - 0.5) * 10;
+                mob.getNavigator().tryMoveToXYZ(randomX, mob.posY, randomZ, 1.0);
             }
         }
     }
 
     /**
-     * 为生民立命：村民获得无敌
+     * 陷仙形态+为万世开太平：村民获得无敌
      */
-    private static void processLimingVillagerProtection(EntityPlayer player, World world) {
+    private static void processVillagerProtection(EntityPlayer player, World world) {
         double range = 16.0;
 
         List<EntityVillager> villagers = world.getEntitiesWithinAABB(EntityVillager.class,

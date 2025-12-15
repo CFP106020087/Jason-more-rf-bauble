@@ -14,7 +14,12 @@ import net.minecraft.entity.ai.attributes.AttributeModifier;
 import net.minecraft.entity.monster.EntityMob;
 import net.minecraft.entity.passive.EntityVillager;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.init.Items;
 import net.minecraft.init.MobEffects;
+import net.minecraft.init.SoundEvents;
+import net.minecraft.util.SoundCategory;
+import net.minecraft.util.EnumParticleTypes;
+import net.minecraft.world.WorldServer;
 import net.minecraft.inventory.EntityEquipmentSlot;
 import net.minecraft.item.EnumAction;
 import net.minecraft.item.ItemStack;
@@ -69,12 +74,21 @@ public class ZhuxianSword extends ItemSword {
     public static final String NBT_SKILL_TAIPING = "ZhuxianSkillTaiping";
     public static final String NBT_TAIPING_END_TIME = "ZhuxianTaipingEndTime";
 
+    // 形态解锁追踪（每个形态需持有20秒=400 ticks）
+    public static final String NBT_FORM_TIME_ZHUXIAN = "ZhuxianFormTimeZhuxian";
+    public static final String NBT_FORM_TIME_LUXIAN = "ZhuxianFormTimeLuxian";
+    public static final String NBT_FORM_TIME_XIANXIAN = "ZhuxianFormTimeXianxian";
+    public static final String NBT_FORM_TIME_JUEXIAN = "ZhuxianFormTimeJuexian";
+    public static final String NBT_GUIXU_UNLOCKED = "ZhuxianGuixuUnlocked";
+    public static final int FORM_UNLOCK_TIME = 400; // 20秒 = 400 ticks
+
     // 形态枚举
     public enum SwordForm {
         ZHUXIAN(0, "诛仙", 15.0f, TextFormatting.RED),
         LUXIAN(1, "戮仙", 40.0f, TextFormatting.DARK_RED),
         XIANXIAN(2, "陷仙", 50.0f, TextFormatting.GOLD),
-        JUEXIAN(3, "绝仙", 100.0f, TextFormatting.DARK_PURPLE);
+        JUEXIAN(3, "绝仙", 100.0f, TextFormatting.DARK_PURPLE),
+        GUIXU(4, "归墟", 999.0f, TextFormatting.DARK_GRAY);  // 第五形态：归墟
 
         public final int id;
         public final String name;
@@ -94,6 +108,54 @@ public class ZhuxianSword extends ItemSword {
             }
             return ZHUXIAN;
         }
+
+        /**
+         * 获取该形态对应的技能Key
+         * 诛仙->不死, 戮仙->范围真伤, 陷仙->太平领域, 绝仙->剑阵, 归墟->灭世
+         */
+        public String getBoundSkillKey() {
+            switch (this) {
+                case ZHUXIAN: return NBT_SKILL_LIMING;      // 不死锁血
+                case LUXIAN: return NBT_SKILL_JUEXUE;       // 范围真伤
+                case XIANXIAN: return NBT_SKILL_TAIPING;    // 太平领域+村民保护
+                case JUEXIAN: return NBT_FORMATION_ACTIVE;  // 剑阵
+                case GUIXU: return NBT_FORMATION_ACTIVE;    // 灭世（复用剑阵开关）
+                default: return null;
+            }
+        }
+
+        /**
+         * 获取该形态对应的技能名称
+         */
+        public String getBoundSkillName() {
+            switch (this) {
+                case ZHUXIAN: return "为生民立命";   // 不死
+                case LUXIAN: return "为往圣继绝学"; // 范围真伤
+                case XIANXIAN: return "为万世开太平"; // 太平领域
+                case JUEXIAN: return "诛仙剑阵";    // 剑阵
+                case GUIXU: return "归墟灭世";      // 灰烬化
+                default: return "";
+            }
+        }
+    }
+
+    /**
+     * 获取技能对应的形态
+     */
+    public static SwordForm getSkillBoundForm(String skillKey) {
+        if (NBT_SKILL_LIMING.equals(skillKey)) return SwordForm.ZHUXIAN;
+        if (NBT_SKILL_JUEXUE.equals(skillKey)) return SwordForm.LUXIAN;
+        if (NBT_SKILL_TAIPING.equals(skillKey)) return SwordForm.XIANXIAN;
+        if (NBT_FORMATION_ACTIVE.equals(skillKey)) return SwordForm.JUEXIAN;
+        return null;
+    }
+
+    /**
+     * 检查技能是否可以在当前形态使用
+     */
+    public static boolean canUseSkillInForm(String skillKey, SwordForm currentForm) {
+        SwordForm requiredForm = getSkillBoundForm(skillKey);
+        return requiredForm == null || requiredForm == currentForm;
     }
 
     // 武器类型（绝仙形态可切换）
@@ -137,6 +199,9 @@ public class ZhuxianSword extends ItemSword {
     /** 技能状态备份：玩家UUID -> 技能Key -> 是否激活 */
     private static final Map<UUID, Map<String, Boolean>> skillStateBackup = new HashMap<>();
 
+    /** 形态备份：玩家UUID -> 当前形态 */
+    private static final Map<UUID, SwordForm> formBackup = new HashMap<>();
+
     /**
      * 注册玩家为诛仙剑持有者（当玩家装备剑时调用）
      */
@@ -151,6 +216,21 @@ public class ZhuxianSword extends ItemSword {
         UUID playerId = player.getUniqueID();
         zhuxianHolderBackup.remove(playerId);
         skillStateBackup.remove(playerId);
+        formBackup.remove(playerId);
+    }
+
+    /**
+     * 更新形态备份
+     */
+    public static void updateFormBackup(EntityPlayer player, SwordForm form) {
+        formBackup.put(player.getUniqueID(), form);
+    }
+
+    /**
+     * 获取备份的形态
+     */
+    public static SwordForm getFormFromBackup(EntityPlayer player) {
+        return formBackup.get(player.getUniqueID());
     }
 
     /**
@@ -197,6 +277,7 @@ public class ZhuxianSword extends ItemSword {
     public static void cleanupPlayer(UUID playerId) {
         zhuxianHolderBackup.remove(playerId);
         skillStateBackup.remove(playerId);
+        formBackup.remove(playerId);
     }
 
     /**
@@ -205,6 +286,7 @@ public class ZhuxianSword extends ItemSword {
     public static void clearAllState() {
         zhuxianHolderBackup.clear();
         skillStateBackup.clear();
+        formBackup.clear();
     }
 
     public ZhuxianSword() {
@@ -338,11 +420,14 @@ public class ZhuxianSword extends ItemSword {
     }
 
     /**
-     * 同步剑的所有技能状态到备份
+     * 同步剑的所有状态到备份（技能+形态）
      * 在玩家装备剑或技能改变时调用
      */
     public void syncAllSkillsToBackup(ItemStack stack, EntityPlayer player) {
         registerHolder(player);
+        // 同步形态
+        updateFormBackup(player, getForm(stack));
+        // 同步技能
         updateSkillBackup(player, NBT_SKILL_TIANXIN, isSkillActive(stack, NBT_SKILL_TIANXIN));
         updateSkillBackup(player, NBT_SKILL_LIMING, isSkillActive(stack, NBT_SKILL_LIMING));
         updateSkillBackup(player, NBT_SKILL_JUEXUE, isSkillActive(stack, NBT_SKILL_JUEXUE));
@@ -396,11 +481,19 @@ public class ZhuxianSword extends ItemSword {
         if (player.isSneaking()) {
             if (!world.isRemote) {
                 SwordForm currentForm = getForm(stack);
-                SwordForm nextForm = SwordForm.fromId((currentForm.id + 1) % SwordForm.values().length);
+                SwordForm nextForm = getNextAvailableForm(stack, currentForm);
                 setForm(stack, nextForm);
-                player.sendStatusMessage(new TextComponentString(
-                    nextForm.color + "切换至: " + nextForm.name + TextFormatting.GRAY + " (基础伤害: " + nextForm.baseDamage + ")"
-                ), true);
+
+                // 解锁归墟时特殊提示
+                if (nextForm == SwordForm.GUIXU) {
+                    player.sendStatusMessage(new TextComponentString(
+                        nextForm.color + "【" + nextForm.name + "】" + TextFormatting.DARK_RED + " 万物归于虚无..."
+                    ), true);
+                } else {
+                    player.sendStatusMessage(new TextComponentString(
+                        nextForm.color + "切换至: " + nextForm.name + TextFormatting.GRAY + " (基础伤害: " + nextForm.baseDamage + ")"
+                    ), true);
+                }
             }
             return ActionResult.newResult(EnumActionResult.SUCCESS, stack);
         }
@@ -501,17 +594,22 @@ public class ZhuxianSword extends ItemSword {
         // 应用真伤
         TrueDamageHelper.applyWrappedTrueDamage(target, player, damage, TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE);
 
-        // 范围伤害
-        if (hasAoe(stack)) {
-            float aoeDamage = damage * 0.5f; // 范围伤害为50%
-            dealAoeTrueDamage(player, target, 5.0, aoeDamage);
-        }
-
-        // 绝仙形态：20%最大生命流血
-        if (form == SwordForm.JUEXIAN) {
-            // 流血效果在事件处理器中实现
+        // 诛仙形态：真伤流血（20%最大生命，5秒）
+        if (form == SwordForm.ZHUXIAN && isSkillActive(stack, NBT_SKILL_LIMING)) {
             target.getEntityData().setBoolean("ZhuxianBleeding", true);
             target.getEntityData().setLong("ZhuxianBleedEndTime", player.world.getTotalWorldTime() + 100);
+        }
+
+        // 戮仙形态：范围真伤打击（攻击时周围8格敌人受到50%真伤）
+        if (form == SwordForm.LUXIAN && isSkillActive(stack, NBT_SKILL_JUEXUE)) {
+            float aoeDamage = damage * 0.5f;
+            dealAoeTrueDamage(player, target, 8.0, aoeDamage);
+        }
+
+        // 其他形态的范围伤害
+        if (form != SwordForm.LUXIAN && hasAoe(stack)) {
+            float aoeDamage = damage * 0.5f;
+            dealAoeTrueDamage(player, target, 5.0, aoeDamage);
         }
 
         // 应用BUFF给玩家
@@ -572,8 +670,11 @@ public class ZhuxianSword extends ItemSword {
 
         SwordForm form = getForm(stack);
 
+        // 追踪形态持有时间（用于解锁归墟）
+        trackFormHoldTime(stack, form);
+
         // 绝仙形态：清除所有debuff
-        if (form == SwordForm.JUEXIAN) {
+        if (form == SwordForm.JUEXIAN || form == SwordForm.GUIXU) {
             player.getActivePotionEffects().removeIf(effect -> {
                 return effect.getPotion().isBadEffect();
             });
@@ -583,6 +684,13 @@ public class ZhuxianSword extends ItemSword {
         if (form == SwordForm.JUEXIAN && isFormationActive(stack)) {
             if (world.getTotalWorldTime() % 20 == 0) { // 每秒
                 summonFormationLightning(player, world, 10.0);
+            }
+        }
+
+        // 归墟灭世：直接灰烬化周围生物
+        if (form == SwordForm.GUIXU && isFormationActive(stack)) {
+            if (world.getTotalWorldTime() % 20 == 0) { // 每秒
+                disintegrateNearbyEntities(player, world, 60.0);
             }
         }
 
@@ -637,48 +745,72 @@ public class ZhuxianSword extends ItemSword {
 
         tooltip.add("");
 
-        // 形态效果说明
+        // 形态效果说明（含绑定技能）
         tooltip.add(TextFormatting.GOLD + "◆ 形态效果:");
         switch (form) {
             case ZHUXIAN:
                 tooltip.add(TextFormatting.GRAY + "  - 击杀获得力量II+急迫III");
                 tooltip.add(TextFormatting.GRAY + "  - 每10击杀+1伤害(最高40)");
                 tooltip.add(TextFormatting.GRAY + "  - 无视无敌帧，真实伤害");
+                tooltip.add(TextFormatting.GREEN + "  ◇ 为生民立命: " + TextFormatting.WHITE + "锁血20%不死 + 真伤流血");
+                tooltip.add(skillFormStatus(stack, form));
                 break;
             case LUXIAN:
                 tooltip.add(TextFormatting.GRAY + "  - 获得急迫IX+力量V");
-                tooltip.add(TextFormatting.GRAY + "  - 每10击杀解锁范围伤害");
                 tooltip.add(TextFormatting.GRAY + "  - 无视无敌帧，真实伤害");
+                tooltip.add(TextFormatting.GREEN + "  ◇ 为往圣继绝学: " + TextFormatting.WHITE + "攻击时8格范围50%真伤");
+                tooltip.add(skillFormStatus(stack, form));
                 break;
             case XIANXIAN:
                 tooltip.add(TextFormatting.GRAY + "  - 每次攻击造成范围伤害");
                 tooltip.add(TextFormatting.GRAY + "  - 获得力量XV+急迫IX+抗性IV");
                 tooltip.add(TextFormatting.GRAY + "  - 击杀获得免疫一次伤害");
+                tooltip.add(TextFormatting.GREEN + "  ◇ 为万世开太平: " + TextFormatting.WHITE + "和平领域+怪物混乱+村民保护");
+                tooltip.add(skillFormStatus(stack, form));
                 break;
             case JUEXIAN:
                 tooltip.add(TextFormatting.GRAY + "  - 可切换武器类型(右键)");
-                tooltip.add(TextFormatting.GRAY + "  - 20%最大生命流血");
                 tooltip.add(TextFormatting.GRAY + "  - 800%暴击伤害");
                 tooltip.add(TextFormatting.GRAY + "  - 免疫所有负面效果");
-                tooltip.add(TextFormatting.GRAY + "  - 可开启诛仙剑阵(999999真伤)");
+                tooltip.add(TextFormatting.GREEN + "  ◇ 诛仙剑阵: " + TextFormatting.WHITE + "雷击+999999真伤(除村民)");
+                tooltip.add(TextFormatting.GRAY + "    状态: " + (isFormationActive(stack) ? TextFormatting.GREEN + "开启" : TextFormatting.RED + "关闭"));
                 break;
+            case GUIXU:
+                tooltip.add(TextFormatting.GRAY + "  - 免疫所有负面效果");
+                tooltip.add(TextFormatting.GRAY + "  - 万物归于虚无");
+                tooltip.add(TextFormatting.DARK_RED + "  ◇ 归墟灭世: " + TextFormatting.WHITE + "60格灰烬化(掉落灰烬)");
+                tooltip.add(TextFormatting.GRAY + "    状态: " + (isFormationActive(stack) ? TextFormatting.GREEN + "开启" : TextFormatting.RED + "关闭"));
+                break;
+        }
+
+        // 归墟解锁进度（只在非归墟形态显示）
+        if (form != SwordForm.GUIXU) {
+            if (isGuixuUnlocked(stack)) {
+                tooltip.add(TextFormatting.DARK_GRAY + "◆ 归墟: " + TextFormatting.GREEN + "已解锁");
+            } else {
+                tooltip.add(TextFormatting.DARK_GRAY + "◆ 归墟: " + TextFormatting.YELLOW + String.format("%.1f%%", getUnlockProgress(stack)) + TextFormatting.GRAY + " (每形态持有20秒)");
+            }
         }
 
         tooltip.add("");
 
-        // 横渠四句
-        tooltip.add(TextFormatting.AQUA + "◆ 横渠四句 (主动技能):");
+        // 横渠四句诗词
+        tooltip.add(TextFormatting.AQUA + "◆ 横渠四句:");
         tooltip.add(TextFormatting.WHITE + "  为天地立心，为生民立命，");
         tooltip.add(TextFormatting.WHITE + "  为往圣继绝学，为万世开太平。");
-        tooltip.add("");
-        tooltip.add(skillStatus(stack, NBT_SKILL_TIANXIN, "为天地立心", "抗性VII+30%经验-20%附魔消耗"));
-        tooltip.add(skillStatus(stack, NBT_SKILL_LIMING, "为生民立命", "村民无敌+特价+血量≥20%"));
-        tooltip.add(skillStatus(stack, NBT_SKILL_JUEXUE, "为往圣继绝学", "村民附近敌人5%/秒真伤"));
-        tooltip.add(skillStatus(stack, NBT_SKILL_TAIPING, "为万世开太平", "太平领域(右键长按3秒)"));
 
         tooltip.add("");
         tooltip.add(TextFormatting.DARK_GRAY + "潜行+右键: 切换形态");
-        tooltip.add(TextFormatting.DARK_GRAY + "使用快捷键切换技能");
+        tooltip.add(TextFormatting.DARK_GRAY + "快捷键: 切换当前形态技能");
+    }
+
+    /**
+     * 显示形态绑定技能状态
+     */
+    private String skillFormStatus(ItemStack stack, SwordForm form) {
+        String skillKey = form.getBoundSkillKey();
+        boolean active = isSkillActive(stack, skillKey);
+        return TextFormatting.GRAY + "    状态: " + (active ? TextFormatting.GREEN + "开启" : TextFormatting.RED + "关闭");
     }
 
     private String skillStatus(ItemStack stack, String key, String name, String desc) {
@@ -741,6 +873,156 @@ public class ZhuxianSword extends ItemSword {
         });
     }
 
+    /**
+     * 归墟灭世：对周围生物进行灰烬化（直接删除，无掉落）
+     */
+    private void disintegrateNearbyEntities(EntityPlayer player, World world, double radius) {
+        if (world.isRemote) return;
+
+        // 获取范围内所有生物（除了玩家和村民）
+        world.getEntitiesWithinAABB(EntityLivingBase.class,
+            player.getEntityBoundingBox().grow(radius),
+            entity -> entity != player && !entity.isDead
+                && !(entity instanceof EntityPlayer)
+                && !(entity instanceof EntityVillager)
+        ).forEach(entity -> {
+            disintegrate(entity, world);
+        });
+    }
+
+    /**
+     * 灰烬化单个实体
+     * 直接删除实体，生成大量灰烬粒子效果，掉落灰烬（火药）
+     */
+    private void disintegrate(EntityLivingBase entity, World world) {
+        if (world.isRemote) return;
+
+        double x = entity.posX;
+        double y = entity.posY + entity.height / 2;
+        double z = entity.posZ;
+
+        // 灰烬粒子爆炸
+        if (world instanceof WorldServer) {
+            WorldServer ws = (WorldServer) world;
+
+            // 大量烟雾（灰烬）
+            ws.spawnParticle(EnumParticleTypes.SMOKE_LARGE, x, y, z,
+                    80, 0.6, 0.6, 0.6, 0.15);
+
+            // 火焰残渣
+            ws.spawnParticle(EnumParticleTypes.FLAME, x, y, z,
+                    40, 0.4, 0.4, 0.4, 0.08);
+
+            // 末地烬效果（紫色）
+            ws.spawnParticle(EnumParticleTypes.DRAGON_BREATH, x, y, z,
+                    30, 0.5, 0.5, 0.5, 0.03);
+
+            // 爆炸粒子
+            ws.spawnParticle(EnumParticleTypes.EXPLOSION_LARGE, x, y, z,
+                    5, 0.3, 0.3, 0.3, 0);
+        }
+
+        // 音效：烈焰人死亡 + 虚空音效
+        world.playSound(null, x, y, z,
+                SoundEvents.ENTITY_BLAZE_DEATH, SoundCategory.HOSTILE, 1.5f, 0.3f);
+        world.playSound(null, x, y, z,
+                SoundEvents.ENTITY_ENDERMEN_TELEPORT, SoundCategory.HOSTILE, 1.0f, 0.5f);
+
+        // 掉落灰烬（火药作为灰烬替代物）
+        // 根据实体大小决定掉落数量：1-3个
+        int ashCount = 1 + world.rand.nextInt(3);
+        entity.entityDropItem(new ItemStack(Items.GUNPOWDER, ashCount), 0.0f);
+
+        // 直接移除实体 - 无死亡动画、无敌也没用
+        entity.setDead();
+    }
+
+    // ==================== 形态解锁系统 ====================
+
+    /**
+     * 追踪形态持有时间
+     */
+    private void trackFormHoldTime(ItemStack stack, SwordForm form) {
+        if (form == SwordForm.GUIXU) return; // 归墟形态不需要追踪
+
+        NBTTagCompound tag = getOrCreateTag(stack);
+        String timeKey = getFormTimeKey(form);
+        if (timeKey == null) return;
+
+        int time = tag.getInteger(timeKey);
+        if (time < FORM_UNLOCK_TIME) {
+            tag.setInteger(timeKey, time + 1);
+
+            // 检查是否所有形态都达到20秒
+            checkAndUnlockGuixu(stack);
+        }
+    }
+
+    /**
+     * 获取形态对应的时间追踪NBT键
+     */
+    private String getFormTimeKey(SwordForm form) {
+        switch (form) {
+            case ZHUXIAN: return NBT_FORM_TIME_ZHUXIAN;
+            case LUXIAN: return NBT_FORM_TIME_LUXIAN;
+            case XIANXIAN: return NBT_FORM_TIME_XIANXIAN;
+            case JUEXIAN: return NBT_FORM_TIME_JUEXIAN;
+            default: return null;
+        }
+    }
+
+    /**
+     * 检查并解锁归墟形态
+     */
+    private void checkAndUnlockGuixu(ItemStack stack) {
+        if (isGuixuUnlocked(stack)) return;
+
+        NBTTagCompound tag = getOrCreateTag(stack);
+        int t1 = tag.getInteger(NBT_FORM_TIME_ZHUXIAN);
+        int t2 = tag.getInteger(NBT_FORM_TIME_LUXIAN);
+        int t3 = tag.getInteger(NBT_FORM_TIME_XIANXIAN);
+        int t4 = tag.getInteger(NBT_FORM_TIME_JUEXIAN);
+
+        if (t1 >= FORM_UNLOCK_TIME && t2 >= FORM_UNLOCK_TIME &&
+            t3 >= FORM_UNLOCK_TIME && t4 >= FORM_UNLOCK_TIME) {
+            tag.setBoolean(NBT_GUIXU_UNLOCKED, true);
+        }
+    }
+
+    /**
+     * 检查归墟是否已解锁
+     */
+    public boolean isGuixuUnlocked(ItemStack stack) {
+        return getOrCreateTag(stack).getBoolean(NBT_GUIXU_UNLOCKED);
+    }
+
+    /**
+     * 获取解锁进度百分比
+     */
+    public float getUnlockProgress(ItemStack stack) {
+        NBTTagCompound tag = getOrCreateTag(stack);
+        int t1 = Math.min(tag.getInteger(NBT_FORM_TIME_ZHUXIAN), FORM_UNLOCK_TIME);
+        int t2 = Math.min(tag.getInteger(NBT_FORM_TIME_LUXIAN), FORM_UNLOCK_TIME);
+        int t3 = Math.min(tag.getInteger(NBT_FORM_TIME_XIANXIAN), FORM_UNLOCK_TIME);
+        int t4 = Math.min(tag.getInteger(NBT_FORM_TIME_JUEXIAN), FORM_UNLOCK_TIME);
+        return (t1 + t2 + t3 + t4) / (4.0f * FORM_UNLOCK_TIME) * 100f;
+    }
+
+    /**
+     * 获取下一个可用形态（跳过未解锁的归墟）
+     */
+    private SwordForm getNextAvailableForm(ItemStack stack, SwordForm current) {
+        int nextId = (current.id + 1) % SwordForm.values().length;
+        SwordForm nextForm = SwordForm.fromId(nextId);
+
+        // 如果下一个是归墟但未解锁，跳到诛仙
+        if (nextForm == SwordForm.GUIXU && !isGuixuUnlocked(stack)) {
+            return SwordForm.ZHUXIAN;
+        }
+
+        return nextForm;
+    }
+
     // ==================== 静态工具方法 ====================
 
     /**
@@ -761,31 +1043,46 @@ public class ZhuxianSword extends ItemSword {
     /**
      * 检查技能是否激活（支持物品掉落后的备份检测）
      *
-     * 检查顺序：
-     * 1. 优先检查静态备份（防止物品掉落导致检测失败）
-     * 2. 再检查实际持有的剑
+     * 技能必须满足两个条件：
+     * 1. 技能NBT开关为ON
+     * 2. 当前形态与技能绑定的形态匹配
      *
      * 参考香巴拉的 isShambhala 实现
      */
     public static boolean isPlayerSkillActive(EntityPlayer player, String skillKey) {
-        // 1. 优先检查备份（即使物品掉落也能工作）
-        if (getSkillFromBackup(player, skillKey)) {
-            return true;
-        }
-
-        // 2. 检查实际持有的剑
+        // 获取当前形态（优先从剑，其次从备份）
+        SwordForm currentForm = null;
         ItemStack sword = getZhuxianSword(player);
+
         if (!sword.isEmpty()) {
-            boolean active = ((ZhuxianSword) sword.getItem()).isSkillActive(sword, skillKey);
+            ZhuxianSword item = (ZhuxianSword) sword.getItem();
+            currentForm = item.getForm(sword);
+
             // 同步到备份
-            if (active) {
+            updateFormBackup(player, currentForm);
+            registerHolder(player);
+
+            // 检查技能开关和形态匹配
+            boolean skillOn = item.isSkillActive(sword, skillKey);
+            if (skillOn) {
                 updateSkillBackup(player, skillKey, true);
-                registerHolder(player);
             }
-            return active;
+
+            // 技能必须开启 且 形态匹配
+            SwordForm requiredForm = getSkillBoundForm(skillKey);
+            return skillOn && (requiredForm == null || requiredForm == currentForm);
         }
 
-        return false;
+        // 物品掉落时使用备份
+        currentForm = getFormFromBackup(player);
+        if (currentForm == null) {
+            return false;
+        }
+
+        // 检查备份的技能状态和形态匹配
+        boolean skillOn = getSkillFromBackup(player, skillKey);
+        SwordForm requiredForm = getSkillBoundForm(skillKey);
+        return skillOn && (requiredForm == null || requiredForm == currentForm);
     }
 
     /**

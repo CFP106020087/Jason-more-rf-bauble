@@ -41,15 +41,43 @@ public class TileEntityPrinter extends TileEntity implements ITickable {
     private static final int OUTPUT_SLOT = 10;
     private static final int TOTAL_SLOTS = 11;
 
-    // 能量存储
-    private final EnergyStorage energy = new EnergyStorage(ENERGY_CAPACITY, MAX_RECEIVE, 0) {
+    // 能量存储 - 使用自定义包装器以支持管线输入
+    private final EnergyStorage energyInternal = new EnergyStorage(ENERGY_CAPACITY, MAX_RECEIVE, 0);
+
+    // 能量接收器包装器 - 允许外部管线推送能量
+    private final net.minecraftforge.energy.IEnergyStorage energy = new net.minecraftforge.energy.IEnergyStorage() {
         @Override
         public int receiveEnergy(int maxReceive, boolean simulate) {
-            int received = super.receiveEnergy(maxReceive, simulate);
+            int received = energyInternal.receiveEnergy(maxReceive, simulate);
             if (received > 0 && !simulate) {
                 markDirty();
             }
             return received;
+        }
+
+        @Override
+        public int extractEnergy(int maxExtract, boolean simulate) {
+            return 0; // 不允许提取
+        }
+
+        @Override
+        public int getEnergyStored() {
+            return energyInternal.getEnergyStored();
+        }
+
+        @Override
+        public int getMaxEnergyStored() {
+            return energyInternal.getMaxEnergyStored();
+        }
+
+        @Override
+        public boolean canExtract() {
+            return false;
+        }
+
+        @Override
+        public boolean canReceive() {
+            return true;
         }
     };
 
@@ -277,13 +305,13 @@ public class TileEntityPrinter extends TileEntity implements ITickable {
      * 内部提取能量
      */
     private void extractEnergyInternal(int amount) {
-        int stored = energy.getEnergyStored();
+        int stored = energyInternal.getEnergyStored();
         int toExtract = Math.min(amount, stored);
         if (toExtract > 0) {
             try {
                 java.lang.reflect.Field field = EnergyStorage.class.getDeclaredField("energy");
                 field.setAccessible(true);
-                field.setInt(energy, stored - toExtract);
+                field.setInt(energyInternal, stored - toExtract);
             } catch (Exception e) {
                 // 反射失败的备用方法
             }
@@ -356,6 +384,46 @@ public class TileEntityPrinter extends TileEntity implements ITickable {
         return currentRecipe;
     }
 
+    // ===== 客户端同步方法 =====
+
+    /**
+     * 客户端设置能量值（用于GUI同步）
+     */
+    @net.minecraftforge.fml.relauncher.SideOnly(net.minecraftforge.fml.relauncher.Side.CLIENT)
+    public void setClientEnergy(int energy) {
+        try {
+            java.lang.reflect.Field field = net.minecraftforge.energy.EnergyStorage.class.getDeclaredField("energy");
+            field.setAccessible(true);
+            field.setInt(energyInternal, energy);
+        } catch (Exception e) {
+            // 忽略
+        }
+    }
+
+    /**
+     * 客户端设置进度（用于GUI同步）
+     */
+    @net.minecraftforge.fml.relauncher.SideOnly(net.minecraftforge.fml.relauncher.Side.CLIENT)
+    public void setClientProgress(int progress) {
+        this.progress = progress;
+    }
+
+    /**
+     * 客户端设置最大进度（用于GUI同步）
+     */
+    @net.minecraftforge.fml.relauncher.SideOnly(net.minecraftforge.fml.relauncher.Side.CLIENT)
+    public void setClientMaxProgress(int maxProgress) {
+        this.maxProgress = maxProgress;
+    }
+
+    /**
+     * 客户端设置处理状态（用于GUI同步）
+     */
+    @net.minecraftforge.fml.relauncher.SideOnly(net.minecraftforge.fml.relauncher.Side.CLIENT)
+    public void setClientProcessing(boolean isProcessing) {
+        this.isProcessing = isProcessing;
+    }
+
     // ===== Capabilities =====
 
     @Override
@@ -384,7 +452,7 @@ public class TileEntityPrinter extends TileEntity implements ITickable {
     public NBTTagCompound writeToNBT(NBTTagCompound compound) {
         super.writeToNBT(compound);
         compound.setTag("Inventory", inventory.serializeNBT());
-        compound.setInteger("Energy", energy.getEnergyStored());
+        compound.setInteger("Energy", energyInternal.getEnergyStored());
         compound.setBoolean("IsProcessing", isProcessing);
         compound.setInteger("Progress", progress);
         compound.setInteger("MaxProgress", maxProgress);
@@ -398,7 +466,7 @@ public class TileEntityPrinter extends TileEntity implements ITickable {
             inventory.deserializeNBT(compound.getCompoundTag("Inventory"));
         }
         int fe = compound.getInteger("Energy");
-        while (energy.getEnergyStored() < fe && energy.receiveEnergy(Integer.MAX_VALUE, false) > 0) {}
+        while (energyInternal.getEnergyStored() < fe && energyInternal.receiveEnergy(Integer.MAX_VALUE, false) > 0) {}
         isProcessing = compound.getBoolean("IsProcessing");
         progress = compound.getInteger("Progress");
         maxProgress = compound.getInteger("MaxProgress");

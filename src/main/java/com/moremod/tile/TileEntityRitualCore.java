@@ -3494,24 +3494,35 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         int obsidianConsumed = 0;
         int diamondsConsumed = 0;
 
-        for (BlockPos off : OFFS8) {
-            TileEntity te = world.getTileEntity(pos.add(off));
-            if (te instanceof TileEntityPedestal) {
-                TileEntityPedestal ped = (TileEntityPedestal) te;
-                ItemStack stack = ped.getInv().getStackInSlot(0);
-                if (!stack.isEmpty()) {
-                    if (stack.getItem() == Items.NETHER_STAR && starsConsumed < 2) {
-                        ped.consumeOne();
-                        starsConsumed++;
-                    } else if (stack.getItem() == net.minecraft.item.Item.getItemFromBlock(net.minecraft.init.Blocks.OBSIDIAN) && obsidianConsumed < 2) {
-                        ped.consumeOne();
-                        obsidianConsumed++;
-                    } else if (stack.getItem() == Items.DIAMOND && diamondsConsumed < 4) {
-                        ped.consumeOne();
-                        diamondsConsumed++;
+        // 多轮遍历确保消耗足够数量
+        while (starsConsumed < 2 || obsidianConsumed < 2 || diamondsConsumed < 4) {
+            boolean consumedAny = false;
+
+            for (BlockPos off : OFFS8) {
+                TileEntity te = world.getTileEntity(pos.add(off));
+                if (te instanceof TileEntityPedestal) {
+                    TileEntityPedestal ped = (TileEntityPedestal) te;
+                    ItemStack stack = ped.getInv().getStackInSlot(0);
+                    if (!stack.isEmpty()) {
+                        if (stack.getItem() == Items.NETHER_STAR && starsConsumed < 2) {
+                            ped.consumeOne();
+                            starsConsumed++;
+                            consumedAny = true;
+                        } else if (stack.getItem() == net.minecraft.item.Item.getItemFromBlock(net.minecraft.init.Blocks.OBSIDIAN) && obsidianConsumed < 2) {
+                            ped.consumeOne();
+                            obsidianConsumed++;
+                            consumedAny = true;
+                        } else if (stack.getItem() == Items.DIAMOND && diamondsConsumed < 4) {
+                            ped.consumeOne();
+                            diamondsConsumed++;
+                            consumedAny = true;
+                        }
                     }
                 }
             }
+
+            // 防止无限循环（如果没有消耗任何物品则退出）
+            if (!consumedAny) break;
         }
 
         // 计算能量超载加成
@@ -3842,24 +3853,35 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         int tearsConsumed = 0;
         int goldConsumed = 0;
 
-        for (BlockPos off : OFFS8) {
-            TileEntity te = world.getTileEntity(pos.add(off));
-            if (te instanceof TileEntityPedestal) {
-                TileEntityPedestal ped = (TileEntityPedestal) te;
-                ItemStack stack = ped.getInv().getStackInSlot(0);
-                if (!stack.isEmpty()) {
-                    if (stack.getItem() == Items.ENDER_PEARL && pearlsConsumed < 4) {
-                        ped.consumeOne();
-                        pearlsConsumed++;
-                    } else if (stack.getItem() == Items.GHAST_TEAR && tearsConsumed < 2) {
-                        ped.consumeOne();
-                        tearsConsumed++;
-                    } else if (stack.getItem() == net.minecraft.item.Item.getItemFromBlock(net.minecraft.init.Blocks.GOLD_BLOCK) && goldConsumed < 2) {
-                        ped.consumeOne();
-                        goldConsumed++;
+        // 多轮遍历确保消耗足够数量
+        while (pearlsConsumed < 4 || tearsConsumed < 2 || goldConsumed < 2) {
+            boolean consumedAny = false;
+
+            for (BlockPos off : OFFS8) {
+                TileEntity te = world.getTileEntity(pos.add(off));
+                if (te instanceof TileEntityPedestal) {
+                    TileEntityPedestal ped = (TileEntityPedestal) te;
+                    ItemStack stack = ped.getInv().getStackInSlot(0);
+                    if (!stack.isEmpty()) {
+                        if (stack.getItem() == Items.ENDER_PEARL && pearlsConsumed < 4) {
+                            ped.consumeOne();
+                            pearlsConsumed++;
+                            consumedAny = true;
+                        } else if (stack.getItem() == Items.GHAST_TEAR && tearsConsumed < 2) {
+                            ped.consumeOne();
+                            tearsConsumed++;
+                            consumedAny = true;
+                        } else if (stack.getItem() == net.minecraft.item.Item.getItemFromBlock(net.minecraft.init.Blocks.GOLD_BLOCK) && goldConsumed < 2) {
+                            ped.consumeOne();
+                            goldConsumed++;
+                            consumedAny = true;
+                        }
                     }
                 }
             }
+
+            // 防止无限循环
+            if (!consumedAny) break;
         }
 
         // 计算能量超载加成
