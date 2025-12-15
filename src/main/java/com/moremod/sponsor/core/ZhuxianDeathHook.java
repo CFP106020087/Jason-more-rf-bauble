@@ -67,6 +67,10 @@ public class ZhuxianDeathHook {
                     TextFormatting.GOLD + "【为生民立命】" + TextFormatting.WHITE + " 阻止了死亡！"
             ), true);
 
+            // 清除备份状态，下次死亡需要重新检测剑
+            // 防止玩家在没有剑的情况下继续受保护
+            ZhuxianSword.updateSkillBackup(player, ZhuxianSword.NBT_SKILL_LIMING, false);
+
             return true;
 
         } catch (Throwable t) {

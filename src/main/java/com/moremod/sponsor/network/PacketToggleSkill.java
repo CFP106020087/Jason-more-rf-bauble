@@ -58,7 +58,8 @@ public class PacketToggleSkill implements IMessage {
                             item.setFormationActive(sword, !item.isFormationActive(sword));
                         }
                     } else {
-                        item.toggleSkill(sword, key);
+                        // 使用带备份的toggleSkill，确保死亡保护正常工作
+                        item.toggleSkillWithBackup(sword, key, player);
                     }
                 }
             });

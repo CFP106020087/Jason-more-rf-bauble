@@ -30,7 +30,11 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 import javax.annotation.Nullable;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -122,6 +126,85 @@ public class ZhuxianSword extends ItemSword {
 
     private static final UUID ATTACK_DAMAGE_MODIFIER = UUID.fromString("CB3F55D3-645C-4F38-A497-9C13A33DB5CF");
     private static final UUID ATTACK_SPEED_MODIFIER = UUID.fromString("FA233E1C-4180-4865-B01B-BCCE9785ACA3");
+
+    // ==================== 技能状态备份（防止物品掉落导致检测失败） ====================
+    // 参考香巴拉的 shambhalaBackup 实现
+
+    /** 诛仙剑持有者UUID备份（物品可能掉落，但状态仍然有效） */
+    private static final Set<UUID> zhuxianHolderBackup = new HashSet<>();
+
+    /** 技能状态备份：玩家UUID -> 技能Key -> 是否激活 */
+    private static final Map<UUID, Map<String, Boolean>> skillStateBackup = new HashMap<>();
+
+    /**
+     * 注册玩家为诛仙剑持有者（当玩家装备剑时调用）
+     */
+    public static void registerHolder(EntityPlayer player) {
+        zhuxianHolderBackup.add(player.getUniqueID());
+    }
+
+    /**
+     * 取消注册诛仙剑持有者（当玩家死亡后或主动放弃时调用）
+     */
+    public static void unregisterHolder(EntityPlayer player) {
+        UUID playerId = player.getUniqueID();
+        zhuxianHolderBackup.remove(playerId);
+        skillStateBackup.remove(playerId);
+    }
+
+    /**
+     * 检查玩家是否是诛仙剑持有者（包括备份检查）
+     */
+    public static boolean isHolder(EntityPlayer player) {
+        UUID playerId = player.getUniqueID();
+        // 优先检查备份
+        if (zhuxianHolderBackup.contains(playerId)) {
+            return true;
+        }
+        // 检查是否实际持有
+        ItemStack sword = getZhuxianSword(player);
+        if (!sword.isEmpty()) {
+            zhuxianHolderBackup.add(playerId);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 更新技能状态备份
+     */
+    public static void updateSkillBackup(EntityPlayer player, String skillKey, boolean active) {
+        UUID playerId = player.getUniqueID();
+        skillStateBackup.computeIfAbsent(playerId, k -> new HashMap<>()).put(skillKey, active);
+    }
+
+    /**
+     * 从备份获取技能状态
+     */
+    public static boolean getSkillFromBackup(EntityPlayer player, String skillKey) {
+        UUID playerId = player.getUniqueID();
+        Map<String, Boolean> skills = skillStateBackup.get(playerId);
+        if (skills != null) {
+            return skills.getOrDefault(skillKey, false);
+        }
+        return false;
+    }
+
+    /**
+     * 清理玩家状态（玩家退出时调用）
+     */
+    public static void cleanupPlayer(UUID playerId) {
+        zhuxianHolderBackup.remove(playerId);
+        skillStateBackup.remove(playerId);
+    }
+
+    /**
+     * 清空所有状态（世界卸载时调用）
+     */
+    public static void clearAllState() {
+        zhuxianHolderBackup.clear();
+        skillStateBackup.clear();
+    }
 
     public ZhuxianSword() {
         super(ToolMaterial.DIAMOND);
@@ -237,6 +320,32 @@ public class ZhuxianSword extends ItemSword {
     public void toggleSkill(ItemStack stack, String skillKey) {
         NBTTagCompound tag = getOrCreateTag(stack);
         tag.setBoolean(skillKey, !tag.getBoolean(skillKey));
+    }
+
+    /**
+     * 切换技能并同步到备份
+     * 必须使用此方法来确保死亡保护正常工作
+     */
+    public void toggleSkillWithBackup(ItemStack stack, String skillKey, EntityPlayer player) {
+        NBTTagCompound tag = getOrCreateTag(stack);
+        boolean newState = !tag.getBoolean(skillKey);
+        tag.setBoolean(skillKey, newState);
+
+        // 同步到备份
+        updateSkillBackup(player, skillKey, newState);
+        registerHolder(player);
+    }
+
+    /**
+     * 同步剑的所有技能状态到备份
+     * 在玩家装备剑或技能改变时调用
+     */
+    public void syncAllSkillsToBackup(ItemStack stack, EntityPlayer player) {
+        registerHolder(player);
+        updateSkillBackup(player, NBT_SKILL_TIANXIN, isSkillActive(stack, NBT_SKILL_TIANXIN));
+        updateSkillBackup(player, NBT_SKILL_LIMING, isSkillActive(stack, NBT_SKILL_LIMING));
+        updateSkillBackup(player, NBT_SKILL_JUEXUE, isSkillActive(stack, NBT_SKILL_JUEXUE));
+        updateSkillBackup(player, NBT_SKILL_TAIPING, isSkillActive(stack, NBT_SKILL_TAIPING));
     }
 
     // ==================== 伤害计算 ====================
@@ -455,6 +564,11 @@ public class ZhuxianSword extends ItemSword {
         // 只有手持时生效
         if (!isSelected && player.getHeldItemOffhand() != stack) return;
 
+        // 同步技能状态到备份（每5秒同步一次，避免性能问题）
+        if (world.getTotalWorldTime() % 100 == 0) {
+            syncAllSkillsToBackup(stack, player);
+        }
+
         SwordForm form = getForm(stack);
 
         // 绝仙形态：清除所有debuff
@@ -642,11 +756,39 @@ public class ZhuxianSword extends ItemSword {
     }
 
     /**
-     * 检查技能是否激活
+     * 检查技能是否激活（支持物品掉落后的备份检测）
+     *
+     * 检查顺序：
+     * 1. 优先检查静态备份（防止物品掉落导致检测失败）
+     * 2. 再检查实际持有的剑
+     *
+     * 参考香巴拉的 isShambhala 实现
      */
     public static boolean isPlayerSkillActive(EntityPlayer player, String skillKey) {
+        // 1. 优先检查备份（即使物品掉落也能工作）
+        if (getSkillFromBackup(player, skillKey)) {
+            return true;
+        }
+
+        // 2. 检查实际持有的剑
         ItemStack sword = getZhuxianSword(player);
-        if (sword.isEmpty()) return false;
-        return ((ZhuxianSword) sword.getItem()).isSkillActive(sword, skillKey);
+        if (!sword.isEmpty()) {
+            boolean active = ((ZhuxianSword) sword.getItem()).isSkillActive(sword, skillKey);
+            // 同步到备份
+            if (active) {
+                updateSkillBackup(player, skillKey, true);
+                registerHolder(player);
+            }
+            return active;
+        }
+
+        return false;
+    }
+
+    /**
+     * 检查玩家是否曾经是诛仙剑持有者（用于death hook）
+     */
+    public static boolean wasHolder(EntityPlayer player) {
+        return zhuxianHolderBackup.contains(player.getUniqueID());
     }
 }

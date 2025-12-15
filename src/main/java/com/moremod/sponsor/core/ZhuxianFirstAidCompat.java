@@ -78,6 +78,9 @@ public class ZhuxianFirstAidCompat {
                         TextFormatting.GOLD + "为生民立命" + TextFormatting.WHITE + " 保护了致命伤害！"
                 ), true);
 
+                // 清除备份状态，下次需要重新检测剑
+                ZhuxianSword.updateSkillBackup(player, ZhuxianSword.NBT_SKILL_LIMING, false);
+
                 // 同步到客户端
                 syncDamageModel(player);
             }
