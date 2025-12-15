@@ -87,11 +87,63 @@ public class ZhuxianDeathHook {
     }
 
     /**
-     * 保留空方法以兼容旧的ASM调用（damageEntity不再使用）
-     * @deprecated 不再使用，为生民立命改为只在onDeath拦截
+     * 检查并限制伤害，确保血量不低于20%
+     * Called by ASM at HEAD of EntityLivingBase.damageEntity
+     *
+     * @param entity 受伤的实体
+     * @param source 伤害来源
+     * @param damage 伤害量
+     * @return true = 取消伤害（已锁血）
      */
-    @Deprecated
     public static boolean checkAndLimitDamage(EntityLivingBase entity, DamageSource source, float damage) {
-        return false; // 不再拦截伤害，只拦截死亡
+        try {
+            if (!(entity instanceof EntityPlayer)) {
+                return false;
+            }
+
+            EntityPlayer player = (EntityPlayer) entity;
+
+            // 检查是否激活"为生民立命"技能
+            if (!ZhuxianSword.isPlayerSkillActive(player, ZhuxianSword.NBT_SKILL_LIMING)) {
+                return false;
+            }
+
+            // 计算最低血量阈值（20%）
+            float maxHealth = player.getMaxHealth();
+            float minHealth = Math.max(1.0f, maxHealth * HEALTH_THRESHOLD);
+            float currentHealth = player.getHealth();
+
+            // 如果伤害会导致血量低于阈值
+            if (currentHealth - damage < minHealth) {
+                // 计算允许的最大伤害
+                float allowedDamage = currentHealth - minHealth;
+
+                if (allowedDamage <= 0) {
+                    // 已经在最低血量或更低，完全阻止伤害
+                    return true;
+                }
+
+                // 允许部分伤害，但确保血量不低于阈值
+                // 由于我们不能修改damage参数，需要手动设置血量
+                player.setHealth(minHealth);
+
+                // 显示保护提示（每5秒最多显示一次）
+                long worldTime = player.world.getTotalWorldTime();
+                long lastNotify = player.getEntityData().getLong("ZhuxianLimingLastNotify");
+                if (worldTime - lastNotify > 100) { // 5秒
+                    player.getEntityData().setLong("ZhuxianLimingLastNotify", worldTime);
+                    player.sendStatusMessage(new TextComponentString(
+                            TextFormatting.GOLD + "【为生民立命】" + TextFormatting.WHITE + " 锁血保护！"
+                    ), true);
+                }
+
+                return true; // 阻止原始伤害，血量已设置
+            }
+
+            return false; // 允许伤害
+        } catch (Throwable t) {
+            System.err.println("[ZhuxianDeathHook] Error in checkAndLimitDamage: " + t.getMessage());
+            return false;
+        }
     }
 }
