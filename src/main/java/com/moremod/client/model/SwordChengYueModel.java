@@ -17,7 +17,7 @@ public class SwordChengYueModel extends AnimatedGeoModel<ItemSwordChengYue> {
 
     // 模型资源路径
     private static final ResourceLocation MODEL_NORMAL = new ResourceLocation("moremod", "geo/sword_chengyue.geo.json");
-    private static final ResourceLocation MODEL_SKILL = new ResourceLocation("moremod", "geo/moon_sword.json");
+    private static final ResourceLocation MODEL_SKILL = new ResourceLocation("moremod", "geo/moon_sword.geo.json");
 
     private static final ResourceLocation TEXTURE_NORMAL = new ResourceLocation("moremod", "textures/item/sword_chengyue.png");
     private static final ResourceLocation TEXTURE_SKILL = new ResourceLocation("moremod", "geo/moon_sword.png");
