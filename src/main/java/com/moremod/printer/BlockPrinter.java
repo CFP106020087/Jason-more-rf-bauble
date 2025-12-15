@@ -125,11 +125,11 @@ public class BlockPrinter extends Block implements ITileEntityProvider {
     }
 
     /**
-     * 使用 GeckoLib TESR 渲染
+     * 使用标准方块模型渲染 (OBJ)
      */
     @Override
     public EnumBlockRenderType getRenderType(IBlockState state) {
-        return EnumBlockRenderType.ENTITYBLOCK_ANIMATED;
+        return EnumBlockRenderType.MODEL;
     }
 
     /**
