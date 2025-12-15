@@ -30,6 +30,7 @@ import javax.annotation.Nullable;
  * 打印机核心方块
  *
  * 多方块结构的核心，负责打印物品
+ * 使用 GeckoLib 渲染动画
  */
 public class BlockPrinter extends Block implements ITileEntityProvider {
 
@@ -124,11 +125,11 @@ public class BlockPrinter extends Block implements ITileEntityProvider {
     }
 
     /**
-     * 使用标准方块模型渲染 (OBJ)
+     * 使用 GeckoLib TESR 渲染
      */
     @Override
     public EnumBlockRenderType getRenderType(IBlockState state) {
-        return EnumBlockRenderType.MODEL;
+        return EnumBlockRenderType.ENTITYBLOCK_ANIMATED;
     }
 
     /**

@@ -1,5 +1,5 @@
 # Made in Blockbench 5.0.5
-mtllib 3d_printer.mtl
+mtllib printer.mtl
 
 o grass1_2
 v -0.0625 0.375 0.125
