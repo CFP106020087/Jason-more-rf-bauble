@@ -75,6 +75,10 @@ import com.moremod.printer.ContainerPrinter;
 import com.moremod.printer.GuiPrinter;
 import com.moremod.printer.TileEntityPrinter;
 
+// ⛽ 石油发电机GUI导入
+import com.moremod.container.ContainerOilGenerator;
+import com.moremod.tile.TileEntityOilGenerator;
+
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumHand;
@@ -137,6 +141,9 @@ public class GuiHandler implements IGuiHandler {
 
     // 🖨️ 打印机
     public static final int PRINTER_GUI = 34;
+
+    // ⛽ 石油发电机
+    public static final int OIL_GENERATOR_GUI = 35;
 
     // ---------------- Server ----------------
     @Override
@@ -240,6 +247,10 @@ public class GuiHandler implements IGuiHandler {
                 }
                 case PRINTER_GUI: { // 🖨️ ID=34
                     result = createPrinterContainer(player, world, x, y, z);
+                    break;
+                }
+                case OIL_GENERATOR_GUI: { // ⛽ ID=35
+                    result = createOilGeneratorContainer(player, world, x, y, z);
                     break;
                 }
                 default:
@@ -355,6 +366,10 @@ public class GuiHandler implements IGuiHandler {
                 }
                 case PRINTER_GUI: { // 🖨️ ID=34
                     result = createPrinterGui(player, world, x, y, z);
+                    break;
+                }
+                case OIL_GENERATOR_GUI: { // ⛽ ID=35
+                    result = createOilGeneratorGui(player, world, x, y, z);
                     break;
                 }
                 default:
@@ -829,6 +844,32 @@ public class GuiHandler implements IGuiHandler {
             return new GuiPrinter(player.inventory, (TileEntityPrinter) te);
         }
         System.out.println("[GuiHandler] ❌ 未识别的打印机 TE(客户端): " + (te == null ? "null" : te.getClass().getName()));
+        return null;
+    }
+
+    // ====== ⛽ ID=35：石油发电机 ======
+    private Object createOilGeneratorContainer(EntityPlayer player, World world, int x, int y, int z) {
+        BlockPos pos = new BlockPos(x, y, z);
+        TileEntity te = world.getTileEntity(pos);
+
+        if (te instanceof TileEntityOilGenerator) {
+            System.out.println("[GuiHandler] 打开石油发电机 Container");
+            return new ContainerOilGenerator(player.inventory, (TileEntityOilGenerator) te);
+        }
+        System.out.println("[GuiHandler] ❌ 未识别的石油发电机 TE: " + (te == null ? "null" : te.getClass().getName()));
+        return null;
+    }
+
+    @SideOnly(Side.CLIENT)
+    private Object createOilGeneratorGui(EntityPlayer player, World world, int x, int y, int z) {
+        BlockPos pos = new BlockPos(x, y, z);
+        TileEntity te = world.getTileEntity(pos);
+
+        if (te instanceof TileEntityOilGenerator) {
+            System.out.println("[GuiHandler] 打开石油发电机 GUI");
+            return new GuiOilGenerator(player.inventory, (TileEntityOilGenerator) te);
+        }
+        System.out.println("[GuiHandler] ❌ 未识别的石油发电机 TE(客户端): " + (te == null ? "null" : te.getClass().getName()));
         return null;
     }
 }

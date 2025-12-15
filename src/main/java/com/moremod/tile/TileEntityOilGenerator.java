@@ -443,6 +443,31 @@ public class TileEntityOilGenerator extends TileEntity implements ITickable {
         return fluidTank;
     }
 
+    // ===== Client Setters (for GUI sync) =====
+
+    public void setClientEnergy(int value) {
+        energy.setEnergy(value);
+    }
+
+    public void setClientFluidAmount(int amount) {
+        FluidStack current = fluidTank.getFluid();
+        if (current != null) {
+            current.amount = amount;
+        }
+    }
+
+    public void setClientBurnTime(int value) {
+        this.burnTime = value;
+    }
+
+    public void setClientMaxBurnTime(int value) {
+        this.maxBurnTime = value;
+    }
+
+    public void setClientRFPerTick(int value) {
+        this.currentRFPerTick = value;
+    }
+
     // ===== 液體處理器包裝（確保所有面都能輸入）=====
 
     private final IFluidHandler fluidHandlerWrapper = new IFluidHandler() {
