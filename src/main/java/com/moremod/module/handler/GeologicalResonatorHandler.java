@@ -36,6 +36,8 @@ public class GeologicalResonatorHandler implements IModuleEventHandler {
 
     // 【优化】矿物词典缓存
     private static final Set<Integer> KNOWN_ORE_IDS = new HashSet<>();
+    // 特殊可提取方块（非标准矿物词典）
+    private static final Set<String> SPECIAL_VALUABLE_BLOCKS = new HashSet<>();
     private static boolean oreCacheInitialized = false;
 
     /**
@@ -53,7 +55,12 @@ public class GeologicalResonatorHandler implements IModuleEventHandler {
                 KNOWN_ORE_IDS.add(OreDictionary.getOreID(name));
             }
         }
-        System.out.println("[GeologicalResonator] 缓存了 " + KNOWN_ORE_IDS.size() + " 种矿物类型。");
+
+        // 添加特殊可提取方块（非标准矿物词典）
+        SPECIAL_VALUABLE_BLOCKS.add("minecraft:ancient_debris");
+        SPECIAL_VALUABLE_BLOCKS.add("astralsorcery:blockcelestialcrystals");
+
+        System.out.println("[GeologicalResonator] 缓存了 " + KNOWN_ORE_IDS.size() + " 种矿物类型，" + SPECIAL_VALUABLE_BLOCKS.size() + " 种特殊方块。");
     }
 
     @Override
@@ -178,6 +185,11 @@ public class GeologicalResonatorHandler implements IModuleEventHandler {
             block == Blocks.SAND || block == Blocks.GRAVEL || state.getMaterial().isLiquid() ||
             state.getBlockHardness(world, pos) < 0) {
             return false;
+        }
+
+        // 检查是否是特殊可提取方块（如远古残骸、天辉水晶）
+        if (block.getRegistryName() != null && SPECIAL_VALUABLE_BLOCKS.contains(block.getRegistryName().toString())) {
+            return true;
         }
 
         // 获取方块对应的 ItemStack，用于矿物词典查询

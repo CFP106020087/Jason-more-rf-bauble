@@ -146,6 +146,8 @@ public class AuxiliaryUpgradeManager {
                 // 0. 添加特定模组矿物（通过注册名查找）
                 addModOreByName("astralsorcery:blockcustomore", "星辉矿石");
                 addModOreByName("nb:netherite_ore", "下界合金矿");
+                addModOreByName("minecraft:ancient_debris", "远古残骸");
+                addModOreByName("astralsorcery:blockcelestialcrystals", "天辉水晶");
 
                 // 1. 从矿物词典加载所有矿物（支持所有模组）
                 for (String oreName : OreDictionary.getOreNames()) {
