@@ -39,7 +39,7 @@ public class IntelEventHandler {
     private static final float HIGH_HUMANITY_THRESHOLD = 50.0f;
 
     // 样本掉落基础概率
-    private static final float BASE_DROP_CHANCE = 0.20f; // 20%
+    private static final float BASE_DROP_CHANCE = 0.05f; // 5%
 
     // 人性值加成（每1点超过50的人性值增加的掉落率）
     private static final float HUMANITY_DROP_BONUS = 0.005f; // 每1点 +0.5%
@@ -270,17 +270,17 @@ public class IntelEventHandler {
         BiologicalProfile profile = data.getProfile(entityId);
         if (profile == null) return;
 
-        // 根据档案等级计算掉落倍率（2倍加成）
+        // 根据档案等级计算掉落倍率
         float dropMultiplier = 1.0f;
         switch (profile.getCurrentTier()) {
             case BASIC:
-                dropMultiplier = 1.4f;  // +40% (原20%的2倍)
+                dropMultiplier = 1.2f;  // +20%
                 break;
             case COMPLETE:
-                dropMultiplier = 2.0f;  // +100% (原50%的2倍)
+                dropMultiplier = 1.5f;  // +50%
                 break;
             case MASTERED:
-                dropMultiplier = 3.0f;  // +200% (原100%的2倍)
+                dropMultiplier = 2.0f;  // +100% (双倍掉落)
                 break;
             default:
                 return; // 未分析，不加成
