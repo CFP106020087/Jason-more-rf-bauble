@@ -132,33 +132,38 @@ public class SwordChengYueRenderer extends GeoItemRenderer<ItemSwordChengYue> {
 
     /**
      * 技能模式渲染变换（双手拔刀动画）
-     * 模型枢轴点: 右手(6,22,0), 刀鞘(0,19,9), 刀(0,19,21)
+     * 使用 ChengYueDebugKey 的调试偏移量
      */
     private void renderSkillMode(ItemCameraTransforms.TransformType transformType) {
+        // 从调试类读取偏移量
+        float ox = com.moremod.client.debug.ChengYueDebugKey.offsetX;
+        float oy = com.moremod.client.debug.ChengYueDebugKey.offsetY;
+        float oz = com.moremod.client.debug.ChengYueDebugKey.offsetZ;
+        float sc = com.moremod.client.debug.ChengYueDebugKey.scale;
+
         if (transformType != null) {
             switch (transformType) {
                 case FIRST_PERSON_RIGHT_HAND:
                 case FIRST_PERSON_LEFT_HAND:
                     // 第一人称：显示双手持剑
                     GlStateManager.translate(0.5, 0.5, 0.5);
-                    GlStateManager.scale(0.05f, 0.05f, 0.05f);
-                    // 补偿枢轴点: Y=-19, Z=-15 (刀鞘和刀之间)
-                    GlStateManager.translate(0, -19, -15);
+                    GlStateManager.scale(sc, sc, sc);
+                    GlStateManager.translate(ox, oy, oz);
                     break;
 
                 case THIRD_PERSON_RIGHT_HAND:
                 case THIRD_PERSON_LEFT_HAND:
                     // 第三人称
                     GlStateManager.translate(0.5, 0.8, 0.5);
-                    GlStateManager.scale(0.04f, 0.04f, 0.04f);
-                    GlStateManager.translate(0, -19, -15);
+                    GlStateManager.scale(sc * 0.8f, sc * 0.8f, sc * 0.8f);
+                    GlStateManager.translate(ox, oy, oz);
                     break;
 
                 default:
                     // GUI 等其他模式
                     GlStateManager.translate(0.5, 0.5, 0.5);
-                    GlStateManager.scale(0.025f, 0.025f, 0.025f);
-                    GlStateManager.translate(0, -19, -15);
+                    GlStateManager.scale(sc * 0.5f, sc * 0.5f, sc * 0.5f);
+                    GlStateManager.translate(ox, oy, oz);
                     break;
             }
         }
