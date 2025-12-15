@@ -1,0 +1,4 @@
+# Printer Material File
+newmtl printer_material
+Kd 1 1 1
+map_Kd moremod:blocks/printer

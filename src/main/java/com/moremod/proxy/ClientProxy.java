@@ -41,6 +41,7 @@ import net.minecraft.client.renderer.entity.RenderPlayer;
 import net.minecraft.item.Item;
 import net.minecraftforge.client.event.ModelRegistryEvent;
 import net.minecraftforge.client.model.ModelLoader;
+import net.minecraftforge.client.model.obj.OBJLoader;
 import net.minecraftforge.common.MinecraftForge;
 
 import net.minecraftforge.fml.client.registry.ClientRegistry;
@@ -72,6 +73,10 @@ public class ClientProxy extends CommonProxy {
 
         MinecraftForge.EVENT_BUS.register(new EventHUDOverlay());
 
+        // 注册 OBJLoader 域名
+        OBJLoader.INSTANCE.addDomain(moremod.MODID);
+        System.out.println("[moremod] OBJLoader domain registered");
+
         // GeckoLib init (1.12.2 requires manual call)
         try {
             software.bernie.geckolib3.GeckoLib.initialize();
@@ -91,7 +96,7 @@ public class ClientProxy extends CommonProxy {
         ClientRegistry.bindTileEntitySpecialRenderer(TileEntityPedestal.class, new TileEntityPedestalRenderer());
         ClientRegistry.bindTileEntitySpecialRenderer(TileEntityProtectionField.class, new TESRProtectionField());
 
-        // 打印机 GeckoLib 渲染器
+        // 打印机 OBJ 渲染器
         ClientRegistry.bindTileEntitySpecialRenderer(TileEntityPrinter.class, new PrinterRenderer());
 
         registerEntityRenderers();
