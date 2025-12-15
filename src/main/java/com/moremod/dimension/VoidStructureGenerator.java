@@ -1,5 +1,6 @@
 package com.moremod.dimension;
 
+import com.moremod.init.ModItems;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
@@ -538,6 +539,17 @@ public class VoidStructureGenerator {
             ItemStack loot = selectRandomLoot();
             chest.setInventorySlotContents(i, loot);
         }
+
+        // ★ 七咒七圣物 (3% 概率) ★
+        if (random.nextFloat() < 0.03f) {
+            try {
+                int slot = random.nextInt(27);
+                ItemStack curseOrSacred = getRandomCurseOrSacredItem();
+                if (curseOrSacred != null && !curseOrSacred.isEmpty()) {
+                    chest.setInventorySlotContents(slot, curseOrSacred);
+                }
+            } catch (Exception ignored) {}
+        }
     }
 
     /**
@@ -573,6 +585,49 @@ public class VoidStructureGenerator {
         };
         for (int i = 0; i < 3 + random.nextInt(3); i++) {
             chest.setInventorySlotContents(i, loot[random.nextInt(loot.length)]);
+        }
+
+        // ★ 七咒七圣物 (3% 概率) ★
+        if (random.nextFloat() < 0.03f) {
+            try {
+                int slot = random.nextInt(27);
+                ItemStack curseOrSacred = getRandomCurseOrSacredItem();
+                if (curseOrSacred != null && !curseOrSacred.isEmpty()) {
+                    chest.setInventorySlotContents(slot, curseOrSacred);
+                }
+            } catch (Exception ignored) {}
+        }
+    }
+
+    /**
+     * 获取随机七咒或七圣物品 (3% 概率添加到宝箱)
+     */
+    private static ItemStack getRandomCurseOrSacredItem() {
+        // 15个物品: 8个七咒 + 7个七圣遗物
+        int type = random.nextInt(15);
+        try {
+            switch (type) {
+                // 七咒 (8个)
+                case 0: return ModItems.CURSE_SPREAD != null ? new ItemStack(ModItems.CURSE_SPREAD) : ItemStack.EMPTY;
+                case 1: return ModItems.ALCHEMIST_STONE != null ? new ItemStack(ModItems.ALCHEMIST_STONE) : ItemStack.EMPTY;
+                case 2: return ModItems.THORN_SHARD != null ? new ItemStack(ModItems.THORN_SHARD) : ItemStack.EMPTY;
+                case 3: return ModItems.VOID_GAZE != null ? new ItemStack(ModItems.VOID_GAZE) : ItemStack.EMPTY;
+                case 4: return ModItems.GLUTTONOUS_PHALANX != null ? new ItemStack(ModItems.GLUTTONOUS_PHALANX) : ItemStack.EMPTY;
+                case 5: return ModItems.CRYSTALLIZED_RESENTMENT != null ? new ItemStack(ModItems.CRYSTALLIZED_RESENTMENT) : ItemStack.EMPTY;
+                case 6: return ModItems.NOOSE_OF_HANGED_KING != null ? new ItemStack(ModItems.NOOSE_OF_HANGED_KING) : ItemStack.EMPTY;
+                case 7: return ModItems.SCRIPT_OF_FIFTH_ACT != null ? new ItemStack(ModItems.SCRIPT_OF_FIFTH_ACT) : ItemStack.EMPTY;
+                // 七圣遗物 (7个)
+                case 8: return ModItems.SACRED_HEART != null ? new ItemStack(ModItems.SACRED_HEART) : ItemStack.EMPTY;
+                case 9: return ModItems.PEACE_EMBLEM != null ? new ItemStack(ModItems.PEACE_EMBLEM) : ItemStack.EMPTY;
+                case 10: return ModItems.GUARDIAN_SCALE != null ? new ItemStack(ModItems.GUARDIAN_SCALE) : ItemStack.EMPTY;
+                case 11: return ModItems.COURAGE_BLADE != null ? new ItemStack(ModItems.COURAGE_BLADE) : ItemStack.EMPTY;
+                case 12: return ModItems.FROST_DEW != null ? new ItemStack(ModItems.FROST_DEW) : ItemStack.EMPTY;
+                case 13: return ModItems.SOUL_ANCHOR != null ? new ItemStack(ModItems.SOUL_ANCHOR) : ItemStack.EMPTY;
+                case 14: return ModItems.SLUMBER_SACHET != null ? new ItemStack(ModItems.SLUMBER_SACHET) : ItemStack.EMPTY;
+                default: return ItemStack.EMPTY;
+            }
+        } catch (Exception e) {
+            return ItemStack.EMPTY;
         }
     }
 
