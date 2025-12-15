@@ -287,10 +287,12 @@ public class AuxiliaryUpgradeManager {
                 if (block != null && block != Blocks.AIR) {
                     ALL_ORE_BLOCKS.add(block);
                     ORE_DISPLAY_NAMES.put(block, displayName);
-                    debug("已添加模组矿物: " + registryName + " -> " + displayName);
+                    System.out.println("[OreVision] 成功添加模组矿物: " + registryName + " -> " + displayName + " (Block=" + block.getClass().getName() + ")");
+                } else {
+                    System.out.println("[OreVision] 未找到方块: " + registryName + " (可能模组未安装)");
                 }
             } catch (Exception e) {
-                debug("无法添加模组矿物: " + registryName + " - " + e.getMessage());
+                System.out.println("[OreVision] 无法添加模组矿物: " + registryName + " - " + e.getMessage());
             }
         }
 
@@ -406,6 +408,14 @@ public class AuxiliaryUpgradeManager {
                         if (pos.distanceSq(pp) > range * range) continue;
                         IBlockState st = ch.getBlockState(pos);
                         Block b = st.getBlock();
+                        // 调试: 检测特殊矿物
+                        if (b.getRegistryName() != null) {
+                            String rn = b.getRegistryName().toString();
+                            if (rn.startsWith("astralsorcery:") || rn.startsWith("nb:")) {
+                                boolean inSet = ALL_ORE_BLOCKS.contains(b);
+                                System.out.println("[OreVision] DEBUG: 扫描到 " + rn + " @ " + pos + " | 在ORE_BLOCKS中=" + inSet);
+                            }
+                        }
                         if (ALL_ORE_BLOCKS.contains(b)) {
                             oreCache.put(pos, b);
                             found.add(b);
