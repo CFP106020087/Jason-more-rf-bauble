@@ -3,7 +3,6 @@ package com.moremod.printer;
 import com.moremod.client.gui.GuiHandler;
 import com.moremod.creativetab.moremodCreativeTab;
 import com.moremod.moremod;
-import com.moremod.multiblock.MultiblockPrinter;
 import net.minecraft.block.Block;
 import net.minecraft.block.ITileEntityProvider;
 import net.minecraft.block.material.Material;
@@ -20,7 +19,6 @@ import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.text.TextComponentString;
 import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
@@ -56,16 +54,7 @@ public class BlockPrinter extends Block implements ITileEntityProvider {
         if (!world.isRemote) {
             TileEntity te = world.getTileEntity(pos);
             if (te instanceof TileEntityPrinter) {
-                TileEntityPrinter printer = (TileEntityPrinter) te;
-
-                // 检查多方块结构
-                if (!printer.isMultiblockFormed()) {
-                    // 发送结构未形成的消息
-                    player.sendMessage(new TextComponentString("\u00a7c" + "多方块结构未形成！"));
-                    player.sendMessage(new TextComponentString("\u00a77" + MultiblockPrinter.getBuildGuide()));
-                    return true;
-                }
-
+                // 单方块机器，直接打开GUI
                 player.openGui(moremod.instance, GuiHandler.PRINTER_GUI, world, pos.getX(), pos.getY(), pos.getZ());
             }
         }

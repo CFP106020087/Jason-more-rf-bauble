@@ -1,6 +1,5 @@
 package com.moremod.printer;
 
-import com.moremod.multiblock.MultiblockPrinter;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.InventoryHelper;
 import net.minecraft.item.ItemStack;
@@ -15,13 +14,6 @@ import net.minecraftforge.energy.CapabilityEnergy;
 import net.minecraftforge.energy.EnergyStorage;
 import net.minecraftforge.items.CapabilityItemHandler;
 import net.minecraftforge.items.ItemStackHandler;
-import software.bernie.geckolib3.core.IAnimatable;
-import software.bernie.geckolib3.core.PlayState;
-import software.bernie.geckolib3.core.builder.AnimationBuilder;
-import software.bernie.geckolib3.core.controller.AnimationController;
-import software.bernie.geckolib3.core.event.predicate.AnimationEvent;
-import software.bernie.geckolib3.core.manager.AnimationData;
-import software.bernie.geckolib3.core.manager.AnimationFactory;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -30,18 +22,15 @@ import java.util.List;
 /**
  * 打印机TileEntity
  *
- * 多方块结构核心，消耗能量和材料打印物品
- * 使用GeckoLib实现机械臂动画
+ * 单方块机器，接电即可工作
+ * 消耗能量和材料打印物品
  *
  * 槽位布局:
  * - 槽位 0: 模版槽
  * - 槽位 1-9: 材料槽 (3x3)
  * - 槽位 10: 输出槽
  */
-public class TileEntityPrinter extends TileEntity implements ITickable, IAnimatable {
-
-    // GeckoLib动画工厂
-    private final AnimationFactory factory = new AnimationFactory(this);
+public class TileEntityPrinter extends TileEntity implements ITickable {
 
     // 配置
     private static final int ENERGY_CAPACITY = 10000000;      // 10M RF
@@ -90,7 +79,6 @@ public class TileEntityPrinter extends TileEntity implements ITickable, IAnimata
     };
 
     // 处理状态
-    private boolean multiblockFormed = false;
     private PrinterRecipe currentRecipe = null;
     private int progress = 0;
     private int maxProgress = 0;
@@ -100,32 +88,12 @@ public class TileEntityPrinter extends TileEntity implements ITickable, IAnimata
     public void update() {
         if (world == null || world.isRemote) return;
 
-        // 每20tick检查一次多方块结构
-        if (world.getTotalWorldTime() % 20 == 0) {
-            boolean wasFormed = multiblockFormed;
-            multiblockFormed = MultiblockPrinter.checkStructure(world, pos);
-            if (wasFormed != multiblockFormed) {
-                markDirty();
-                sendUpdatePacket();
-            }
-        }
-
-        // 如果多方块没有形成，不进行处理
-        if (!multiblockFormed) {
-            if (isProcessing) {
-                isProcessing = false;
-                progress = 0;
-                markDirty();
-            }
-            return;
-        }
-
         // 检查配方
         if (currentRecipe == null) {
             checkRecipe();
         }
 
-        // 处理打印
+        // 处理打印 (只需要有电即可工作)
         if (currentRecipe != null && canProcess()) {
             if (!isProcessing) {
                 startProcessing();
@@ -364,8 +332,12 @@ public class TileEntityPrinter extends TileEntity implements ITickable, IAnimata
         return inventory;
     }
 
+    /**
+     * 单方块机器，始终返回true
+     * 保留此方法以兼容GUI
+     */
     public boolean isMultiblockFormed() {
-        return multiblockFormed;
+        return true;
     }
 
     public boolean isProcessing() {
@@ -413,7 +385,6 @@ public class TileEntityPrinter extends TileEntity implements ITickable, IAnimata
         super.writeToNBT(compound);
         compound.setTag("Inventory", inventory.serializeNBT());
         compound.setInteger("Energy", energy.getEnergyStored());
-        compound.setBoolean("MultiblockFormed", multiblockFormed);
         compound.setBoolean("IsProcessing", isProcessing);
         compound.setInteger("Progress", progress);
         compound.setInteger("MaxProgress", maxProgress);
@@ -428,7 +399,6 @@ public class TileEntityPrinter extends TileEntity implements ITickable, IAnimata
         }
         int fe = compound.getInteger("Energy");
         while (energy.getEnergyStored() < fe && energy.receiveEnergy(Integer.MAX_VALUE, false) > 0) {}
-        multiblockFormed = compound.getBoolean("MultiblockFormed");
         isProcessing = compound.getBoolean("IsProcessing");
         progress = compound.getInteger("Progress");
         maxProgress = compound.getInteger("MaxProgress");
@@ -458,31 +428,5 @@ public class TileEntityPrinter extends TileEntity implements ITickable, IAnimata
     @Override
     public void handleUpdateTag(NBTTagCompound tag) {
         readFromNBT(tag);
-    }
-
-    // ===== GeckoLib动画 =====
-
-    /**
-     * 动画控制器 - 根据状态播放不同动画
-     * 多方块形成时播放 idle 动画，否则停止
-     */
-    private <E extends IAnimatable> PlayState animationPredicate(AnimationEvent<E> event) {
-        // 只有多方块形成时才播放动画
-        if (multiblockFormed) {
-            event.getController().setAnimation(new AnimationBuilder().addAnimation("animation.3d_printer.idle", true));
-            return PlayState.CONTINUE;
-        }
-        // 多方块未形成时停止动画
-        return PlayState.STOP;
-    }
-
-    @Override
-    public void registerControllers(AnimationData data) {
-        data.addAnimationController(new AnimationController<>(this, "controller", 0, this::animationPredicate));
-    }
-
-    @Override
-    public AnimationFactory getFactory() {
-        return this.factory;
     }
 }
