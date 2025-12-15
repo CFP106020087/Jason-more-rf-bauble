@@ -1,6 +1,5 @@
 package com.moremod.sponsor;
 
-import com.moremod.accessorybox.EarlyConfigLoader;
 import net.minecraftforge.common.config.Config;
 import net.minecraftforge.common.config.ConfigManager;
 import net.minecraftforge.fml.client.event.ConfigChangedEvent;
@@ -10,11 +9,6 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 /**
  * 赞助者物品配置
  * 可以通过主开关完全禁用所有赞助者物品
- *
- * 注意：诛仙剑等武器的ASM注入由 EarlyConfigLoader 早期配置控制
- * 在 config/moremod.cfg 或 config/moremod/extra_baubles.cfg 中设置:
- *   B:"赞助者武器 | Sponsor Weapons"=false
- *   B:"诛仙剑 | Zhuxian Sword"=false
  */
 @Config(modid = "moremod", name = "moremod/sponsor_items")
 @Config.LangKey("config.moremod.sponsor.title")
@@ -23,10 +17,7 @@ public class SponsorConfig {
     @Config.Comment({
         "赞助者物品系统主开关",
         "设为 false 将禁用所有赞助者武器/盔甲/饰品",
-        "需要重启游戏才能生效",
-        "",
-        "注意：诛仙剑的ASM功能需要在 config/moremod.cfg 中额外关闭:",
-        "  B:\"赞助者武器 | Sponsor Weapons\"=false"
+        "需要重启游戏才能生效"
     })
     @Config.RequiresMcRestart
     public static boolean enabled = true;
@@ -95,26 +86,16 @@ public class SponsorConfig {
 
     /**
      * 检查赞助者系统是否完全启用
-     * 同时检查 Forge @Config 和 早期配置
      */
     public static boolean isEnabled() {
-        return enabled && EarlyConfigLoader.enableSponsorWeapons;
+        return enabled;
     }
 
     /**
      * 检查武器是否启用
-     * 同时检查 Forge @Config 和 早期配置
      */
     public static boolean isWeaponsEnabled() {
-        return enabled && weapons.enabled && EarlyConfigLoader.enableSponsorWeapons;
-    }
-
-    /**
-     * 检查诛仙剑是否启用
-     * 用于物品注册和事件处理
-     */
-    public static boolean isZhuxianSwordEnabled() {
-        return isWeaponsEnabled() && EarlyConfigLoader.enableZhuxianSword;
+        return enabled && weapons.enabled;
     }
 
     /**

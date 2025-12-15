@@ -3,7 +3,6 @@ package com.moremod.sponsor;
 import com.moremod.sponsor.item.SponsorArmor;
 import com.moremod.sponsor.item.SponsorBauble;
 import com.moremod.sponsor.item.SponsorSword;
-import com.moremod.sponsor.item.ZhuxianSword;
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.inventory.EntityEquipmentSlot;
 import net.minecraft.item.Item;
@@ -31,8 +30,9 @@ public class SponsorItems {
     // ========== 物品列表（用于统一管理） ==========
     private static final List<Item> ALL_SPONSOR_ITEMS = new ArrayList<>();
 
-    // ========== 赞助者武器 ==========
-    public static Item ZHUXIAN_SWORD; // 诛仙四剑
+    // ========== 示例赞助者武器 ==========
+    // 取消注释并添加你的赞助者武器
+    // public static Item EXAMPLE_SPONSOR_SWORD;
 
     // ========== 示例赞助者盔甲 ==========
     // 取消注释并添加你的赞助者盔甲
@@ -75,16 +75,15 @@ public class SponsorItems {
 
         System.out.println("[moremod] ========== 注册赞助者物品 ==========");
 
-        // ========== 赞助者武器 ==========
-        if (SponsorConfig.isWeaponsEnabled()) {
-            // 诛仙四剑 - 使用独立开关
-            if (SponsorConfig.isZhuxianSwordEnabled()) {
-                ZHUXIAN_SWORD = newSafe(ZhuxianSword::new, "zhuxian_sword");
-                System.out.println("[moremod] 诛仙剑已注册");
-            } else {
-                System.out.println("[moremod] 诛仙剑已禁用（配置关闭）");
-            }
-        }
+        // ========== 在这里创建并注册你的赞助者物品 ==========
+
+        // 示例：赞助者武器
+        // if (SponsorConfig.isWeaponsEnabled()) {
+        //     EXAMPLE_SPONSOR_SWORD = newSafe(() ->
+        //         new SponsorSword("example_sponsor_sword", "赞助者示例剑"),
+        //         "example_sponsor_sword"
+        //     );
+        // }
 
         // 示例：赞助者盔甲
         // if (SponsorConfig.isArmorEnabled()) {
