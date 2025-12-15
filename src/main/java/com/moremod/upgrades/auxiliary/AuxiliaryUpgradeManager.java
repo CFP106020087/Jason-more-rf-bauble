@@ -17,7 +17,9 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
 import net.minecraft.init.MobEffects;
 import net.minecraft.init.SoundEvents;
+import net.minecraft.inventory.EntityEquipmentSlot;
 import net.minecraft.item.ItemBlock;
+import net.minecraft.util.EnumHandSide;
 import net.minecraft.item.ItemStack;
 import net.minecraft.potion.PotionEffect;
 import net.minecraft.util.EnumParticleTypes;
@@ -32,6 +34,7 @@ import net.minecraft.world.chunk.Chunk;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.energy.IEnergyStorage;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.event.entity.living.LivingSetAttackTargetEvent;
 import net.minecraftforge.event.entity.player.PlayerPickupXpEvent;
 import net.minecraftforge.event.world.BlockEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -599,7 +602,7 @@ public class AuxiliaryUpgradeManager {
         }
     }
 
-    // ========================= 隐身系统 =========================
+    // ========================= 隐身系统 (不朽护符同款逻辑) =========================
     public static class StealthSystem {
         private static final boolean DEBUG_MODE_LOCAL = false;
 
@@ -616,6 +619,103 @@ public class AuxiliaryUpgradeManager {
         private static final float CONSECUTIVE_PENALTY = 1.5f;
         private static final long MESSAGE_COOLDOWN_LOCAL = 3000L;
         private static final long CONSECUTIVE_RESET_TIME = 120000L;
+
+        // 清除仇恨范围 (按等级)
+        private static final double[] CLEAR_AGGRO_RANGE = { 16.0, 24.0, 32.0 };
+
+        /**
+         * 阻止敌对生物锁定玩家 - 不朽护符同款逻辑
+         * 当隐身激活时，怪物无法将玩家设为攻击目标
+         */
+        @SubscribeEvent(priority = EventPriority.HIGHEST)
+        public static void onSetAttackTarget(LivingSetAttackTargetEvent event) {
+            // 只处理怪物锁定玩家的情况
+            if (!(event.getTarget() instanceof EntityPlayer)) return;
+            if (event.getEntityLiving() instanceof EntityPlayer) return;
+
+            EntityPlayer targetPlayer = (EntityPlayer) event.getTarget();
+
+            // 检查玩家是否有隐身效果
+            if (!isStealthActive(targetPlayer)) return;
+
+            EntityLivingBase attacker = event.getEntityLiving();
+
+            if (attacker instanceof EntityLiving) {
+                EntityLiving livingAttacker = (EntityLiving) attacker;
+
+                // 清除攻击目标
+                livingAttacker.setAttackTarget(null);
+
+                // 使用假目标替换复仇目标，防止生物继续追踪
+                if (targetPlayer.equals(attacker.getRevengeTarget())) {
+                    attacker.setRevengeTarget(new DummyTarget(attacker.world));
+                }
+
+                // 清除导航路径
+                if (livingAttacker.getNavigator() != null) {
+                    livingAttacker.getNavigator().clearPath();
+                }
+
+                // 让生物看向随机方向
+                livingAttacker.getLookHelper().setLookPosition(
+                        livingAttacker.posX + livingAttacker.world.rand.nextGaussian() * 10,
+                        livingAttacker.posY,
+                        livingAttacker.posZ + livingAttacker.world.rand.nextGaussian() * 10,
+                        10.0F, 10.0F
+                );
+            }
+        }
+
+        /**
+         * 清除玩家周围所有生物的仇恨
+         */
+        public static int clearNearbyAggro(EntityPlayer player, double range) {
+            if (player.world.isRemote) return 0;
+
+            AxisAlignedBB aabb = new AxisAlignedBB(
+                    player.posX - range, player.posY - range, player.posZ - range,
+                    player.posX + range, player.posY + range, player.posZ + range
+            );
+
+            List<EntityLiving> mobs = player.world.getEntitiesWithinAABB(EntityLiving.class, aabb);
+            int affected = 0;
+
+            DummyTarget dummyTarget = new DummyTarget(player.world);
+
+            for (EntityLiving mob : mobs) {
+                // 跳过玩家自身
+                if (mob instanceof EntityPlayer) continue;
+
+                // 检查是否在圆形范围内
+                double distSq = mob.getDistanceSq(player.posX, player.posY, player.posZ);
+                if (distSq > range * range) continue;
+
+                // 清除所有仇恨相关
+                if (mob.getAttackTarget() != null) {
+                    mob.setAttackTarget(null);
+                    affected++;
+                }
+
+                // 使用假目标替换复仇目标
+                mob.setRevengeTarget(dummyTarget);
+                mob.setLastAttackedEntity(null);
+
+                // 清除导航路径
+                if (mob.getNavigator() != null) {
+                    mob.getNavigator().clearPath();
+                }
+
+                // 让生物看向随机方向
+                mob.getLookHelper().setLookPosition(
+                        mob.posX + mob.world.rand.nextGaussian() * 10,
+                        mob.posY,
+                        mob.posZ + mob.world.rand.nextGaussian() * 10,
+                        10.0F, 10.0F
+                );
+            }
+
+            return affected;
+        }
 
         public static void updateStealth(EntityPlayer p, ItemStack core) {
             try {
@@ -654,7 +754,12 @@ public class AuxiliaryUpgradeManager {
                 }
 
                 // 维持效果（每秒）
-                if (p.world.getTotalWorldTime() % 20 == 0) maintainStealthEffects(p, level);
+                if (p.world.getTotalWorldTime() % 20 == 0) {
+                    maintainStealthEffects(p, level);
+                    // 每秒清除一次周围仇恨
+                    double range = CLEAR_AGGRO_RANGE[Math.min(level - 1, 2)];
+                    clearNearbyAggro(p, range);
+                }
 
                 // 高等级粒子
                 if (level >= 3 && p.world.getTotalWorldTime() % 10 == 0 && !p.world.isRemote) spawnStealthParticles(p);
@@ -758,9 +863,14 @@ public class AuxiliaryUpgradeManager {
             if (level >= 2) p.setSilent(true);
             p.addPotionEffect(new PotionEffect(MobEffects.INVISIBILITY, Integer.MAX_VALUE, 0, false, false));
 
+            // 激活时立即清除周围仇恨
+            double range = CLEAR_AGGRO_RANGE[Math.min(level - 1, 2)];
+            int cleared = clearNearbyAggro(p, range);
+
             long dur = DURATION_BY_LEVEL[Math.min(level - 1, 2)];
             int sec = (int) (dur / 1000);
             String msg = getStealthMessage(level) + String.format(" %s(持续%d秒)", TextFormatting.WHITE, sec);
+            if (cleared > 0) msg += String.format(" %s清除%d个仇恨", TextFormatting.AQUA, cleared);
             int uses = consecutiveUses.getOrDefault(id, 0);
             if (uses > 0) msg += String.format(" %s连续×%d", TextFormatting.YELLOW, uses + 1);
             p.sendStatusMessage(new TextComponentString(msg), true);
@@ -849,6 +959,58 @@ public class AuxiliaryUpgradeManager {
             stealthStartTime.clear();
             stealthCooldownEnd.clear();
             consecutiveUses.clear();
+        }
+
+        /**
+         * 假目标实体类 - 用于迷惑敌对生物 (不朽护符同款)
+         */
+        public static class DummyTarget extends EntityLivingBase {
+            public DummyTarget(World world) {
+                super(world);
+                this.setInvisible(true);
+                this.setSize(0.0F, 0.0F);
+                this.setEntityInvulnerable(true);
+                this.isDead = true;
+            }
+
+            @Override
+            public void onUpdate() {
+                this.isDead = true;
+            }
+
+            @Override
+            public boolean isEntityAlive() {
+                return false;
+            }
+
+            @Override
+            public boolean canBeCollidedWith() {
+                return false;
+            }
+
+            @Override
+            public boolean canBePushed() {
+                return false;
+            }
+
+            @Override
+            public ItemStack getItemStackFromSlot(EntityEquipmentSlot slotIn) {
+                return ItemStack.EMPTY;
+            }
+
+            @Override
+            public void setItemStackToSlot(EntityEquipmentSlot slotIn, ItemStack stack) {
+            }
+
+            @Override
+            public Iterable<ItemStack> getArmorInventoryList() {
+                return java.util.Collections.emptyList();
+            }
+
+            @Override
+            public EnumHandSide getPrimaryHand() {
+                return EnumHandSide.RIGHT;
+            }
         }
     }
 
