@@ -18,6 +18,8 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.tileentity.TileEntityChest;
+import net.minecraft.tileentity.TileEntityMobSpawner;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraft.world.chunk.IChunkProvider;
@@ -27,7 +29,7 @@ import net.minecraftforge.fml.common.IWorldGenerator;
 import java.util.Random;
 
 /**
- * 科技废墟世界生成器 v3.1
+ * 科技废墟世界生成器 v3.2
  *
  * 在主世界野外生成残破的科技感废墟建筑
  * 内含稀有机械方块、打印模版和故障装备
@@ -45,19 +47,31 @@ import java.util.Random;
  * - 结构总数增加至15种
  * - 改进衰减/风化算法
  * - 优化地形适应
+ *
+ * v3.2 改进：
+ * - 大幅降低生成率 (1/3000 区块 ≈ 0.033%)
+ * - 大幅增加奖励品质和数量 (补偿稀有度)
+ * - 每个结构放置2-5个哭泣天使刷怪笼
+ * - 增加功能性方块奖励种类 (20种)
+ * - 增加多个奖励箱 (根据结构等级)
+ * - 增加稀有物品掉落 (下界之星、龙息、不死图腾、鞘翅)
  */
 public class RuinsWorldGenerator implements IWorldGenerator {
 
     // ============== 生成配置 ==============
     private static final int MIN_Y = 50;
-    private static final int SPAWN_CHANCE = 600;             // 适度生成率 (1/600 区块 ≈ 0.17%)
-    private static final int MIN_DISTANCE_FROM_SPAWN = 400;  // 增加距离要求
+    private static final int SPAWN_CHANCE = 3000;            // 大幅降低生成率 (1/3000 区块 ≈ 0.033%)
+    private static final int MIN_DISTANCE_FROM_SPAWN = 600;  // 增加距离要求
 
-    // 稀有方块概率系数 (降低为0.3倍)
-    private static final float SPECIAL_BLOCK_CHANCE_MULTIPLIER = 0.3f;
+    // 稀有方块概率系数 (提高为1.5倍 - 补偿降低的生成率)
+    private static final float SPECIAL_BLOCK_CHANCE_MULTIPLIER = 1.5f;
 
-    // Glitch Armor 出现概率 (5%)
-    private static final float GLITCH_ARMOR_CHANCE = 0.05f;
+    // Glitch Armor 出现概率 (15% - 提高补偿)
+    private static final float GLITCH_ARMOR_CHANCE = 0.15f;
+
+    // 刷怪笼数量 (每个结构)
+    private static final int MIN_SPAWNERS = 2;
+    private static final int MAX_SPAWNERS = 5;
 
     // ============== 结构类型枚举 ==============
     public enum RuinType {
@@ -1297,45 +1311,161 @@ public class RuinsWorldGenerator implements IWorldGenerator {
     }
 
     private void placeRuinContents(World world, BlockPos center, Random random, int lootTier) {
-        BlockPos chestPos = center.add(random.nextInt(3) - 1, 0, random.nextInt(3) - 1);
-        setBlockSafe(world, chestPos, Blocks.CHEST.getDefaultState());
-
-        TileEntity te = world.getTileEntity(chestPos);
-        if (te instanceof TileEntityChest) {
-            fillChestWithLoot((TileEntityChest) te, random, lootTier);
+        // ★ 放置多个奖励箱 (根据等级) ★
+        int chestCount = 1 + (lootTier / 2);
+        for (int i = 0; i < chestCount; i++) {
+            BlockPos chestPos = center.add(random.nextInt(5) - 2, 0, random.nextInt(5) - 2);
+            // 寻找合适位置
+            for (int attempt = 0; attempt < 5; attempt++) {
+                if (world.isAirBlock(chestPos) || world.getBlockState(chestPos).getBlock() == Blocks.TALLGRASS) {
+                    setBlockSafe(world, chestPos, Blocks.CHEST.getDefaultState());
+                    TileEntity te = world.getTileEntity(chestPos);
+                    if (te instanceof TileEntityChest) {
+                        fillChestWithLoot((TileEntityChest) te, random, lootTier);
+                    }
+                    break;
+                }
+                chestPos = center.add(random.nextInt(7) - 3, 0, random.nextInt(7) - 3);
+            }
         }
 
-        // ★ 提高特殊方块概率 (原来的2倍) ★
-        float chance = 0.25f * lootTier * SPECIAL_BLOCK_CHANCE_MULTIPLIER;
-        if (random.nextFloat() < chance) {
-            BlockPos specialPos = center.add(random.nextInt(5) - 2, 0, random.nextInt(5) - 2);
-            placeSpecialBlock(world, specialPos, random);
+        // ★ 放置多个功能性方块 ★
+        int specialBlockCount = 1 + random.nextInt(lootTier);
+        for (int i = 0; i < specialBlockCount; i++) {
+            float chance = 0.4f * SPECIAL_BLOCK_CHANCE_MULTIPLIER;
+            if (random.nextFloat() < chance) {
+                BlockPos specialPos = center.add(random.nextInt(7) - 3, 0, random.nextInt(7) - 3);
+                placeSpecialBlock(world, specialPos, random);
+            }
+        }
+
+        // ★ 放置哭泣天使刷怪笼 ★
+        int spawnerCount = MIN_SPAWNERS + random.nextInt(MAX_SPAWNERS - MIN_SPAWNERS + 1);
+        for (int i = 0; i < spawnerCount; i++) {
+            BlockPos spawnerPos = center.add(random.nextInt(9) - 4, 0, random.nextInt(9) - 4);
+            placeWeepingAngelSpawner(world, spawnerPos, random);
+        }
+    }
+
+    // ★★★ 放置哭泣天使刷怪笼 ★★★
+    private void placeWeepingAngelSpawner(World world, BlockPos pos, Random random) {
+        // 寻找合适的位置
+        BlockPos spawnerPos = pos;
+        for (int attempt = 0; attempt < 10; attempt++) {
+            if (world.isAirBlock(spawnerPos) && !world.isAirBlock(spawnerPos.down())) {
+                break;
+            }
+            spawnerPos = pos.add(random.nextInt(7) - 3, random.nextInt(3) - 1, random.nextInt(7) - 3);
+        }
+
+        // 放置刷怪笼
+        setBlockSafe(world, spawnerPos, Blocks.MOB_SPAWNER.getDefaultState());
+        TileEntity te = world.getTileEntity(spawnerPos);
+        if (te instanceof TileEntityMobSpawner) {
+            TileEntityMobSpawner spawner = (TileEntityMobSpawner) te;
+            // 设置为哭泣天使
+            spawner.getSpawnerBaseLogic().setEntityId(new ResourceLocation("moremod", "weeping_angel"));
+            // 调整刷怪笼参数
+            NBTTagCompound nbt = new NBTTagCompound();
+            spawner.getSpawnerBaseLogic().writeToNBT(nbt);
+            nbt.setShort("MinSpawnDelay", (short) 400);   // 最小延迟 20秒
+            nbt.setShort("MaxSpawnDelay", (short) 800);   // 最大延迟 40秒
+            nbt.setShort("SpawnCount", (short) 2);        // 每次刷出2只
+            nbt.setShort("MaxNearbyEntities", (short) 4); // 附近最多4只
+            nbt.setShort("RequiredPlayerRange", (short) 16); // 玩家范围16格
+            spawner.getSpawnerBaseLogic().readFromNBT(nbt);
+            System.out.println("[Ruins] 放置哭泣天使刷怪笼 @ " + spawnerPos);
         }
     }
 
     private void fillChestWithLoot(TileEntityChest chest, Random random, int tier) {
-        // 减少材料数量 (原: 4-9, 现: 2-4)
-        int materialCount = 2 + random.nextInt(3);
+        // ★ 增加材料数量 (补偿稀有生成率) ★
+        int materialCount = 4 + random.nextInt(4) + tier;
         for (int i = 0; i < materialCount; i++) {
             int slot = random.nextInt(27);
             ItemStack material = getRandomMaterial(random, tier);
             chest.setInventorySlotContents(slot, material);
         }
 
-        // 打印模版概率降低
-        if (random.nextFloat() < 0.08f * tier) {
+        // ★ 打印模版概率提高 ★
+        if (random.nextFloat() < 0.25f * tier) {
             int slot = random.nextInt(27);
             ItemStack template = createRandomTemplate(random);
             chest.setInventorySlotContents(slot, template);
         }
 
-        // ★ Glitch Armor (极低概率 ~5%) ★
+        // ★ Glitch Armor (提高概率) ★
         if (random.nextFloat() < GLITCH_ARMOR_CHANCE) {
             int slot = random.nextInt(27);
             ItemStack glitchGear = createGlitchArmorPiece(random);
             if (!glitchGear.isEmpty()) {
                 chest.setInventorySlotContents(slot, glitchGear);
             }
+        }
+
+        // ★ 故障装备 (额外奖励) ★
+        if (random.nextFloat() < 0.3f * tier) {
+            int slot = random.nextInt(27);
+            ItemStack faultyGear = createFaultyGear(random, tier);
+            chest.setInventorySlotContents(slot, faultyGear);
+        }
+
+        // ★ 稀有物品 (下界之星、龙息等) ★
+        if (tier >= 3 && random.nextFloat() < 0.15f) {
+            int slot = random.nextInt(27);
+            int rareType = random.nextInt(4);
+            switch (rareType) {
+                case 0:
+                    chest.setInventorySlotContents(slot, new ItemStack(Items.NETHER_STAR, 1));
+                    break;
+                case 1:
+                    chest.setInventorySlotContents(slot, new ItemStack(Items.DRAGON_BREATH, 2 + random.nextInt(3)));
+                    break;
+                case 2:
+                    chest.setInventorySlotContents(slot, new ItemStack(Items.TOTEM_OF_UNDYING, 1));
+                    break;
+                default:
+                    chest.setInventorySlotContents(slot, new ItemStack(Items.ELYTRA, 1));
+            }
+        }
+
+        // ★ 模组特殊物品 ★
+        if (random.nextFloat() < 0.2f * tier) {
+            try {
+                int slot = random.nextInt(27);
+                int modItemType = random.nextInt(6);
+                switch (modItemType) {
+                    case 0:
+                        if (ModItems.ANCIENT_CORE_FRAGMENT != null) {
+                            chest.setInventorySlotContents(slot, new ItemStack(ModItems.ANCIENT_CORE_FRAGMENT, 1 + random.nextInt(3)));
+                        }
+                        break;
+                    case 1:
+                        if (ModItems.RIFT_CRYSTAL != null) {
+                            chest.setInventorySlotContents(slot, new ItemStack(ModItems.RIFT_CRYSTAL, 1 + random.nextInt(2)));
+                        }
+                        break;
+                    case 2:
+                        if (ModItems.ETHEREAL_SHARD != null) {
+                            chest.setInventorySlotContents(slot, new ItemStack(ModItems.ETHEREAL_SHARD, 1));
+                        }
+                        break;
+                    case 3:
+                        if (ModItems.VOID_ICHOR != null) {
+                            chest.setInventorySlotContents(slot, new ItemStack(ModItems.VOID_ICHOR, 1));
+                        }
+                        break;
+                    case 4:
+                        if (ModItems.DIMENSIONAL_WEAVER_CORE != null) {
+                            chest.setInventorySlotContents(slot, new ItemStack(ModItems.DIMENSIONAL_WEAVER_CORE, 1));
+                        }
+                        break;
+                    default:
+                        if (ModItems.SPACETIME_FABRIC != null) {
+                            chest.setInventorySlotContents(slot, new ItemStack(ModItems.SPACETIME_FABRIC, 1 + random.nextInt(2)));
+                        }
+                }
+            } catch (Exception ignored) {}
         }
     }
 
@@ -1448,39 +1578,63 @@ public class RuinsWorldGenerator implements IWorldGenerator {
 
     private void placeSpecialBlock(World world, BlockPos pos, Random random) {
         Block specialBlock = null;
-        int type = random.nextInt(12);
+        int type = random.nextInt(20);  // 扩大选择范围
 
         try {
             switch (type) {
                 case 0:
                 case 1:
-                    specialBlock = ModBlocks.TEMPORAL_ACCELERATOR;
+                    specialBlock = ModBlocks.TEMPORAL_ACCELERATOR;  // 时间加速器
                     break;
                 case 2:
                 case 3:
-                    specialBlock = ModBlocks.PROTECTION_FIELD_GENERATOR;
+                    specialBlock = ModBlocks.PROTECTION_FIELD_GENERATOR;  // 保护力场
                     break;
                 case 4:
-                    specialBlock = ModBlocks.RESPAWN_CHAMBER_CORE;
+                    specialBlock = ModBlocks.RESPAWN_CHAMBER_CORE;  // 重生仓核心
                     break;
                 case 5:
-                    specialBlock = ModBlocks.dimensionLoom;
+                    specialBlock = ModBlocks.dimensionLoom;  // 维度织布机
                     break;
                 case 6:
                 case 7:
-                    specialBlock = ModBlocks.PRINTER;
+                    specialBlock = ModBlocks.PRINTER;  // 打印机
                     break;
                 case 8:
-                    specialBlock = QuarryRegistry.blockQuantumQuarry;
+                    specialBlock = QuarryRegistry.blockQuantumQuarry;  // 量子采矿机
                     break;
                 case 9:
-                    specialBlock = ModBlocks.UPGRADE_CHAMBER_CORE;
+                    specialBlock = ModBlocks.UPGRADE_CHAMBER_CORE;  // 升级仓核心
                     break;
                 case 10:
-                    specialBlock = ModBlocks.SIMPLE_WISDOM_SHRINE;
+                    specialBlock = ModBlocks.SIMPLE_WISDOM_SHRINE;  // 智慧祭坛
+                    break;
+                case 11:
+                    specialBlock = ModBlocks.OIL_GENERATOR;  // 石油发电机
+                    break;
+                case 12:
+                    specialBlock = ModBlocks.CHARGING_STATION;  // 充能站
+                    break;
+                case 13:
+                    specialBlock = ModBlocks.ENERGY_LINK;  // 能量链接器
+                    break;
+                case 14:
+                    specialBlock = ModBlocks.BIO_GENERATOR;  // 生物质发电机
+                    break;
+                case 15:
+                    specialBlock = ModBlocks.TRADING_STATION;  // 交易站
+                    break;
+                case 16:
+                    specialBlock = ModBlocks.RITUAL_CORE;  // 仪式核心
+                    break;
+                case 17:
+                    specialBlock = ModBlocks.FAKE_PLAYER_ACTIVATOR;  // 假玩家激活器
+                    break;
+                case 18:
+                    specialBlock = Blocks.BEACON;  // 信标
                     break;
                 default:
-                    specialBlock = Blocks.BEACON;
+                    specialBlock = Blocks.ENCHANTING_TABLE;  // 附魔台
             }
 
             if (specialBlock != null) {
