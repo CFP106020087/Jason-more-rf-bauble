@@ -92,8 +92,9 @@ public class SwordChengYueModel extends AnimatedGeoModel<ItemSwordChengYue> {
 
     @Override
     public ResourceLocation getAnimationFileLocation(ItemSwordChengYue animatable) {
-        // 只在技能模式下返回动画文件
-        return skillMode ? ANIMATION_SKILL : null;
+        // 始终返回动画文件，避免 GeckoLib NPE
+        // 动画播放由 AnimationController 的 predicate 控制
+        return ANIMATION_SKILL;
     }
 
     // ====== 手臂骨骼 (技能模型) ======
