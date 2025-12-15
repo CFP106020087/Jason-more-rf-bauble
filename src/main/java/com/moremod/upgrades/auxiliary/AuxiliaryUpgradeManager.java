@@ -140,37 +140,37 @@ public class AuxiliaryUpgradeManager {
             if (initialized) return;
             initialized = true;
 
+            debug("开始初始化矿物透视系统...");
+
+            // 0. 立即添加特定模组矿物（不在线程中，确保扫描前完成）
+            // Astral Sorcery 矿物
+            addModOreByName("astralsorcery:blockcustomore", "星辉矿石");
+            addModOreByName("astralsorcery:blockcelestialcrystals", "天辉水晶");
+            addModOreByName("astralsorcery:celestialcrystals", "天辉水晶");
+            addModOreByName("astralsorcery:blockcollectorcrystal", "集星水晶");
+            addModOreByName("astralsorcery:blockcelestialcollectorcrystal", "天辉收集水晶");
+            addModOreByName("astralsorcery:blockcelestialcrystalcluster", "天辉水晶簇");
+            addModOreByName("astralsorcery:celestialcrystalcluster", "天辉水晶簇");
+            addModOreByName("astralsorcery:block_celestial_crystals", "天辉水晶");
+            addModOreByName("astralsorcery:celestial_crystals", "天辉水晶");
+            addModOreByName("astralsorcery:rockcrystalore", "岩石水晶矿");
+            addModOreByName("astralsorcery:rock_crystal_ore", "岩石水晶矿");
+            // NetherBound 下界合金
+            addModOreByName("nb:netherite_ore", "下界合金矿");
+            addModOreByName("nb:ancient_debris", "远古残骸");
+            addModOreByName("nb:nether_gold_ore", "下界金矿");
+            addModOreByName("nb:quartz_ore", "下界石英矿");
+            // Future MC / 其他 1.16 backport 模组
+            addModOreByName("minecraft:ancient_debris", "远古残骸");
+            addModOreByName("futuremc:ancient_debris", "远古残骸");
+            addModOreByName("nether_backport:ancient_debris", "远古残骸");
+            addModOreByName("nether_backport:netherite_ore", "下界合金矿");
+
+            System.out.println("[OreVision] 已添加特殊模组矿物，当前矿物总数: " + ALL_ORE_BLOCKS.size());
+
+            // 1. 后台线程加载矿物词典（耗时操作）
             new Thread(() -> {
-                debug("开始初始化矿物透视系统...");
-
-                // 0. 添加特定模组矿物（通过注册名查找）
-                // Astral Sorcery 矿物 - 各种可能的注册名
-                addModOreByName("astralsorcery:blockcustomore", "星辉矿石");
-                addModOreByName("astralsorcery:blockcelestialcrystals", "天辉水晶");
-                addModOreByName("astralsorcery:celestialcrystals", "天辉水晶");
-                addModOreByName("astralsorcery:blockcollectorcrystal", "集星水晶");
-                addModOreByName("astralsorcery:blockcelestialcollectorcrystal", "天辉收集水晶");
-                addModOreByName("astralsorcery:blockcelestialcrystalcluster", "天辉水晶簇");
-                addModOreByName("astralsorcery:celestialcrystalcluster", "天辉水晶簇");
-                addModOreByName("astralsorcery:block_celestial_crystals", "天辉水晶");
-                addModOreByName("astralsorcery:celestial_crystals", "天辉水晶");
-                addModOreByName("astralsorcery:rockcrystalore", "岩石水晶矿");
-                addModOreByName("astralsorcery:rock_crystal_ore", "岩石水晶矿");
-                // NetherBound 下界合金 - 各种可能的注册名
-                addModOreByName("nb:netherite_ore", "下界合金矿");
-                addModOreByName("nb:ancient_debris", "远古残骸");
-                addModOreByName("nb:nether_gold_ore", "下界金矿");
-                addModOreByName("nb:quartz_ore", "下界石英矿");
-                // Future MC / 其他 1.16 backport 模组
-                addModOreByName("minecraft:ancient_debris", "远古残骸");
-                addModOreByName("futuremc:ancient_debris", "远古残骸");
-                addModOreByName("nether_backport:ancient_debris", "远古残骸");
-                addModOreByName("nether_backport:netherite_ore", "下界合金矿");
-
-                // 打印已加载的特殊矿物数量
-                System.out.println("[OreVision] 已添加特殊模组矿物，当前矿物总数: " + ALL_ORE_BLOCKS.size());
-
-                // 1. 从矿物词典加载所有矿物（支持所有模组）
+                // 从矿物词典加载所有矿物（支持所有模组）
                 for (String oreName : OreDictionary.getOreNames()) {
                     // 支持所有矿物词典前缀: ore, denseore, poorore, oreNether, oreEnd
                     if ((oreName.startsWith("ore") || oreName.startsWith("denseore") ||
