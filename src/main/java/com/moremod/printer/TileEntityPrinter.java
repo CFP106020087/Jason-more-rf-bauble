@@ -384,6 +384,46 @@ public class TileEntityPrinter extends TileEntity implements ITickable {
         return currentRecipe;
     }
 
+    // ===== 客户端同步方法 =====
+
+    /**
+     * 客户端设置能量值（用于GUI同步）
+     */
+    @net.minecraftforge.fml.relauncher.SideOnly(net.minecraftforge.fml.relauncher.Side.CLIENT)
+    public void setClientEnergy(int energy) {
+        try {
+            java.lang.reflect.Field field = net.minecraftforge.energy.EnergyStorage.class.getDeclaredField("energy");
+            field.setAccessible(true);
+            field.setInt(energyInternal, energy);
+        } catch (Exception e) {
+            // 忽略
+        }
+    }
+
+    /**
+     * 客户端设置进度（用于GUI同步）
+     */
+    @net.minecraftforge.fml.relauncher.SideOnly(net.minecraftforge.fml.relauncher.Side.CLIENT)
+    public void setClientProgress(int progress) {
+        this.progress = progress;
+    }
+
+    /**
+     * 客户端设置最大进度（用于GUI同步）
+     */
+    @net.minecraftforge.fml.relauncher.SideOnly(net.minecraftforge.fml.relauncher.Side.CLIENT)
+    public void setClientMaxProgress(int maxProgress) {
+        this.maxProgress = maxProgress;
+    }
+
+    /**
+     * 客户端设置处理状态（用于GUI同步）
+     */
+    @net.minecraftforge.fml.relauncher.SideOnly(net.minecraftforge.fml.relauncher.Side.CLIENT)
+    public void setClientProcessing(boolean isProcessing) {
+        this.isProcessing = isProcessing;
+    }
+
     // ===== Capabilities =====
 
     @Override
