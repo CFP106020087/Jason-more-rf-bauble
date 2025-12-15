@@ -9,6 +9,7 @@ import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.SharedMonsterAttributes;
+import net.minecraft.entity.effect.EntityLightningBolt;
 import net.minecraft.entity.ai.attributes.AttributeModifier;
 import net.minecraft.entity.monster.EntityMob;
 import net.minecraft.entity.player.EntityPlayer;
@@ -463,10 +464,10 @@ public class ZhuxianSword extends ItemSword {
             });
         }
 
-        // 诛仙剑阵
+        // 诛仙剑阵：对周围所有生物打雷 + 999999真伤
         if (form == SwordForm.JUEXIAN && isFormationActive(stack)) {
             if (world.getTotalWorldTime() % 20 == 0) { // 每秒
-                dealAoeTrueDamage(player, null, 10.0, 999999);
+                summonFormationLightning(player, world, 10.0);
             }
         }
 
@@ -599,6 +600,27 @@ public class ZhuxianSword extends ItemSword {
             if (dist <= radius) {
                 TrueDamageHelper.applyWrappedTrueDamage(entity, attacker, damage, TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE);
             }
+        });
+    }
+
+    /**
+     * 诛仙剑阵：对周围所有生物召唤雷电 + 999999真伤
+     * 每秒召唤一次，对范围内所有生物（除玩家外）
+     */
+    private void summonFormationLightning(EntityPlayer player, World world, double radius) {
+        if (world.isRemote) return;
+
+        // 获取范围内所有生物（不是玩家）
+        world.getEntitiesWithinAABB(EntityLivingBase.class,
+            player.getEntityBoundingBox().grow(radius),
+            entity -> entity != player && !entity.isDead && !(entity instanceof EntityPlayer)
+        ).forEach(entity -> {
+            // 召唤雷电打在目标位置
+            EntityLightningBolt lightning = new EntityLightningBolt(world, entity.posX, entity.posY, entity.posZ, false);
+            world.addWeatherEffect(lightning);
+
+            // 造成999999真伤（雷击后立即真伤）
+            TrueDamageHelper.applyWrappedTrueDamage(entity, player, 999999f, TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE);
         });
     }
 

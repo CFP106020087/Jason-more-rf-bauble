@@ -1385,24 +1385,8 @@ public class moremodTransformer implements IClassTransformer {
                     System.out.println("[moremodTransformer]     + Injected Glitch Armor NULL exception at damageEntity HEAD");
                 }
 
-                // 诛仙剑-为生民立命锁血保护
-                if (ENABLE_ZHUXIAN_DEATH) {
-                    LabelNode zhuxianContinue = new LabelNode();
-                    inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
-                    inject.add(new VarInsnNode(Opcodes.ALOAD, 1));
-                    inject.add(new VarInsnNode(Opcodes.FLOAD, 2));
-                    inject.add(new MethodInsnNode(
-                            Opcodes.INVOKESTATIC,
-                            "com/moremod/sponsor/core/ZhuxianDeathHook",
-                            "checkAndLimitDamage",
-                            "(Lnet/minecraft/entity/EntityLivingBase;Lnet/minecraft/util/DamageSource;F)Z",
-                            false
-                    ));
-                    inject.add(new JumpInsnNode(Opcodes.IFEQ, zhuxianContinue));
-                    inject.add(new InsnNode(Opcodes.RETURN));
-                    inject.add(zhuxianContinue);
-                    System.out.println("[moremodTransformer]     + Injected Zhuxian health lock at damageEntity HEAD");
-                }
+                // 诛仙剑-为生民立命：damageEntity不再拦截，改为只在onDeath拦截
+                // (移除了 checkAndLimitDamage 调用)
 
                 // 诛仙剑-为生民立命村民无敌保护(ASM)
                 if (ENABLE_ZHUXIAN_VILLAGER) {
