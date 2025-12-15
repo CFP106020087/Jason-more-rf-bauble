@@ -28,6 +28,7 @@ public class moremodTransformer implements IClassTransformer {
     private static final boolean ENABLE_CURSE_DEATH         = true;  // 七咒之戒-虚无之眸死亡保护
     private static final boolean ENABLE_GLITCH_ARMOR_DEATH  = true;  // 故障盔甲NULL异常
     private static final boolean ENABLE_ZHUXIAN_DEATH       = true;  // 诛仙剑-为生民立命锁血
+    private static final boolean ENABLE_ZHUXIAN_VILLAGER    = true;  // 诛仙剑-为生民立命村民无敌(ASM)
     public static final boolean ENABLE_RS_INFINITY_BOOSTER = true;
 
     public static Side side;
@@ -1397,6 +1398,25 @@ public class moremodTransformer implements IClassTransformer {
                     System.out.println("[moremodTransformer]     + Injected Zhuxian health lock at damageEntity HEAD");
                 }
 
+                // 诛仙剑-为生民立命村民无敌保护(ASM)
+                if (ENABLE_ZHUXIAN_VILLAGER) {
+                    LabelNode villagerContinue = new LabelNode();
+                    inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                    inject.add(new VarInsnNode(Opcodes.ALOAD, 1));
+                    inject.add(new VarInsnNode(Opcodes.FLOAD, 2));
+                    inject.add(new MethodInsnNode(
+                            Opcodes.INVOKESTATIC,
+                            "com/moremod/sponsor/core/ZhuxianVillagerHook",
+                            "shouldProtectVillager",
+                            "(Lnet/minecraft/entity/EntityLivingBase;Lnet/minecraft/util/DamageSource;F)Z",
+                            false
+                    ));
+                    inject.add(new JumpInsnNode(Opcodes.IFEQ, villagerContinue));
+                    inject.add(new InsnNode(Opcodes.RETURN));
+                    inject.add(villagerContinue);
+                    System.out.println("[moremodTransformer]     + Injected Zhuxian villager protection at damageEntity HEAD");
+                }
+
                 mn.instructions.insert(inject);
                 modified = true;
                 System.out.println("[moremodTransformer]     + Injected shutdown trigger check at damageEntity HEAD");
@@ -1512,6 +1532,24 @@ public class moremodTransformer implements IClassTransformer {
                     inject.add(new InsnNode(Opcodes.RETURN));
                     inject.add(zhuxianContinue);
                     System.out.println("[moremodTransformer]     + Injected Zhuxian death prevention at onDeath HEAD");
+                }
+
+                // 诛仙剑-为生民立命村民死亡防护(ASM)
+                if (ENABLE_ZHUXIAN_VILLAGER) {
+                    LabelNode villagerContinue = new LabelNode();
+                    inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                    inject.add(new VarInsnNode(Opcodes.ALOAD, 1));
+                    inject.add(new MethodInsnNode(
+                            Opcodes.INVOKESTATIC,
+                            "com/moremod/sponsor/core/ZhuxianVillagerHook",
+                            "shouldPreventVillagerDeath",
+                            "(Lnet/minecraft/entity/EntityLivingBase;Lnet/minecraft/util/DamageSource;)Z",
+                            false
+                    ));
+                    inject.add(new JumpInsnNode(Opcodes.IFEQ, villagerContinue));
+                    inject.add(new InsnNode(Opcodes.RETURN));
+                    inject.add(villagerContinue);
+                    System.out.println("[moremodTransformer]     + Injected Zhuxian villager death prevention at onDeath HEAD");
                 }
 
                 mn.instructions.insert(inject);
