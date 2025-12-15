@@ -59,6 +59,7 @@ public class GeologicalResonatorHandler implements IModuleEventHandler {
         // 添加特殊可提取方块（非标准矿物词典）
         SPECIAL_VALUABLE_BLOCKS.add("minecraft:ancient_debris");
         SPECIAL_VALUABLE_BLOCKS.add("astralsorcery:blockcelestialcrystals");
+        SPECIAL_VALUABLE_BLOCKS.add("nb:netherite_ore");
 
         System.out.println("[GeologicalResonator] 缓存了 " + KNOWN_ORE_IDS.size() + " 种矿物类型，" + SPECIAL_VALUABLE_BLOCKS.size() + " 种特殊方块。");
     }
