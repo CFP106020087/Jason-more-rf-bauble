@@ -126,6 +126,8 @@ public class ClientProxy extends CommonProxy {
         MinecraftForge.EVENT_BUS.register(RenderDebugKeys.class);
         MinecraftForge.EVENT_BUS.register(new RenderDebugKeyHandler());
         MinecraftForge.EVENT_BUS.register(new StoryOverlayRenderer());
+        // 澄月动画调试按键 (K) - 可删除
+        com.moremod.client.debug.ChengYueDebugKey.register();
         // =========================
         // 给锯刃剑绑定 Debug TEISR
         // =========================

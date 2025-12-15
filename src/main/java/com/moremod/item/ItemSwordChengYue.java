@@ -79,15 +79,22 @@ public class ItemSwordChengYue extends ItemSword implements IAnimatable {
             return PlayState.STOP;
         }
 
-        // 根据视角选择动画
-        boolean isFirstPerson = mc.gameSettings.thirdPersonView == 0;
         int skillType = cap.getSkillType();
 
+        // skillType 1-6 对应 6 种动画
         String animName;
-        if (isFirstPerson) {
-            animName = (skillType == 1) ? ANIM_FIRST_ATTACK : ANIM_FIRST_ATTACK2;
-        } else {
-            animName = (skillType == 1) ? ANIM_THIRD_ATTACK : ANIM_THIRD_ATTACK2;
+        switch (skillType) {
+            case 1: animName = ANIM_FIRST_PERSON; break;
+            case 2: animName = ANIM_FIRST_ATTACK; break;
+            case 3: animName = ANIM_FIRST_ATTACK2; break;
+            case 4: animName = ANIM_THIRD_PERSON; break;
+            case 5: animName = ANIM_THIRD_ATTACK; break;
+            case 6: animName = ANIM_THIRD_ATTACK2; break;
+            default:
+                // 默认根据视角选择
+                boolean isFirstPerson = mc.gameSettings.thirdPersonView == 0;
+                animName = isFirstPerson ? ANIM_FIRST_ATTACK : ANIM_THIRD_ATTACK;
+                break;
         }
 
         event.getController().setAnimation(new software.bernie.geckolib3.core.builder.AnimationBuilder()
