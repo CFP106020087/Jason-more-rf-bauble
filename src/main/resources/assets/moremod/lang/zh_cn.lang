@@ -569,3 +569,10 @@ tooltip.moremod.processing_time=处理时间
 tooltip.moremod.unknown_recipe=未知配方
 tooltip.moremod.no_template_id=未设置模板ID
 tooltip.moremod.template_desc=用于打印机的通用模板，通过CraftTweaker配置配方
+
+# ===== 结构胶囊 (Structure Capsules) =====
+item.structure_capsule_small.name=小型结构胶囊
+item.structure_capsule_medium.name=中型结构胶囊
+item.structure_capsule_large.name=大型结构胶囊
+item.structure_capsule_huge.name=巨型结构胶囊
+item.structure_capsule_mega.name=超巨型结构胶囊

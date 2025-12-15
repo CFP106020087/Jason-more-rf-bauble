@@ -173,6 +173,8 @@ public final class ModItems {
     public static ItemStructureCapsule STRUCTURE_CAPSULE_SMALL;   // 小型结构胶囊 3×3×3
     public static ItemStructureCapsule STRUCTURE_CAPSULE_MEDIUM;  // 中型结构胶囊 7×7×7
     public static ItemStructureCapsule STRUCTURE_CAPSULE_LARGE;   // 大型结构胶囊 15×15×15
+    public static ItemStructureCapsule STRUCTURE_CAPSULE_HUGE;    // 巨型结构胶囊 31×31×31
+    public static ItemStructureCapsule STRUCTURE_CAPSULE_MEGA;    // 超巨型结构胶囊 63×63×63
 
     // ⛽ 能源系統物品
     public static Item OIL_PROSPECTOR;       // 石油探測器
@@ -346,7 +348,9 @@ public final class ModItems {
         STRUCTURE_CAPSULE_SMALL = (ItemStructureCapsule) reg(e, new ItemStructureCapsule("structure_capsule_small", 3));
         STRUCTURE_CAPSULE_MEDIUM = (ItemStructureCapsule) reg(e, new ItemStructureCapsule("structure_capsule_medium", 7));
         STRUCTURE_CAPSULE_LARGE = (ItemStructureCapsule) reg(e, new ItemStructureCapsule("structure_capsule_large", 15));
-        System.out.println("[MoreMod] 📦 结构胶囊已注册 (3种尺寸)");
+        STRUCTURE_CAPSULE_HUGE = (ItemStructureCapsule) reg(e, new ItemStructureCapsule("structure_capsule_huge", 31));
+        STRUCTURE_CAPSULE_MEGA = (ItemStructureCapsule) reg(e, new ItemStructureCapsule("structure_capsule_mega", 63));
+        System.out.println("[MoreMod] 📦 结构胶囊已注册 (5种尺寸)");
 
         // ⛽ 注册能源系統物品
         OIL_PROSPECTOR = reg(e, new ItemOilProspector());
@@ -536,7 +540,9 @@ public final class ModItems {
         bindCapsuleModels(STRUCTURE_CAPSULE_SMALL, "structure_capsule_small");
         bindCapsuleModels(STRUCTURE_CAPSULE_MEDIUM, "structure_capsule_medium");
         bindCapsuleModels(STRUCTURE_CAPSULE_LARGE, "structure_capsule_large");
-        System.out.println("[MoreMod] 📦 结构胶囊模型已注册 (含空/存储状态)");
+        bindCapsuleModels(STRUCTURE_CAPSULE_HUGE, "structure_capsule_huge");
+        bindCapsuleModels(STRUCTURE_CAPSULE_MEGA, "structure_capsule_mega");
+        System.out.println("[MoreMod] 📦 结构胶囊模型已注册 (5种尺寸，含空/存储状态)");
 
         // ⛽ 綁定能源系統物品模型
         bindModel(OIL_PROSPECTOR, "oil_prospector");
