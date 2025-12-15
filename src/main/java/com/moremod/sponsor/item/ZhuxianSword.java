@@ -682,10 +682,10 @@ public class ZhuxianSword extends ItemSword {
             }
         }
 
-        // 归墟灭世：直接灰烬化周围生物（无掉落）
+        // 归墟灭世：直接灰烬化周围生物
         if (form == SwordForm.GUIXU && isFormationActive(stack)) {
             if (world.getTotalWorldTime() % 20 == 0) { // 每秒
-                disintegrateNearbyEntities(player, world, 15.0);
+                disintegrateNearbyEntities(player, world, 60.0);
             }
         }
 
