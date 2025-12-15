@@ -684,7 +684,6 @@ public class AuxiliaryUpgradeManager {
 
             for (EntityLiving mob : mobs) {
                 // 跳过玩家自身
-                if (mob instanceof EntityPlayer) continue;
 
                 // 检查是否在圆形范围内
                 double distSq = mob.getDistanceSq(player.posX, player.posY, player.posZ);

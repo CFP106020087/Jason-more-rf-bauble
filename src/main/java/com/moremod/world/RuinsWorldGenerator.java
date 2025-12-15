@@ -3,6 +3,7 @@ package com.moremod.world;
 import com.moremod.init.ModBlocks;
 import com.moremod.init.ModItems;
 import com.moremod.item.RegisterItem;
+import com.moremod.moremod;
 import com.moremod.printer.ItemPrintTemplate;
 import com.moremod.printer.PrinterRecipe;
 import com.moremod.printer.PrinterRecipeRegistry;
@@ -1665,7 +1666,7 @@ public class RuinsWorldGenerator implements IWorldGenerator {
                     specialBlock = ModBlocks.TRADING_STATION;  // 交易站
                     break;
                 case 16:
-                    specialBlock = ModBlocks.RITUAL_CORE;  // 仪式核心
+                    specialBlock = moremod.RITUAL_CORE_BLOCK;  // 仪式核心
                     break;
                 case 17:
                     specialBlock = ModBlocks.FAKE_PLAYER_ACTIVATOR;  // 假玩家激活器
