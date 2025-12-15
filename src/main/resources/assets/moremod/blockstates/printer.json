@@ -1,12 +1,16 @@
 {
-  "variants": {
-    "active=false,facing=north": { "model": "moremod:printer" },
-    "active=false,facing=south": { "model": "moremod:printer", "y": 180 },
-    "active=false,facing=west": { "model": "moremod:printer", "y": 270 },
-    "active=false,facing=east": { "model": "moremod:printer", "y": 90 },
-    "active=true,facing=north": { "model": "moremod:printer_active" },
-    "active=true,facing=south": { "model": "moremod:printer_active", "y": 180 },
-    "active=true,facing=west": { "model": "moremod:printer_active", "y": 270 },
-    "active=true,facing=east": { "model": "moremod:printer_active", "y": 90 }
-  }
+    "forge_marker": 1,
+    "defaults": {
+        "model": "moremod:3d_printer.obj",
+        "custom": {
+            "flip-v": true
+        },
+        "textures": {
+            "#m_1888dfa4-2f05-8b41-5567-8608a3e0c856": "moremod:blocks/3d_printer"
+        }
+    },
+    "variants": {
+        "normal": [{}],
+        "inventory": [{}]
+    }
 }
