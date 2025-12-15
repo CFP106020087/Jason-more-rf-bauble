@@ -131,8 +131,8 @@ public class CommandResetEquipTime extends CommandBase {
             }
 
             // 记录到日志
-            server.logInfo("[MechanicalCore] Admin " + sender.getName() +
-                    " reset equipment time for player " + targetPlayer.getName());
+        System.out.println("[MechanicalCore] Admin " + sender.getName() +
+                " reset equipment time for player " + targetPlayer.getName());
         } else {
             sender.sendMessage(new TextComponentString(
                     TextFormatting.RED + "✗ 重置失败！请检查配置设置。"
@@ -180,7 +180,7 @@ public class CommandResetEquipTime extends CommandBase {
         }
 
         // 记录到日志
-        server.logInfo("[MechanicalCore] Admin " + sender.getName() +
+        System.out.println("[MechanicalCore] Admin " + sender.getName() +
                 " reset equipment time for " + count + " players");
     }
 
