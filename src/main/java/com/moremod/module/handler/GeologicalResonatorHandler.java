@@ -185,9 +185,19 @@ public class GeologicalResonatorHandler implements IModuleEventHandler {
         if (!world.isBlockLoaded(targetPos)) return false;
 
         IBlockState state = world.getBlockState(targetPos);
+        Block block = state.getBlock();
+
+        // 调试: 检测到特殊方块时输出日志
+        if (block.getRegistryName() != null) {
+            String regName = block.getRegistryName().toString();
+            if (SPECIAL_VALUABLE_BLOCKS.contains(regName)) {
+                System.out.println("[GeologicalResonator] DEBUG: 采样到特殊方块 " + regName + " @ " + targetPos);
+            }
+        }
 
         // 判断是否是矿物
         if (isValuableOre(state, world, targetPos, player)) {
+            System.out.println("[GeologicalResonator] DEBUG: 确认为矿物，尝试提取: " + block.getRegistryName() + " @ " + targetPos);
             // 执行提取
             return extractOreWithFakePlayer((WorldServer) world, player, targetPos, state);
         }
@@ -235,6 +245,7 @@ public class GeologicalResonatorHandler implements IModuleEventHandler {
             // 4. 执行完整挖矿流程
             // 使用 removedByPlayer -> harvestBlock 流程
             boolean canHarvest = block.canHarvestBlock(world, pos, fakePlayer);
+            System.out.println("[GeologicalResonator] DEBUG: canHarvestBlock=" + canHarvest + " for " + registryName);
 
             if (canHarvest) {
                 // 调用 removedByPlayer（触发方块的 breakBlock 逻辑）
