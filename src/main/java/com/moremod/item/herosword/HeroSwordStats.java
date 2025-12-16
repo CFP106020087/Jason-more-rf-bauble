@@ -70,6 +70,8 @@ public class HeroSwordStats {
      * 考虑：受击层数、Debuff数量、当前血量
      */
     public static float getFateBurdenMultiplier(ItemStack stack, EntityPlayer player) {
+        if (player == null) return 1.0F;
+
         int level = HeroSwordNBT.getLevel(stack);
         int hits = HeroSwordNBT.getHitsTaken(stack);
         
