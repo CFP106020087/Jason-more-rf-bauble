@@ -64,14 +64,6 @@ public final class NetworkHandler {
         );
         System.out.println("[moremod] ✅ 已註冊 PacketDeactivateIntelProfile（情报卸除）");
 
-        // 澄月技能动画同步（服务端->客户端）
-        CHANNEL.registerMessage(
-                PacketChengYueSkill.Handler.class,
-                PacketChengYueSkill.class,
-                nextId(), Side.CLIENT
-        );
-        System.out.println("[moremod] ✅ 已註冊 PacketChengYueSkill（澄月技能）");
-
         System.out.println("[moremod] 網路處理器初始化完成，已註冊 " + ID + " 個封包");
     }
 
