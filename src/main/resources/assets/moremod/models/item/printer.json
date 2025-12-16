@@ -1,7 +1,7 @@
 {
     "parent": "builtin/generated",
     "textures": {
-        "layer0": "moremod:block/printer"
+        "layer0": "moremod:items/printer"
     },
     "display": {
         "gui": {
