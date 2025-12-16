@@ -2,10 +2,14 @@ package com.moremod.gui;
 
 import com.moremod.ritual.RitualInfusionAPI;
 import com.moremod.ritual.RitualInfusionRecipe;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.init.Blocks;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.crafting.Ingredient;
 import net.minecraft.util.ResourceLocation;
@@ -182,258 +186,131 @@ public class GuiModGuide extends GuiScreen {
     }
 
     private void loadMultiblockPages() {
-        // 抽油機
+        // ==================== 抽油機 (3x3x4) ====================
+        StructureTemplate oilPumpStruct = new StructureTemplate(3, 3)
+                .addKey('I', new ItemStack(Blocks.IRON_BLOCK))
+                .addKey('C', new ItemStack(Blocks.GOLD_BLOCK))  // 核心用金塊表示
+                .addKey('P', new ItemStack(Blocks.PISTON));
+
+        oilPumpStruct.addLayer("III", "ICI", "III");  // 第0層
+        oilPumpStruct.addLayer("I.I", ".P.", "I.I");  // 第1層
+        oilPumpStruct.addLayer("I.I", ".P.", "I.I");  // 第2層
+        oilPumpStruct.addLayer("III", "III", "III");  // 第3層
+
         currentPages.add(new GuidePageContent(
-                "抽油機 (3x3x4)",
+                "抽油機結構",
                 new String[]{
-                        "§e第0層（地基）:§r",
-                        "  I I I",
-                        "  I C I",
-                        "  I I I",
+                        "§e自動化石油開採§r",
                         "",
-                        "§e第1-2層（機體）:§r",
-                        "  I . I",
-                        "  . P .",
-                        "  I . I",
+                        "§6預覽說明：§r",
+                        "右側為結構全息圖",
+                        "它會§a自動輪播§r",
+                        "顯示每一層結構。",
                         "",
-                        "§e第3層（頂部）:§r",
-                        "  全部鐵塊"
+                        "§6搭建材料：§r",
+                        "- 抽油機核心 x1",
+                        "- 鐵/金/鑽石塊 x26",
+                        "- 活塞 x2"
                 },
                 new String[]{
-                        "§6圖例：§r",
-                        "C = 抽油機核心",
-                        "I = 鐵/金/鑽石塊",
-                        "P = 活塞（管道）",
-                        ". = 空氣",
-                        "",
                         "§a使用方法：§r",
-                        "1. 用探測器找石油區塊",
+                        "1. 探測器找石油區塊",
                         "2. 建造多方塊結構",
                         "3. 對核心供電",
-                        "4. 從核心提取石油桶"
-                }
+                        "4. 從核心提取石油",
+                        "",
+                        "§7(滑鼠懸停查看方塊)§r"
+                },
+                oilPumpStruct
         ));
 
-        // 升級艙
+        // ==================== 升級艙 (3x3x3) ====================
+        StructureTemplate upgradeChamberStruct = new StructureTemplate(3, 3)
+                .addKey('I', new ItemStack(Blocks.IRON_BLOCK))
+                .addKey('C', new ItemStack(Blocks.BEACON));  // 核心用信標表示
+
+        upgradeChamberStruct.addLayer("III", "ICI", "III");  // 第0層
+        upgradeChamberStruct.addLayer("I.I", "...", "I.I");  // 第1層
+        upgradeChamberStruct.addLayer("III", "III", "III");  // 第2層
+
         currentPages.add(new GuidePageContent(
-                "升級艙 (3x3x3)",
+                "升級艙結構",
                 new String[]{
-                        "§e第0層（地板）:§r",
-                        "  I I I",
-                        "  I C I",
-                        "  I I I",
-                        "",
-                        "§e第1層（中間）:§r",
-                        "  I . I",
-                        "  . . .",
-                        "  I . I",
-                        "",
-                        "§e第2層（天花板）:§r",
-                        "  全部框架方塊"
-                },
-                new String[]{
-                        "§6圖例：§r",
-                        "C = 升級艙核心",
-                        "I = 框架方塊",
-                        ". = 空氣（玩家空間）",
+                        "§e模組升級設施§r",
                         "",
                         "§6框架等級：§r",
                         "鐵塊 = 基礎",
                         "金塊 = 進階",
                         "鑽石塊 = 精英",
-                        "綠寶石塊 = 終極"
-                }
-        ));
-
-        currentPages.add(new GuidePageContent(
-                "升級艙使用方法",
-                new String[]{
+                        "綠寶石塊 = 終極",
+                        "",
                         "§a使用步驟：§r",
-                        "",
-                        "1. 將升級模組放入核心",
-                        "",
+                        "1. 放入升級模組",
                         "2. 對核心供電",
-                        "   (需要充滿能量)",
-                        "",
                         "3. 裝備機械核心",
-                        "",
-                        "4. 走進升級艙",
-                        "",
-                        "5. 等待升級完成"
+                        "4. 走進升級艙"
                 },
                 new String[]{
                         "§c注意事項：§r",
+                        "能量不足會失敗",
+                        "更高等級更快",
                         "",
-                        "- 能量不足會導致",
-                        "  升級失敗",
-                        "",
-                        "- 更高等級的框架",
-                        "  升級速度更快",
-                        "",
-                        "- 模組有等級上限",
-                        "  死亡時會降級",
-                        "",
-                        "- 可使用升級艙修復",
-                        "  已降級的模組"
-                }
+                        "§7(滑鼠懸停查看方塊)§r"
+                },
+                upgradeChamberStruct
         ));
 
-        // 智慧之泉 - 第一頁
-        currentPages.add(new GuidePageContent(
-                "智慧之泉 (7x7x4)",
-                new String[]{
-                        "§e第0層（地基）:§r",
-                        " QQQQQQQ",
-                        " Q.....Q",
-                        " Q.GGG.Q",
-                        " Q.GCG.Q",
-                        " Q.GGG.Q",
-                        " Q.....Q",
-                        " QQQQQQQ",
-                        "",
-                        "§6圖例：§r",
-                        "C=核心 G=守護者石",
-                        "Q=石英 .=空氣"
-                },
-                new String[]{
-                        "§6材料清單：§r",
-                        "- 智慧之泉核心 x1",
-                        "- 守護者石塊 x8",
-                        "- 符文虛空石塊 x8",
-                        "- 遠古核心塊 x1",
-                        "- 海晶燈 x4",
-                        "- 石英塊 若干",
-                        "",
-                        "§a功能：§r",
-                        "經驗轉化、附魔增強"
-                }
-        ));
+        // ==================== 簡易智慧祭壇 (3x3x3) ====================
+        StructureTemplate wisdomShrineStruct = new StructureTemplate(3, 3)
+                .addKey('E', new ItemStack(Blocks.EMERALD_BLOCK))
+                .addKey('B', new ItemStack(Blocks.BOOKSHELF))
+                .addKey('G', new ItemStack(Blocks.GOLD_BLOCK))
+                .addKey('T', new ItemStack(Blocks.ENCHANTING_TABLE))
+                .addKey('C', new ItemStack(Blocks.DIAMOND_BLOCK));
 
-        // 智慧之泉 - 第二頁
-        currentPages.add(new GuidePageContent(
-                "智慧之泉 第1-3層",
-                new String[]{
-                        "§e第1-2層（中間）:§r",
-                        " Q.....Q",
-                        " .......",
-                        " ..VVV..",
-                        " ..V.V..",
-                        " ..VVV..",
-                        " .......",
-                        " Q.....Q",
-                        "",
-                        "§6圖例：§r",
-                        "V=符文虛空石",
-                        "Q=石英柱 .=空氣"
-                },
-                new String[]{
-                        "§e第3層（頂部）:§r",
-                        " QQQQQQQ",
-                        " Q.....Q",
-                        " Q.LAL.Q",
-                        " Q.AWA.Q",
-                        " Q.LAL.Q",
-                        " Q.....Q",
-                        " QQQQQQQ",
-                        "",
-                        "§6圖例：§r",
-                        "W=遠古核心 L=海晶燈",
-                        "A=空氣/水"
-                }
-        ));
-
-        // 簡易智慧祭壇
-        currentPages.add(new GuidePageContent(
-                "簡易智慧祭壇 (3x3x3)",
-                new String[]{
-                        "§e第0層（祭壇層）:§r",
-                        "  E B E",
-                        "  B C B",
-                        "  E B E",
-                        "",
-                        "§e第1層（中間）:§r",
-                        "  B . B",
-                        "  . . .",
-                        "  B . B",
-                        "",
-                        "§e第2層（頂部）:§r",
-                        "  G B G",
-                        "  B T B",
-                        "  G B G"
-                },
-                new String[]{
-                        "§6圖例：§r",
-                        "C = 簡易智慧祭壇核心",
-                        "E = 綠寶石塊",
-                        "B = 書架",
-                        "G = 金塊",
-                        "T = 附魔台",
-                        ". = 空氣",
-                        "",
-                        "§6範圍：§r 15格",
-                        "",
-                        "§a功能：§r",
-                        "解鎖村民交易",
-                        "加速村民幼體成長"
-                }
-        ));
+        wisdomShrineStruct.addLayer("EBE", "BCB", "EBE");  // 第0層
+        wisdomShrineStruct.addLayer("B.B", "...", "B.B");  // 第1層
+        wisdomShrineStruct.addLayer("GBG", "BTB", "GBG");  // 第2層
 
         currentPages.add(new GuidePageContent(
-                "簡易智慧祭壇使用",
+                "簡易智慧祭壇",
                 new String[]{
-                        "§e自動效果§r",
+                        "§e村民增強設施§r",
                         "",
-                        "結構完成後自動運作",
-                        "無需任何能量供應",
+                        "§a效果1：§r解鎖交易",
+                        "每5秒檢測範圍內",
+                        "村民，重置被鎖定",
+                        "的交易。",
                         "",
-                        "§a效果1：解鎖交易§r",
-                        "每5秒檢測範圍內村民",
-                        "重置被鎖定的交易",
-                        "讓村民可以再次交易",
-                        "",
-                        "§7對經常交易的村民",
-                        "非常有用§r"
-                },
-                new String[]{
-                        "§a效果2：加速成長§r",
-                        "",
-                        "範圍內的村民幼體",
+                        "§a效果2：§r加速成長",
+                        "範圍內村民幼體",
                         "成長速度大幅加快",
                         "",
-                        "§6建造提示：§r",
-                        "- 將祭壇建在村莊中",
-                        "- 確保村民在範圍內",
-                        "- 右鍵核心查看狀態",
-                        "",
-                        "§c注意：§r",
-                        "結構不完整時無效果"
-                }
-        ));
-
-        // 重生艙
-        currentPages.add(new GuidePageContent(
-                "重生艙 (3x3x3)",
-                new String[]{
-                        "§e第0層（底座）:§r",
-                        "  G G G",
-                        "  G C G",
-                        "  G G G",
-                        "",
-                        "§e第1層（中間）:§r",
-                        "  G . G",
-                        "  . . .",
-                        "  G . G",
-                        "",
-                        "§e第2層（頂部）:§r",
-                        "  G G G",
-                        "  G G G",
-                        "  G G G"
+                        "§6範圍：§r 15格"
                 },
                 new String[]{
-                        "§6圖例：§r",
-                        "C = 重生艙核心",
-                        "G = 玻璃",
-                        ". = 空氣（玩家空間）",
+                        "§6建造提示：§r",
+                        "建在村莊中心",
+                        "無需能量供應",
+                        "",
+                        "§7(滑鼠懸停查看方塊)§r"
+                },
+                wisdomShrineStruct
+        ));
+
+        // ==================== 重生艙 (3x3x3) ====================
+        StructureTemplate respawnStruct = new StructureTemplate(3, 3)
+                .addKey('G', new ItemStack(Blocks.GLASS))
+                .addKey('C', new ItemStack(Blocks.SEA_LANTERN));
+
+        respawnStruct.addLayer("GGG", "GCG", "GGG");  // 第0層
+        respawnStruct.addLayer("G.G", "...", "G.G");  // 第1層
+        respawnStruct.addLayer("GGG", "GGG", "GGG");  // 第2層
+
+        currentPages.add(new GuidePageContent(
+                "重生艙結構",
+                new String[]{
+                        "§e重生點設施§r",
                         "",
                         "§a功能：§r",
                         "設置玩家重生點",
@@ -444,70 +321,79 @@ public class GuiModGuide extends GuiScreen {
                         "2. 對核心供電",
                         "3. 進入重生艙",
                         "4. 右鍵核心綁定"
-                }
-        ));
-
-        // 量子礦機
-        currentPages.add(new GuidePageContent(
-                "量子礦機 (3x3x3)",
-                new String[]{
-                        "§e結構（立體）:§r",
-                        "核心被6個代理包圍",
-                        "",
-                        "§e俯視圖:§r",
-                        " .A.",
-                        " ACA",
-                        " .A.",
-                        "",
-                        "§e上下層:§r",
-                        "核心上方+下方",
-                        "各1個代理方塊"
                 },
                 new String[]{
-                        "§6圖例：§r",
-                        "C = 量子礦機核心",
-                        "A = 礦機代理方塊",
-                        ". = 空氣",
+                        "§6材料：§r",
+                        "玻璃 + 核心方塊",
                         "",
-                        "§c代理方向：§r",
-                        "必須朝向核心！",
+                        "§7(滑鼠懸停查看方塊)§r"
+                },
+                respawnStruct
+        ));
+
+        // ==================== 量子礦機 (3x3x3) ====================
+        StructureTemplate quarryStruct = new StructureTemplate(3, 3)
+                .addKey('A', new ItemStack(Blocks.OBSERVER))  // 代理用觀察者表示
+                .addKey('C', new ItemStack(Blocks.DIAMOND_BLOCK));
+
+        quarryStruct.addLayer("...", ".A.", "...");   // 底層（下方代理）
+        quarryStruct.addLayer(".A.", "ACA", ".A.");   // 中間層
+        quarryStruct.addLayer("...", ".A.", "...");   // 頂層（上方代理）
+
+        currentPages.add(new GuidePageContent(
+                "量子礦機結構",
+                new String[]{
+                        "§e自動採礦設施§r",
                         "",
+                        "§6結構說明：§r",
+                        "核心被6個代理",
+                        "方塊包圍（上下",
+                        "左右前後各1個）",
+                        "",
+                        "§c重要：§r",
+                        "代理必須朝向核心！",
+                        "",
+                        "§6能量：§r",
+                        "640,000 RF/次"
+                },
+                new String[]{
                         "§a功能：§r",
                         "消耗RF隨機產礦",
                         "",
-                        "§6能量：§r 640,000 RF/次"
-                }
+                        "§7(滑鼠懸停查看方塊)§r"
+                },
+                quarryStruct
         ));
 
-        // 儀式祭壇
+        // ==================== 儀式祭壇 (5x5x2) ====================
+        StructureTemplate ritualStruct = new StructureTemplate(5, 5)
+                .addKey('P', new ItemStack(Blocks.QUARTZ_BLOCK))  // 基座用石英表示
+                .addKey('C', new ItemStack(Blocks.END_PORTAL_FRAME));
+
+        ritualStruct.addLayer(".P.P.", "P...P", "..C..", "P...P", ".P.P.");  // 第0層
+        ritualStruct.addLayer(".P.P.", "P...P", ".....", "P...P", ".P.P.");  // 第1層
+
         currentPages.add(new GuidePageContent(
-                "儀式祭壇 (5x5x2)",
+                "儀式祭壇結構",
                 new String[]{
-                        "§e第0-1層（俯視）:§r",
-                        " .P.P.",
-                        " P...P",
-                        " ..C..",
-                        " P...P",
-                        " .P.P.",
+                        "§e儀式進行設施§r",
                         "",
-                        "§6圖例：§r",
-                        "C=儀式核心",
-                        "P=基座",
-                        ".=空氣"
-                },
-                new String[]{
-                        "§a功能：§r",
-                        "進行各種儀式",
-                        "詳見儀式系統分類",
+                        "§6結構說明：§r",
+                        "核心周圍放置",
+                        "8個基座方塊",
+                        "呈對角線排列",
                         "",
                         "§6材料：§r",
                         "- 儀式核心 x1",
                         "- 基座 x8",
                         "",
-                        "§7說明：§r",
-                        "兩層結構相同",
-                        "基座在對角位置"
-                }
+                        "§a功能：§r",
+                        "詳見儀式系統分類"
+                },
+                new String[]{
+                        "§7(滑鼠懸停查看方塊)§r"
+                },
+                ritualStruct
         ));
     }
 
@@ -2002,7 +1888,7 @@ public class GuiModGuide extends GuiScreen {
         drawBookBackground();
 
         if (!currentPages.isEmpty() && currentPage < currentPages.size()) {
-            drawPageContent(currentPages.get(currentPage));
+            drawPageContent(currentPages.get(currentPage), mouseX, mouseY);
         }
 
         // 繪製頁碼
@@ -2026,49 +1912,130 @@ public class GuiModGuide extends GuiScreen {
     }
 
     /**
-     * ⭐ 核心方法：使用 drawSplitString 實現自動換行
+     * ⭐ 核心方法：繪製頁面內容（支援結構渲染）
      */
-    private void drawPageContent(GuidePageContent page) {
+    private void drawPageContent(GuidePageContent page, int mouseX, int mouseY) {
         int centerX = guiLeft + BOOK_WIDTH / 2;
         int startY = guiTop + 20;
-
-        // 定義每一頁的文字寬度 (預留邊距)
-        // 書總寬 256 -> 半邊 128 -> 扣除邊距後約 100
         int pageWidth = 100;
         int leftX = guiLeft + 18;
         int rightX = centerX + 12;
-        int textColor = 0x000000;
 
-        // 1. 繪製標題 (跨頁居中)
+        // 1. 繪製標題
         GlStateManager.pushMatrix();
-        // 稍微往上移一點
         GlStateManager.translate(centerX, guiTop + 12, 0);
         GlStateManager.scale(1.2f, 1.2f, 1f);
         drawCenteredString(fontRenderer, TextFormatting.DARK_BLUE + page.title, 0, 0, 0);
         GlStateManager.popMatrix();
 
-        // 2. 繪製左頁內容
-        int y = startY + 10;
-        for (String line : page.leftContent) {
-            // 檢查是否超出頁面底部，超出則不繪製
-            if (y > guiTop + BOOK_HEIGHT - 35) break;
+        // 2. 繪製左頁文字
+        drawText(page.leftContent, leftX, startY + 10, pageWidth);
 
-            // ⭐ 關鍵：drawSplitString 自動換行
-            fontRenderer.drawSplitString(line, leftX, y, pageWidth, textColor);
+        // 3. 繪製右頁 (結構 + 文字)
+        int rightTextY = startY + 10;
 
-            // ⭐ 關鍵：根據換行後的高度動態增加 Y 座標
-            // 如果一行字換成了兩行，高度就會增加
-            y += fontRenderer.getWordWrappedHeight(line, pageWidth);
+        if (page.structure != null) {
+            // 渲染結構並獲取佔用高度
+            int structHeight = drawStructure(page.structure, centerX, guiTop, mouseX, mouseY);
+            rightTextY += structHeight + 5;
         }
 
-        // 3. 繪製右頁內容
-        y = startY + 10;
-        for (String line : page.rightContent) {
-            if (y > guiTop + BOOK_HEIGHT - 35) break;
+        // 繪製右頁剩餘文字
+        drawText(page.rightContent, rightX, rightTextY, pageWidth);
+    }
 
-            fontRenderer.drawSplitString(line, rightX, y, pageWidth, textColor);
-            y += fontRenderer.getWordWrappedHeight(line, pageWidth);
+    /**
+     * 輔助方法：繪製文字
+     */
+    private void drawText(String[] lines, int x, int y, int width) {
+        for (String line : lines) {
+            if (y > guiTop + BOOK_HEIGHT - 35) break;
+            fontRenderer.drawSplitString(line, x, y, width, 0x000000);
+            y += fontRenderer.getWordWrappedHeight(line, width);
         }
+    }
+
+    /**
+     * ⭐⭐⭐ 核心渲染方法：繪製多方塊結構 ⭐⭐⭐
+     * 包含：自動縮放、層級輪播、物品光照、Tooltip
+     * @return 渲染區域佔用的總高度
+     */
+    private int drawStructure(StructureTemplate struct, int centerX, int topY, int mouseX, int mouseY) {
+        if (struct == null || struct.layers.isEmpty()) return 0;
+
+        // 1. 計算當前輪播到哪一層 (基於世界時間)
+        long totalTime = Minecraft.getMinecraft().world != null ?
+                Minecraft.getMinecraft().world.getTotalWorldTime() : 0;
+        int totalLayers = struct.layers.size();
+        int currentIdx = (int) ((totalTime / StructureTemplate.TICKS_PER_LAYER) % totalLayers);
+
+        ItemStack[] layerBlocks = struct.layers.get(currentIdx);
+
+        // 2. 計算自動縮放比例
+        int maxWidth = 100;
+        int maxHeight = 80;
+        int realWidth = struct.sizeX * 16;
+        int realHeight = struct.sizeZ * 16;
+
+        float scale = Math.min(1.5f, Math.min((float) maxWidth / realWidth, (float) maxHeight / realHeight));
+
+        int renderW = (int) (realWidth * scale);
+        int renderH = (int) (realHeight * scale);
+
+        // 3. 計算居中位置
+        int offsetX = 12 + (maxWidth - renderW) / 2;
+        int offsetY = 25;
+
+        // 4. 開始繪製
+        GlStateManager.pushMatrix();
+        GlStateManager.translate(centerX + offsetX, topY + offsetY, 100);
+        GlStateManager.scale(scale, scale, 1.0f);
+
+        RenderHelper.enableGUIStandardItemLighting();
+
+        ItemStack hoveredStack = ItemStack.EMPTY;
+
+        for (int z = 0; z < struct.sizeZ; z++) {
+            for (int x = 0; x < struct.sizeX; x++) {
+                int idx = z * struct.sizeX + x;
+                ItemStack stack = layerBlocks[idx];
+
+                if (!stack.isEmpty()) {
+                    int itemX = x * 16;
+                    int itemY = z * 16;
+
+                    this.itemRender.renderItemAndEffectIntoGUI(stack, itemX, itemY);
+
+                    // 檢測鼠標懸停
+                    float screenX = centerX + offsetX + itemX * scale;
+                    float screenY = topY + offsetY + itemY * scale;
+                    float size = 16 * scale;
+
+                    if (mouseX >= screenX && mouseX < screenX + size &&
+                            mouseY >= screenY && mouseY < screenY + size) {
+                        hoveredStack = stack;
+                    }
+                }
+            }
+        }
+
+        RenderHelper.disableStandardItemLighting();
+        GlStateManager.popMatrix();
+
+        // 5. 繪製層級提示
+        String label = "§7第 " + currentIdx + " 層 (共" + totalLayers + "層)§r";
+        if (currentIdx == 0) label += " §8(底座)§r";
+        else if (currentIdx == totalLayers - 1) label += " §8(頂部)§r";
+
+        int labelWidth = fontRenderer.getStringWidth(label);
+        fontRenderer.drawString(label, centerX + 12 + (maxWidth - labelWidth) / 2, topY + offsetY + renderH + 5, 0x555555);
+
+        // 6. 繪製 Tooltip
+        if (!hoveredStack.isEmpty()) {
+            this.renderToolTip(hoveredStack, mouseX, mouseY);
+        }
+
+        return renderH + 20;
     }
 
     @Override
@@ -2098,17 +2065,60 @@ public class GuiModGuide extends GuiScreen {
     }
 
     /**
+     * 多方塊結構模板 - 用於存儲結構數據
+     */
+    private static class StructureTemplate {
+        final int sizeX, sizeZ;
+        final List<ItemStack[]> layers = new ArrayList<>();
+        final Map<Character, ItemStack> keyMap = new HashMap<>();
+
+        // 每層顯示時間 (Ticks)，40 ticks = 2秒
+        static final int TICKS_PER_LAYER = 40;
+
+        public StructureTemplate(int sizeX, int sizeZ) {
+            this.sizeX = sizeX;
+            this.sizeZ = sizeZ;
+            keyMap.put('.', ItemStack.EMPTY);
+            keyMap.put(' ', ItemStack.EMPTY);
+        }
+
+        public StructureTemplate addKey(char key, ItemStack stack) {
+            keyMap.put(key, stack);
+            return this;
+        }
+
+        public StructureTemplate addLayer(String... rows) {
+            ItemStack[] layerData = new ItemStack[sizeX * sizeZ];
+            for (int z = 0; z < sizeZ; z++) {
+                String row = (z < rows.length) ? rows[z] : "";
+                for (int x = 0; x < sizeX; x++) {
+                    char c = (x < row.length()) ? row.charAt(x) : ' ';
+                    layerData[z * sizeX + x] = keyMap.getOrDefault(c, ItemStack.EMPTY);
+                }
+            }
+            layers.add(layerData);
+            return this;
+        }
+    }
+
+    /**
      * 頁面內容容器
      */
     private static class GuidePageContent {
         final String title;
         final String[] leftContent;
         final String[] rightContent;
+        final StructureTemplate structure;
 
         GuidePageContent(String title, String[] left, String[] right) {
+            this(title, left, right, null);
+        }
+
+        GuidePageContent(String title, String[] left, String[] right, StructureTemplate structure) {
             this.title = title;
             this.leftContent = left;
             this.rightContent = right;
+            this.structure = structure;
         }
     }
 }
