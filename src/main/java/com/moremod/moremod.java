@@ -78,7 +78,7 @@ import com.moremod.tile.TileEntityMegaChest;
 
 import com.moremod.recipe.BottlingMachineRecipe;
 import net.minecraft.item.ItemStack;
-import net.minecraftforge.client.model.obj.OBJLoader;
+// OBJLoader 是客户端类，不直接导入
 import net.minecraftforge.fluids.FluidRegistry;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraft.init.Items;
@@ -217,7 +217,11 @@ public class moremod {
     public void preInit(FMLPreInitializationEvent event) {
         // 初始化兼容性别名
         instance = INSTANCE;
-        OBJLoader.INSTANCE.addDomain("moremod");
+
+        // OBJLoader 只能在客户端使用
+        if (event.getSide().isClient()) {
+            net.minecraftforge.client.model.obj.OBJLoader.INSTANCE.addDomain("moremod");
+        }
 
         System.out.println("[moremod] ========== 开始预初始化 ==========");
 
