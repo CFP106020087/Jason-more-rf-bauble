@@ -2,6 +2,9 @@ package com.moremod.gui;
 
 import com.moremod.ritual.RitualInfusionAPI;
 import com.moremod.ritual.RitualInfusionRecipe;
+import com.moremod.init.ModBlocks;
+import com.moremod.moremod;
+import com.moremod.quarry.QuarryRegistry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
@@ -189,13 +192,13 @@ public class GuiModGuide extends GuiScreen {
         // ==================== 抽油機 (3x3x4) ====================
         StructureTemplate oilPumpStruct = new StructureTemplate(3, 3)
                 .addKey('I', new ItemStack(Blocks.IRON_BLOCK))
-                .addKey('C', new ItemStack(Blocks.GOLD_BLOCK))  // 核心用金塊表示
+                .addKey('C', new ItemStack(ModBlocks.OIL_EXTRACTOR_CORE))  // 抽油機核心
                 .addKey('P', new ItemStack(Blocks.PISTON));
 
-        oilPumpStruct.addLayer("III", "ICI", "III");  // 第0層
-        oilPumpStruct.addLayer("I.I", ".P.", "I.I");  // 第1層
-        oilPumpStruct.addLayer("I.I", ".P.", "I.I");  // 第2層
-        oilPumpStruct.addLayer("III", "III", "III");  // 第3層
+        oilPumpStruct.addLayer("I.I", ".C.", "I.I");  // 第0層 - 四角框架 + 核心
+        oilPumpStruct.addLayer("I.I", ".P.", "I.I");  // 第1層 - 四角框架 + 活塞
+        oilPumpStruct.addLayer("I.I", ".P.", "I.I");  // 第2層 - 四角框架 + 活塞
+        oilPumpStruct.addLayer("III", "III", "III");  // 第3層 - 封頂
 
         currentPages.add(new GuidePageContent(
                 "抽油機結構",
@@ -209,7 +212,7 @@ public class GuiModGuide extends GuiScreen {
                         "",
                         "§6搭建材料：§r",
                         "- 抽油機核心 x1",
-                        "- 鐵/金/鑽石塊 x26",
+                        "- 鐵/金/鑽石塊 x13",
                         "- 活塞 x2"
                 },
                 new String[]{
@@ -224,14 +227,16 @@ public class GuiModGuide extends GuiScreen {
                 oilPumpStruct
         ));
 
-        // ==================== 升級艙 (3x3x3) ====================
+        // ==================== 升級艙 (3x3x4) ====================
         StructureTemplate upgradeChamberStruct = new StructureTemplate(3, 3)
                 .addKey('I', new ItemStack(Blocks.IRON_BLOCK))
-                .addKey('C', new ItemStack(Blocks.BEACON));  // 核心用信標表示
+                .addKey('G', new ItemStack(Blocks.GLASS))
+                .addKey('C', new ItemStack(ModBlocks.UPGRADE_CHAMBER_CORE));  // 升級艙核心
 
-        upgradeChamberStruct.addLayer("III", "ICI", "III");  // 第0層
-        upgradeChamberStruct.addLayer("I.I", "...", "I.I");  // 第1層
-        upgradeChamberStruct.addLayer("III", "III", "III");  // 第2層
+        upgradeChamberStruct.addLayer("I.I", ".C.", "I.I");  // 第0層 - 四角框架 + 核心
+        upgradeChamberStruct.addLayer("G.G", "...", "G.G");  // 第1層 - 玻璃柱 + 空間
+        upgradeChamberStruct.addLayer("G.G", "...", "G.G");  // 第2層 - 玻璃柱 + 空間
+        upgradeChamberStruct.addLayer("III", "III", "III");  // 第3層 - 封頂
 
         currentPages.add(new GuidePageContent(
                 "升級艙結構",
@@ -266,11 +271,11 @@ public class GuiModGuide extends GuiScreen {
                 .addKey('B', new ItemStack(Blocks.BOOKSHELF))
                 .addKey('G', new ItemStack(Blocks.GOLD_BLOCK))
                 .addKey('T', new ItemStack(Blocks.ENCHANTING_TABLE))
-                .addKey('C', new ItemStack(Blocks.DIAMOND_BLOCK));
+                .addKey('C', new ItemStack(ModBlocks.SIMPLE_WISDOM_SHRINE));  // 智慧祭壇核心
 
-        wisdomShrineStruct.addLayer("EBE", "BCB", "EBE");  // 第0層
-        wisdomShrineStruct.addLayer("B.B", "...", "B.B");  // 第1層
-        wisdomShrineStruct.addLayer("GBG", "BTB", "GBG");  // 第2層
+        wisdomShrineStruct.addLayer("EBE", "BCB", "EBE");  // 第0層 - 綠寶石角 + 書架邊 + 核心
+        wisdomShrineStruct.addLayer("B.B", "...", "B.B");  // 第1層 - 四角書架 + 空間
+        wisdomShrineStruct.addLayer("GBG", "BTB", "GBG");  // 第2層 - 金塊角 + 書架邊 + 附魔台
 
         currentPages.add(new GuidePageContent(
                 "簡易智慧祭壇",
@@ -300,12 +305,13 @@ public class GuiModGuide extends GuiScreen {
 
         // ==================== 重生艙 (3x3x3) ====================
         StructureTemplate respawnStruct = new StructureTemplate(3, 3)
-                .addKey('G', new ItemStack(Blocks.GLASS))
-                .addKey('C', new ItemStack(Blocks.SEA_LANTERN));
+                .addKey('I', new ItemStack(Blocks.IRON_BLOCK))
+                .addKey('L', new ItemStack(Blocks.SEA_LANTERN))  // 光源
+                .addKey('C', new ItemStack(ModBlocks.RESPAWN_CHAMBER_CORE));  // 重生艙核心
 
-        respawnStruct.addLayer("GGG", "GCG", "GGG");  // 第0層
-        respawnStruct.addLayer("G.G", "...", "G.G");  // 第1層
-        respawnStruct.addLayer("GGG", "GGG", "GGG");  // 第2層
+        respawnStruct.addLayer("III", "ICI", "III");  // 第0層 - 框架 + 核心
+        respawnStruct.addLayer("I.I", "...", "I.I");  // 第1層 - 四角框架 + 空間
+        respawnStruct.addLayer("III", "ILI", "III");  // 第2層 - 框架 + 光源
 
         currentPages.add(new GuidePageContent(
                 "重生艙結構",
@@ -324,7 +330,8 @@ public class GuiModGuide extends GuiScreen {
                 },
                 new String[]{
                         "§6材料：§r",
-                        "玻璃 + 核心方塊",
+                        "鐵/金/鑽塊 + 核心",
+                        "頂部中心：光源",
                         "",
                         "§7(滑鼠懸停查看方塊)§r"
                 },
@@ -333,11 +340,11 @@ public class GuiModGuide extends GuiScreen {
 
         // ==================== 量子礦機 (3x3x3) ====================
         StructureTemplate quarryStruct = new StructureTemplate(3, 3)
-                .addKey('A', new ItemStack(Blocks.OBSERVER))  // 代理用觀察者表示
-                .addKey('C', new ItemStack(Blocks.DIAMOND_BLOCK));
+                .addKey('A', new ItemStack(QuarryRegistry.blockQuarryActuator))  // 量子代理
+                .addKey('C', new ItemStack(QuarryRegistry.blockQuantumQuarry));  // 量子礦機核心
 
         quarryStruct.addLayer("...", ".A.", "...");   // 底層（下方代理）
-        quarryStruct.addLayer(".A.", "ACA", ".A.");   // 中間層
+        quarryStruct.addLayer(".A.", "ACA", ".A.");   // 中間層 - 核心 + 四方代理
         quarryStruct.addLayer("...", ".A.", "...");   // 頂層（上方代理）
 
         currentPages.add(new GuidePageContent(
@@ -367,11 +374,11 @@ public class GuiModGuide extends GuiScreen {
 
         // ==================== 儀式祭壇 (5x5x2) ====================
         StructureTemplate ritualStruct = new StructureTemplate(5, 5)
-                .addKey('P', new ItemStack(Blocks.QUARTZ_BLOCK))  // 基座用石英表示
-                .addKey('C', new ItemStack(Blocks.END_PORTAL_FRAME));
+                .addKey('P', new ItemStack(moremod.RITUAL_PEDESTAL_BLOCK))  // 儀式基座
+                .addKey('C', new ItemStack(moremod.RITUAL_CORE_BLOCK));     // 儀式核心
 
-        ritualStruct.addLayer(".P.P.", "P...P", "..C..", "P...P", ".P.P.");  // 第0層
-        ritualStruct.addLayer(".P.P.", "P...P", ".....", "P...P", ".P.P.");  // 第1層
+        ritualStruct.addLayer(".P.P.", "P...P", "..C..", "P...P", ".P.P.");  // 第0層 - 核心 + 8基座
+        ritualStruct.addLayer(".P.P.", "P...P", ".....", "P...P", ".P.P.");  // 第1層 - 8基座
 
         currentPages.add(new GuidePageContent(
                 "儀式祭壇結構",
