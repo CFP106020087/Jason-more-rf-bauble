@@ -155,6 +155,17 @@ public class ContainerSwordUpgradeStation extends Container {
             }
 
             @Override
+            public boolean isItemValid(@Nonnull ItemStack stack) {
+                // 如果宝石槽有任何物品，禁止放入剑（防止覆盖宝石）
+                for (int i = MATERIAL_SLOT_START; i <= MATERIAL_SLOT_END; i++) {
+                    if (!handler.getStackInSlot(i).isEmpty()) {
+                        return false;
+                    }
+                }
+                return super.isItemValid(stack);
+            }
+
+            @Override
             public boolean canTakeStack(EntityPlayer playerIn) {
                 ItemStack stack = this.getStack();
                 if (!stack.isEmpty() && stack.hasTagCompound() &&
@@ -263,6 +274,17 @@ public class ContainerSwordUpgradeStation extends Container {
             if (stackInSlot.getItem() instanceof net.minecraft.item.ItemSword) {
                 if (mode == TileEntitySwordUpgradeStation.Mode.IDLE ||
                         mode == TileEntitySwordUpgradeStation.Mode.UPGRADE) {
+                    // 检查宝石槽是否有物品，有则禁止放入剑
+                    boolean hasGems = false;
+                    for (int i = MATERIAL_SLOT_START; i <= MATERIAL_SLOT_END; i++) {
+                        if (!handler.getStackInSlot(i).isEmpty()) {
+                            hasGems = true;
+                            break;
+                        }
+                    }
+                    if (hasGems) {
+                        return ItemStack.EMPTY;
+                    }
                     if (!this.mergeItemStack(stackInSlot, SWORD, SWORD + 1, false)) {
                         return ItemStack.EMPTY;
                     }
