@@ -1,6 +1,5 @@
 package com.moremod.client.render;
 
-import com.moremod.capability.ChengYueCapability;
 import com.moremod.client.model.SwordChengYueModel;
 import com.moremod.item.ItemSwordChengYue;
 import net.minecraft.client.Minecraft;
@@ -13,8 +12,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import software.bernie.geckolib3.renderers.geo.GeoItemRenderer;
 
 /**
- * 澄月剑渲染器
- * 支持普通模式和技能模式（双手拔刀动画）
+ * 澄月剑渲染器（简化版）
  */
 @SideOnly(Side.CLIENT)
 public class SwordChengYueRenderer extends GeoItemRenderer<ItemSwordChengYue> {
@@ -30,53 +28,23 @@ public class SwordChengYueRenderer extends GeoItemRenderer<ItemSwordChengYue> {
             return;
         }
 
-        // 获取当前的变换类型
         ItemCameraTransforms.TransformType transformType = getCurrentTransformType(stack);
-
-        // 获取模型
         SwordChengYueModel model = (SwordChengYueModel) this.getGeoModelProvider();
 
-        // 检查技能状态
-        boolean skillActive = isSkillActive();
-        model.setSkillMode(skillActive);
-        model.setTransformType(transformType);
-
-        // 设置刀鞘显示逻辑（非技能模式时）
-        if (!skillActive) {
-            if (transformType == ItemCameraTransforms.TransformType.GUI) {
-                model.setMode(SwordChengYueModel.VisibilityMode.NORMAL);
-            } else {
-                model.setMode(SwordChengYueModel.VisibilityMode.HIDE_SCABBARD);
-            }
+        // GUI显示刀鞘，其他隐藏
+        if (transformType == ItemCameraTransforms.TransformType.GUI) {
+            model.setMode(SwordChengYueModel.VisibilityMode.NORMAL);
+        } else {
+            model.setMode(SwordChengYueModel.VisibilityMode.HIDE_SCABBARD);
         }
 
-        // 开始渲染
         GlStateManager.pushMatrix();
 
-        if (skillActive) {
-            // 技能模式：使用专门的变换
-            renderSkillMode(transformType);
-        } else {
-            // 普通模式：使用原来的变换
-            renderNormalMode(transformType);
-        }
-
-        // 调用父类渲染
-        super.renderByItem(stack);
-
-        GlStateManager.popMatrix();
-    }
-
-    /**
-     * 普通模式渲染变换
-     */
-    private void renderNormalMode(ItemCameraTransforms.TransformType transformType) {
         // 基础变换
         GlStateManager.translate(0.5, 0.5, 0.5);
         GlStateManager.rotate(-77.5f, 1.0f, 0.0f, 0.0f);
         GlStateManager.translate(0, -3.7, -0.93);
 
-        // 根据不同情况进行变换
         if (transformType != null) {
             switch (transformType) {
                 case FIRST_PERSON_RIGHT_HAND:
@@ -128,118 +96,42 @@ public class SwordChengYueRenderer extends GeoItemRenderer<ItemSwordChengYue> {
                     break;
             }
         }
+
+        super.renderByItem(stack);
+        GlStateManager.popMatrix();
     }
 
-    /**
-     * 技能模式渲染变换（双手拔刀动画）
-     * 使用 ChengYueDebugKey 的调试参数
-     */
-    private void renderSkillMode(ItemCameraTransforms.TransformType transformType) {
-        // 从调试类读取参数
-        float ox = com.moremod.client.debug.ChengYueDebugKey.offsetX;
-        float oy = com.moremod.client.debug.ChengYueDebugKey.offsetY;
-        float oz = com.moremod.client.debug.ChengYueDebugKey.offsetZ;
-        float rx = com.moremod.client.debug.ChengYueDebugKey.rotateX;
-        float ry = com.moremod.client.debug.ChengYueDebugKey.rotateY;
-        float rz = com.moremod.client.debug.ChengYueDebugKey.rotateZ;
-        float sc = com.moremod.client.debug.ChengYueDebugKey.scale;
-
-        if (transformType != null) {
-            switch (transformType) {
-                case FIRST_PERSON_RIGHT_HAND:
-                case FIRST_PERSON_LEFT_HAND:
-                    // 第一人称
-                    GlStateManager.translate(0.5, 0.5, 0.5);
-                    GlStateManager.scale(sc, sc, sc);
-                    GlStateManager.rotate(rx, 1, 0, 0);
-                    GlStateManager.rotate(ry, 0, 1, 0);
-                    GlStateManager.rotate(rz, 0, 0, 1);
-                    GlStateManager.translate(ox, oy, oz);
-                    break;
-
-                case THIRD_PERSON_RIGHT_HAND:
-                case THIRD_PERSON_LEFT_HAND:
-                    // 第三人称
-                    GlStateManager.translate(0.5, 0.8, 0.5);
-                    GlStateManager.scale(sc * 0.8f, sc * 0.8f, sc * 0.8f);
-                    GlStateManager.rotate(rx, 1, 0, 0);
-                    GlStateManager.rotate(ry, 0, 1, 0);
-                    GlStateManager.rotate(rz, 0, 0, 1);
-                    GlStateManager.translate(ox, oy, oz);
-                    break;
-
-                default:
-                    // GUI 等其他模式
-                    GlStateManager.translate(0.5, 0.5, 0.5);
-                    GlStateManager.scale(sc * 0.5f, sc * 0.5f, sc * 0.5f);
-                    GlStateManager.rotate(rx, 1, 0, 0);
-                    GlStateManager.rotate(ry, 0, 1, 0);
-                    GlStateManager.rotate(rz, 0, 0, 1);
-                    GlStateManager.translate(ox, oy, oz);
-                    break;
-            }
-        }
-    }
-
-    /**
-     * 检查玩家是否处于技能激活状态
-     */
-    private boolean isSkillActive() {
-        try {
-            Minecraft mc = Minecraft.getMinecraft();
-            EntityPlayerSP player = mc.player;
-            if (player == null) return false;
-
-            ChengYueCapability cap = player.getCapability(ChengYueCapability.CAPABILITY, null);
-            return cap != null && cap.isSkillActive();
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    /**
-     * 获取当前的变换类型（支持副手检测）
-     */
     private ItemCameraTransforms.TransformType getCurrentTransformType(ItemStack stack) {
         try {
             Minecraft mc = Minecraft.getMinecraft();
             EntityPlayerSP player = mc.player;
 
-            // GUI 检测
             if (mc.currentScreen != null) {
                 return ItemCameraTransforms.TransformType.GUI;
             }
 
-            // 玩家检测
             if (player == null) {
                 return ItemCameraTransforms.TransformType.FIRST_PERSON_RIGHT_HAND;
             }
 
-            // 检测主手和副手
             ItemStack mainHand = player.getHeldItemMainhand();
             ItemStack offHand = player.getHeldItemOffhand();
 
             boolean mainHasSword = mainHand.getItem() instanceof ItemSwordChengYue;
             boolean offHasSword = offHand.getItem() instanceof ItemSwordChengYue;
-
-            // 判断是副手还是主手
             boolean isOffHand = offHasSword && !mainHasSword;
 
-            // 根据视角返回正确的 TransformType
             if (mc.gameSettings.thirdPersonView == 0) {
-                // 第一人称
                 return isOffHand ?
                     ItemCameraTransforms.TransformType.FIRST_PERSON_LEFT_HAND :
                     ItemCameraTransforms.TransformType.FIRST_PERSON_RIGHT_HAND;
             } else {
-                // 第三人称
                 return isOffHand ?
                     ItemCameraTransforms.TransformType.THIRD_PERSON_LEFT_HAND :
                     ItemCameraTransforms.TransformType.THIRD_PERSON_RIGHT_HAND;
             }
 
         } catch (Exception e) {
-            e.printStackTrace();
             return ItemCameraTransforms.TransformType.FIRST_PERSON_RIGHT_HAND;
         }
     }

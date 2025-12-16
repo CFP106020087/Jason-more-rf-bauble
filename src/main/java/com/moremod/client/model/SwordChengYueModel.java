@@ -1,28 +1,19 @@
 package com.moremod.client.model;
 
 import com.moremod.item.ItemSwordChengYue;
-import net.minecraft.client.renderer.block.model.ItemCameraTransforms;
 import net.minecraft.util.ResourceLocation;
 import software.bernie.geckolib3.core.event.predicate.AnimationEvent;
 import software.bernie.geckolib3.core.processor.IBone;
 import software.bernie.geckolib3.model.AnimatedGeoModel;
 
 /**
- * 澄月剑 GeckoLib 模型
- * 支持双模型切换：
- * - 普通状态: sword_chengyue.geo.json
- * - 技能状态: moon_sword.json (带双手拔刀动画)
+ * 澄月剑 GeckoLib 模型（简化版）
  */
 public class SwordChengYueModel extends AnimatedGeoModel<ItemSwordChengYue> {
 
-    // 模型资源路径
-    private static final ResourceLocation MODEL_NORMAL = new ResourceLocation("moremod", "geo/sword_chengyue.geo.json");
-    private static final ResourceLocation MODEL_SKILL = new ResourceLocation("moremod", "geo/moon_sword.geo.json");
-
-    private static final ResourceLocation TEXTURE_NORMAL = new ResourceLocation("moremod", "textures/item/sword_chengyue.png");
-    private static final ResourceLocation TEXTURE_SKILL = new ResourceLocation("moremod", "geo/moon_sword.png");
-
-    private static final ResourceLocation ANIMATION_SKILL = new ResourceLocation("moremod", "animations/moon_sword.animation.json");
+    private static final ResourceLocation MODEL = new ResourceLocation("moremod", "geo/sword_chengyue.geo.json");
+    private static final ResourceLocation TEXTURE = new ResourceLocation("moremod", "textures/item/sword_chengyue.png");
+    private static final ResourceLocation ANIMATION = new ResourceLocation("moremod", "animations/sword_chengyue.animation.json");
 
     public enum VisibilityMode {
         NORMAL,           // 全部显示（GUI用）
@@ -30,89 +21,34 @@ public class SwordChengYueModel extends AnimatedGeoModel<ItemSwordChengYue> {
         SCABBARD_ONLY     // 只显示刀鞘
     }
 
-    public enum ViewMode {
-        FIRST_PERSON,
-        THIRD_PERSON,
-        GUI,
-        OTHER
-    }
-
     private VisibilityMode mode = VisibilityMode.NORMAL;
-    private ViewMode viewMode = ViewMode.OTHER;
-    private ItemCameraTransforms.TransformType currentTransform = ItemCameraTransforms.TransformType.NONE;
-
-    // 技能模式
-    private boolean skillMode = false;
 
     public void setMode(VisibilityMode m) {
         this.mode = (m == null) ? VisibilityMode.NORMAL : m;
     }
 
-    public void setViewMode(ViewMode mode) {
-        this.viewMode = mode;
-    }
-
-    public ViewMode getViewMode() {
-        return viewMode;
-    }
-
-    public void setSkillMode(boolean active) {
-        this.skillMode = active;
-    }
-
-    public boolean isSkillMode() {
-        return skillMode;
-    }
-
-    public void setTransformType(ItemCameraTransforms.TransformType transform) {
-        this.currentTransform = transform;
-        // 根据 transform 自动设置 viewMode
-        if (transform == ItemCameraTransforms.TransformType.FIRST_PERSON_RIGHT_HAND ||
-            transform == ItemCameraTransforms.TransformType.FIRST_PERSON_LEFT_HAND) {
-            this.viewMode = ViewMode.FIRST_PERSON;
-        } else if (transform == ItemCameraTransforms.TransformType.THIRD_PERSON_RIGHT_HAND ||
-                   transform == ItemCameraTransforms.TransformType.THIRD_PERSON_LEFT_HAND) {
-            this.viewMode = ViewMode.THIRD_PERSON;
-        } else if (transform == ItemCameraTransforms.TransformType.GUI) {
-            this.viewMode = ViewMode.GUI;
-        } else {
-            this.viewMode = ViewMode.OTHER;
-        }
-    }
-
     @Override
     public ResourceLocation getModelLocation(ItemSwordChengYue object) {
-        return skillMode ? MODEL_SKILL : MODEL_NORMAL;
+        return MODEL;
     }
 
     @Override
     public ResourceLocation getTextureLocation(ItemSwordChengYue object) {
-        return skillMode ? TEXTURE_SKILL : TEXTURE_NORMAL;
+        return TEXTURE;
     }
 
     @Override
     public ResourceLocation getAnimationFileLocation(ItemSwordChengYue animatable) {
-        // 始终返回动画文件，避免 GeckoLib NPE
-        // 动画播放由 AnimationController 的 predicate 控制
-        return ANIMATION_SKILL;
+        return ANIMATION;
     }
 
-    // ====== 手臂骨骼 (技能模型) ======
-    private static final String[] ARM_BONES = new String[]{
-        "leftArm1", "leftArm1_2", "rightArm1", "rightArm1_2"
-    };
-
-    // ====== 剑鞘骨骼 (两个模型都有) ======
-    private static final String[] SCABBARD_BONES_NORMAL = new String[]{
+    // 剑鞘骨骼
+    private static final String[] SCABBARD_BONES = new String[]{
         "scabbard", "scabbard1_2"
     };
 
-    private static final String[] SCABBARD_BONES_SKILL = new String[]{
-        "scabbard", "scabbardMain", "scabbard1_2"
-    };
-
-    // ====== 原始模型的剑骨骼 ======
-    private static final String[] SWORD_BONES_NORMAL = new String[]{
+    // 剑骨骼
+    private static final String[] SWORD_BONES = new String[]{
         "swordHandPart1", "swordHandLeftPart1", "swordHandPart1_3", "swordHandPart1_4",
         "swordHandPart1_1", "swordHandPart1_2", "swordHandRightPart1", "swordHandPart1_5",
         "swordHandPart1_6", "swordHandPart1_7", "swordHandPart1_8",
@@ -150,31 +86,18 @@ public class SwordChengYueModel extends AnimatedGeoModel<ItemSwordChengYue> {
     public void setLivingAnimations(ItemSwordChengYue animatable, Integer uniqueID, AnimationEvent customPredicate) {
         super.setLivingAnimations(animatable, uniqueID, customPredicate);
 
-        if (skillMode) {
-            // 技能模式：使用 moon_sword 模型
-            // 根据视图模式控制手臂显示（只在第一人称显示双手）
-            boolean showArms = (viewMode == ViewMode.FIRST_PERSON);
-            setBonesHidden(ARM_BONES, !showArms);
-
-            // 显示剑鞘
-            setBonesHidden(SCABBARD_BONES_SKILL, false);
-        } else {
-            // 普通模式：使用原始 sword_chengyue 模型
-            // 根据显示模式控制刀鞘
-            switch (mode) {
-                case HIDE_SCABBARD:
-                    setBonesHidden(SCABBARD_BONES_NORMAL, true);
-                    break;
-                case SCABBARD_ONLY:
-                    // 隐藏剑，只显示鞘
-                    setBonesHidden(SWORD_BONES_NORMAL, true);
-                    setBonesHidden(SCABBARD_BONES_NORMAL, false);
-                    break;
-                case NORMAL:
-                default:
-                    setBonesHidden(SCABBARD_BONES_NORMAL, false);
-                    break;
-            }
+        switch (mode) {
+            case HIDE_SCABBARD:
+                setBonesHidden(SCABBARD_BONES, true);
+                break;
+            case SCABBARD_ONLY:
+                setBonesHidden(SWORD_BONES, true);
+                setBonesHidden(SCABBARD_BONES, false);
+                break;
+            case NORMAL:
+            default:
+                setBonesHidden(SCABBARD_BONES, false);
+                break;
         }
     }
 }
