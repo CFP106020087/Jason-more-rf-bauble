@@ -296,43 +296,43 @@ public class ModConfig {
         }
 
         public static class Void {
-            @Config.Comment("每tick充能量")
-            @Config.RangeInt(min = 0, max = 10)
-            public int chargePerTick = 1;
+            @Config.Comment("基础每tick充能量")
+            @Config.RangeInt(min = 0, max = 30)
+            public int chargePerTick = 3;
 
-            @Config.Comment("深层Y坐标")
-            @Config.RangeInt(min = 0, max = 64)
-            public int deepYLevel = 20;
+            @Config.Comment("开始发电的Y坐标 (此高度以下开始发电)")
+            @Config.RangeInt(min = 0, max = 128)
+            public int deepYLevel = 64;
 
-            @Config.Comment("虚空Y坐标")
+            @Config.Comment("最大发电Y坐标 (此高度以下获得最大能量)")
             @Config.RangeInt(min = 0, max = 64)
-            public int voidYLevel = 10;
+            public int voidYLevel = 16;
 
             @Config.Comment("末地倍率")
-            @Config.RangeInt(min = 1, max = 10)
-            public int endMultiplier = 2;
+            @Config.RangeInt(min = 1, max = 30)
+            public int endMultiplier = 6;
 
             @Config.Comment("末地额外能量")
-            @Config.RangeInt(min = 0, max = 1000)
-            public int endBonus = 100;
+            @Config.RangeInt(min = 0, max = 3000)
+            public int endBonus = 300;
         }
 
         public static class Combat {
             @Config.Comment("每点生命值产生的能量")
-            @Config.RangeInt(min = 0, max = 100)
-            public int energyPerHp = 50;
+            @Config.RangeInt(min = 0, max = 300)
+            public int energyPerHp = 150;
 
             @Config.Comment("最大连杀加成")
-            @Config.RangeDouble(min = 1.0, max = 5.0)
-            public double maxStreakBonus = 2.0;
+            @Config.RangeDouble(min = 1.0, max = 15.0)
+            public double maxStreakBonus = 6.0;
 
             @Config.Comment("Boss倍率")
-            @Config.RangeDouble(min = 1.0, max = 10.0)
-            public double bossMultiplier = 3.0;
+            @Config.RangeDouble(min = 1.0, max = 30.0)
+            public double bossMultiplier = 9.0;
 
             @Config.Comment("小Boss倍率")
-            @Config.RangeDouble(min = 1.0, max = 5.0)
-            public double minibossMultiplier = 2.0;
+            @Config.RangeDouble(min = 1.0, max = 15.0)
+            public double minibossMultiplier = 6.0;
 
             @Config.Comment("连杀超时(tick)")
             @Config.RangeInt(min = 0, max = 12000)
