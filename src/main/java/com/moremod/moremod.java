@@ -3,12 +3,7 @@ import com.moremod.accessorybox.unlock.rules.RuleChecker;
 import com.moremod.accessorybox.compat.SetBonusAccessoryBoxCompat;
 import com.moremod.accessorybox.unlock.UnlockableSlotsInit;
 import com.moremod.capabilities.autoattack.AutoAttackCapabilityHandler;
-import com.moremod.client.ClientTickEvent;
-import com.moremod.client.JetpackKeyHandler;
-import com.moremod.client.KeyBindHandler;
-import com.moremod.client.RenderHandler;
-import com.moremod.client.gui.EventHUDOverlay;
-import com.moremod.client.gui.SmartRejectionGuide;
+// 客户端类不直接导入，改用完整类名
 import com.moremod.commands.CommandLootDebug;
 import com.moremod.commands.CommandResetEquipTime;
 import com.moremod.commands.CommandHumanity;
@@ -27,7 +22,6 @@ import com.moremod.entity.fx.EntityRiftLightning;
 import com.moremod.entity.projectile.EntityVoidBullet;
 // ========== 新增：剑气实体导入 ==========
 import com.moremod.entity.EntitySwordBeam;
-import com.moremod.client.render.RenderSwordBeam;
 // ========================================
 import com.moremod.event.*;
 import com.moremod.event.eventHandler.*;
@@ -112,9 +106,7 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import software.bernie.geckolib3.GeckoLib;
 
-// ========== 新增：渲染注册导入 ==========
-import net.minecraftforge.fml.client.registry.RenderingRegistry;
-// ========================================
+// ========== 客户端渲染类不导入，使用完整类名 ==========
 
 /* ===================== Ritual Integration: imports (1.12.2) ===================== */
 import com.moremod.block.BlockRitualCore;
@@ -127,8 +119,7 @@ import net.minecraft.block.Block;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemBlock;
 
-import net.minecraftforge.client.model.ModelLoader;
-import net.minecraft.client.renderer.block.model.ModelResourceLocation;
+// ModelLoader 和 ModelResourceLocation 是客户端类，不导入
 import net.minecraftforge.event.RegistryEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 /* ================================================================================ */
@@ -615,8 +606,8 @@ public class moremod {
 
         // 客户端注册
         if (event.getSide().isClient()) {
-            MinecraftForge.EVENT_BUS.register(new EventHUDOverlay());
-            MinecraftForge.EVENT_BUS.register(new SmartRejectionGuide());
+            MinecraftForge.EVENT_BUS.register(new com.moremod.client.gui.EventHUDOverlay());
+            MinecraftForge.EVENT_BUS.register(new com.moremod.client.gui.SmartRejectionGuide());
             MinecraftForge.EVENT_BUS.register(com.moremod.client.gui.HumanityHUD.class);
             System.out.println("[moremod] ✅ 人性值HUD注册完成");
         }
@@ -679,7 +670,7 @@ public class moremod {
 
         // 客户端渲染
         if (event.getSide().isClient()) {
-            RenderHandler.registerLayers();
+            com.moremod.client.RenderHandler.registerLayers();
             System.out.println("[moremod] ✅ 喷气背包渲染层注册完成");
         }
         // 注册量子礦機 GUI Handler (TileEntity已在preInit註冊)
@@ -847,9 +838,9 @@ public class moremod {
         MinecraftForge.EVENT_BUS.register(EnhancedVisualsHandler.instance);
 
         // 1. 喷气背包系统
-        MinecraftForge.EVENT_BUS.register(new ClientTickEvent());
-        JetpackKeyHandler.registerKeys();
-        MinecraftForge.EVENT_BUS.register(new JetpackKeyHandler());
+        MinecraftForge.EVENT_BUS.register(new com.moremod.client.ClientTickEvent());
+        com.moremod.client.JetpackKeyHandler.registerKeys();
+        MinecraftForge.EVENT_BUS.register(new com.moremod.client.JetpackKeyHandler());
         MinecraftForge.EVENT_BUS.register(EventHandlerJetpack.class);
         System.out.println("[moremod] 🚀 喷气背包系统注册成功");
 
@@ -858,7 +849,7 @@ public class moremod {
         System.out.println("[moremod] 🔋 电池充电处理器注册成功");
 
         // 3. 渲染系统
-        MinecraftForge.EVENT_BUS.register(new RenderHandler());
+        MinecraftForge.EVENT_BUS.register(new com.moremod.client.RenderHandler());
         System.out.println("[moremod] 🎨 渲染系统注册成功");
 
         // 4. 机械核心网络处理器
@@ -866,8 +857,8 @@ public class moremod {
         System.out.println("[moremod] ⚙️ 机械核心网络处理器注册成功");
 
         // 5. 按键绑定系统
-        KeyBindHandler.init();
-        MinecraftForge.EVENT_BUS.register(KeyBindHandler.class);
+        com.moremod.client.KeyBindHandler.init();
+        MinecraftForge.EVENT_BUS.register(com.moremod.client.KeyBindHandler.class);
         System.out.println("[moremod] ⌨️ 按键系统注册成功");
 
         // 6. 矿物透视渲染系统
@@ -878,33 +869,33 @@ public class moremod {
         // ========================================
         // 新增：剑气渲染器注册
         // ========================================
-        RenderingRegistry.registerEntityRenderingHandler(
+        net.minecraftforge.fml.client.registry.RenderingRegistry.registerEntityRenderingHandler(
                 EntitySwordBeam.class,
-                RenderSwordBeam::new
+                com.moremod.client.render.RenderSwordBeam::new
         );
         System.out.println("[moremod] ⚔️ 剑气渲染器注册成功");
         // ========================================
 
         /* === Ritual: 绑定方块物品模型 === */
         try {
-            ModelLoader.setCustomModelResourceLocation(
+            net.minecraftforge.client.model.ModelLoader.setCustomModelResourceLocation(
                     Item.getItemFromBlock(RITUAL_CORE_BLOCK), 0,
-                    new ModelResourceLocation(RITUAL_CORE_BLOCK.getRegistryName(), "inventory"));
-            ModelLoader.setCustomModelResourceLocation(
+                    new net.minecraft.client.renderer.block.model.ModelResourceLocation(RITUAL_CORE_BLOCK.getRegistryName(), "inventory"));
+            net.minecraftforge.client.model.ModelLoader.setCustomModelResourceLocation(
                     Item.getItemFromBlock(RITUAL_PEDESTAL_BLOCK), 0,
-                    new ModelResourceLocation(RITUAL_PEDESTAL_BLOCK.getRegistryName(), "inventory"));
+                    new net.minecraft.client.renderer.block.model.ModelResourceLocation(RITUAL_PEDESTAL_BLOCK.getRegistryName(), "inventory"));
             System.out.println("[moremod] 🎭 Ritual 多方块物品模型已绑定");
 
             // 绑定装瓶机模型
-            ModelLoader.setCustomModelResourceLocation(
+            net.minecraftforge.client.model.ModelLoader.setCustomModelResourceLocation(
                     Item.getItemFromBlock(BOTTLING_MACHINE_BLOCK), 0,
-                    new ModelResourceLocation(BOTTLING_MACHINE_BLOCK.getRegistryName(), "inventory"));
+                    new net.minecraft.client.renderer.block.model.ModelResourceLocation(BOTTLING_MACHINE_BLOCK.getRegistryName(), "inventory"));
             System.out.println("[moremod] 🏭 装瓶机物品模型已绑定");
 
             // 绑定超大容量箱子模型
-            ModelLoader.setCustomModelResourceLocation(
+            net.minecraftforge.client.model.ModelLoader.setCustomModelResourceLocation(
                     Item.getItemFromBlock(MEGA_CHEST_BLOCK), 0,
-                    new ModelResourceLocation(MEGA_CHEST_BLOCK.getRegistryName(), "inventory"));
+                    new net.minecraft.client.renderer.block.model.ModelResourceLocation(MEGA_CHEST_BLOCK.getRegistryName(), "inventory"));
             System.out.println("[moremod] 📦 超大容量箱子物品模型已绑定");
         } catch (Throwable t) {
             System.err.println("[moremod] ⚠️ 模型绑定失败： " + t.getMessage());
