@@ -66,8 +66,8 @@ public class ItemTemporalHeart extends Item implements IBauble {
                     IPlayerTimeData timeData = PlayerTimeDataCapability.get(entityPlayer);
                     if (timeData != null) {
                         int days = timeData.getTotalDaysPlayed();
-                        double health = days / 4.0;
-                        double damage = days / 10.0;
+                        double health = days * 1.5;  // 6倍增强：原 days/4.0
+                        double damage = days * 0.6;  // 6倍增强：原 days/10.0
                         entityPlayer.sendMessage(new TextComponentString(
                                 TextFormatting.AQUA + String.format("当前状态 - 佩戴天数: %d, 生命: +%.1f, 攻击: +%.1f",
                                         days, health, damage)));
@@ -167,8 +167,8 @@ public class ItemTemporalHeart extends Item implements IBauble {
             IPlayerTimeData timeData = PlayerTimeDataCapability.get(player);
             if (timeData != null) {
                 int totalDays = timeData.getTotalDaysPlayed();
-                double healthBonus = totalDays / 4.0;
-                double damageBonus = totalDays / 10.0;
+                double healthBonus = totalDays * 1.5;   // 6倍增强
+                double damageBonus = totalDays * 0.6;   // 6倍增强
 
                 tooltip.add("");
                 tooltip.add(TextFormatting.GOLD + "归一心元石");
@@ -216,8 +216,8 @@ public class ItemTemporalHeart extends Item implements IBauble {
         if (timeData == null) return;
 
         int totalDays = timeData.getTotalDaysPlayed();
-        double healthBonus = totalDays / 4.0;
-        double damageBonus = totalDays / 10.0;
+        double healthBonus = totalDays * 1.5;   // 6倍增强
+        double damageBonus = totalDays * 0.6;   // 6倍增强
 
         removePlayerAttributes(player);
 
@@ -259,8 +259,8 @@ public class ItemTemporalHeart extends Item implements IBauble {
         if (timeData == null) return;
 
         int totalDays = timeData.getTotalDaysPlayed();
-        double healthBonus = totalDays / 4.0;
-        double damageBonus = totalDays / 10.0;
+        double healthBonus = totalDays * 1.5;   // 6倍增强
+        double damageBonus = totalDays * 0.6;   // 6倍增强
 
         removePermanentAttributes(player);
 
