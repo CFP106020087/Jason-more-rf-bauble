@@ -30,7 +30,7 @@ import net.minecraftforge.fml.common.IWorldGenerator;
 import java.util.Random;
 
 /**
- * 科技废墟世界生成器 v3.2
+ * 科技废墟世界生成器 v3.3
  *
  * 在主世界野外生成残破的科技感废墟建筑
  * 内含稀有机械方块、打印模版和故障装备
@@ -56,12 +56,17 @@ import java.util.Random;
  * - 增加功能性方块奖励种类 (20种)
  * - 增加多个奖励箱 (根据结构等级)
  * - 增加稀有物品掉落 (下界之星、龙息、不死图腾、鞘翅)
+ *
+ * v3.3 改进：
+ * - 进一步降低生成率 (1/8000 区块 ≈ 0.0125%)
+ * - 修复幽灵方块问题：setBlockState 使用 flag 3 确保客户端同步
+ * - 改进跨区块结构的放置逻辑
  */
 public class RuinsWorldGenerator implements IWorldGenerator {
 
     // ============== 生成配置 ==============
     private static final int MIN_Y = 50;
-    private static final int SPAWN_CHANCE = 3000;            // 大幅降低生成率 (1/3000 区块 ≈ 0.033%)
+    private static final int SPAWN_CHANCE = 8000;            // 进一步降低生成率 (1/8000 区块 ≈ 0.0125%)
     private static final int MIN_DISTANCE_FROM_SPAWN = 600;  // 增加距离要求
 
     // 稀有方块概率系数 (提高为1.5倍 - 补偿降低的生成率)
@@ -1830,7 +1835,14 @@ public class RuinsWorldGenerator implements IWorldGenerator {
 
     private void setBlockSafe(World world, BlockPos pos, IBlockState state) {
         if (world.isBlockLoaded(pos)) {
-            world.setBlockState(pos, state, 2);
+            // 使用 flag 3 = 1|2 (发送客户端 + 触发方块更新)，解决幽灵方块问题
+            world.setBlockState(pos, state, 3);
+        } else {
+            // 尝试强制加载区块再放置方块
+            net.minecraft.world.chunk.Chunk chunk = world.getChunkFromBlockCoords(pos);
+            if (chunk != null) {
+                world.setBlockState(pos, state, 3);
+            }
         }
     }
 
