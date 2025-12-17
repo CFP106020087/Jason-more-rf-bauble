@@ -6,8 +6,10 @@ import net.minecraft.enchantment.Enchantment;
 import net.minecraft.enchantment.EnchantmentData;
 import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.init.Items;
 import net.minecraft.inventory.ContainerEnchantment;
 import net.minecraft.inventory.IInventory;
+import net.minecraft.item.ItemEnchantedBook;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -22,14 +24,18 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 /**
- * MoreMod - 附魔台强化 Mixin v2.0
+ * MoreMod - 附魔台强化 Mixin v3.0
  *
- * 改进：
- * - 经验消耗上限可配置（默认30级，不再吃所有等级）
+ * 修复内容：
+ * - 修复客户端/服务端显示不同步问题
+ * - 修复附魔提示与实际附魔结果不一致问题（使用正确的xpSeed）
+ * - 补充青金石消耗逻辑
+ * - 经验消耗上限可配置（默认30级）
  * - 附魔等级上限99级
- * - 普通书架（15个以内）也能触发超过30级附魔
+ * - 普通书架（15个以内）维持原版逻辑，特殊书架才能突破30级
  */
 @Mixin(ContainerEnchantment.class)
 public abstract class MixinContainerEnchantment {
@@ -37,36 +43,38 @@ public abstract class MixinContainerEnchantment {
     @Shadow private World world;
     @Shadow private BlockPos position;
     @Shadow public int[] enchantLevels;
+    @Shadow public int[] enchantClue;
+    @Shadow public int[] worldClue;
+    @Shadow public int xpSeed;
     @Shadow public IInventory tableInventory;
 
     @Unique private static final float VANILLA_MAX_POWER = 15.0f;
     @Unique private int[] moremod$serverEnchantLevels = new int[3];
 
-    /** 从配置获取是否启用 */
+    // ==================== 配置读取 ====================
+
     @Unique
     private boolean moremod$isEnabled() {
         return ModConfig.enchanting.enabled;
     }
 
-    /** 从配置获取经验消耗上限 */
     @Unique
     private int moremod$getMaxExpCost() {
         return ModConfig.enchanting.maxExpCost;
     }
 
-    /** 从配置获取附魔等级上限 */
     @Unique
     private int moremod$getMaxEnchantLevel() {
         return ModConfig.enchanting.maxEnchantLevel;
     }
 
-    /** 从配置获取特殊书架倍率 */
     @Unique
     private double moremod$getSpecialMultiplier() {
         return ModConfig.enchanting.specialBookshelfMultiplier;
     }
 
-    /** 核心能量计算逻辑 */
+    // ==================== 能量计算 ====================
+
     @Unique
     private float moremod$calculateTotalPower() {
         if (world == null || position == null) return 0;
@@ -75,8 +83,8 @@ public abstract class MixinContainerEnchantment {
         for (int dz = -1; dz <= 1; dz++) {
             for (int dx = -1; dx <= 1; dx++) {
                 if ((dz != 0 || dx != 0)
-                        && world.isAirBlock(position.add(dx,0,dz))
-                        && world.isAirBlock(position.add(dx,1,dz))) {
+                        && world.isAirBlock(position.add(dx, 0, dz))
+                        && world.isAirBlock(position.add(dx, 1, dz))) {
 
                     power += ForgeHooks.getEnchantPower(world, position.add(dx * 2, 0, dz * 2));
                     power += ForgeHooks.getEnchantPower(world, position.add(dx * 2, 1, dz * 2));
@@ -93,61 +101,93 @@ public abstract class MixinContainerEnchantment {
         return power;
     }
 
-    /** 获取超出普通书架的额外能量 */
     @Unique
     private float moremod$getExtraPower() {
         return Math.max(0, moremod$calculateTotalPower() - VANILLA_MAX_POWER);
     }
 
-    /**
-     * 计算最终附魔等级
-     * 普通书架(<=15)无法突破30级
-     * 只有特殊书架(额外能量>0)才能突破30级上限
-     */
     @Unique
     private int moremod$calculateEnchantLevel(int baseLevel, int slotIndex) {
         float extraPower = moremod$getExtraPower();
-
         int finalLevel = baseLevel;
 
-        // 只有特殊书架(额外能量>0)才能突破30级
         if (extraPower > 0) {
-            // 特殊书架提升：每点额外能量增加 multiplier 级
-            int bonus = (int)(extraPower * moremod$getSpecialMultiplier());
+            int bonus = (int) (extraPower * moremod$getSpecialMultiplier());
             float ratio = (slotIndex + 1) / 3.0f;
-            finalLevel = baseLevel + (int)(bonus * ratio);
+            finalLevel = baseLevel + (int) (bonus * ratio);
         }
-        // 普通书架(<=15)维持原版逻辑，不突破30级
 
-        // 应用等级上限
         return Math.min(finalLevel, moremod$getMaxEnchantLevel());
     }
 
-    /** 修改附魔槽等级（只有特殊书架能突破30上限） */
-    @Inject(method = {"onCraftMatrixChanged","func_75130_a"}, at = @At("RETURN"))
+    // ==================== 核心注入 ====================
+
+    /**
+     * 修改附魔槽等级
+     * 关键修复：客户端和服务端都执行相同逻辑，保证显示一致
+     */
+    @Inject(method = {"onCraftMatrixChanged", "func_75130_a"}, at = @At("RETURN"))
     private void moremod$boostLevels(IInventory inv, CallbackInfo ci) {
-        if (world == null || world.isRemote) return;
+        if (world == null) return;
         if (!moremod$isEnabled()) {
-            System.arraycopy(enchantLevels, 0, moremod$serverEnchantLevels, 0, 3);
+            if (!world.isRemote) {
+                System.arraycopy(enchantLevels, 0, moremod$serverEnchantLevels, 0, 3);
+            }
             return;
         }
 
         float extraPower = moremod$getExtraPower();
 
-        // 只有特殊书架(额外能量>0)才能突破30级
+        // 客户端和服务端都执行相同的修改逻辑，保证显示一致
         if (extraPower > 0) {
             for (int i = 0; i < 3; i++) {
                 if (enchantLevels[i] > 0) {
                     enchantLevels[i] = moremod$calculateEnchantLevel(enchantLevels[i], i);
                 }
             }
+
+            // 同时更新附魔提示（使用正确的seed重新计算）
+            moremod$updateEnchantClues();
         }
 
-        System.arraycopy(enchantLevels, 0, moremod$serverEnchantLevels, 0, 3);
+        // 只在服务端保存用于验证
+        if (!world.isRemote) {
+            System.arraycopy(enchantLevels, 0, moremod$serverEnchantLevels, 0, 3);
+        }
     }
 
-    /** 修正点击时等级一致 */
-    @Inject(method = {"enchantItem","func_75140_a"}, at = @At("HEAD"))
+    /**
+     * 更新附魔提示，使用正确的等级
+     */
+    @Unique
+    private void moremod$updateEnchantClues() {
+        ItemStack item = tableInventory.getStackInSlot(0);
+        if (item.isEmpty()) return;
+
+        for (int i = 0; i < 3; i++) {
+            if (enchantLevels[i] > 0) {
+                Random rand = new Random(xpSeed + i);
+                List<EnchantmentData> list = EnchantmentHelper.buildEnchantmentList(rand, item, enchantLevels[i], false);
+
+                if (list != null && !list.isEmpty()) {
+                    EnchantmentData data = list.get(rand.nextInt(list.size()));
+                    enchantClue[i] = Enchantment.getEnchantmentID(data.enchantment);
+                    worldClue[i] = data.enchantmentLevel;
+                } else {
+                    enchantClue[i] = -1;
+                    worldClue[i] = -1;
+                }
+            } else {
+                enchantClue[i] = -1;
+                worldClue[i] = -1;
+            }
+        }
+    }
+
+    /**
+     * 修正点击时等级一致
+     */
+    @Inject(method = {"enchantItem", "func_75140_a"}, at = @At("HEAD"))
     private void moremod$syncLevel(EntityPlayer player, int id, CallbackInfoReturnable<Boolean> cir) {
         if (world.isRemote) return;
         if (id < 0 || id >= 3) return;
@@ -156,13 +196,14 @@ public abstract class MixinContainerEnchantment {
         enchantLevels[id] = moremod$serverEnchantLevels[id];
     }
 
-    /** 按钮可点击逻辑修补（只有特殊书架时才需要修补） */
-    @Inject(method = {"canEnchant","func_82869_a"}, at = @At("HEAD"), cancellable = true)
+    /**
+     * 按钮可点击逻辑修补
+     */
+    @Inject(method = {"canEnchant", "func_82869_a"}, at = @At("HEAD"), cancellable = true)
     private void moremod$unlockButton(EntityPlayer player, int id, CallbackInfoReturnable<Boolean> cir) {
         if (!moremod$isEnabled()) return;
 
         float extraPower = moremod$getExtraPower();
-        // 只有特殊书架(额外能量>0)时才需要修补按钮逻辑
         if (extraPower > 0 && id >= 0 && id < 3) {
             if (moremod$serverEnchantLevels[id] > 0) {
                 cir.setReturnValue(true);
@@ -173,10 +214,9 @@ public abstract class MixinContainerEnchantment {
 
     /**
      * 强制高等级附魔逻辑
-     * 经验消耗固定为 1/2/3 级（对应三个槽位）
-     * 附魔等级上限99级
+     * 关键修复：使用xpSeed保证附魔结果与提示一致
      */
-    @Inject(method = {"enchantItem","func_75140_a"}, at = @At("HEAD"), cancellable = true, require = 0)
+    @Inject(method = {"enchantItem", "func_75140_a"}, at = @At("HEAD"), cancellable = true, require = 0)
     private void moremod$forceEnchant(EntityPlayer player, int id, CallbackInfoReturnable<Boolean> cir) {
         if (world.isRemote) return;
         if (id < 0 || id >= 3) return;
@@ -186,72 +226,121 @@ public abstract class MixinContainerEnchantment {
         if (enchantLevel <= 30) return; // 30级以下走原版逻辑
 
         ItemStack item = tableInventory.getStackInSlot(0);
-        if (item.isEmpty()) return;
+        ItemStack lapis = tableInventory.getStackInSlot(1);
 
-        // 经验消耗固定为 1/2/3 级（对应三个槽位）
-        int expCost = id + 1;
-
-        if (player.experienceLevel < expCost) {
+        if (item.isEmpty()) {
             cir.setReturnValue(false);
             cir.cancel();
             return;
         }
 
-        // 只扣除固定的经验 (1/2/3级)
-        player.addExperienceLevel(-expCost);
+        // 经验消耗固定为 1/2/3 级
+        int expCost = id + 1;
 
-        // 附魔等级上限99级
-        int effectiveLevel = Math.min(enchantLevel, moremod$getMaxEnchantLevel());
+        // 检查经验
+        if (player.experienceLevel < expCost && !player.capabilities.isCreativeMode) {
+            cir.setReturnValue(false);
+            cir.cancel();
+            return;
+        }
 
-        List<EnchantmentData> enchList =
-                EnchantmentHelper.buildEnchantmentList(player.getRNG(), item, effectiveLevel, false);
+        // 检查青金石
+        if ((lapis.isEmpty() || lapis.getItem() != Items.DYE || lapis.getMetadata() != 4 || lapis.getCount() < expCost)
+                && !player.capabilities.isCreativeMode) {
+            cir.setReturnValue(false);
+            cir.cancel();
+            return;
+        }
 
-        if (enchList == null || enchList.isEmpty()) {
-            enchList = new ArrayList<>();
+        // 扣除经验
+        if (!player.capabilities.isCreativeMode) {
+            player.addExperienceLevel(-expCost);
+        }
 
-            for (Enchantment ench : Enchantment.REGISTRY) {
-                if (ench != null && ench.canApply(item)) {
-                    int newLvl = Math.max(1, Math.min(ench.getMaxLevel(), effectiveLevel / 30));
-                    enchList.add(new EnchantmentData(ench, newLvl));
-                }
+        // 消耗青金石
+        if (!player.capabilities.isCreativeMode) {
+            lapis.shrink(expCost);
+            if (lapis.isEmpty()) {
+                tableInventory.setInventorySlotContents(1, ItemStack.EMPTY);
             }
         }
 
-        for (EnchantmentData data : enchList) {
-            item.addEnchantment(data.enchantment, data.enchantmentLevel);
+        int effectiveLevel = Math.min(enchantLevel, moremod$getMaxEnchantLevel());
+
+        // 关键修复：使用和提示相同的seed，保证结果一致
+        Random rand = new Random(xpSeed + id);
+        List<EnchantmentData> enchList = EnchantmentHelper.buildEnchantmentList(rand, item, effectiveLevel, false);
+
+        // Fallback：如果原版算法返回空，手动生成
+        if (enchList == null || enchList.isEmpty()) {
+            enchList = moremod$generateFallbackEnchantments(item, effectiveLevel);
         }
 
+        // 应用附魔
+        boolean isBook = item.getItem() == Items.BOOK;
+        if (isBook) {
+            item = new ItemStack(Items.ENCHANTED_BOOK);
+            tableInventory.setInventorySlotContents(0, item);
+        }
+
+        for (EnchantmentData data : enchList) {
+            if (isBook) {
+                ItemEnchantedBook.addEnchantment(item, data);            } else {
+                item.addEnchantment(data.enchantment, data.enchantmentLevel);
+            }
+        }
+
+        // 重置seed（原版行为，下次附魔会不同）
+        xpSeed = player.getRNG().nextInt();
+
+        // 标记物品栏变化
+        tableInventory.markDirty();
+
+        // 播放音效
         world.playEvent(1030, position, 0);
+
         cir.setReturnValue(true);
         cir.cancel();
     }
 
     /**
-     * 诛仙剑-为天地立心：附魔消耗减少20%
-     * 在附魔完成后返还20%经验
+     * Fallback附魔生成
      */
-    @Inject(method = {"enchantItem","func_75140_a"}, at = @At("RETURN"))
+    @Unique
+    private List<EnchantmentData> moremod$generateFallbackEnchantments(ItemStack item, int level) {
+        List<EnchantmentData> result = new ArrayList<>();
+
+        for (Enchantment ench : Enchantment.REGISTRY) {
+            if (ench != null && ench.canApply(item)) {
+                // 根据等级计算附魔等级，每30级提升1级
+                int enchLvl = Math.max(1, Math.min(ench.getMaxLevel(), level / 30));
+                result.add(new EnchantmentData(ench, enchLvl));
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * 诛仙剑-为天地立心：附魔消耗减少20%
+     */
+    @Inject(method = {"enchantItem", "func_75140_a"}, at = @At("RETURN"))
     private void moremod$zhuxianEnchantXpReduce(EntityPlayer player, int id, CallbackInfoReturnable<Boolean> cir) {
         if (world.isRemote) return;
-        if (!cir.getReturnValue()) return; // 附魔失败不处理
+        if (!cir.getReturnValue()) return;
         if (id < 0 || id >= 3) return;
 
-        // 检查是否激活"为天地立心"技能且单手持剑
         try {
             if (ZhuxianSword.isPlayerSkillActive(player, ZhuxianSword.NBT_SKILL_TIANXIN)) {
                 if (player.getHeldItemOffhand().isEmpty()) {
-                    // 返还20%经验（约等于-20%消耗）
-                    // 原版消耗是 id+1 级 (1/2/3)，高级附魔也是 id+1
                     int baseCost = id + 1;
-                    int refund = Math.max(1, (int)(baseCost * 0.2f));
-
-                    // 直接添加经验值（而非等级）
-                    int xpToAdd = refund * 17; // 大约每级17点经验
+                    int refund = Math.max(1, (int) (baseCost * 0.2f));
+                    int xpToAdd = refund * 17;
                     player.addExperience(xpToAdd);
                 }
             }
         } catch (Throwable ignored) {
-            // ZhuxianSword可能未加载，忽略
+            // ZhuxianSword可能未加载
         }
     }
 }
