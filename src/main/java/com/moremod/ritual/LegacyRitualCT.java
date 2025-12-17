@@ -98,6 +98,16 @@ import java.util.List;
  *     <minecraft:ender_eye> * 4
  * ]);
  *
+ * // ========== 删除/清除原有配方 ==========
+ *
+ * // 清除不可破坏仪式的默认材料（完全移除原有配方）
+ * mods.moremod.LegacyRitual.clearMaterials("unbreakable");
+ * // 然后设置新的自定义材料
+ * mods.moremod.LegacyRitual.setPedestalItems("unbreakable", [
+ *     <minecraft:gold_block> * 4,
+ *     <minecraft:diamond> * 8
+ * ]);
+ *
  * // 禁用某个仪式
  * mods.moremod.LegacyRitual.disable("duplication");
  *
@@ -183,6 +193,26 @@ public class LegacyRitualCT {
             return;
         }
         CraftTweakerAPI.apply(new SetPedestalItemsAction(ritualId, items));
+    }
+
+    /**
+     * 清除仪式的默认材料配置
+     * 清除后，仪式将不检查材料（除非使用 setPedestalItems 设置新材料）
+     * 这允许你完全移除原有配方，然后定义自己的新配方
+     *
+     * 使用示例：
+     * // 先清除不可破坏仪式的默认材料
+     * mods.moremod.LegacyRitual.clearMaterials("unbreakable");
+     * // 然后设置新材料
+     * mods.moremod.LegacyRitual.setPedestalItems("unbreakable", [
+     *     <minecraft:gold_block> * 4
+     * ]);
+     *
+     * @param ritualId 仪式ID
+     */
+    @ZenMethod
+    public static void clearMaterials(String ritualId) {
+        CraftTweakerAPI.apply(new ClearMaterialsAction(ritualId));
     }
 
     /**
@@ -343,6 +373,24 @@ public class LegacyRitualCT {
         @Override
         public String describe() {
             return "[LegacyRitual] Set " + ritualId + " pedestal items";
+        }
+    }
+
+    private static class ClearMaterialsAction implements IAction {
+        private final String ritualId;
+
+        ClearMaterialsAction(String ritualId) {
+            this.ritualId = ritualId;
+        }
+
+        @Override
+        public void apply() {
+            LegacyRitualConfig.clearMaterials(ritualId);
+        }
+
+        @Override
+        public String describe() {
+            return "[LegacyRitual] Clear " + ritualId + " materials (removing default recipe)";
         }
     }
 

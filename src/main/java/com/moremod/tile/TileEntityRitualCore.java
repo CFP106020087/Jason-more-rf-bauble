@@ -3489,44 +3489,58 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
      * 执行不可破坏仪式
      */
     private void performUnbreakableRitual(ItemStack targetItem) {
-        // 消耗材料：地狱之星×2 + 黑曜石×2 + 钻石×4
-        int starsConsumed = 0;
-        int obsidianConsumed = 0;
-        int diamondsConsumed = 0;
+        int pedestalCount;
 
-        // 多轮遍历确保消耗足够数量
-        while (starsConsumed < 2 || obsidianConsumed < 2 || diamondsConsumed < 4) {
-            boolean consumedAny = false;
+        // 消耗材料（支持CRT自定义）
+        if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.UNBREAKABLE)) {
+            // 使用自定义材料配置消耗
+            consumeCustomMaterials(LegacyRitualConfig.UNBREAKABLE);
+            // 统计消耗的材料数量用于能量超载计算
+            pedestalCount = 0;
+            for (LegacyRitualConfig.MaterialRequirement req : LegacyRitualConfig.getMaterialRequirements(LegacyRitualConfig.UNBREAKABLE)) {
+                pedestalCount += req.getCount();
+            }
+        } else {
+            // 默认材料消耗：地狱之星×2 + 黑曜石×2 + 钻石×4
+            int starsConsumed = 0;
+            int obsidianConsumed = 0;
+            int diamondsConsumed = 0;
 
-            for (BlockPos off : OFFS8) {
-                TileEntity te = world.getTileEntity(pos.add(off));
-                if (te instanceof TileEntityPedestal) {
-                    TileEntityPedestal ped = (TileEntityPedestal) te;
-                    ItemStack stack = ped.getInv().getStackInSlot(0);
-                    if (!stack.isEmpty()) {
-                        if (stack.getItem() == Items.NETHER_STAR && starsConsumed < 2) {
-                            ped.consumeOne();
-                            starsConsumed++;
-                            consumedAny = true;
-                        } else if (stack.getItem() == net.minecraft.item.Item.getItemFromBlock(net.minecraft.init.Blocks.OBSIDIAN) && obsidianConsumed < 2) {
-                            ped.consumeOne();
-                            obsidianConsumed++;
-                            consumedAny = true;
-                        } else if (stack.getItem() == Items.DIAMOND && diamondsConsumed < 4) {
-                            ped.consumeOne();
-                            diamondsConsumed++;
-                            consumedAny = true;
+            // 多轮遍历确保消耗足够数量
+            while (starsConsumed < 2 || obsidianConsumed < 2 || diamondsConsumed < 4) {
+                boolean consumedAny = false;
+
+                for (BlockPos off : OFFS8) {
+                    TileEntity te = world.getTileEntity(pos.add(off));
+                    if (te instanceof TileEntityPedestal) {
+                        TileEntityPedestal ped = (TileEntityPedestal) te;
+                        ItemStack stack = ped.getInv().getStackInSlot(0);
+                        if (!stack.isEmpty()) {
+                            if (stack.getItem() == Items.NETHER_STAR && starsConsumed < 2) {
+                                ped.consumeOne();
+                                starsConsumed++;
+                                consumedAny = true;
+                            } else if (stack.getItem() == net.minecraft.item.Item.getItemFromBlock(net.minecraft.init.Blocks.OBSIDIAN) && obsidianConsumed < 2) {
+                                ped.consumeOne();
+                                obsidianConsumed++;
+                                consumedAny = true;
+                            } else if (stack.getItem() == Items.DIAMOND && diamondsConsumed < 4) {
+                                ped.consumeOne();
+                                diamondsConsumed++;
+                                consumedAny = true;
+                            }
                         }
                     }
                 }
+
+                // 防止无限循环（如果没有消耗任何物品则退出）
+                if (!consumedAny) break;
             }
 
-            // 防止无限循环（如果没有消耗任何物品则退出）
-            if (!consumedAny) break;
+            pedestalCount = starsConsumed + obsidianConsumed + diamondsConsumed;
         }
 
         // 计算能量超载加成
-        int pedestalCount = starsConsumed + obsidianConsumed + diamondsConsumed;
         float overloadBonus = LegacyRitualConfig.getOverloadBonus(
             LegacyRitualConfig.UNBREAKABLE, pedestalCount, initialTotalEnergy);
         float finalSuccessRate = getUnbreakableSuccessRate() + overloadBonus;

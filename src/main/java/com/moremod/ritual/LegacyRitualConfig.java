@@ -39,6 +39,7 @@ public class LegacyRitualConfig {
     // 配置存储
     private static final Map<String, RitualParams> OVERRIDES = new HashMap<>();
     private static final Set<String> DISABLED = new HashSet<>();
+    private static final Set<String> CLEARED_MATERIALS = new HashSet<>(); // 标记已清除默认材料的仪式
 
     // ==================== 默认值 ====================
 
@@ -201,7 +202,21 @@ public class LegacyRitualConfig {
      */
     public static void setPedestalItems(String ritualId, List<ItemStack> items) {
         getOrCreateOverride(ritualId).pedestalItems = new ArrayList<>(items);
+        // 设置材料后也标记为已修改（即使是空列表）
+        CLEARED_MATERIALS.add(ritualId.toLowerCase(Locale.ROOT));
         log("Set " + ritualId + " pedestal items (" + items.size() + " items)");
+    }
+
+    /**
+     * 清除仪式的默认材料配置
+     * 清除后，该仪式将不检查材料（可以无材料执行）
+     * 或者之后使用 setPedestalItems 设置新材料
+     */
+    public static void clearMaterials(String ritualId) {
+        String id = ritualId.toLowerCase(Locale.ROOT);
+        getOrCreateOverride(id).pedestalItems = new ArrayList<>(); // 空列表
+        CLEARED_MATERIALS.add(id);
+        log("Cleared " + ritualId + " materials (default recipe removed)");
     }
 
     /**
@@ -224,8 +239,10 @@ public class LegacyRitualConfig {
      * 重置仪式到默认值
      */
     public static void reset(String ritualId) {
-        OVERRIDES.remove(ritualId.toLowerCase(Locale.ROOT));
-        DISABLED.remove(ritualId.toLowerCase(Locale.ROOT));
+        String id = ritualId.toLowerCase(Locale.ROOT);
+        OVERRIDES.remove(id);
+        DISABLED.remove(id);
+        CLEARED_MATERIALS.remove(id);
         log("Reset ritual to default: " + ritualId);
     }
 
@@ -235,6 +252,7 @@ public class LegacyRitualConfig {
     public static void resetAll() {
         OVERRIDES.clear();
         DISABLED.clear();
+        CLEARED_MATERIALS.clear();
         log("Reset all rituals to default");
     }
 
@@ -567,9 +585,20 @@ public class LegacyRitualConfig {
 
     /**
      * 检查是否有自定义材料配置
+     * 返回true如果：
+     * 1. 已通过 setPedestalItems 设置了自定义材料（非空）
+     * 2. 已通过 clearMaterials 清除了默认材料（即使列表为空也返回true）
      */
     public static boolean hasCustomMaterials(String ritualId) {
-        RitualParams override = OVERRIDES.get(ritualId.toLowerCase(Locale.ROOT));
+        String id = ritualId.toLowerCase(Locale.ROOT);
+
+        // 如果材料已被清除，返回true（即使pedestalItems为空）
+        if (CLEARED_MATERIALS.contains(id)) {
+            return true;
+        }
+
+        // 否则检查是否有非空的自定义材料
+        RitualParams override = OVERRIDES.get(id);
         return override != null && override.pedestalItems != null && !override.pedestalItems.isEmpty();
     }
 }
