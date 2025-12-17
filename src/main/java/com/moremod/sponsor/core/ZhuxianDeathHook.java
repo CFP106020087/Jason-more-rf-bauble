@@ -146,4 +146,55 @@ public class ZhuxianDeathHook {
             return false;
         }
     }
+
+    // ========== Hook 3: setDead（终极防线） ==========
+
+    /**
+     * 检查是否应该阻止 setDead() 调用
+     * Called by ASM at HEAD of Entity.setDead
+     *
+     * @param entity 将要被标记为死亡的实体
+     * @return true = 阻止 setDead
+     */
+    public static boolean shouldPreventSetDead(net.minecraft.entity.Entity entity) {
+        try {
+            if (!(entity instanceof EntityPlayer)) {
+                return false;
+            }
+
+            EntityPlayer player = (EntityPlayer) entity;
+
+            // 检查是否激活"为生民立命"技能
+            if (!ZhuxianSword.isPlayerSkillActive(player, ZhuxianSword.NBT_SKILL_LIMING)) {
+                return false;
+            }
+
+            // 恢复到最低血量（20%）
+            float minHealth = Math.max(1.0f, player.getMaxHealth() * HEALTH_THRESHOLD);
+            player.setHealth(minHealth);
+
+            // 粒子效果
+            if (player.world instanceof WorldServer) {
+                WorldServer ws = (WorldServer) player.world;
+                ws.spawnParticle(EnumParticleTypes.TOTEM,
+                        player.posX, player.posY + player.height / 2, player.posZ,
+                        30, 0.5, 0.5, 0.5, 0.2);
+            }
+
+            // 提示玩家
+            player.sendStatusMessage(new TextComponentString(
+                    TextFormatting.GOLD + "【为生民立命】" + TextFormatting.WHITE + " 阻止了死亡！"
+            ), true);
+
+            // 清除备份状态
+            ZhuxianSword.updateSkillBackup(player, ZhuxianSword.NBT_SKILL_LIMING, false);
+
+            System.out.println("[ZhuxianDeathHook] setDead intercepted for " + player.getName());
+            return true;
+
+        } catch (Throwable t) {
+            System.err.println("[ZhuxianDeathHook] Error in shouldPreventSetDead: " + t.getMessage());
+            return false;
+        }
+    }
 }

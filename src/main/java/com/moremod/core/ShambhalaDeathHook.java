@@ -296,6 +296,65 @@ public class ShambhalaDeathHook {
         return shouldPreventDeath(entity, source);
     }
 
+    // ========== Hook 4: setDead（终极防线） ==========
+
+    /**
+     * 检查是否应该阻止 setDead() 调用
+     * Called by ASM at HEAD of Entity.setDead
+     *
+     * 注意：setDead() 没有 DamageSource 参数，无法判断死因
+     * 这是最后一道防线，用于防止 /kill 命令、虚空等直接调用
+     *
+     * @param entity 将要被标记为死亡的实体
+     * @return true = 阻止 setDead（保持实体存活）
+     */
+    public static boolean shouldPreventSetDead(net.minecraft.entity.Entity entity) {
+        try {
+            // 只保护玩家
+            if (!(entity instanceof EntityPlayer)) {
+                return false;
+            }
+
+            EntityPlayer player = (EntityPlayer) entity;
+
+            // 检查是否是香巴拉玩家
+            if (!ShambhalaHandler.isShambhala(player)) {
+                return false;
+            }
+
+            // 检查玩家是否还有能量
+            int currentEnergy = ShambhalaHandler.getCurrentEnergy(player);
+            if (currentEnergy <= 0) {
+                // 没有能量 = 让死亡发生
+                return false;
+            }
+
+            // 消耗大量能量作为 setDead 拦截代价（比普通死亡更昂贵）
+            int setDeadCost = ShambhalaConfig.energyPerDamage * 50; // 50点伤害的能量
+            ShambhalaHandler.consumeEnergy(player, Math.min(setDeadCost, currentEnergy));
+
+            // 恢复到最低血量
+            player.setHealth((float) ShambhalaConfig.coreHealthLock);
+
+            // 粒子效果提示
+            if (player.world instanceof WorldServer) {
+                WorldServer ws = (WorldServer) player.world;
+                ws.spawnParticle(EnumParticleTypes.TOTEM,
+                        player.posX, player.posY + 1, player.posZ,
+                        30, 0.5, 1.0, 0.5, 0.1);
+            }
+
+            System.out.println("[ShambhalaDeathHook] Prevented setDead for " + player.getName() +
+                    " (energy remaining: " + ShambhalaHandler.getCurrentEnergy(player) + ")");
+
+            return true; // 阻止 setDead
+
+        } catch (Throwable t) {
+            System.err.println("[ShambhalaDeathHook] Error in shouldPreventSetDead: " + t.getMessage());
+            return false;
+        }
+    }
+
     /**
      * 清理玩家状态（玩家退出时调用）
      */
