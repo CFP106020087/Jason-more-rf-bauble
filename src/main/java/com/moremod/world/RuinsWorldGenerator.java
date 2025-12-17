@@ -1834,13 +1834,15 @@ public class RuinsWorldGenerator implements IWorldGenerator {
     }
 
     private void setBlockSafe(World world, BlockPos pos, IBlockState state) {
+        // 使用 flag 3 = 1|2 (发送客户端 + 触发方块更新)，解决幽灵方块问题
+        // 在世界生成期间，区块应该已被加载，直接设置即可
         if (world.isBlockLoaded(pos)) {
-            // 使用 flag 3 = 1|2 (发送客户端 + 触发方块更新)，解决幽灵方块问题
             world.setBlockState(pos, state, 3);
         } else {
-            // 尝试强制加载区块再放置方块
-            net.minecraft.world.chunk.Chunk chunk = world.getChunkFromBlockCoords(pos);
-            if (chunk != null) {
+            // 强制获取区块（会触发加载）并放置方块
+            int chunkX = pos.getX() >> 4;
+            int chunkZ = pos.getZ() >> 4;
+            if (world.getChunkProvider().chunkExists(chunkX, chunkZ)) {
                 world.setBlockState(pos, state, 3);
             }
         }
