@@ -21,8 +21,8 @@ public class ShambhalaItems {
 
     private static final Logger LOGGER = LogManager.getLogger("moremod");
 
-    // 标准饰品栏位数量（0-6），不触碰额外栏位（7+）
-    private static final int STANDARD_BAUBLE_SLOTS = 7;
+    // 香巴拉使用的饰品栏位数量（0-5），不触碰 CHARM(6) 和额外栏位（7+）
+    private static final int SHAMBHALA_BAUBLE_SLOTS = 6;
 
     // 物品实例（在 RegisterItem 中注册）
     public static ItemShambhalaCore SHAMBHALA_CORE;           // 不灭之心 - AMULET
@@ -45,9 +45,12 @@ public class ShambhalaItems {
             return;
         }
 
-        // 第一步：移除标准栏位（0-6）的非核心饰品，掉落到地上
-        // 注意：不触碰额外栏位（7+），避免误删其他模组的饰品
-        int maxSlot = Math.min(STANDARD_BAUBLE_SLOTS, baubles.getSlots());
+        // 第一步：移除需要被香巴拉物品替换的栏位（0-5），掉落到地上
+        // 注意：
+        // - 不触碰 CHARM 槽位（6），因为香巴拉没有 CHARM 类型物品
+        // - 不触碰额外栏位（7+），避免误删其他模组的饰品
+        // 香巴拉六件套占用槽位：0(AMULET), 1-2(RING), 3(BELT), 4(HEAD), 5(BODY)
+        int maxSlot = Math.min(6, baubles.getSlots());  // 只处理 0-5，保留 CHARM 槽位
         for (int i = 0; i < maxSlot; i++) {
             ItemStack stack = baubles.getStackInSlot(i);
             if (!stack.isEmpty()) {
@@ -131,10 +134,10 @@ public class ShambhalaItems {
     }
 
     /**
-     * 查找指定类型的空槽位（仅标准栏位0-6）
+     * 查找指定类型的空槽位（仅香巴拉使用的栏位0-5）
      */
     private static int findEmptySlotForType(IBaublesItemHandler baubles, BaubleType type) {
-        int maxSlot = Math.min(STANDARD_BAUBLE_SLOTS, baubles.getSlots());
+        int maxSlot = Math.min(SHAMBHALA_BAUBLE_SLOTS, baubles.getSlots());
         for (int i = 0; i < maxSlot; i++) {
             if (baubles.getStackInSlot(i).isEmpty()) {
                 // 检查槽位类型
@@ -147,11 +150,11 @@ public class ShambhalaItems {
     }
 
     /**
-     * 查找第二个RING槽位（仅标准栏位0-6）
+     * 查找第二个RING槽位（仅香巴拉使用的栏位0-5）
      */
     private static int findSecondRingSlot(IBaublesItemHandler baubles) {
         int foundFirst = -1;
-        int maxSlot = Math.min(STANDARD_BAUBLE_SLOTS, baubles.getSlots());
+        int maxSlot = Math.min(SHAMBHALA_BAUBLE_SLOTS, baubles.getSlots());
         for (int i = 0; i < maxSlot; i++) {
             if (isSlotValidForType(i, BaubleType.RING)) {
                 if (foundFirst < 0) {

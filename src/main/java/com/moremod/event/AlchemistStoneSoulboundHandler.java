@@ -34,7 +34,8 @@ public class AlchemistStoneSoulboundHandler {
     private static final String K_STONE_SLOT = "moremod_AlchemistStoneSlot";
 
     /**
-     * 死亡时：记录饰品栏位
+     * 死亡时：保存术石并从饰品栏/背包移除（防止掉落）
+     * 参考 CoreDropProtection 的实现方式
      */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onPlayerDeath(LivingDeathEvent event) {
@@ -42,60 +43,90 @@ public class AlchemistStoneSoulboundHandler {
         EntityPlayer player = (EntityPlayer) event.getEntityLiving();
         if (player.world.isRemote) return;
 
-        // 查找饰品栏中的术石
+        NBTTagCompound ed = player.getEntityData();
+        if (!ed.hasKey(PERSISTED, 10)) {
+            ed.setTag(PERSISTED, new NBTTagCompound());
+        }
+        NBTTagCompound persisted = ed.getCompoundTag(PERSISTED);
+
+        // 清理旧数据
+        persisted.removeTag(K_STONE_NBT);
+        persisted.removeTag(K_STONE_SLOT);
+
+        // 1. 优先从饰品栏查找并保存
         try {
             IBaublesItemHandler handler = BaublesApi.getBaublesHandler(player);
-            if (handler == null) return;
+            if (handler != null) {
+                for (int i = 0; i < handler.getSlots(); i++) {
+                    ItemStack stack = handler.getStackInSlot(i);
+                    if (!stack.isEmpty() && stack.getItem() instanceof ItemAlchemistStone) {
+                        // 保存术石 NBT
+                        NBTTagCompound stoneNbt = new NBTTagCompound();
+                        stack.writeToNBT(stoneNbt);
+                        persisted.setTag(K_STONE_NBT, stoneNbt);
+                        persisted.setInteger(K_STONE_SLOT, i);
 
-            for (int i = 0; i < handler.getSlots(); i++) {
-                ItemStack stack = handler.getStackInSlot(i);
-                if (!stack.isEmpty() && stack.getItem() instanceof ItemAlchemistStone) {
-                    // 记录槽位
-                    NBTTagCompound ed = player.getEntityData();
-                    if (!ed.hasKey(PERSISTED, 10)) {
-                        ed.setTag(PERSISTED, new NBTTagCompound());
+                        // 直接从饰品栏移除（防止掉落）
+                        handler.setStackInSlot(i, ItemStack.EMPTY);
+
+                        System.out.println("[moremod] AlchemistStone: 从饰品栏保存了炼药师术石 (slot " + i + ") for " + player.getName());
+                        return;
                     }
-                    NBTTagCompound persisted = ed.getCompoundTag(PERSISTED);
-                    persisted.setInteger(K_STONE_SLOT, i);
-                    break;
                 }
             }
         } catch (Throwable ignored) {}
+
+        // 2. 从背包查找并保存
+        for (int i = 0; i < player.inventory.getSizeInventory(); i++) {
+            ItemStack stack = player.inventory.getStackInSlot(i);
+            if (!stack.isEmpty() && stack.getItem() instanceof ItemAlchemistStone) {
+                // 保存术石 NBT
+                NBTTagCompound stoneNbt = new NBTTagCompound();
+                stack.writeToNBT(stoneNbt);
+                persisted.setTag(K_STONE_NBT, stoneNbt);
+                persisted.setInteger(K_STONE_SLOT, -1);  // -1 表示来自背包
+
+                // 直接从背包移除（防止掉落）
+                player.inventory.setInventorySlotContents(i, ItemStack.EMPTY);
+
+                System.out.println("[moremod] AlchemistStone: 从背包保存了炼药师术石 for " + player.getName());
+                return;
+            }
+        }
     }
 
     /**
-     * 掉落时：拦截术石并存入 PlayerPersisted
+     * 掉落时：移除任何漏网的术石（作为备用）
      */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onPlayerDrops(PlayerDropsEvent event) {
         EntityPlayer player = event.getEntityPlayer();
         if (player.world.isRemote) return;
 
-        Iterator<EntityItem> it = event.getDrops().iterator();
-        while (it.hasNext()) {
-            EntityItem ei = it.next();
+        // 移除掉落列表中的术石（以防万一）
+        event.getDrops().removeIf(ei -> {
             ItemStack stack = ei.getItem();
-
             if (!stack.isEmpty() && stack.getItem() instanceof ItemAlchemistStone) {
-                // 存入 PlayerPersisted
+                // 如果还没保存，现在保存
                 NBTTagCompound ed = player.getEntityData();
                 if (!ed.hasKey(PERSISTED, 10)) {
                     ed.setTag(PERSISTED, new NBTTagCompound());
                 }
                 NBTTagCompound persisted = ed.getCompoundTag(PERSISTED);
 
-                NBTTagCompound stoneNbt = new NBTTagCompound();
-                stack.writeToNBT(stoneNbt);
-                persisted.setTag(K_STONE_NBT, stoneNbt);
+                if (!persisted.hasKey(K_STONE_NBT, 10)) {
+                    NBTTagCompound stoneNbt = new NBTTagCompound();
+                    stack.writeToNBT(stoneNbt);
+                    persisted.setTag(K_STONE_NBT, stoneNbt);
+                    persisted.setInteger(K_STONE_SLOT, -1);
+                    System.out.println("[moremod] AlchemistStone: 从掉落列表补救了炼药师术石 for " + player.getName());
+                }
 
-                // 移除掉落物
-                it.remove();
                 ei.setDead();
-
-                System.out.println("[moremod] AlchemistStone: 保护了炼药师术石 for " + player.getName());
-                break;
+                return true;
             }
-        }
+            return false;
+        });
     }
 
     /**
