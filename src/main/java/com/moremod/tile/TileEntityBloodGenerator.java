@@ -198,6 +198,9 @@ public class TileEntityBloodGenerator extends TileEntity implements ITickable {
                               (bossKills * 50000);
         extractedEnergy = 0;
 
+        // 立即清除血液数据，防止取出后重复使用
+        BloodEnergyHandler.clearBloodData(inputStack);
+
         isActive = true;
         markDirty();
         syncToClient();
@@ -238,9 +241,7 @@ public class TileEntityBloodGenerator extends TileEntity implements ITickable {
     private void finishExtraction() {
         ItemStack inputStack = inventory.getStackInSlot(0);
         if (!inputStack.isEmpty()) {
-            // 清除血液数据
-            BloodEnergyHandler.clearBloodData(inputStack);
-
+            // 血液数据已在 startExtraction 时清除，这里只需移动物品
             // 移动到输出槽
             inventory.setStackInSlot(1, inputStack.copy());
             inventory.setStackInSlot(0, ItemStack.EMPTY);

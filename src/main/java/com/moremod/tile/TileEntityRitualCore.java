@@ -3862,44 +3862,58 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
      * 执行灵魂束缚仪式
      */
     private void performSoulboundRitual(ItemStack targetItem) {
-        // 消耗材料：末影珍珠×4 + 恶魂之泪×2 + 金块×2
-        int pearlsConsumed = 0;
-        int tearsConsumed = 0;
-        int goldConsumed = 0;
+        int pedestalCount;
 
-        // 多轮遍历确保消耗足够数量
-        while (pearlsConsumed < 4 || tearsConsumed < 2 || goldConsumed < 2) {
-            boolean consumedAny = false;
+        // 消耗材料（支持CRT自定义）
+        if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.SOULBOUND)) {
+            // 使用自定义材料配置消耗
+            consumeCustomMaterials(LegacyRitualConfig.SOULBOUND);
+            // 统计消耗的材料数量用于能量超载计算
+            pedestalCount = 0;
+            for (LegacyRitualConfig.MaterialRequirement req : LegacyRitualConfig.getMaterialRequirements(LegacyRitualConfig.SOULBOUND)) {
+                pedestalCount += req.getCount();
+            }
+        } else {
+            // 默认材料消耗：末影珍珠×4 + 恶魂之泪×2 + 金块×2
+            int pearlsConsumed = 0;
+            int tearsConsumed = 0;
+            int goldConsumed = 0;
 
-            for (BlockPos off : OFFS8) {
-                TileEntity te = world.getTileEntity(pos.add(off));
-                if (te instanceof TileEntityPedestal) {
-                    TileEntityPedestal ped = (TileEntityPedestal) te;
-                    ItemStack stack = ped.getInv().getStackInSlot(0);
-                    if (!stack.isEmpty()) {
-                        if (stack.getItem() == Items.ENDER_PEARL && pearlsConsumed < 4) {
-                            ped.consumeOne();
-                            pearlsConsumed++;
-                            consumedAny = true;
-                        } else if (stack.getItem() == Items.GHAST_TEAR && tearsConsumed < 2) {
-                            ped.consumeOne();
-                            tearsConsumed++;
-                            consumedAny = true;
-                        } else if (stack.getItem() == net.minecraft.item.Item.getItemFromBlock(net.minecraft.init.Blocks.GOLD_BLOCK) && goldConsumed < 2) {
-                            ped.consumeOne();
-                            goldConsumed++;
-                            consumedAny = true;
+            // 多轮遍历确保消耗足够数量
+            while (pearlsConsumed < 4 || tearsConsumed < 2 || goldConsumed < 2) {
+                boolean consumedAny = false;
+
+                for (BlockPos off : OFFS8) {
+                    TileEntity te = world.getTileEntity(pos.add(off));
+                    if (te instanceof TileEntityPedestal) {
+                        TileEntityPedestal ped = (TileEntityPedestal) te;
+                        ItemStack stack = ped.getInv().getStackInSlot(0);
+                        if (!stack.isEmpty()) {
+                            if (stack.getItem() == Items.ENDER_PEARL && pearlsConsumed < 4) {
+                                ped.consumeOne();
+                                pearlsConsumed++;
+                                consumedAny = true;
+                            } else if (stack.getItem() == Items.GHAST_TEAR && tearsConsumed < 2) {
+                                ped.consumeOne();
+                                tearsConsumed++;
+                                consumedAny = true;
+                            } else if (stack.getItem() == net.minecraft.item.Item.getItemFromBlock(net.minecraft.init.Blocks.GOLD_BLOCK) && goldConsumed < 2) {
+                                ped.consumeOne();
+                                goldConsumed++;
+                                consumedAny = true;
+                            }
                         }
                     }
                 }
+
+                // 防止无限循环
+                if (!consumedAny) break;
             }
 
-            // 防止无限循环
-            if (!consumedAny) break;
+            pedestalCount = pearlsConsumed + tearsConsumed + goldConsumed;
         }
 
         // 计算能量超载加成
-        int pedestalCount = pearlsConsumed + tearsConsumed + goldConsumed;
         float overloadBonus = LegacyRitualConfig.getOverloadBonus(
             LegacyRitualConfig.SOULBOUND, pedestalCount, initialTotalEnergy);
         float finalSuccessRate = getSoulboundSuccessRate() + overloadBonus;

@@ -2,6 +2,7 @@ package com.moremod.gui;
 
 import com.moremod.ritual.RitualInfusionAPI;
 import com.moremod.ritual.RitualInfusionRecipe;
+import com.moremod.ritual.LegacyRitualConfig;
 import com.moremod.init.ModBlocks;
 import com.moremod.moremod;
 import com.moremod.quarry.QuarryRegistry;
@@ -1558,69 +1559,89 @@ public class GuiModGuide extends GuiScreen {
                 }
         ));
 
-        // 第12頁：不可破壞儀式
-        currentPages.add(new GuidePageContent(
-                "不可破壞儀式 (三階)",
-                new String[]{
-                        "§e使物品永不損壞§r",
-                        "",
-                        "§6材料需求：§r",
-                        "中心：任意有耐久物品",
-                        "基座：",
-                        "  地獄之星 x2",
-                        "  黑曜石 x2",
-                        "  鑽石 x4",
-                        "",
-                        "§c需要三階祭壇！§r"
-                },
-                new String[]{
-                        "§a效果：§r",
-                        "",
-                        "為物品添加",
-                        "Unbreakable 標籤",
-                        "物品將永不損壞",
-                        "",
-                        "§6特點：§r",
-                        "- §a保留所有NBT數據§r",
-                        "- 保留所有附魔",
-                        "- 成功率: §e80%§r",
-                        "",
-                        "§c失敗懲罰：§r",
-                        "物品損失50%耐久"
-                }
-        ));
+        // 第12頁：不可破壞儀式（读取CRT配置）
+        {
+            String[] defaultMats = {"  地獄之星 x2", "  黑曜石 x2", "  鑽石 x4"};
+            String[] materials = getRitualMaterials(LegacyRitualConfig.UNBREAKABLE, defaultMats);
+            String params = getRitualParamsText(LegacyRitualConfig.UNBREAKABLE);
+            int tier = LegacyRitualConfig.getRequiredTier(LegacyRitualConfig.UNBREAKABLE);
 
-        // 第13頁：靈魂束縛儀式
-        currentPages.add(new GuidePageContent(
-                "靈魂束縛儀式 (三階)",
-                new String[]{
-                        "§e使物品死亡不掉落§r",
-                        "",
-                        "§6材料需求：§r",
-                        "中心：任意物品",
-                        "基座：",
-                        "  末影珍珠 x4",
-                        "  惡魂之淚 x2",
-                        "  金塊 x2",
-                        "",
-                        "§c需要三階祭壇！§r"
-                },
-                new String[]{
-                        "§a效果：§r",
-                        "",
-                        "為物品添加",
-                        "Soulbound 標籤",
-                        "死亡時物品不會掉落",
-                        "",
-                        "§6特點：§r",
-                        "- §a保留所有NBT數據§r",
-                        "- 保留所有附魔",
-                        "- 成功率: §e90%§r",
-                        "",
-                        "§c失敗懲罰：§r",
-                        "物品被虛空吞噬！"
-                }
-        ));
+            List<String> leftLines = new ArrayList<>();
+            leftLines.add("§e使物品永不損壞§r");
+            leftLines.add("");
+            leftLines.add("§6材料需求：§r");
+            leftLines.add("中心：任意有耐久物品");
+            leftLines.add("基座：");
+            for (String mat : materials) {
+                leftLines.add(mat);
+            }
+            leftLines.add("");
+            leftLines.add("§c需要" + tier + "階祭壇！§r");
+
+            currentPages.add(new GuidePageContent(
+                    "不可破壞儀式 (" + tier + "階)",
+                    leftLines.toArray(new String[0]),
+                    new String[]{
+                            "§a效果：§r",
+                            "",
+                            "為物品添加",
+                            "Unbreakable 標籤",
+                            "物品將永不損壞",
+                            "",
+                            "§6參數(CRT可改)：§r",
+                            params,
+                            "",
+                            "§6特點：§r",
+                            "- §a保留所有NBT數據§r",
+                            "- 保留所有附魔",
+                            "",
+                            "§c失敗懲罰：§r",
+                            "物品損失50%耐久"
+                    }
+            ));
+        }
+
+        // 第13頁：靈魂束縛儀式（读取CRT配置）
+        {
+            String[] defaultMats = {"  末影珍珠 x4", "  惡魂之淚 x2", "  金塊 x2"};
+            String[] materials = getRitualMaterials(LegacyRitualConfig.SOULBOUND, defaultMats);
+            String params = getRitualParamsText(LegacyRitualConfig.SOULBOUND);
+            int tier = LegacyRitualConfig.getRequiredTier(LegacyRitualConfig.SOULBOUND);
+
+            List<String> leftLines = new ArrayList<>();
+            leftLines.add("§e使物品死亡不掉落§r");
+            leftLines.add("");
+            leftLines.add("§6材料需求：§r");
+            leftLines.add("中心：任意物品");
+            leftLines.add("基座：");
+            for (String mat : materials) {
+                leftLines.add(mat);
+            }
+            leftLines.add("");
+            leftLines.add("§c需要" + tier + "階祭壇！§r");
+
+            currentPages.add(new GuidePageContent(
+                    "靈魂束縛儀式 (" + tier + "階)",
+                    leftLines.toArray(new String[0]),
+                    new String[]{
+                            "§a效果：§r",
+                            "",
+                            "為物品添加",
+                            "Soulbound 標籤",
+                            "死亡時物品不會掉落",
+                            "",
+                            "§6參數(CRT可改)：§r",
+                            params,
+                            "",
+                            "§6特點：§r",
+                            "- §a保留所有NBT數據§r",
+                            "- 保留所有附魔",
+                            "",
+                            "§c失敗懲罰：§r",
+                            "物品被虛空吞噬！"
+                    }
+            ));
+        }
 
         // 第14頁：武器經驗加速儀式
         currentPages.add(new GuidePageContent(
@@ -2107,6 +2128,40 @@ public class GuiModGuide extends GuiScreen {
             layers.add(layerData);
             return this;
         }
+    }
+
+    // ========== CRT配置读取辅助方法 ==========
+
+    /**
+     * 获取仪式的材料显示文本
+     * 自动读取CRT配置，如无配置则返回默认材料
+     */
+    private String[] getRitualMaterials(String ritualId, String[] defaultMaterials) {
+        if (LegacyRitualConfig.hasCustomMaterials(ritualId)) {
+            List<LegacyRitualConfig.MaterialRequirement> reqs = LegacyRitualConfig.getMaterialRequirements(ritualId);
+            if (reqs.isEmpty()) {
+                return new String[]{"§7(已被CRT清除)"};
+            }
+            List<String> result = new ArrayList<>();
+            for (LegacyRitualConfig.MaterialRequirement req : reqs) {
+                result.add("  " + req.getDescription());
+            }
+            return result.toArray(new String[0]);
+        }
+        return defaultMaterials;
+    }
+
+    /**
+     * 获取仪式参数显示文本（时间、能量、失败率）
+     */
+    private String getRitualParamsText(String ritualId) {
+        int duration = LegacyRitualConfig.getDuration(ritualId);
+        int energy = LegacyRitualConfig.getEnergyPerPedestal(ritualId);
+        float failChance = LegacyRitualConfig.getFailChance(ritualId);
+        float successRate = (1 - failChance) * 100;
+
+        return String.format("時間:%.1f秒 能量:%dRF/座 成功:%.0f%%",
+                duration / 20.0f, energy, successRate);
     }
 
     /**
