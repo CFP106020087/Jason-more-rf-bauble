@@ -45,9 +45,9 @@ public abstract class MixinTileEntityBrewingStand {
     @Unique
     private static final int SLOT_INGREDIENT = 3;
     @Unique
-    private static final int MAX_EXTRA_AMPLIFIER = 10; // 开放到 10 级
+    private static final int MAX_EXTRA_AMPLIFIER = 6; // 最高7级 (amplifier + 1 = level)
     @Unique
-    private static final int MAX_DURATION_TICKS = 20 * 60 * 60; // 1小时
+    private static final int MAX_DURATION_TICKS = 20 * 60 * 10; // 10分钟 = 12000 ticks
 
     // ======================== canBrew ========================
 

@@ -28,20 +28,21 @@ import java.util.List;
  *
  * 正面效果：
  * - 在炼药台上可以炼出超过等级上限的药水
- * - 红石可以一直放（延长时间无上限）
- * - 荧光石可以一直放（提升等级，最多超5级）
+ * - 红石可以一直放（延长时间，最多10分钟）
+ * - 荧光石可以一直放（提升等级，最多7级）
  *
  * 负面效果：
  * - 佩戴后无法摘除
- * - 最多只能获得5个正面药水效果
+ * - 最多只能获得3个正面药水效果
+ * - 死亡不掉落（灵魂束缚）
  */
 public class ItemAlchemistStone extends Item implements IBauble {
 
-    // 最大允许超过原版上限的等级数
-    public static final int MAX_EXTRA_AMPLIFIER = 5;
+    // 最大允许超过原版上限的等级数（等级7 = amplifier 6）
+    public static final int MAX_EXTRA_AMPLIFIER = 6;
 
     // 最大正面药水效果数量
-    public static final int MAX_BENEFICIAL_EFFECTS = 5;
+    public static final int MAX_BENEFICIAL_EFFECTS = 3;
 
     public ItemAlchemistStone() {
         this.setMaxStackSize(1);
@@ -85,10 +86,19 @@ public class ItemAlchemistStone extends Item implements IBauble {
         if (player.world.isRemote || !(player instanceof EntityPlayer))
             return;
 
+        // 添加灵魂束缚标签（死亡不掉落）
+        if (!itemstack.hasTagCompound()) {
+            itemstack.setTagCompound(new net.minecraft.nbt.NBTTagCompound());
+        }
+        itemstack.getTagCompound().setBoolean("Soulbound", true);
+
         EntityPlayer p = (EntityPlayer) player;
         p.sendMessage(new net.minecraft.util.text.TextComponentString(
             TextFormatting.DARK_PURPLE + "[炼药师的术石] " +
             TextFormatting.RED + "术石已与你的灵魂绑定，无法移除..."
+        ));
+        p.sendMessage(new net.minecraft.util.text.TextComponentString(
+            TextFormatting.DARK_AQUA + "✦ 此物品已获得灵魂束缚（死亡不掉落）"
         ));
     }
 
@@ -190,8 +200,9 @@ public class ItemAlchemistStone extends Item implements IBauble {
         list.add("");
         list.add(TextFormatting.GOLD + "◆ 正面效果：");
         list.add(TextFormatting.GREEN + "  ▪ 炼药台可突破药水等级上限");
-        list.add(TextFormatting.GREEN + "  ▪ 荧光石可连续使用，最多+" + MAX_EXTRA_AMPLIFIER + "级");
-        list.add(TextFormatting.GREEN + "  ▪ 红石可连续使用，无限延长时间");
+        list.add(TextFormatting.GREEN + "  ▪ 荧光石可连续使用，最高7级");
+        list.add(TextFormatting.GREEN + "  ▪ 红石可连续使用，最长10分钟");
+        list.add(TextFormatting.AQUA + "  ▪ 死亡不掉落（灵魂束缚）");
         list.add("");
         list.add(TextFormatting.DARK_GRAY + "━━━━ " + TextFormatting.DARK_RED + "代价" + TextFormatting.DARK_GRAY + " ━━━━");
         list.add(TextFormatting.RED + "  ▪ 一旦佩戴，无法摘除");
