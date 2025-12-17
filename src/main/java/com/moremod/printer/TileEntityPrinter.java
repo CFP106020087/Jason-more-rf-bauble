@@ -111,6 +111,7 @@ public class TileEntityPrinter extends TileEntity implements ITickable {
     private int progress = 0;
     private int maxProgress = 0;
     private boolean isProcessing = false;
+    private int energyConsumed = 0;  // 累积已消耗的能量
 
     @Override
     public void update() {
@@ -121,27 +122,39 @@ public class TileEntityPrinter extends TileEntity implements ITickable {
             checkRecipe();
         }
 
-        // 处理打印 (只需要有电即可工作)
+        // 处理打印 (能量累积模式)
         if (currentRecipe != null && canProcess()) {
             if (!isProcessing) {
                 startProcessing();
             }
 
-            // 消耗能量并推进进度
-            int energyPerTick = currentRecipe.getEnergyCost() / currentRecipe.getProcessingTime();
-            if (energy.getEnergyStored() >= energyPerTick) {
-                extractEnergyInternal(energyPerTick);
-                progress++;
+            // 计算每tick理想消耗的能量
+            int totalEnergyCost = currentRecipe.getEnergyCost();
+            int energyPerTick = totalEnergyCost / currentRecipe.getProcessingTime();
+            if (energyPerTick < 1) energyPerTick = 1;
 
-                if (progress >= maxProgress) {
+            // 消耗可用能量（即使不足也消耗）
+            int availableEnergy = energy.getEnergyStored();
+            if (availableEnergy > 0) {
+                int toConsume = Math.min(availableEnergy, energyPerTick);
+                extractEnergyInternal(toConsume);
+                energyConsumed += toConsume;
+
+                // 根据累积能量计算进度
+                progress = (int) ((long) energyConsumed * maxProgress / totalEnergyCost);
+                progress = Math.min(progress, maxProgress);
+
+                if (energyConsumed >= totalEnergyCost) {
                     finishProcessing();
                 }
                 markDirty();
             }
-        } else if (isProcessing) {
-            // 无法继续处理
+            // 能量不足时保持进度，不重置
+        } else if (isProcessing && currentRecipe == null) {
+            // 只有配方消失时才重置（如模版被拿走）
             isProcessing = false;
             progress = 0;
+            energyConsumed = 0;
             markDirty();
         }
     }
@@ -206,16 +219,18 @@ public class TileEntityPrinter extends TileEntity implements ITickable {
 
     /**
      * 检查是否可以处理
+     * 不再要求一次性具有全部能量，改为累积消耗
      */
     private boolean canProcess() {
         if (currentRecipe == null) return false;
 
-        // 检查材料
-        List<ItemStack> materials = getMaterialStacks();
-        if (!currentRecipe.matchesMaterials(materials)) return false;
+        // 检查材料（只在未开始时检查，避免中途材料被取走导致进度丢失）
+        if (!isProcessing) {
+            List<ItemStack> materials = getMaterialStacks();
+            if (!currentRecipe.matchesMaterials(materials)) return false;
+        }
 
-        // 检查能量
-        if (energy.getEnergyStored() < currentRecipe.getEnergyCost()) return false;
+        // 不再检查总能量，改为累积消耗模式
 
         // 检查输出槽
         ItemStack outputSlot = inventory.getStackInSlot(OUTPUT_SLOT);
@@ -247,6 +262,7 @@ public class TileEntityPrinter extends TileEntity implements ITickable {
     private void startProcessing() {
         isProcessing = true;
         progress = 0;
+        energyConsumed = 0;
         maxProgress = currentRecipe.getProcessingTime();
     }
 
@@ -271,6 +287,7 @@ public class TileEntityPrinter extends TileEntity implements ITickable {
         // 重置状态
         isProcessing = false;
         progress = 0;
+        energyConsumed = 0;
         maxProgress = 0;
 
         // 重新检查配方（可能可以继续处理）
@@ -456,6 +473,7 @@ public class TileEntityPrinter extends TileEntity implements ITickable {
         compound.setBoolean("IsProcessing", isProcessing);
         compound.setInteger("Progress", progress);
         compound.setInteger("MaxProgress", maxProgress);
+        compound.setInteger("EnergyConsumed", energyConsumed);
         return compound;
     }
 
@@ -470,6 +488,7 @@ public class TileEntityPrinter extends TileEntity implements ITickable {
         isProcessing = compound.getBoolean("IsProcessing");
         progress = compound.getInteger("Progress");
         maxProgress = compound.getInteger("MaxProgress");
+        energyConsumed = compound.getInteger("EnergyConsumed");
 
         // 重新检查配方
         checkRecipe();
