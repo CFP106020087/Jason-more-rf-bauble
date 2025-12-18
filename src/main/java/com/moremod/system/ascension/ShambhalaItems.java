@@ -29,7 +29,7 @@ public class ShambhalaItems {
     public static ItemShambhalaBastion SHAMBHALA_BASTION;     // 绝对防御 - RING
     public static ItemShambhalaThorns SHAMBHALA_THORNS;       // 因果反噬 - RING
     public static ItemShambhalaPurify SHAMBHALA_PURIFY;       // 净化之力 - BELT
-    public static ItemShambhalaVeil SHAMBHALA_VEIL;           // 反侦察 - HEAD
+    public static ItemShambhalaVeil SHAMBHALA_VEIL;           // 宁静光环 - HEAD
     public static ItemShambhalaSanctuary SHAMBHALA_SANCTUARY; // 圣域护盾 - BODY
 
     /**
@@ -106,7 +106,7 @@ public class ShambhalaItems {
             }
         }
 
-        // 香巴拉_隐匿 - HEAD 槽位
+        // 香巴拉_宁静 - HEAD 槽位
         if (SHAMBHALA_VEIL != null) {
             int headSlot = findEmptySlotForType(baubles, BaubleType.HEAD);
             if (headSlot >= 0) {
