@@ -30,6 +30,7 @@ public class moremodMixinPlugin implements IFMLLoadingPlugin {
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.bauble.json");
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.potioncore.json");
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.ev.json");
+            FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.as.json");
 
             // Enigmatic Legacy 七圣遗物效果拦截
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.enigmaticlegacy.json");

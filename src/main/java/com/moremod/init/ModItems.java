@@ -1,22 +1,13 @@
 package com.moremod.init;
 
-import com.moremod.item.ItemMaterial;
-import com.moremod.item.ItemBasicFabric;
+import com.moremod.item.*;
 // 🏪 添加村民胶囊导入
-import com.moremod.item.ItemVillagerCapsule;
 // 🌌 添加虚空背包链接导入
-import com.moremod.item.ItemVoidBackpackLink;
 // ⚡ 添加资源磁化戒指导入
-import com.moremod.item.ItemResourceMagnetRing;
 // 🧭 添加探险者罗盘导入
-import com.moremod.item.ItemExplorerCompass;
 // ⭕ 因果闕帶（智能沉默）
-import com.moremod.item.ItemCausalGateband;
 // 🧠 添加行為分析晶片導入
-import com.moremod.item.ItemBehaviorAnalysisChip;
 // 👻 添加诅咒蔓延导入
-import com.moremod.item.ItemAlchemistStone;
-import com.moremod.item.ItemCurseSpread;
 // 🌹 荆棘王冠之碎片（七咒联动）
 import com.moremod.item.curse.ItemThornShard;
 // 👁 虚无之眸（七咒联动）
@@ -26,24 +17,14 @@ import com.moremod.item.curse.ItemGluttonousPhalanx;
 // 💎 怨念结晶（七咒联动）
 import com.moremod.item.curse.ItemCrystallizedResentment;
 // 🗡️ 添加澄月剑导入
-import com.moremod.item.ItemSwordChengYue;
 // 🌟 添加剑气测试器导入
-import com.moremod.item.ItemSwordBeamTester;
 // ⚔️ 添加锯刃剑导入
-import com.moremod.item.ItemSawBladeSword;
 // 🛡️ 添加勇者之剑导入
-import com.moremod.item.ItemHeroSword;
 // 💎 添加宝石系统导入
-import com.moremod.item.ItemGem;
-import com.moremod.item.ItemIdentifyScroll;
 // 🧬 添加机械核心升级系统导入
 import com.moremod.item.upgrades.ItemNeuralSynchronizer;
-import com.moremod.item.ItemBioStabilizer;
-import com.moremod.item.ItemTowel;
 // 🧵 添加织布拆解器导入
-import com.moremod.item.ItemFabricRemover;
 // 📦 添加结构胶囊导入
-import com.moremod.item.ItemStructureCapsule;
 // ✨ 七圣遗物
 import com.moremod.item.curse.ItemSacredRelic;
 // 🎲 仪式道具
@@ -60,7 +41,6 @@ import com.moremod.item.energy.ItemPlantOilBucket;
 import com.moremod.item.energy.ItemSpeedUpgrade;
 
 // 📖 綜合指南書
-import com.moremod.item.ItemModGuide;
 
 // 🖨️ 打印系統
 import com.moremod.printer.ItemPrintTemplate;
@@ -190,13 +170,22 @@ public final class ModItems {
     public static Item BLANK_PRINT_TEMPLATE; // 空白打印模版 (未定义，需CRT配置)
     public static Item CUSTOM_PRINT_TEMPLATE; // 自定义打印模版 (NBT存储配方)
 
-    //新模块(屎山包装)
+    // ===== 字段声明 =====
+// ⭐ 星芒镐（AS 兼容）
+    public static Item ASTRAL_PICKAXE;
 
+// ===== 在 onRegisterItems 方法中添加 =====
+// ⭐ 注册星芒镐
+
+    // ===== 在 onModelRegister 方法中添加 =====
+// ⭐ 绑定星芒镐模型
 
 
     @SubscribeEvent
     public static void onRegisterItems(RegistryEvent.Register<Item> e) {
         // 稀有度：COMMON/UNCOMMON/RARE；glows=true 表示自发光描边
+        ASTRAL_PICKAXE = reg(e, new ItemAstralPickaxe());
+
         FRGUARDIAN_STONE      = reg(e, new ItemMaterial("frguardian_stone",      EnumRarity.UNCOMMON, false, "item.moremod.frguardian_stone.desc"));
         ANCIENT_CORE_FRAGMENT = reg(e, new ItemMaterial("ancient_core_fragment", EnumRarity.UNCOMMON, false, "item.moremod.ancient_core_fragment.desc"));
         RUNED_VOID_STONE      = reg(e, new ItemMaterial("runed_void_stone",      EnumRarity.RARE,     true,  "item.moremod.runed_void_stone.desc"));
@@ -393,6 +382,8 @@ public final class ModItems {
     @SideOnly(Side.CLIENT)
     public static void onModelRegister(ModelRegistryEvent e) {
         // 统一使用 item/generated
+        bindModel(ASTRAL_PICKAXE, "astral_pickaxe");
+
         bindModel(UNFORMED_FIBER, "unformed_fiber");
         bindModel(UNFORMED_FABRIC, "unformed_fabric");
         bindModel(FRGUARDIAN_STONE,      "frguardian_stone");
