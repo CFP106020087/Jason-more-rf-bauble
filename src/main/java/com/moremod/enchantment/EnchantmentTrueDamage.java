@@ -4,19 +4,23 @@ import net.minecraft.enchantment.Enchantment;
 import net.minecraft.enchantment.EnumEnchantmentType;
 import net.minecraft.inventory.EntityEquipmentSlot;
 import net.minecraft.item.ItemStack;
-import net.minecraft.item.ItemSword;
-import net.minecraft.item.ItemAxe;
 
 /**
  * 真伤附魔 - 将武器伤害转换为真实伤害（无视护甲）
+ * 攻击时清空目标护甲值，然后造成真伤
  * 非常稀有但可从附魔台获得
+ * 可附在任何物品上
  */
 public class EnchantmentTrueDamage extends Enchantment {
 
     public static final String NAME = "true_damage";
 
     public EnchantmentTrueDamage() {
-        super(Rarity.VERY_RARE, EnumEnchantmentType.WEAPON, new EntityEquipmentSlot[]{EntityEquipmentSlot.MAINHAND});
+        // EnumEnchantmentType.ALL 允许附在任何物品上
+        super(Rarity.VERY_RARE, EnumEnchantmentType.ALL, new EntityEquipmentSlot[]{
+            EntityEquipmentSlot.MAINHAND,
+            EntityEquipmentSlot.OFFHAND
+        });
         setName("moremod." + NAME);
         setRegistryName("moremod", NAME);
     }
@@ -39,13 +43,14 @@ public class EnchantmentTrueDamage extends Enchantment {
 
     @Override
     public boolean canApply(ItemStack stack) {
-        // 只能应用于剑和斧
-        return stack.getItem() instanceof ItemSword || stack.getItem() instanceof ItemAxe;
+        // 可以附在任何物品上
+        return true;
     }
 
     @Override
     public boolean canApplyAtEnchantingTable(ItemStack stack) {
-        return canApply(stack);
+        // 附魔台也可以附在任何物品上
+        return true;
     }
 
     @Override
