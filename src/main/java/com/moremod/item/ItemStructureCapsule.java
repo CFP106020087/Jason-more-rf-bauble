@@ -275,8 +275,12 @@ public class ItemStructureCapsule extends Item {
         }
 
         tooltip.add("");
+        if (com.moremod.config.CapsuleConfig.singleUse) {
+            tooltip.add(TextFormatting.RED + "⚠ 一次性：释放后胶囊消耗");
+        }
         tooltip.add(TextFormatting.DARK_GRAY + "右键投掷");
         tooltip.add(TextFormatting.DARK_GRAY + "无法捕获/覆盖基岩等不可破坏方块");
+        tooltip.add(TextFormatting.DARK_GRAY + "方块上限: " + com.moremod.config.CapsuleConfig.maxBlockCount);
     }
 
     @Override

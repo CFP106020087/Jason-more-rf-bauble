@@ -18,6 +18,7 @@ import net.minecraft.network.datasync.EntityDataManager;
 import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.SoundCategory;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.text.TextFormatting;
 import net.minecraft.util.math.RayTraceResult;
 import net.minecraft.world.World;
 
@@ -72,7 +73,9 @@ public class EntityThrownCapsule extends EntityThrowable {
         BlockPos impactPos = getImpactBlockPos(result);
 
         boolean success;
-        if (ItemStructureCapsule.isEmpty(capsuleStack)) {
+        boolean wasEmpty = ItemStructureCapsule.isEmpty(capsuleStack);
+
+        if (wasEmpty) {
             // 空胶囊：捕获结构
             success = captureStructure(impactPos, capsuleItem.getCaptureSize());
         } else {
@@ -82,18 +85,33 @@ public class EntityThrownCapsule extends EntityThrowable {
 
         if (success) {
             // 播放成功音效
-            world.playSound(null, posX, posY, posZ, 
-                SoundEvents.ENTITY_ENDERMEN_TELEPORT, SoundCategory.PLAYERS, 
+            world.playSound(null, posX, posY, posZ,
+                SoundEvents.ENTITY_ENDERMEN_TELEPORT, SoundCategory.PLAYERS,
                 1.0F, 1.0F);
+
+            // 单次使用模式
+            if (CapsuleConfig.singleUse) {
+                if (wasEmpty) {
+                    // 捕获成功：返回存储状态的胶囊（可以释放一次）
+                    dropCapsule();
+                } else {
+                    // 释放成功：消耗胶囊，不返回
+                    notifyThrower(TextFormatting.YELLOW + "胶囊已消耗");
+                }
+            } else {
+                // 非单次使用模式：返回胶囊
+                dropCapsule();
+            }
         } else {
             // 播放失败音效
-            world.playSound(null, posX, posY, posZ, 
-                SoundEvents.BLOCK_GLASS_BREAK, SoundCategory.PLAYERS, 
+            world.playSound(null, posX, posY, posZ,
+                SoundEvents.BLOCK_GLASS_BREAK, SoundCategory.PLAYERS,
                 1.0F, 0.5F);
+
+            // 失败时返回胶囊
+            dropCapsule();
         }
 
-        // 掉落胶囊物品
-        dropCapsule();
         this.setDead();
     }
 
@@ -130,13 +148,62 @@ public class EntityThrownCapsule extends EntityThrowable {
             return ItemStructureCapsule.getStoredItemCount(capsuleStack) > 0;
         }
 
+        // ========== NBT 大小保护 ==========
+        // 检查方块数量
+        int blockCount = data.getBlockCount();
+        if (blockCount > CapsuleConfig.maxBlockCount) {
+            // 方块数量超限，取消捕获
+            notifyThrower(TextFormatting.RED + "捕获失败：方块数量 " + blockCount +
+                " 超过上限 " + CapsuleConfig.maxBlockCount);
+            return false;
+        }
+
+        // 估算 NBT 大小
+        NBTTagCompound testNBT = new NBTTagCompound();
+        data.writeToNBT(testNBT);
+        int estimatedSize = estimateNBTSize(testNBT);
+        if (estimatedSize > CapsuleConfig.maxNBTSize) {
+            // NBT 过大，取消捕获
+            notifyThrower(TextFormatting.RED + "捕获失败：数据大小 " + (estimatedSize / 1024) +
+                "KB 超过上限 " + (CapsuleConfig.maxNBTSize / 1024) + "KB");
+            return false;
+        }
+
         // 从世界中移除捕获的方块
         StructureData.removeBlocksFromWorld(world, captured);
 
         // 保存到胶囊
         ItemStructureCapsule.saveStructure(capsuleStack, data);
 
+        // 通知成功
+        notifyThrower(TextFormatting.GREEN + "捕获成功：" + blockCount + " 个方块");
+
         return true;
+    }
+
+    /**
+     * 估算 NBT 数据大小（字节）
+     */
+    private int estimateNBTSize(NBTTagCompound nbt) {
+        try {
+            java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+            net.minecraft.nbt.CompressedStreamTools.writeCompressed(nbt, baos);
+            return baos.size();
+        } catch (Exception e) {
+            // 粗略估算：每个方块约 100 字节
+            return nbt.getTagList("blocks", 10).tagCount() * 100;
+        }
+    }
+
+    /**
+     * 通知投掷者
+     */
+    private void notifyThrower(String message) {
+        EntityLivingBase thrower = getThrower();
+        if (thrower instanceof EntityPlayer) {
+            ((EntityPlayer) thrower).sendStatusMessage(
+                new net.minecraft.util.text.TextComponentString(message), true);
+        }
     }
 
     /**
