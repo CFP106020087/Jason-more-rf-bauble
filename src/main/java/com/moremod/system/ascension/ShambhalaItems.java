@@ -21,15 +21,15 @@ public class ShambhalaItems {
 
     private static final Logger LOGGER = LogManager.getLogger("moremod");
 
-    // 香巴拉使用的饰品栏位数量（0-5），不触碰 CHARM(6) 和额外栏位（7+）
-    private static final int SHAMBHALA_BAUBLE_SLOTS = 6;
+    // 香巴拉使用的饰品栏位数量（0-6），包含 CHARM 槽位，不触碰额外栏位（7+）
+    private static final int SHAMBHALA_BAUBLE_SLOTS = 7;
 
     // 物品实例（在 RegisterItem 中注册）
     public static ItemShambhalaCore SHAMBHALA_CORE;           // 不灭之心 - AMULET
     public static ItemShambhalaBastion SHAMBHALA_BASTION;     // 绝对防御 - RING
     public static ItemShambhalaThorns SHAMBHALA_THORNS;       // 因果反噬 - RING
     public static ItemShambhalaPurify SHAMBHALA_PURIFY;       // 净化之力 - BELT
-    public static ItemShambhalaVeil SHAMBHALA_VEIL;           // 宁静光环 - HEAD
+    public static ItemShambhalaVeil SHAMBHALA_VEIL;           // 宁静光环 - CHARM
     public static ItemShambhalaSanctuary SHAMBHALA_SANCTUARY; // 圣域护盾 - BODY
 
     /**
@@ -45,12 +45,10 @@ public class ShambhalaItems {
             return;
         }
 
-        // 第一步：移除需要被香巴拉物品替换的栏位（0-5），掉落到地上
-        // 注意：
-        // - 不触碰 CHARM 槽位（6），因为香巴拉没有 CHARM 类型物品
-        // - 不触碰额外栏位（7+），避免误删其他模组的饰品
-        // 香巴拉六件套占用槽位：0(AMULET), 1-2(RING), 3(BELT), 4(HEAD), 5(BODY)
-        int maxSlot = Math.min(6, baubles.getSlots());  // 只处理 0-5，保留 CHARM 槽位
+        // 第一步：移除需要被香巴拉物品替换的栏位（0-6），掉落到地上
+        // 注意：不触碰额外栏位（7+），避免误删其他模组的饰品
+        // 香巴拉六件套占用槽位：0(AMULET), 1-2(RING), 3(BELT), 5(BODY), 6(CHARM/宁静)
+        int maxSlot = Math.min(SHAMBHALA_BAUBLE_SLOTS, baubles.getSlots());  // 处理 0-6
         for (int i = 0; i < maxSlot; i++) {
             ItemStack stack = baubles.getStackInSlot(i);
             if (!stack.isEmpty()) {
@@ -106,11 +104,11 @@ public class ShambhalaItems {
             }
         }
 
-        // 香巴拉_宁静 - HEAD 槽位
+        // 香巴拉_宁静 - CHARM 槽位
         if (SHAMBHALA_VEIL != null) {
-            int headSlot = findEmptySlotForType(baubles, BaubleType.HEAD);
-            if (headSlot >= 0) {
-                baubles.setStackInSlot(headSlot, new ItemStack(SHAMBHALA_VEIL));
+            int charmSlot = findEmptySlotForType(baubles, BaubleType.CHARM);
+            if (charmSlot >= 0) {
+                baubles.setStackInSlot(charmSlot, new ItemStack(SHAMBHALA_VEIL));
             }
         }
 
