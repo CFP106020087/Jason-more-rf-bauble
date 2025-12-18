@@ -62,6 +62,20 @@ public class CapsuleConfig {
     @Config.Name("允许捕获容器")
     public static boolean allowCaptureTileEntities = true;
 
+    @Config.Comment("最大捕获方块数量（超过此数量会失败，防止NBT过大崩溃）")
+    @Config.Name("最大方块数量")
+    @Config.RangeInt(min = 100, max = 50000)
+    public static int maxBlockCount = 10000;
+
+    @Config.Comment("最大NBT数据大小（字节，超过此大小会失败）")
+    @Config.Name("最大NBT大小")
+    @Config.RangeInt(min = 100000, max = 10000000)
+    public static int maxNBTSize = 2000000;  // 2MB
+
+    @Config.Comment("胶囊是否为一次性（收取和释放后消耗）")
+    @Config.Name("一次性胶囊")
+    public static boolean singleUse = true;
+
     // ============== 运行时解析的列表 ==============
 
     private static List<Block> parsedExcludedBlocks = null;

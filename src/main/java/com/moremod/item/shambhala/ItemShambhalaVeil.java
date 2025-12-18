@@ -80,7 +80,7 @@ public class ItemShambhalaVeil extends ItemShambhalaBaubleBase {
 
     @Override
     public BaubleType getBaubleType(ItemStack itemstack) {
-        return BaubleType.CHARM;
+        return BaubleType.CHARM;  // CHARM 槽位 (slot 6)
     }
 
     @Override
