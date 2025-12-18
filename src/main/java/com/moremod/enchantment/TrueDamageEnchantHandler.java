@@ -289,21 +289,9 @@ public class TrueDamageEnchantHandler {
     }
 
     /**
-     * 备用监听：确保护甲恢复（防止异常情况）
-     */
-    @SubscribeEvent(priority = EventPriority.MONITOR)
-    public static void onLivingDamageMonitor(LivingDamageEvent event) {
-        if (event.getEntity().world.isRemote) return;
-
-        EntityLivingBase target = event.getEntityLiving();
-        // 确保护甲被恢复
-        restoreTargetArmor(target);
-    }
-
-    /**
      * 备用监听：AttackEntityEvent 预创建追踪器
      */
-    @SubscribeEvent(priority = EventPriority.MONITOR)
+    @SubscribeEvent(priority = EventPriority.HIGH)
     public static void onAttackEntity(net.minecraftforge.event.entity.player.AttackEntityEvent event) {
         if (event.getEntity().world.isRemote) return;
         if (event.isCanceled()) return;

@@ -1,6 +1,6 @@
 package com.moremod.item;
 
-import com.moremod.init.moremodCreativeTab;
+import com.moremod.creativetab.moremodCreativeTab;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.item.EnumRarity;
