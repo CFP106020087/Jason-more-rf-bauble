@@ -598,3 +598,10 @@ config.moremod.sponsor.items=物品设置
 config.moremod.sponsor.weapons=武器设置
 config.moremod.sponsor.armor=盔甲设置
 config.moremod.sponsor.baubles=饰品设置
+
+# ===== 星芒镐 (Astral Sorcery 兼容) =====
+item.moremod.astral_pickaxe.name=星芒镐
+item.moremod.astral_pickaxe.desc1=蕴含星辰之力的镐子
+item.moremod.astral_pickaxe.desc2=可以挖掘星辉水晶
+item.moremod.astral_pickaxe.desc3=挖石头概率掉落大理石
+item.moremod.astral_pickaxe.desc4=挖铁矿概率掉落星辉锭

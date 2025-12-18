@@ -160,3 +160,10 @@ item.structure_capsule_medium.name=Medium Structure Capsule
 item.structure_capsule_large.name=Large Structure Capsule
 item.structure_capsule_huge.name=Huge Structure Capsule
 item.structure_capsule_mega.name=Mega Structure Capsule
+
+# ===== Astral Pickaxe (AS Compatibility) =====
+item.moremod.astral_pickaxe.name=Astral Pickaxe
+item.moremod.astral_pickaxe.desc1=A pickaxe imbued with starlight
+item.moremod.astral_pickaxe.desc2=Can mine Astral Crystals
+item.moremod.astral_pickaxe.desc3=Mining stone may drop Marble
+item.moremod.astral_pickaxe.desc4=Mining iron ore may drop Starmetal Ingot

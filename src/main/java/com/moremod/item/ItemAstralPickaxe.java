@@ -1,5 +1,6 @@
 package com.moremod.item;
 
+import com.moremod.init.moremodCreativeTab;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.item.EnumRarity;
@@ -17,12 +18,13 @@ import java.util.List;
  * 挖石头概率掉落大理石，挖铁矿概率掉落星辉锭
  */
 public class ItemAstralPickaxe extends ItemPickaxe {
-    
+
     public ItemAstralPickaxe() {
         super(ToolMaterial.DIAMOND);
-        setTranslationKey("astral_pickaxe");
+        setTranslationKey("moremod.astral_pickaxe");
         setRegistryName("astral_pickaxe");
         setMaxStackSize(1);
+        setCreativeTab(moremodCreativeTab.moremod_TAB);
     }
     
     /**
