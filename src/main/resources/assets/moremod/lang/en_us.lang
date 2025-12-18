@@ -167,3 +167,7 @@ item.moremod.astral_pickaxe.desc1=A pickaxe imbued with starlight
 item.moremod.astral_pickaxe.desc2=Can mine Astral Crystals
 item.moremod.astral_pickaxe.desc3=Mining stone may drop Marble
 item.moremod.astral_pickaxe.desc4=Mining iron ore may drop Starmetal Ingot
+
+# ===== True Damage Enchantment =====
+enchantment.moremod.true_damage=True Damage
+enchantment.moremod.true_damage.desc=Converts part of weapon damage to armor-piercing true damage
