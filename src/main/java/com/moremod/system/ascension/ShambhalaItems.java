@@ -45,14 +45,21 @@ public class ShambhalaItems {
             return;
         }
 
-        // 第一步：移除需要被香巴拉物品替换的栏位（0-6），掉落到地上
-        // 注意：不触碰额外栏位（7+），避免误删其他模组的饰品
+        // 第一步：移除需要被香巴拉物品替换的栏位，掉落到地上
+        // 注意：
+        // - 跳过 HEAD 槽位（4），机械核心在那里
+        // - 不触碰额外栏位（7+），避免误删其他模组的饰品
         // 香巴拉六件套占用槽位：0(AMULET), 1-2(RING), 3(BELT), 5(BODY), 6(CHARM/宁静)
         int maxSlot = Math.min(SHAMBHALA_BAUBLE_SLOTS, baubles.getSlots());  // 处理 0-6
         for (int i = 0; i < maxSlot; i++) {
+            // 跳过 HEAD 槽位（4）- 机械核心位置
+            if (i == 4) {
+                continue;
+            }
+
             ItemStack stack = baubles.getStackInSlot(i);
             if (!stack.isEmpty()) {
-                // 检查是否是机械核心 - 保留
+                // 检查是否是机械核心 - 保留（备用检查）
                 if (stack.getItem() instanceof ItemMechanicalCore) {
                     continue;
                 }
