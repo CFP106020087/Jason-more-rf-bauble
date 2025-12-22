@@ -1,5 +1,6 @@
 package com.moremod.item.energy;
 
+import com.moremod.config.OilConfig;
 import com.moremod.creativetab.moremodCreativeTab;
 import com.moremod.world.OilExtractionData;
 import net.minecraft.client.util.ITooltipFlag;
@@ -31,16 +32,9 @@ import java.util.Random;
  * - 右鍵使用檢測當前區塊是否有石油礦脈
  * - 顯示石油儲量和深度
  * - 石油礦脈基於區塊種子生成（一致性）
+ * - 配置文件: config/moremod/oil_generation.cfg
  */
 public class ItemOilProspector extends Item {
-
-    // 石油生成配置
-    private static final double OIL_CHANCE = 0.15;        // 15% 區塊有石油
-    private static final int MIN_OIL_AMOUNT = 600000;     // 最小儲量 600k mB (60倍)
-    private static final int MAX_OIL_AMOUNT = 30000000;   // 最大儲量 30M mB (60倍)
-    private static final int MIN_DEPTH = 10;              // 最淺深度 Y=10
-    private static final int MAX_DEPTH = 40;              // 最深深度 Y=40
-    private static final int SCAN_COOLDOWN = 100;         // 5秒冷卻
 
     public ItemOilProspector() {
         setMaxStackSize(1);
@@ -66,9 +60,10 @@ public class ItemOilProspector extends Item {
 
         long lastUse = nbt.getLong("LastUse");
         long currentTime = world.getTotalWorldTime();
+        int cooldown = OilConfig.scanCooldown;
 
-        if (currentTime - lastUse < SCAN_COOLDOWN) {
-            int remaining = (int)((SCAN_COOLDOWN - (currentTime - lastUse)) / 20);
+        if (currentTime - lastUse < cooldown) {
+            int remaining = (int)((cooldown - (currentTime - lastUse)) / 20);
             player.sendStatusMessage(new TextComponentString(
                     TextFormatting.YELLOW + "探勘冷卻中... " + remaining + "秒"
             ), true);
@@ -167,19 +162,34 @@ public class ItemOilProspector extends Item {
     /**
      * 獲取區塊的石油礦脈數據
      * 基於世界種子和區塊位置計算，保證一致性
+     * 受配置文件 config/moremod/oil_generation.cfg 控制
      */
     public static OilVeinData getOilVeinData(World world, ChunkPos chunkPos) {
+        // 检查维度是否允许生成石油
+        int dimensionId = world.provider.getDimension();
+        if (!OilConfig.isDimensionAllowed(dimensionId)) {
+            return new OilVeinData(false, 0, 0);
+        }
+
         long seed = world.getSeed();
         Random rand = new Random(seed ^ ((long) chunkPos.x * 341873128712L + (long) chunkPos.z * 132897987541L));
 
-        boolean hasOil = rand.nextDouble() < OIL_CHANCE;
+        // 使用配置的生成概率
+        boolean hasOil = rand.nextDouble() < OilConfig.oilChance;
 
         if (!hasOil) {
             return new OilVeinData(false, 0, 0);
         }
 
-        int amount = MIN_OIL_AMOUNT + rand.nextInt(MAX_OIL_AMOUNT - MIN_OIL_AMOUNT);
-        int depth = MIN_DEPTH + rand.nextInt(MAX_DEPTH - MIN_DEPTH);
+        // 使用配置的储量范围
+        int minAmount = OilConfig.minOilAmount;
+        int maxAmount = OilConfig.maxOilAmount;
+        int amount = minAmount + rand.nextInt(Math.max(1, maxAmount - minAmount));
+
+        // 使用配置的深度范围
+        int minDepth = OilConfig.minDepth;
+        int maxDepth = OilConfig.maxDepth;
+        int depth = minDepth + rand.nextInt(Math.max(1, maxDepth - minDepth));
 
         return new OilVeinData(true, amount, depth);
     }
