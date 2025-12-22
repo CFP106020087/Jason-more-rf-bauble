@@ -155,16 +155,6 @@ public class AuxiliaryUpgradeManager {
             addModOreByName("astralsorcery:celestial_crystals", "天辉水晶");
             addModOreByName("astralsorcery:rockcrystalore", "岩石水晶矿");
             addModOreByName("astralsorcery:rock_crystal_ore", "岩石水晶矿");
-            // NetherBound 下界合金
-            addModOreByName("nb:netherite_ore", "下界合金矿");
-            addModOreByName("nb:ancient_debris", "远古残骸");
-            addModOreByName("nb:nether_gold_ore", "下界金矿");
-            addModOreByName("nb:quartz_ore", "下界石英矿");
-            // Future MC / 其他 1.16 backport 模组
-            addModOreByName("minecraft:ancient_debris", "远古残骸");
-            addModOreByName("futuremc:ancient_debris", "远古残骸");
-            addModOreByName("nether_backport:ancient_debris", "远古残骸");
-            addModOreByName("nether_backport:netherite_ore", "下界合金矿");
 
             System.out.println("[OreVision] 已添加特殊模组矿物，当前矿物总数: " + ALL_ORE_BLOCKS.size());
 
@@ -411,7 +401,7 @@ public class AuxiliaryUpgradeManager {
                         // 调试: 检测特殊矿物
                         if (b.getRegistryName() != null) {
                             String rn = b.getRegistryName().toString();
-                            if (rn.startsWith("astralsorcery:") || rn.startsWith("nb:")) {
+                            if (rn.startsWith("astralsorcery:")) {
                                 boolean inSet = ALL_ORE_BLOCKS.contains(b);
                                 System.out.println("[OreVision] DEBUG: 扫描到 " + rn + " @ " + pos + " | 在ORE_BLOCKS中=" + inSet);
                             }

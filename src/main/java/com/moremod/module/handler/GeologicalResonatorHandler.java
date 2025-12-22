@@ -27,7 +27,6 @@ import net.minecraftforge.common.util.FakePlayer;
 import net.minecraftforge.common.util.FakePlayerFactory;
 import net.minecraftforge.oredict.OreDictionary;
 
-import java.lang.reflect.Field;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
@@ -56,10 +55,6 @@ public class GeologicalResonatorHandler implements IModuleEventHandler {
     // 特殊可提取方块（非标准矿物词典）
     private static final Set<String> SPECIAL_VALUABLE_BLOCKS = new HashSet<>();
     private static boolean oreCacheInitialized = false;
-
-    // Astral Sorcery 反射缓存
-    private static Field asAllowCrystalHarvestField = null;
-    private static boolean asReflectionAttempted = false;
 
     /**
      * 懒加载初始化矿物缓存
@@ -90,42 +85,8 @@ public class GeologicalResonatorHandler implements IModuleEventHandler {
         SPECIAL_VALUABLE_BLOCKS.add("astralsorcery:celestial_crystals");
         SPECIAL_VALUABLE_BLOCKS.add("astralsorcery:rockcrystalore");
         SPECIAL_VALUABLE_BLOCKS.add("astralsorcery:rock_crystal_ore");
-        // NetherBound
-        SPECIAL_VALUABLE_BLOCKS.add("nb:netherite_ore");
-        SPECIAL_VALUABLE_BLOCKS.add("nb:ancient_debris");
-        SPECIAL_VALUABLE_BLOCKS.add("nb:nether_gold_ore");
-        SPECIAL_VALUABLE_BLOCKS.add("nb:quartz_ore");
-        // Future MC / 其他 1.16 backport 模组
-        SPECIAL_VALUABLE_BLOCKS.add("minecraft:ancient_debris");
-        SPECIAL_VALUABLE_BLOCKS.add("futuremc:ancient_debris");
-        SPECIAL_VALUABLE_BLOCKS.add("nether_backport:ancient_debris");
-        SPECIAL_VALUABLE_BLOCKS.add("nether_backport:netherite_ore");
 
         System.out.println("[GeologicalResonator] 缓存了 " + KNOWN_ORE_IDS.size() + " 种矿物类型，" + SPECIAL_VALUABLE_BLOCKS.size() + " 种特殊方块。");
-
-        // 尝试获取 Astral Sorcery 的 allowCrystalHarvest 字段
-        initAstralSorceryReflection();
-    }
-
-    /**
-     * 初始化 Astral Sorcery 反射（用于绕过 FakePlayer 检测）
-     */
-    private static void initAstralSorceryReflection() {
-        if (asReflectionAttempted) return;
-        asReflectionAttempted = true;
-
-        try {
-            Class<?> blockCustomOreClass = Class.forName("hellfirepvp.astralsorcery.common.block.BlockCustomOre");
-            asAllowCrystalHarvestField = blockCustomOreClass.getDeclaredField("allowCrystalHarvest");
-            asAllowCrystalHarvestField.setAccessible(true);
-            System.out.println("[GeologicalResonator] ✓ Astral Sorcery 兼容层已加载");
-        } catch (ClassNotFoundException e) {
-            System.out.println("[GeologicalResonator] Astral Sorcery 未安装，跳过兼容层");
-        } catch (NoSuchFieldException e) {
-            System.out.println("[GeologicalResonator] Astral Sorcery 版本不兼容，无法获取 allowCrystalHarvest 字段");
-        } catch (Exception e) {
-            System.err.println("[GeologicalResonator] Astral Sorcery 反射失败: " + e.getMessage());
-        }
     }
 
     @Override
@@ -206,14 +167,10 @@ public class GeologicalResonatorHandler implements IModuleEventHandler {
 
     /**
      * 使用 FakePlayer 完整挖矿流程提取矿物
-     * 兼容 Astral Sorcery、NetherBound 等模组
      */
     private boolean extractOreWithFakePlayer(WorldServer world, EntityPlayer realPlayer, BlockPos pos, IBlockState state) {
         Block block = state.getBlock();
         String registryName = block.getRegistryName() != null ? block.getRegistryName().toString() : "";
-
-        // 检测是否是 Astral Sorcery 的矿物
-        boolean isAstralSorceryOre = registryName.startsWith("astralsorcery:");
 
         // 1. 创建 FakePlayer 并定位到目标方块附近（≤10格，通过安全检查）
         FakePlayer fakePlayer = FakePlayerFactory.get(world, RESONATOR_PROFILE);
@@ -227,85 +184,64 @@ public class GeologicalResonatorHandler implements IModuleEventHandler {
 
         boolean success = false;
 
-        try {
-            // 2. 对于 Astral Sorcery，临时启用 allowCrystalHarvest
-            if (isAstralSorceryOre && asAllowCrystalHarvestField != null) {
-                try {
-                    asAllowCrystalHarvestField.setBoolean(null, true);
-                } catch (Exception e) {
-                    System.err.println("[GeologicalResonator] 无法设置 AS allowCrystalHarvest: " + e.getMessage());
-                }
-            }
+        // 2. 记录提取前的附近物品实体
+        AxisAlignedBB collectBox = new AxisAlignedBB(pos).grow(2.0);
+        List<EntityItem> itemsBefore = world.getEntitiesWithinAABB(EntityItem.class, collectBox);
 
-            // 3. 记录提取前的附近物品实体
-            AxisAlignedBB collectBox = new AxisAlignedBB(pos).grow(2.0);
-            List<EntityItem> itemsBefore = world.getEntitiesWithinAABB(EntityItem.class, collectBox);
-            int itemCountBefore = itemsBefore.size();
+        // 3. 执行完整挖矿流程
+        // 使用 removedByPlayer -> harvestBlock 流程
+        boolean canHarvest = block.canHarvestBlock(world, pos, fakePlayer);
+        System.out.println("[GeologicalResonator] DEBUG: canHarvestBlock=" + canHarvest + " for " + registryName);
 
-            // 4. 执行完整挖矿流程
-            // 使用 removedByPlayer -> harvestBlock 流程
-            boolean canHarvest = block.canHarvestBlock(world, pos, fakePlayer);
-            System.out.println("[GeologicalResonator] DEBUG: canHarvestBlock=" + canHarvest + " for " + registryName);
+        if (canHarvest) {
+            // 调用 removedByPlayer（触发方块的 breakBlock 逻辑）
+            boolean removed = block.removedByPlayer(state, world, pos, fakePlayer, true);
 
-            if (canHarvest) {
-                // 调用 removedByPlayer（触发方块的 breakBlock 逻辑）
-                boolean removed = block.removedByPlayer(state, world, pos, fakePlayer, true);
+            if (removed) {
+                // 调用 harvestBlock（生成掉落物）
+                block.harvestBlock(world, fakePlayer, pos, state, world.getTileEntity(pos), pickaxe);
 
-                if (removed) {
-                    // 调用 harvestBlock（生成掉落物）
-                    block.harvestBlock(world, fakePlayer, pos, state, world.getTileEntity(pos), pickaxe);
-
-                    // 确保方块被移除
-                    if (world.getBlockState(pos).getBlock() != Blocks.AIR) {
-                        world.setBlockToAir(pos);
-                    }
-
-                    success = true;
-                }
-            } else {
-                // 无法正常采集，使用备用方案
-                NonNullList<ItemStack> drops = NonNullList.create();
-                block.getDrops(drops, world, pos, state, 0);
-
-                if (!drops.isEmpty()) {
+                // 确保方块被移除
+                if (world.getBlockState(pos).getBlock() != Blocks.AIR) {
                     world.setBlockToAir(pos);
-                    for (ItemStack drop : drops) {
-                        if (!drop.isEmpty()) {
-                            Block.spawnAsEntity(world, pos, drop);
-                        }
+                }
+
+                success = true;
+            }
+        } else {
+            // 无法正常采集，使用备用方案
+            NonNullList<ItemStack> drops = NonNullList.create();
+            block.getDrops(drops, world, pos, state, 0);
+
+            if (!drops.isEmpty()) {
+                world.setBlockToAir(pos);
+                for (ItemStack drop : drops) {
+                    if (!drop.isEmpty()) {
+                        Block.spawnAsEntity(world, pos, drop);
                     }
-                    success = true;
+                }
+                success = true;
+            }
+        }
+
+        // 4. 收集掉落物并传送到玩家位置
+        if (success) {
+            List<EntityItem> itemsAfter = world.getEntitiesWithinAABB(EntityItem.class, collectBox);
+
+            for (EntityItem entityItem : itemsAfter) {
+                // 只传送新生成的物品
+                if (!itemsBefore.contains(entityItem) && !entityItem.isDead) {
+                    // 传送物品到玩家位置
+                    entityItem.setPosition(realPlayer.posX, realPlayer.posY + 0.5, realPlayer.posZ);
+                    entityItem.motionX = 0;
+                    entityItem.motionY = 0.1;
+                    entityItem.motionZ = 0;
                 }
             }
 
-            // 5. 收集掉落物并传送到玩家位置
-            if (success) {
-                // 稍等一下让物品生成
-                List<EntityItem> itemsAfter = world.getEntitiesWithinAABB(EntityItem.class, collectBox);
-
-                for (EntityItem entityItem : itemsAfter) {
-                    // 只传送新生成的物品
-                    if (!itemsBefore.contains(entityItem) && !entityItem.isDead) {
-                        // 传送物品到玩家位置
-                        entityItem.setPosition(realPlayer.posX, realPlayer.posY + 0.5, realPlayer.posZ);
-                        entityItem.motionX = 0;
-                        entityItem.motionY = 0.1;
-                        entityItem.motionZ = 0;
-                    }
-                }
-
-                // 播放效果
-                playResonanceEffect(world, pos);
-                System.out.println("[GeologicalResonator] 成功提取: " + registryName + " @ " + pos);
-            }
-
-        } finally {
-            // 6. 恢复 Astral Sorcery 的 allowCrystalHarvest
-            if (isAstralSorceryOre && asAllowCrystalHarvestField != null) {
-                try {
-                    asAllowCrystalHarvestField.setBoolean(null, false);
-                } catch (Exception ignored) {}
-            }
+            // 播放效果
+            playResonanceEffect(world, pos);
+            System.out.println("[GeologicalResonator] 成功提取: " + registryName + " @ " + pos);
         }
 
         return success;
