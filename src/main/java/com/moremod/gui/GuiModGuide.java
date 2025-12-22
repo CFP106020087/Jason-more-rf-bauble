@@ -422,23 +422,25 @@ public class GuiModGuide extends GuiScreen {
         ));
 
         // ==================== 二階儀式祭壇 (9x9) ====================
-        // 裝飾方塊位置：距離核心3-4格
+        // 裝飾方塊位置（16個可選位置，需至少12個）：
+        // - 四方向距離4: (±4,0), (0,±4)
+        // - 四角距離3,3: (±3,±3)
+        // - 額外位置: (±4,±1), (±1,±4)
         StructureTemplate ritualTier2 = new StructureTemplate(9, 9)
                 .addKey('P', new ItemStack(moremod.RITUAL_PEDESTAL_BLOCK))  // 儀式基座
                 .addKey('C', new ItemStack(moremod.RITUAL_CORE_BLOCK))      // 儀式核心
-                .addKey('D', new ItemStack(Blocks.REDSTONE_LAMP))           // 裝飾方塊
-                .addKey('B', new ItemStack(Blocks.BOOKSHELF));              // 書架
+                .addKey('D', new ItemStack(Blocks.REDSTONE_LAMP));          // 裝飾方塊
 
         ritualTier2.addLayer(
-                "....P....",   // 北基座 (0,-4 mapped to col4)
-                ".D.....D.",   // 裝飾
-                "..P...P..",   // 西北、東北對角基座
-                ".........",
-                "P..C...P.",   // 西基座、核心、東基座 (偏移以適應9x9)
-                ".........",
-                "..P...P..",   // 西南、東南對角基座
-                ".D.....D.",   // 裝飾
-                "....P...."    // 南基座
+                "...DDD...",   // row0: 裝飾(0,-4),(-1,-4),(1,-4) at col3,4,5
+                ".D..P..D.",   // row1: 裝飾(-3,-3),(3,-3) at col1,7; 基座(0,-3) at col4
+                "..P...P..",   // row2: 基座(-2,-2),(2,-2) at col2,6
+                "D.......D",   // row3: 裝飾(-4,-1),(4,-1) at col0,8
+                "DP..C..PD",   // row4: 裝飾(-4,0),(4,0) at col0,8; 基座(-3,0),(3,0) at col1,7; 核心
+                "D.......D",   // row5: 裝飾(-4,1),(4,1) at col0,8
+                "..P...P..",   // row6: 基座(-2,2),(2,2) at col2,6
+                ".D..P..D.",   // row7: 裝飾(-3,3),(3,3) at col1,7; 基座(0,3) at col4
+                "...DDD..."    // row8: 裝飾(0,4),(-1,4),(1,4) at col3,4,5
         );
 
         currentPages.add(new GuidePageContent(
