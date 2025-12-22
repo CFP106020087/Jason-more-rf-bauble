@@ -1,5 +1,6 @@
 package com.moremod.printer;
 
+import baubles.api.BaublesApi;
 import com.moremod.client.gui.GuiHandler;
 import com.moremod.creativetab.moremodCreativeTab;
 import com.moremod.moremod;
@@ -12,6 +13,7 @@ import net.minecraft.block.state.BlockStateContainer;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.BlockRenderLayer;
 import net.minecraft.util.EnumBlockRenderType;
@@ -19,10 +21,13 @@ import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
+import net.minecraftforge.items.IItemHandler;
 
 import javax.annotation.Nullable;
 
@@ -52,12 +57,41 @@ public class BlockPrinter extends Block implements ITileEntityProvider {
     public boolean onBlockActivated(World world, BlockPos pos, IBlockState state, EntityPlayer player,
                                     EnumHand hand, EnumFacing facing, float hitX, float hitY, float hitZ) {
         if (!world.isRemote) {
+            // 检查玩家是否佩戴诅咒戒指
+            if (hasCursedRing(player)) {
+                player.sendMessage(new TextComponentString(
+                    TextFormatting.DARK_RED + "诅咒戒指的力量阻止你使用远古打印机..."
+                ));
+                return false;
+            }
+
             TileEntity te = world.getTileEntity(pos);
             if (te instanceof TileEntityPrinter) {
                 player.openGui(moremod.instance, GuiHandler.PRINTER_GUI, world, pos.getX(), pos.getY(), pos.getZ());
             }
         }
         return true;
+    }
+
+    /**
+     * 检查玩家是否佩戴诅咒戒指 (Enigmatic Legacy)
+     */
+    private boolean hasCursedRing(EntityPlayer player) {
+        try {
+            IItemHandler baubles = BaublesApi.getBaublesHandler(player);
+            if (baubles == null) return false;
+
+            for (int i = 0; i < baubles.getSlots(); i++) {
+                ItemStack bauble = baubles.getStackInSlot(i);
+                if (!bauble.isEmpty() && bauble.getItem().getRegistryName() != null &&
+                    bauble.getItem().getRegistryName().toString().equals("enigmaticlegacy:cursed_ring")) {
+                    return true;
+                }
+            }
+        } catch (Exception ignored) {
+            // Baubles API 不可用
+        }
+        return false;
     }
 
     @Override
