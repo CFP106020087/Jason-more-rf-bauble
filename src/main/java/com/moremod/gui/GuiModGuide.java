@@ -373,13 +373,23 @@ public class GuiModGuide extends GuiScreen {
                 quarryStruct
         ));
 
-        // ==================== 一階儀式祭壇 (5x5) ====================
-        StructureTemplate ritualTier1 = new StructureTemplate(5, 5)
+        // ==================== 一階儀式祭壇 (7x7) ====================
+        // 實際基座位置：
+        // 四方向距離3格: (±3,0), (0,±3)
+        // 對角距離2格: (±2,±2)
+        StructureTemplate ritualTier1 = new StructureTemplate(7, 7)
                 .addKey('P', new ItemStack(moremod.RITUAL_PEDESTAL_BLOCK))  // 儀式基座
                 .addKey('C', new ItemStack(moremod.RITUAL_CORE_BLOCK));     // 儀式核心
 
-        // 一階：核心 + 8基座（對角線排列，距離2格）
-        ritualTier1.addLayer("P...P", ".P.P.", "..C..", ".P.P.", "P...P");  // 俯視圖
+        ritualTier1.addLayer(
+                "...P...",   // 北 (0,-3)
+                ".P...P.",   // 西北(-2,-2)、東北(2,-2)
+                ".......",
+                "P..C..P",   // 西(-3,0)、核心、東(3,0)
+                ".......",
+                ".P...P.",   // 西南(-2,2)、東南(2,2)
+                "...P..."    // 南 (0,3)
+        );
 
         currentPages.add(new GuidePageContent(
                 "一階祭壇 (基礎)",
@@ -387,20 +397,24 @@ public class GuiModGuide extends GuiScreen {
                         "§e基礎儀式祭壇§r",
                         "",
                         "§6結構說明：§r",
-                        "核心周圍放置",
-                        "8個基座方塊",
-                        "距離核心2格對角",
+                        "核心周圍放置8個基座",
                         "",
-                        "§6材料：§r",
-                        "- 儀式核心 x1",
-                        "- 基座 x8"
+                        "§a四方向基座(4個)：§r",
+                        "距離核心3格",
+                        "(東西南北各1個)",
+                        "",
+                        "§a對角基座(4個)：§r",
+                        "距離核心2格對角"
                 },
                 new String[]{
+                        "§6材料：§r",
+                        "- 儀式核心 x1",
+                        "- 基座 x8",
+                        "",
                         "§a可執行：§r",
                         "基礎注魔配方",
                         "",
-                        "§6加成：§r",
-                        "無額外加成",
+                        "§6加成：§r 無",
                         "",
                         "§7(滑鼠懸停查看方塊)§r"
                 },
@@ -408,23 +422,23 @@ public class GuiModGuide extends GuiScreen {
         ));
 
         // ==================== 二階儀式祭壇 (9x9) ====================
+        // 裝飾方塊位置：距離核心3-4格
         StructureTemplate ritualTier2 = new StructureTemplate(9, 9)
                 .addKey('P', new ItemStack(moremod.RITUAL_PEDESTAL_BLOCK))  // 儀式基座
                 .addKey('C', new ItemStack(moremod.RITUAL_CORE_BLOCK))      // 儀式核心
                 .addKey('D', new ItemStack(Blocks.REDSTONE_LAMP))           // 裝飾方塊
                 .addKey('B', new ItemStack(Blocks.BOOKSHELF));              // 書架
 
-        // 二階：一階 + 外圍裝飾（距離3-4格）
         ritualTier2.addLayer(
-                "....D....",
-                "...D.D...",
-                "..P...P..",
-                ".D.P.P.D.",
-                "D...C...D",
-                ".D.P.P.D.",
-                "..P...P..",
-                "...D.D...",
-                "....D...."
+                "....P....",   // 北基座 (0,-4 mapped to col4)
+                ".D.....D.",   // 裝飾
+                "..P...P..",   // 西北、東北對角基座
+                ".........",
+                "P..C...P.",   // 西基座、核心、東基座 (偏移以適應9x9)
+                ".........",
+                "..P...P..",   // 西南、東南對角基座
+                ".D.....D.",   // 裝飾
+                "....P...."    // 南基座
         );
 
         currentPages.add(new GuidePageContent(
@@ -434,7 +448,7 @@ public class GuiModGuide extends GuiScreen {
                         "",
                         "§6結構說明：§r",
                         "一階基礎 +",
-                        "外圍12個裝飾方塊",
+                        "外圍12+個裝飾方塊",
                         "(距離核心3-4格)",
                         "",
                         "§6裝飾選項：§r",
