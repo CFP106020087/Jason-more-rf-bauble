@@ -626,6 +626,10 @@ public class moremod {
         RuleChecker.initialize();
         GemSystemInit.init(event);
 
+        // 初始化转移符文默认配置
+        com.moremod.compat.crafttweaker.TransferRuneManager.loadDefaultRunes();
+        System.out.println("[moremod] ✅ 转移符文系统初始化完成");
+
         // 初始化特殊仪式系统
         com.moremod.ritual.special.SpecialRitualInit.init();
         System.out.println("[moremod] ✅ 特殊仪式系统初始化完成");
