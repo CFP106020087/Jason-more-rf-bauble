@@ -400,15 +400,18 @@ public class BrokenGodHandler {
                 TextFormatting.DARK_RED + "你的身体被重组为破碎机械的圣像。"
         ));
 
+        // ⚠️ 重要：在替换饰品之前先应用 HP 锁定
+        // 这样可以避免 ItemBrokenHeart 和 HumanityEffectsManager 同时应用修改器
+        HumanityEffectsManager.updateMaxHP(player);
+
         // 替换饰品
         BrokenGodItems.replacePlayerBaubles(player);
 
-        // ⚠️ 重要：确保升格后血量合理（修复血量降至0的问题）
-        // ItemBrokenHeart 会把最大HP压缩到10，这里确保当前血量也是10
-        float targetHP = 10.0f; // 与 ItemBrokenHeart.TARGET_MAX_HP 一致
-        if (player.getHealth() < targetHP) {
-            player.setHealth(targetHP);
-        }
+        // ⚠️ 确保升格后血量合理
+        // HumanityEffectsManager 已经把最大HP压缩到10，确保当前血量也是10
+        float targetHP = 10.0f;
+        // 无条件设置血量为目标值（防止血量为0或其他异常值）
+        player.setHealth(targetHP);
         // First Aid 兼容：恢复所有身体部位到满血
         healFirstAidFull(player);
 

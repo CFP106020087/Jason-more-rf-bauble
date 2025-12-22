@@ -3,6 +3,7 @@ package com.moremod.item.broken;
 import baubles.api.BaubleType;
 import com.moremod.config.BrokenGodConfig;
 import com.moremod.creativetab.moremodCreativeTab;
+import com.moremod.system.ascension.BrokenGodHandler;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.SharedMonsterAttributes;
@@ -98,12 +99,29 @@ public class ItemBrokenHeart extends ItemBrokenBaubleBase {
     /**
      * 强制应用生命值压缩（每tick检查）
      * 使用更激进的方式确保max HP始终为目标值
+     *
+     * 注意：如果玩家是破碎之神，HP压缩由 HumanityEffectsManager 处理，
+     * 避免两个系统同时应用修改器导致 max HP 变为 0
      */
     private void enforceHPCompression(EntityPlayer player) {
         IAttributeInstance maxHealthAttr = player.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH);
         if (maxHealthAttr == null) return;
 
-        // 获取当前实际最大生命值（包含所有修改器）
+        // ⚠️ 如果玩家是破碎之神，HP压缩由 HumanityEffectsManager 处理
+        // 这里只移除本物品的修改器，避免重复应用导致 max HP = 0
+        if (BrokenGodHandler.isBrokenGod(player)) {
+            AttributeModifier existing = maxHealthAttr.getModifier(HP_COMPRESS_UUID);
+            if (existing != null) {
+                maxHealthAttr.removeModifier(existing);
+            }
+            // 确保血量不超过目标值
+            if (player.getHealth() > TARGET_MAX_HP) {
+                player.setHealth((float) TARGET_MAX_HP);
+            }
+            return;
+        }
+
+        // 非破碎之神：正常应用HP压缩（用于测试或其他情况）
         double currentMaxHP = maxHealthAttr.getAttributeValue();
 
         // 如果当前最大HP不等于目标值，重新计算修改器
