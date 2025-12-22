@@ -168,7 +168,6 @@ public final class ModItems {
     // 🖨️ 打印系統物品
     public static Item PRINT_TEMPLATE;       // 打印模版 (已定义)
     public static Item BLANK_PRINT_TEMPLATE; // 空白打印模版 (未定义，需CRT配置)
-    public static Item CUSTOM_PRINT_TEMPLATE; // 自定义打印模版 (NBT存储配方)
 
     // ===== 字段声明 =====
 // ⭐ 星芒镐（AS 兼容）
@@ -366,10 +365,6 @@ public final class ModItems {
         BLANK_PRINT_TEMPLATE = reg(e, new ItemBlankPrintTemplate());
         System.out.println("[MoreMod] 🖨️ 空白打印模版已註冊 (需CRT定義配方)");
 
-        // 🖨️ 註冊自定义打印模版
-        CUSTOM_PRINT_TEMPLATE = reg(e, new com.moremod.printer.ItemCustomPrintTemplate());
-        System.out.println("[MoreMod] 🖨️ 自定义打印模版已註冊 (NBT存储配方)");
-
         //新模块系统
     }
 
@@ -553,10 +548,6 @@ public final class ModItems {
         // 🖨️ 綁定空白打印模版模型
         bindModel(BLANK_PRINT_TEMPLATE, "blank_print_template");
         System.out.println("[MoreMod] 🖨️ 空白打印模版模型已註冊");
-
-        // 🖨️ 綁定自定义打印模版模型
-        bindModel(CUSTOM_PRINT_TEMPLATE, "custom_print_template");
-        System.out.println("[MoreMod] 🖨️ 自定义打印模版模型已註冊");
     }
 
     @SideOnly(Side.CLIENT)
