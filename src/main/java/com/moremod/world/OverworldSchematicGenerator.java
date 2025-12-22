@@ -34,7 +34,7 @@ import java.util.Random;
 public class OverworldSchematicGenerator implements IWorldGenerator {
 
     // 生成配置
-    private static final int SPAWN_CHANCE = 800;  // 1/800 区块概率
+    private static final int SPAWN_CHANCE = 3000;  // 1/3000 区块概率 (降低生成率)
     private static final int MIN_DISTANCE_FROM_SPAWN = 300;
     private static final int MIN_Y = 60;
 
