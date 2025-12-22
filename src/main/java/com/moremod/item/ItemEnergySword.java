@@ -43,7 +43,13 @@ public class ItemEnergySword extends ItemSword {
     public static final int MAX_HITS = 200;
     public static final int NO_IMMUNITY_DURATION = 100;
 
-    private static final Map<UUID, Integer> noImmunityTargets = new HashMap<>();
+    // 优化：使用 (dimensionId, entityId) 替代 UUID，支持 O(1) 查找
+    private static final Map<Long, Integer> noImmunityTargets = new HashMap<>();
+
+    // 生成唯一键：高32位=dimensionId，低32位=entityId
+    private static long makeKey(int dimId, int entityId) {
+        return ((long) dimId << 32) | (entityId & 0xFFFFFFFFL);
+    }
 
     public static final ToolMaterial ENERGY_MATERIAL = net.minecraftforge.common.util.EnumHelper.addToolMaterial(
             "ENERGY_SWORD", 6, 2048, 5.0F, 15.0F, 22
@@ -95,7 +101,8 @@ public class ItemEnergySword extends ItemSword {
             if (powered) {
                 // 无敌帧无视：允许快速连击
                 target.hurtResistantTime = 0;
-                noImmunityTargets.put(target.getUniqueID(), NO_IMMUNITY_DURATION);
+                long key = makeKey(target.world.provider.getDimension(), target.getEntityId());
+                noImmunityTargets.put(key, NO_IMMUNITY_DURATION);
             }
 
             // 出鞘状态：额外穿甲伤害
@@ -130,17 +137,25 @@ public class ItemEnergySword extends ItemSword {
         // ⭐ 关键修复：使用 START 阶段，确保在数据包处理之前清除i-frame
         // 这样当客户端的自动攻击包到达时，目标的hurtResistantTime已经被清零
         if (event.phase != TickEvent.Phase.START || event.world.isRemote) return;
-        Iterator<Map.Entry<UUID, Integer>> it = noImmunityTargets.entrySet().iterator();
+        if (noImmunityTargets.isEmpty()) return; // 快速退出
+
+        int dimId = event.world.provider.getDimension();
+        Iterator<Map.Entry<Long, Integer>> it = noImmunityTargets.entrySet().iterator();
         while (it.hasNext()) {
-            Map.Entry<UUID, Integer> e = it.next();
-            UUID id = e.getKey();
-            int remain = e.getValue();
-            for (Entity en : event.world.loadedEntityList) {
-                if (en instanceof EntityLivingBase && en.getUniqueID().equals(id)) {
+            Map.Entry<Long, Integer> e = it.next();
+            long key = e.getKey();
+            int keyDimId = (int) (key >> 32);
+
+            // 只处理当前维度的实体
+            if (keyDimId == dimId) {
+                int entityId = (int) key;
+                Entity en = event.world.getEntityByID(entityId); // O(1) 查找
+                if (en instanceof EntityLivingBase) {
                     ((EntityLivingBase) en).hurtResistantTime = 0;
-                    break;
                 }
             }
+
+            int remain = e.getValue();
             if (remain <= 1) it.remove();
             else e.setValue(remain - 1);
         }
