@@ -138,19 +138,8 @@ public class TransferRuneManager {
 
         System.out.println("[TransferRunes] 加载默认符文配置...");
 
-        // 基础级符文 - 100% 成功率
-        addRune(new ItemStack(Items.ENDER_PEARL), 1.0f, 3);
-        addRune(new ItemStack(Items.BLAZE_POWDER), 1.0f, 3);
-        addRune(new ItemStack(Items.EMERALD), 1.0f, 3);
-
-        // 进阶级符文 - 95% 成功率
-        addRune(new ItemStack(Items.ENDER_EYE), 0.95f, 5);
-        addRune(new ItemStack(Items.GHAST_TEAR), 0.95f, 5);
-        addRune(new ItemStack(Items.GOLDEN_APPLE), 0.95f, 5);
-
-        // 大师级符文 - 90% 成功率
-        addRune(new ItemStack(Items.NETHER_STAR), 0.90f, 10);
-        addRune(new ItemStack(Items.DRAGON_BREATH), 0.90f, 10);
+        // 默认符文：龙息 - 100% 成功率，1级经验
+        addRune(new ItemStack(Items.DRAGON_BREATH), 1.0f, 1);
 
         System.out.println("[TransferRunes] 默认符文配置加载完成，共 " + runeRegistry.size() + " 种符文");
     }
