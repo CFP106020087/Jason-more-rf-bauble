@@ -11,7 +11,7 @@ import net.minecraft.world.World;
  *
  * 一阶：基础8基座结构
  * 二阶：8基座 + 外围装饰方块（红石灯/书架等）
- * 三阶：8基座 + 石英地板 + 外侧柱子与房梁
+ * 三阶：8基座 + 石英地板 + 外侧7格高柱子与房梁
  */
 public enum AltarTier {
 
@@ -102,7 +102,7 @@ public enum AltarTier {
      *
      * 结构要求：
      * - 地板：7x7石英块/平滑石英块
-     * - 四角柱子：高度3-4格的石英柱
+     * - 四角柱子：高度7格的石英柱
      * - 房梁：连接柱子顶部的石英台阶/石英块
      */
     private static boolean checkTier3Structure(World world, BlockPos corePos) {
@@ -137,7 +137,7 @@ public enum AltarTier {
 
         int validPillars = 0;
         for (BlockPos base : pillarBases) {
-            if (checkPillar(world, base, 3)) { // 至少3格高
+            if (checkPillar(world, base, 7)) { // 至少7格高
                 validPillars++;
             }
         }
@@ -185,7 +185,7 @@ public enum AltarTier {
      */
     private static boolean checkPillar(World world, BlockPos base, int minHeight) {
         int height = 0;
-        for (int y = 0; y < 6; y++) { // 最多检测6格高
+        for (int y = 0; y < 10; y++) { // 最多检测10格高
             BlockPos checkPos = base.add(0, y, 0);
             IBlockState state = world.getBlockState(checkPos);
             Block block = state.getBlock();
