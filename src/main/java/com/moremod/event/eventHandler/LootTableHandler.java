@@ -255,10 +255,11 @@ public class LootTableHandler {
             ));
         }
 
+        // 归一心原石（权重3，三倍概率）
         if (TEMPORAL_HEART != null) {
             pool.addEntry(new LootEntryItem(
                     TEMPORAL_HEART,
-                    1,
+                    3,  // 3倍权重
                     1,
                     new LootFunction[0],
                     new LootCondition[0],
@@ -285,8 +286,7 @@ public class LootTableHandler {
     }
 
     /**
-     * 注入七咒圣物 + 归一心原石
-     * 归一心原石权重为其他圣物的3倍
+     * 注入七件仪式圣物
      */
     private static void injectSacredRelics(LootTableLoadEvent event, float chance) {
         String poolName = "moremod_sacred_relics";
@@ -306,7 +306,7 @@ public class LootTableHandler {
                 poolName
         );
 
-        // 七件仪式圣物（权重1）
+        // 七件仪式圣物（等权重）
         addRelicEntry(pool, SACRED_HEART, 1, "sacred_heart");
         addRelicEntry(pool, PEACE_EMBLEM, 1, "peace_emblem");
         addRelicEntry(pool, GUARDIAN_SCALE, 1, "guardian_scale");
@@ -314,9 +314,6 @@ public class LootTableHandler {
         addRelicEntry(pool, FROST_DEW, 1, "frost_dew");
         addRelicEntry(pool, SOUL_ANCHOR, 1, "soul_anchor");
         addRelicEntry(pool, SLUMBER_SACHET, 1, "slumber_sachet");
-
-        // 归一心原石（权重3，三倍概率）
-        addRelicEntry(pool, TEMPORAL_HEART, 3, "temporal_heart");
 
         event.getTable().addPool(pool);
 
