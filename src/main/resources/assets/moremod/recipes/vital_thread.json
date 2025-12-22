@@ -1,19 +1,19 @@
 {
   "type": "minecraft:crafting_shaped",
   "pattern": [
-    "SAS",
+    "GAG",
     "AHA",
-    "SAS"
+    "GAG"
   ],
   "key": {
-    "S": {
-      "item": "minecraft:string"
+    "G": {
+      "item": "minecraft:golden_carrot"
     },
     "A": {
       "item": "minecraft:golden_apple"
     },
     "H": {
-      "item": "minecraft:hay_block"
+      "item": "minecraft:speckled_melon"
     }
   },
   "result": {
