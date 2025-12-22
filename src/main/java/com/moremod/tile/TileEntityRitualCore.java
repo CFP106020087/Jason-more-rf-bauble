@@ -422,6 +422,45 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         return true;
     }
 
+    /**
+     * 特殊仪式（Legacy Ritual）的能量消耗检查与扣除
+     *
+     * @param ritualId 仪式ID（用于从 LegacyRitualConfig 获取能量配置）
+     * @param pedestalCount 参与仪式的基座数量
+     * @param duration 仪式总持续时间（tick）
+     * @param simulate 是否为模拟检查（true=只检查不扣除）
+     * @return true 如果能量足够（或已成功扣除）
+     */
+    private boolean checkAndConsumeEnergyForLegacyRitual(String ritualId, int pedestalCount, int duration, boolean simulate) {
+        List<TileEntityPedestal> peds = findValidPedestals();
+        if (peds.isEmpty()) return false;
+
+        // 从配置获取每基座能量消耗
+        int totalEnergy = LegacyRitualConfig.getEnergyPerPedestal(ritualId) * pedestalCount;
+        if (totalEnergy <= 0) return true; // 不需要能量
+
+        // 计算每tick消耗
+        int energyPerTick = Math.max(1, totalEnergy / Math.max(1, duration));
+
+        // 平均分配到各基座
+        int perPedestal = Math.max(1, energyPerTick / Math.max(1, peds.size()));
+
+        // 检查每个基座是否有足够能量
+        for (TileEntityPedestal ped : peds) {
+            if (ped.getEnergy().extractEnergy(perPedestal, true) < perPedestal) {
+                return false;
+            }
+        }
+
+        // 实际扣除
+        if (!simulate) {
+            for (TileEntityPedestal ped : peds) {
+                ped.getEnergy().extractEnergy(perPedestal, false);
+            }
+        }
+        return true;
+    }
+
     private void finishRitual(List<TileEntityPedestal> peds) {
         // 先保存配方引用，因为后续操作可能触发reset()
         RitualInfusionRecipe recipe = activeRecipe;
@@ -1099,6 +1138,15 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             System.out.println("[EnchantInfusion] Recorded initial energy: " + initialTotalEnergy);
         }
 
+        // 能量消耗检查（基于附魔书数量）
+        int enchantPedestalCount = bookPedestals.size();
+        if (!checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.ENCHANT_INFUSION, enchantPedestalCount, getEnchantInfusionTime(), true)) {
+            // 能量不足，暂停进度
+            return true;
+        }
+        // 实际消耗能量
+        checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.ENCHANT_INFUSION, enchantPedestalCount, getEnchantInfusionTime(), false);
+
         enchantInfusionProgress++;
 
         // 进度效果
@@ -1505,6 +1553,14 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             }
             System.out.println("[Duplication] Recorded initial energy: " + initialTotalEnergy);
         }
+
+        // 能量消耗检查（8个虚空精华基座）
+        if (!checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.DUPLICATION, 8, getDuplicationTime(), true)) {
+            // 能量不足，暂停进度
+            return true;
+        }
+        // 实际消耗能量
+        checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.DUPLICATION, 8, getDuplicationTime(), false);
 
         duplicationProgress++;
 
@@ -1957,6 +2013,14 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             System.out.println("[SoulBinding] Recorded initial energy: " + initialTotalEnergy);
         }
 
+        // 能量消耗检查（4个灵魂材料基座）
+        if (!checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.SOUL_BINDING, 4, getSoulBindingTime(), true)) {
+            // 能量不足，暂停进度
+            return true;
+        }
+        // 实际消耗能量
+        checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.SOUL_BINDING, 4, getSoulBindingTime(), false);
+
         soulBindingProgress++;
 
         // 进度效果
@@ -2366,6 +2430,14 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             }
         }
 
+        // 能量消耗检查（4个基座参与）
+        if (!checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.CURSE_PURIFICATION, 4, getCursePurificationTime(), true)) {
+            // 能量不足，暂停进度
+            return true;
+        }
+        // 实际消耗能量
+        checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.CURSE_PURIFICATION, 4, getCursePurificationTime(), false);
+
         cursePurificationProgress++;
 
         if (cursePurificationProgress % 20 == 0) {
@@ -2506,6 +2578,14 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
                 initialTotalEnergy += ped.getEnergy().getEnergyStored();
             }
         }
+
+        // 能量消耗检查（4个基座参与）
+        if (!checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.ENCHANT_TRANSFER, 4, getEnchantTransferTime(), true)) {
+            // 能量不足，暂停进度
+            return true;
+        }
+        // 实际消耗能量
+        checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.ENCHANT_TRANSFER, 4, getEnchantTransferTime(), false);
 
         enchantTransferProgress++;
 
@@ -2675,6 +2755,14 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             }
         }
 
+        // 能量消耗检查（4个基座参与）
+        if (!checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.CURSE_CREATION, 4, getCurseCreationTime(), true)) {
+            // 能量不足，暂停进度
+            return true;
+        }
+        // 实际消耗能量
+        checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.CURSE_CREATION, 4, getCurseCreationTime(), false);
+
         curseCreationProgress++;
 
         if (curseCreationProgress % 20 == 0) {
@@ -2828,6 +2916,14 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             }
         }
 
+        // 能量消耗检查（4个基座参与）
+        if (!checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.WEAPON_EXP_BOOST, 4, getWeaponExpBoostTime(), true)) {
+            // 能量不足，暂停进度
+            return true;
+        }
+        // 实际消耗能量
+        checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.WEAPON_EXP_BOOST, 4, getWeaponExpBoostTime(), false);
+
         weaponExpBoostProgress++;
 
         if (weaponExpBoostProgress % 20 == 0) {
@@ -2979,6 +3075,14 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
                 initialTotalEnergy += ped.getEnergy().getEnergyStored();
             }
         }
+
+        // 能量消耗检查（4个基座参与）
+        if (!checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.MURAMASA_BOOST, 4, getMuramasaBoostTime(), true)) {
+            // 能量不足，暂停进度
+            return true;
+        }
+        // 实际消耗能量
+        checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.MURAMASA_BOOST, 4, getMuramasaBoostTime(), false);
 
         muramasaBoostProgress++;
 
@@ -3257,6 +3361,14 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
                 "預期加成: " + bonusInfo, TextFormatting.AQUA);
         }
 
+        // 能量消耗检查（4个基座参与）
+        if (!checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.FABRIC_ENHANCE, 4, getFabricEnhanceTime(), true)) {
+            // 能量不足，暂停进度
+            return true;
+        }
+        // 实际消耗能量
+        checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.FABRIC_ENHANCE, 4, getFabricEnhanceTime(), false);
+
         fabricEnhanceProgress++;
 
         if (fabricEnhanceProgress % 20 == 0) {
@@ -3431,7 +3543,17 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             }
         }
 
+        // 能量消耗检查（8个基座参与）
+        if (!checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.UNBREAKABLE, 8, getUnbreakableTime(), true)) {
+            // 能量不足，暂停进度
+            updateState(true, false);
+            return true;
+        }
+        // 实际消耗能量
+        checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.UNBREAKABLE, 8, getUnbreakableTime(), false);
+
         unbreakableProgress++;
+        updateState(true, true);
 
         // 进度效果
         if (unbreakableProgress % 20 == 0) {
@@ -3804,7 +3926,15 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             }
         }
 
+        // 能量消耗检查（8个基座参与）
+        if (!checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.SOULBOUND, 8, getSoulboundTime(), true)) {
+            updateState(true, false);
+            return true;
+        }
+        checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.SOULBOUND, 8, getSoulboundTime(), false);
+
         soulboundProgress++;
+        updateState(true, true);
 
         // 进度效果
         if (soulboundProgress % 20 == 0) {
