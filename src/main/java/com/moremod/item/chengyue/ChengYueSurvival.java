@@ -30,14 +30,14 @@ public class ChengYueSurvival {
     private static final String KEY_AEGIS_DURATION_END = "AegisEndTime";
     private static final String KEY_AEGIS_DAMAGE_TYPE = "AegisDamageType";
     private static final String KEY_AEGIS_LAST_USE = "AegisLastUse";
+
+    // 月之庇护参数（平衡版）
+    private static final long AEGIS_DURATION_TICKS = 4800L;  // 4分钟
+    private static final long AEGIS_COOLDOWN_TICKS = 9600L;  // 8分钟
+    private static final float AEGIS_REDUCTION = 0.60f;      // 60%减伤
+    private static final float AEGIS_MEMORY_REDUCTION = 0.70f; // 记忆类型减伤 70%
     
-    // 月之庇护参数（强化版）
-    private static final long AEGIS_DURATION_TICKS = 7200L; // 6分钟（原5分钟）
-    private static final long AEGIS_COOLDOWN_TICKS = 4800L; // 4分钟（原5分钟）
-    private static final float AEGIS_REDUCTION = 0.85f; // 85%减伤（原80%）
-    private static final float AEGIS_MEMORY_REDUCTION = 0.92f; // 记忆类型减伤 92%（原80%）
-    
-    // ==================== 月之庇护（强化版）====================
+    // ==================== 月之庇护（平衡版）====================
     
     /**
      * 尝试激活月之庇护
@@ -86,7 +86,7 @@ public class ChengYueSurvival {
             player.sendMessage(new TextComponentString(
                 TextFormatting.AQUA + "【月之庇护】" +
                 TextFormatting.GOLD + " 激活！" +
-                TextFormatting.GRAY + " (持续6分钟)"
+                TextFormatting.GRAY + " (持续4分钟)"
             ));
             
             player.sendMessage(new TextComponentString(
@@ -571,11 +571,11 @@ public class ChengYueSurvival {
         
         // 月之庇护
         long currentTime = world.getTotalWorldTime();
-        
+
         sb.append("\n§b【月之庇护】\n");
         sb.append(String.format("§7减伤: §f%.0f%% §7(记忆类型: §6%.0f%%§7)\n", AEGIS_REDUCTION * 100, AEGIS_MEMORY_REDUCTION * 100));
-        sb.append("§7持续: §f6分钟\n");
-        sb.append("§7冷却: §f4分钟\n");
+        sb.append("§7持续: §f4分钟\n");
+        sb.append("§7冷却: §f8分钟\n");
         
         if (isAegisActive(stack, currentTime)) {
             int remaining = getAegisRemainingTime(stack, world);
