@@ -373,35 +373,176 @@ public class GuiModGuide extends GuiScreen {
                 quarryStruct
         ));
 
-        // ==================== 儀式祭壇 (5x5x2) ====================
-        StructureTemplate ritualStruct = new StructureTemplate(5, 5)
+        // ==================== 一階儀式祭壇 (5x5) ====================
+        StructureTemplate ritualTier1 = new StructureTemplate(5, 5)
                 .addKey('P', new ItemStack(moremod.RITUAL_PEDESTAL_BLOCK))  // 儀式基座
                 .addKey('C', new ItemStack(moremod.RITUAL_CORE_BLOCK));     // 儀式核心
 
-        ritualStruct.addLayer(".P.P.", "P...P", "..C..", "P...P", ".P.P.");  // 第0層 - 核心 + 8基座
-        ritualStruct.addLayer(".P.P.", "P...P", ".....", "P...P", ".P.P.");  // 第1層 - 8基座
+        // 一階：核心 + 8基座（對角線排列，距離2格）
+        ritualTier1.addLayer("P...P", ".P.P.", "..C..", ".P.P.", "P...P");  // 俯視圖
 
         currentPages.add(new GuidePageContent(
-                "儀式祭壇結構",
+                "一階祭壇 (基礎)",
                 new String[]{
-                        "§e儀式進行設施§r",
+                        "§e基礎儀式祭壇§r",
                         "",
                         "§6結構說明：§r",
                         "核心周圍放置",
                         "8個基座方塊",
-                        "呈對角線排列",
+                        "距離核心2格對角",
                         "",
                         "§6材料：§r",
                         "- 儀式核心 x1",
-                        "- 基座 x8",
-                        "",
-                        "§a功能：§r",
-                        "詳見儀式系統分類"
+                        "- 基座 x8"
                 },
                 new String[]{
+                        "§a可執行：§r",
+                        "基礎注魔配方",
+                        "",
+                        "§6加成：§r",
+                        "無額外加成",
+                        "",
                         "§7(滑鼠懸停查看方塊)§r"
                 },
-                ritualStruct
+                ritualTier1
+        ));
+
+        // ==================== 二階儀式祭壇 (9x9) ====================
+        StructureTemplate ritualTier2 = new StructureTemplate(9, 9)
+                .addKey('P', new ItemStack(moremod.RITUAL_PEDESTAL_BLOCK))  // 儀式基座
+                .addKey('C', new ItemStack(moremod.RITUAL_CORE_BLOCK))      // 儀式核心
+                .addKey('D', new ItemStack(Blocks.REDSTONE_LAMP))           // 裝飾方塊
+                .addKey('B', new ItemStack(Blocks.BOOKSHELF));              // 書架
+
+        // 二階：一階 + 外圍裝飾（距離3-4格）
+        ritualTier2.addLayer(
+                "....D....",
+                "...D.D...",
+                "..P...P..",
+                ".D.P.P.D.",
+                "D...C...D",
+                ".D.P.P.D.",
+                "..P...P..",
+                "...D.D...",
+                "....D...."
+        );
+
+        currentPages.add(new GuidePageContent(
+                "二階祭壇 (進階)",
+                new String[]{
+                        "§e進階儀式祭壇§r",
+                        "",
+                        "§6結構說明：§r",
+                        "一階基礎 +",
+                        "外圍12個裝飾方塊",
+                        "(距離核心3-4格)",
+                        "",
+                        "§6裝飾選項：§r",
+                        "紅石燈/書架/石磚",
+                        "海晶燈/螢光石等"
+                },
+                new String[]{
+                        "§a可執行：§r",
+                        "詛咒淨化、經驗加速",
+                        "",
+                        "§6加成：§r",
+                        "成功率 +10%",
+                        "翻倍幾率 5%",
+                        "",
+                        "§7(滑鼠懸停查看方塊)§r"
+                },
+                ritualTier2
+        ));
+
+        // ==================== 三階儀式祭壇 - 地板層 (9x9) ====================
+        StructureTemplate ritualTier3Floor = new StructureTemplate(9, 9)
+                .addKey('Q', new ItemStack(Blocks.QUARTZ_BLOCK))            // 石英地板
+                .addKey('L', new ItemStack(Blocks.PURPUR_PILLAR));          // 柱子底座
+
+        // 三階地板層：5x5石英 + 四角柱子起點
+        ritualTier3Floor.addLayer(
+                "L.......L",
+                ".........",
+                "..QQQQQ..",
+                "..QQQQQ..",
+                "..QQQQQ..",
+                "..QQQQQ..",
+                "..QQQQQ..",
+                ".........",
+                "L.......L"
+        );
+
+        currentPages.add(new GuidePageContent(
+                "三階祭壇 (地板層)",
+                new String[]{
+                        "§e大師祭壇 - 地板§r",
+                        "",
+                        "§6地板要求：§r",
+                        "核心下方鋪設",
+                        "5x5石英塊地板",
+                        "(至少20塊)",
+                        "",
+                        "§6四角柱子：§r",
+                        "距離核心對角4格",
+                        "放置柱子起點"
+                },
+                new String[]{
+                        "§a地板材料：§r",
+                        "石英塊/紫珀塊",
+                        "末地磚/石英台階",
+                        "",
+                        "§6柱子材料：§r",
+                        "石英塊/紫珀柱",
+                        "末地磚/石磚/地獄磚",
+                        "",
+                        "§7(滑鼠懸停查看方塊)§r"
+                },
+                ritualTier3Floor
+        ));
+
+        // ==================== 三階儀式祭壇 - 柱子側視 ====================
+        StructureTemplate ritualTier3Pillar = new StructureTemplate(3, 7)
+                .addKey('Q', new ItemStack(Blocks.QUARTZ_BLOCK))            // 石英柱
+                .addKey('T', new ItemStack(Blocks.QUARTZ_BLOCK));           // 柱頂
+
+        // 三階柱子側視圖（7格高）
+        ritualTier3Pillar.addLayer("...", "...", "..T");  // 第7層 - 頂部
+        ritualTier3Pillar.addLayer("...", "...", "..Q");  // 第6層
+        ritualTier3Pillar.addLayer("...", "...", "..Q");  // 第5層
+        ritualTier3Pillar.addLayer("...", "...", "..Q");  // 第4層
+        ritualTier3Pillar.addLayer("...", "...", "..Q");  // 第3層
+        ritualTier3Pillar.addLayer("...", "...", "..Q");  // 第2層
+        ritualTier3Pillar.addLayer("...", "...", "..Q");  // 第1層 - 底部
+
+        currentPages.add(new GuidePageContent(
+                "三階祭壇 (柱子)",
+                new String[]{
+                        "§e大師祭壇 - 柱子§r",
+                        "",
+                        "§c柱子高度：7格§r",
+                        "",
+                        "§6側視圖說明：§r",
+                        "右側顯示一根柱子",
+                        "從底部向上7格",
+                        "",
+                        "§6四根柱子位置：§r",
+                        "核心對角4格處",
+                        "(+4,+4) (+4,-4)",
+                        "(-4,+4) (-4,-4)"
+                },
+                new String[]{
+                        "§a三階加成：§r",
+                        "成功率 +25%",
+                        "翻倍幾率 15%",
+                        "",
+                        "§6可執行：§r",
+                        "附魔轉移/詛咒創造",
+                        "織印強化/七咒嵌入",
+                        "不可破壞/靈魂束縛",
+                        "",
+                        "§7需至少3根有效柱子"
+                },
+                ritualTier3Pillar
         ));
     }
 
