@@ -44,8 +44,8 @@ public class LootTableHandler {
         if (name.contains("chest") &&
                 !name.contains("player") &&
                 !name.contains("entities/")) {
-            injectRareBaubles(event, 0.001f);        // 0.1% 概率的稀有饰品
-            injectSacredRelics(event, 0.005f);       // 0.5% 概率的七咒圣物
+            injectRareBaubles(event, 0.001f);        // 0.1% 概率的稀有饰品（含归一心原石）
+            injectSacredRelics(event, 0.003f);       // 0.3% 概率的七咒圣物（3倍于稀有饰品）
         }
 
         // === 原版战利品表 ===
@@ -255,11 +255,11 @@ public class LootTableHandler {
             ));
         }
 
-        // 归一心原石（权重3，三倍概率）
+        // 归一心原石
         if (TEMPORAL_HEART != null) {
             pool.addEntry(new LootEntryItem(
                     TEMPORAL_HEART,
-                    3,  // 3倍权重
+                    1,
                     1,
                     new LootFunction[0],
                     new LootCondition[0],
@@ -318,7 +318,7 @@ public class LootTableHandler {
         event.getTable().addPool(pool);
 
         if (LootTableConfig.debugMode) {
-            System.out.println("[moremod] Injected sacred relics (0.5%) into: " + event.getName());
+            System.out.println("[moremod] Injected sacred relics (0.3%) into: " + event.getName());
         }
     }
 
