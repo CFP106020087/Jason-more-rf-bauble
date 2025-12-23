@@ -16,11 +16,11 @@ public class SponsorConfig {
 
     @Config.Comment({
         "赞助者物品系统主开关",
-        "设为 false 将禁用所有赞助者武器/盔甲/饰品",
+        "设为 false 将禁用所有赞助者武器/盔甲/饰品/真伤附魔",
         "需要重启游戏才能生效"
     })
     @Config.RequiresMcRestart
-    public static boolean enabled = true;
+    public static boolean enabled = false;
 
     @Config.Comment("赞助者物品设置")
     @Config.LangKey("config.moremod.sponsor.items")
