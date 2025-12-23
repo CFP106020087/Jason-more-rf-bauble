@@ -55,7 +55,7 @@ import java.util.Random;
  * - 每个结构放置2-5个哭泣天使刷怪笼
  * - 增加功能性方块奖励种类 (20种)
  * - 增加多个奖励箱 (根据结构等级)
- * - 增加稀有物品掉落 (下界之星、龙息、不死图腾、鞘翅)
+ * - 增加稀有物品掉落 (下界之星、龙息、鞘翅)
  *
  * v3.3 改进：
  * - 进一步降低生成率 (1/8000 区块 ≈ 0.0125%)
@@ -1320,8 +1320,8 @@ public class RuinsWorldGenerator implements IWorldGenerator {
         // 根据等级计算建筑内部半径 (确保在结构内)
         int innerRadius = Math.max(2, lootTier);  // 等级越高，结构越大
 
-        // ★ 放置多个奖励箱 (根据等级，确保在建筑内) ★
-        int chestCount = 1 + (lootTier / 2);
+        // ★ 放置奖励箱 (固定2个) ★
+        int chestCount = 2;
         for (int i = 0; i < chestCount; i++) {
             BlockPos chestPos = findValidInteriorPos(world, center, innerRadius, random);
             if (chestPos != null) {
@@ -1456,16 +1456,14 @@ public class RuinsWorldGenerator implements IWorldGenerator {
             chest.setInventorySlotContents(slot, new ItemStack(Items.NETHER_STAR, 1));
         }
 
-        // ★ 其他稀有物品 (龙息、不死图腾、鞘翅) ★
+        // ★ 其他稀有物品 (龙息、鞘翅) ★
+        // 注：已移除不死图腾
         if (tier >= 3 && random.nextFloat() < 0.12f) {
             int slot = random.nextInt(27);
-            int rareType = random.nextInt(3);
+            int rareType = random.nextInt(2);
             switch (rareType) {
                 case 0:
                     chest.setInventorySlotContents(slot, new ItemStack(Items.DRAGON_BREATH, 2 + random.nextInt(3)));
-                    break;
-                case 1:
-                    chest.setInventorySlotContents(slot, new ItemStack(Items.TOTEM_OF_UNDYING, 1));
                     break;
                 default:
                     chest.setInventorySlotContents(slot, new ItemStack(Items.ELYTRA, 1));

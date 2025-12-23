@@ -164,8 +164,8 @@ public class OverworldSchematicGenerator implements IWorldGenerator {
         int sizeY = schematic.height;
         int sizeZ = schematic.length;
 
-        // 2. 添加战利品箱 (2-4个)
-        int chestCount = 2 + random.nextInt(3);
+        // 2. 添加战利品箱 (固定2个)
+        int chestCount = 2;
         for (int i = 0; i < chestCount; i++) {
             BlockPos chestPos = findRandomAirPos(world, basePos, sizeX, sizeY, sizeZ, random);
             if (chestPos != null) {
