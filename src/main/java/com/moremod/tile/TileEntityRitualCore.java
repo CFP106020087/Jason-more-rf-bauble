@@ -2482,7 +2482,7 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
                 if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.CURSE_PURIFICATION)) {
                     consumeCustomMaterials(LegacyRitualConfig.CURSE_PURIFICATION);
                 } else {
-                    consumeOnePedestalItem(stack -> isHolyItem(stack));
+                    consumeAllMatchingPedestalItems(stack -> isHolyItem(stack));
                 }
                 syncToClient();
                 markDirty();
@@ -2500,7 +2500,7 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.CURSE_PURIFICATION)) {
                 consumeCustomMaterials(LegacyRitualConfig.CURSE_PURIFICATION);
             } else {
-                consumeOnePedestalItem(stack -> isHolyItem(stack));
+                consumeAllMatchingPedestalItems(stack -> isHolyItem(stack));
             }
         } else {
             TierRitualHandler.notifyPlayers(world, pos,
@@ -2631,7 +2631,7 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
                 if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.ENCHANT_TRANSFER)) {
                     consumeCustomMaterials(LegacyRitualConfig.ENCHANT_TRANSFER);
                 } else {
-                    consumeOnePedestalItem(stack ->
+                    consumeAllMatchingPedestalItems(stack ->
                         (stack.getItem() == Items.DYE && stack.getMetadata() == 4) ||
                         stack.getItem() == Items.DRAGON_BREATH);
                 }
@@ -2657,7 +2657,7 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.ENCHANT_TRANSFER)) {
                 consumeCustomMaterials(LegacyRitualConfig.ENCHANT_TRANSFER);
             } else {
-                consumeOnePedestalItem(stack ->
+                consumeAllMatchingPedestalItems(stack ->
                     (stack.getItem() == Items.DYE && stack.getMetadata() == 4) ||
                     stack.getItem() == Items.DRAGON_BREATH);
             }
@@ -2968,7 +2968,7 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
                 if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.WEAPON_EXP_BOOST)) {
                     consumeCustomMaterials(LegacyRitualConfig.WEAPON_EXP_BOOST);
                 } else {
-                    consumeOnePedestalItem(stack ->
+                    consumeAllMatchingPedestalItems(stack ->
                         stack.getItem() == Items.EXPERIENCE_BOTTLE ||
                         stack.getItem() == Items.ENCHANTED_BOOK ||
                         stack.getItem() == Items.EMERALD);
@@ -2997,7 +2997,7 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.WEAPON_EXP_BOOST)) {
                 consumeCustomMaterials(LegacyRitualConfig.WEAPON_EXP_BOOST);
             } else {
-                consumeOnePedestalItem(stack ->
+                consumeAllMatchingPedestalItems(stack ->
                     stack.getItem() == Items.EXPERIENCE_BOTTLE ||
                     stack.getItem() == Items.ENCHANTED_BOOK ||
                     stack.getItem() == Items.EMERALD);
@@ -3128,7 +3128,7 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
                 if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.MURAMASA_BOOST)) {
                     consumeCustomMaterials(LegacyRitualConfig.MURAMASA_BOOST);
                 } else {
-                    consumeOnePedestalItem(stack ->
+                    consumeAllMatchingPedestalItems(stack ->
                         (stack.getItem() == Items.SKULL && stack.getMetadata() == 1) ||
                         stack.getItem() == Items.BLAZE_POWDER ||
                         stack.getItem() == Items.NETHER_STAR);
@@ -3157,7 +3157,7 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.MURAMASA_BOOST)) {
                 consumeCustomMaterials(LegacyRitualConfig.MURAMASA_BOOST);
             } else {
-                consumeOnePedestalItem(stack ->
+                consumeAllMatchingPedestalItems(stack ->
                     (stack.getItem() == Items.SKULL && stack.getMetadata() == 1) ||
                     stack.getItem() == Items.BLAZE_POWDER ||
                     stack.getItem() == Items.NETHER_STAR);
@@ -3214,6 +3214,23 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
                 if (!stack.isEmpty() && predicate.test(stack)) {
                     ped.consumeOne();
                     return;
+                }
+            }
+        }
+    }
+
+    /**
+     * 消耗所有符合條件的基座物品
+     * 用於特殊儀式需要消耗多個材料的情況
+     */
+    private void consumeAllMatchingPedestalItems(java.util.function.Predicate<ItemStack> predicate) {
+        for (BlockPos off : OFFS8) {
+            TileEntity te = world.getTileEntity(pos.add(off));
+            if (te instanceof TileEntityPedestal) {
+                TileEntityPedestal ped = (TileEntityPedestal) te;
+                ItemStack stack = ped.getInv().getStackInSlot(0);
+                if (!stack.isEmpty() && predicate.test(stack)) {
+                    ped.consumeOne();
                 }
             }
         }
@@ -3413,7 +3430,7 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
                 if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.FABRIC_ENHANCE)) {
                     consumeCustomMaterials(LegacyRitualConfig.FABRIC_ENHANCE);
                 } else {
-                    consumeOnePedestalItem(stack ->
+                    consumeAllMatchingPedestalItems(stack ->
                         stack.getItem() == Items.DRAGON_BREATH ||
                         stack.getItem() == Items.ENDER_EYE ||
                         stack.getItem() == Items.NETHER_STAR ||
@@ -3441,7 +3458,7 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.FABRIC_ENHANCE)) {
                 consumeCustomMaterials(LegacyRitualConfig.FABRIC_ENHANCE);
             } else {
-                consumeOnePedestalItem(stack ->
+                consumeAllMatchingPedestalItems(stack ->
                     stack.getItem() == Items.DRAGON_BREATH ||
                     stack.getItem() == Items.ENDER_EYE ||
                     stack.getItem() == Items.NETHER_STAR ||
