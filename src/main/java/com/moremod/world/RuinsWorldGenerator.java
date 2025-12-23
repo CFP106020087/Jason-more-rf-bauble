@@ -1333,15 +1333,12 @@ public class RuinsWorldGenerator implements IWorldGenerator {
             }
         }
 
-        // ★ 放置多个功能性方块 (确保在建筑内) ★
-        int specialBlockCount = 1 + random.nextInt(lootTier);
+        // ★ 放置功能性方块 (固定2个) ★
+        int specialBlockCount = 2;  // 固定为2个机械方块
         for (int i = 0; i < specialBlockCount; i++) {
-            float chance = 0.4f * SPECIAL_BLOCK_CHANCE_MULTIPLIER;
-            if (random.nextFloat() < chance) {
-                BlockPos specialPos = findValidInteriorPos(world, center, innerRadius, random);
-                if (specialPos != null) {
-                    placeSpecialBlock(world, specialPos, random);
-                }
+            BlockPos specialPos = findValidInteriorPos(world, center, innerRadius, random);
+            if (specialPos != null) {
+                placeSpecialBlock(world, specialPos, random);
             }
         }
 
@@ -1514,41 +1511,33 @@ public class RuinsWorldGenerator implements IWorldGenerator {
             } catch (Exception ignored) {}
         }
 
-        // ★ 七咒七圣物 (3% 概率) ★
-        if (random.nextFloat() < 0.03f) {
+        // ★ 七圣遗物 (1% 概率，仅用于仪式) ★
+        // 注：不再掉落七咒联动饰品
+        if (random.nextFloat() < 0.01f) {
             try {
                 int slot = random.nextInt(27);
-                ItemStack curseOrSacred = getRandomCurseOrSacredItem(random);
-                if (curseOrSacred != null && !curseOrSacred.isEmpty()) {
-                    chest.setInventorySlotContents(slot, curseOrSacred);
+                ItemStack sacredRelic = getRandomSacredRelic(random);
+                if (sacredRelic != null && !sacredRelic.isEmpty()) {
+                    chest.setInventorySlotContents(slot, sacredRelic);
                 }
             } catch (Exception ignored) {}
         }
     }
 
-    // ★★★ 获取随机七咒或七圣物品 ★★★
-    private ItemStack getRandomCurseOrSacredItem(Random random) {
-        // 15个物品: 8个七咒 + 7个七圣遗物
-        int type = random.nextInt(15);
+    // ★★★ 获取随机七圣遗物（仪式用） ★★★
+    // 注：移除了七咒联动饰品，仅保留七圣遗物
+    private ItemStack getRandomSacredRelic(Random random) {
+        // 7个七圣遗物
+        int type = random.nextInt(7);
         try {
             switch (type) {
-                // 七咒 (8个)
-                case 0: return ModItems.CURSE_SPREAD != null ? new ItemStack(ModItems.CURSE_SPREAD) : ItemStack.EMPTY;
-                case 1: return ModItems.ALCHEMIST_STONE != null ? new ItemStack(ModItems.ALCHEMIST_STONE) : ItemStack.EMPTY;
-                case 2: return ModItems.THORN_SHARD != null ? new ItemStack(ModItems.THORN_SHARD) : ItemStack.EMPTY;
-                case 3: return ModItems.VOID_GAZE != null ? new ItemStack(ModItems.VOID_GAZE) : ItemStack.EMPTY;
-                case 4: return ModItems.GLUTTONOUS_PHALANX != null ? new ItemStack(ModItems.GLUTTONOUS_PHALANX) : ItemStack.EMPTY;
-                case 5: return ModItems.CRYSTALLIZED_RESENTMENT != null ? new ItemStack(ModItems.CRYSTALLIZED_RESENTMENT) : ItemStack.EMPTY;
-                case 6: return ModItems.NOOSE_OF_HANGED_KING != null ? new ItemStack(ModItems.NOOSE_OF_HANGED_KING) : ItemStack.EMPTY;
-                case 7: return ModItems.SCRIPT_OF_FIFTH_ACT != null ? new ItemStack(ModItems.SCRIPT_OF_FIFTH_ACT) : ItemStack.EMPTY;
-                // 七圣遗物 (7个)
-                case 8: return ModItems.SACRED_HEART != null ? new ItemStack(ModItems.SACRED_HEART) : ItemStack.EMPTY;
-                case 9: return ModItems.PEACE_EMBLEM != null ? new ItemStack(ModItems.PEACE_EMBLEM) : ItemStack.EMPTY;
-                case 10: return ModItems.GUARDIAN_SCALE != null ? new ItemStack(ModItems.GUARDIAN_SCALE) : ItemStack.EMPTY;
-                case 11: return ModItems.COURAGE_BLADE != null ? new ItemStack(ModItems.COURAGE_BLADE) : ItemStack.EMPTY;
-                case 12: return ModItems.FROST_DEW != null ? new ItemStack(ModItems.FROST_DEW) : ItemStack.EMPTY;
-                case 13: return ModItems.SOUL_ANCHOR != null ? new ItemStack(ModItems.SOUL_ANCHOR) : ItemStack.EMPTY;
-                case 14: return ModItems.SLUMBER_SACHET != null ? new ItemStack(ModItems.SLUMBER_SACHET) : ItemStack.EMPTY;
+                case 0: return ModItems.SACRED_HEART != null ? new ItemStack(ModItems.SACRED_HEART) : ItemStack.EMPTY;
+                case 1: return ModItems.PEACE_EMBLEM != null ? new ItemStack(ModItems.PEACE_EMBLEM) : ItemStack.EMPTY;
+                case 2: return ModItems.GUARDIAN_SCALE != null ? new ItemStack(ModItems.GUARDIAN_SCALE) : ItemStack.EMPTY;
+                case 3: return ModItems.COURAGE_BLADE != null ? new ItemStack(ModItems.COURAGE_BLADE) : ItemStack.EMPTY;
+                case 4: return ModItems.FROST_DEW != null ? new ItemStack(ModItems.FROST_DEW) : ItemStack.EMPTY;
+                case 5: return ModItems.SOUL_ANCHOR != null ? new ItemStack(ModItems.SOUL_ANCHOR) : ItemStack.EMPTY;
+                case 6: return ModItems.SLUMBER_SACHET != null ? new ItemStack(ModItems.SLUMBER_SACHET) : ItemStack.EMPTY;
                 default: return ItemStack.EMPTY;
             }
         } catch (Exception e) {
@@ -1665,7 +1654,7 @@ public class RuinsWorldGenerator implements IWorldGenerator {
 
     private void placeSpecialBlock(World world, BlockPos pos, Random random) {
         Block specialBlock = null;
-        int type = random.nextInt(20);  // 扩大选择范围
+        int type = random.nextInt(18);  // 18种特殊方块 (移除了智慧祭坛)
 
         try {
             switch (type) {
@@ -1694,32 +1683,30 @@ public class RuinsWorldGenerator implements IWorldGenerator {
                     specialBlock = ModBlocks.UPGRADE_CHAMBER_CORE;  // 升级仓核心
                     break;
                 case 10:
-                    specialBlock = ModBlocks.SIMPLE_WISDOM_SHRINE;  // 智慧祭坛
-                    break;
-                case 11:
                     specialBlock = ModBlocks.OIL_GENERATOR;  // 石油发电机
                     break;
-                case 12:
+                case 11:
                     specialBlock = ModBlocks.CHARGING_STATION;  // 充能站
                     break;
-                case 13:
+                case 12:
                     specialBlock = ModBlocks.ENERGY_LINK;  // 能量链接器
                     break;
-                case 14:
+                case 13:
                     specialBlock = ModBlocks.BIO_GENERATOR;  // 生物质发电机
                     break;
-                case 15:
+                case 14:
                     specialBlock = ModBlocks.TRADING_STATION;  // 交易站
                     break;
-                case 16:
+                case 15:
                     specialBlock = moremod.RITUAL_CORE_BLOCK;  // 仪式核心
                     break;
-                case 17:
+                case 16:
                     specialBlock = ModBlocks.FAKE_PLAYER_ACTIVATOR;  // 假玩家激活器
                     break;
-                case 18:
+                case 17:
                     specialBlock = Blocks.BEACON;  // 信标
                     break;
+                // 注：已移除智慧祭坛核心 (SIMPLE_WISDOM_SHRINE)
                 default:
                     specialBlock = Blocks.ENCHANTING_TABLE;  // 附魔台
             }

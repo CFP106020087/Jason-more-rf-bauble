@@ -182,8 +182,8 @@ public class OverworldSchematicGenerator implements IWorldGenerator {
             }
         }
 
-        // 4. 添加特殊工作方块 (1-2个)
-        int workstationCount = 1 + random.nextInt(2);
+        // 4. 添加特殊工作方块 (固定2个)
+        int workstationCount = 2;
         for (int i = 0; i < workstationCount; i++) {
             BlockPos workPos = findRandomAirPos(world, basePos, sizeX, sizeY, sizeZ, random);
             if (workPos != null) {

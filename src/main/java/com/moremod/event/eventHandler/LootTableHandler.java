@@ -45,7 +45,7 @@ public class LootTableHandler {
                 !name.contains("player") &&
                 !name.contains("entities/")) {
             injectRareBaubles(event, 0.001f);        // 0.1% 概率的稀有饰品（含归一心原石）
-            injectSacredRelics(event, 0.003f);       // 0.3% 概率的七咒圣物（3倍于稀有饰品）
+            injectSacredRelics(event, 0.01f);        // 1% 概率的七咒圣物（仪式用）
         }
 
         // === 原版战利品表 ===
@@ -318,7 +318,7 @@ public class LootTableHandler {
         event.getTable().addPool(pool);
 
         if (LootTableConfig.debugMode) {
-            System.out.println("[moremod] Injected sacred relics (0.3%) into: " + event.getName());
+            System.out.println("[moremod] Injected sacred relics (1%) into: " + event.getName());
         }
     }
 
