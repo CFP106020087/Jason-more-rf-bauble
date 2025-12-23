@@ -3237,25 +3237,29 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     }
 
     /**
-     * 消耗CRT自定义材料配置中指定的物品
+     * 消耗CRT自定义材料配置中匹配的所有物品
+     * 遍历所有基座，消耗所有匹配任一材料需求的物品
      * @param ritualId 仪式ID
      */
     private void consumeCustomMaterials(String ritualId) {
         List<LegacyRitualConfig.MaterialRequirement> requirements =
             LegacyRitualConfig.getMaterialRequirements(ritualId);
 
-        for (LegacyRitualConfig.MaterialRequirement req : requirements) {
-            int remaining = req.getCount();
-            for (BlockPos off : OFFS8) {
-                if (remaining <= 0) break;
-                TileEntity te = world.getTileEntity(pos.add(off));
-                if (te instanceof TileEntityPedestal) {
-                    TileEntityPedestal ped = (TileEntityPedestal) te;
-                    ItemStack stack = ped.getInv().getStackInSlot(0);
-                    if (!stack.isEmpty() && req.matches(stack)) {
-                        int toConsume = Math.min(remaining, stack.getCount());
-                        ped.consumeAmount(toConsume);
-                        remaining -= toConsume;
+        if (requirements.isEmpty()) return;
+
+        // 遍历所有基座，消耗所有匹配任一需求的物品
+        for (BlockPos off : OFFS8) {
+            TileEntity te = world.getTileEntity(pos.add(off));
+            if (te instanceof TileEntityPedestal) {
+                TileEntityPedestal ped = (TileEntityPedestal) te;
+                ItemStack stack = ped.getInv().getStackInSlot(0);
+                if (!stack.isEmpty()) {
+                    // 检查是否匹配任何一个材料需求
+                    for (LegacyRitualConfig.MaterialRequirement req : requirements) {
+                        if (req.matches(stack)) {
+                            ped.consumeOne();
+                            break; // 匹配到一个需求即可，继续下一个基座
+                        }
                     }
                 }
             }
