@@ -107,7 +107,7 @@ public class TreeDungeonPlacer {
             RoomDimensions dims = getRoomDimensions(room);
             System.out.println("[房间放置] 类型=" + room.type + " 位置=" + base + " 尺寸=" + dims.size + "x" + dims.height);
 
-            // 1) 生成房間外殼
+            // 1) 生成房間外殼（先清空区域）
             generateRoomShell(base, dims.size, dims.height);
 
             // 2) 放置房間模板
@@ -119,13 +119,16 @@ public class TreeDungeonPlacer {
             System.out.println("[房间放置] 模板尺寸=" + template.width + "x" + template.height + "x" + template.length);
             template.place(world, base.getX() + THICK, base.getY() + INNER_Y, base.getZ() + THICK);
 
-            // 3) 根據房間類型添加特定內容
+            // 3) ⚠️ 重新密封墙壁（防止模板覆盖）
+            sealRoomWalls(base, dims.size, dims.height);
+
+            // 4) 根據房間類型添加特定內容
             enhanceRoomContent(base, room, dims);
 
-            // 4) 處理門洞（入口和出口）
+            // 5) 處理門洞（入口和出口）
             if (room.type == RoomType.ENTRANCE) {
                 carveDoorway(base, dims.size, EntranceDirection.WEST);
-                // 5) 入口外部引導標識
+                // 6) 入口外部引導標識
                 createEntranceMarkers(base, dims.size);
             }
             if (room.type == RoomType.EXIT) {
@@ -150,6 +153,29 @@ public class TreeDungeonPlacer {
 
                     IBlockState state = isWall ? wallBlock : Blocks.AIR.getDefaultState();
                     world.setBlockState(base.add(x, y, z), state, 2);
+                }
+            }
+        }
+    }
+
+    /**
+     * 重新密封房间墙壁（在模板放置后调用）
+     * 只覆盖边缘区域，不影响内部
+     */
+    private void sealRoomWalls(BlockPos base, int shellSize, int shellHeight) {
+        IBlockState wallBlock = ModBlocks.UNBREAKABLE_BARRIER_ANCHOR.getDefaultState();
+
+        for (int x = 0; x < shellSize; x++) {
+            for (int y = 0; y < shellHeight; y++) {
+                for (int z = 0; z < shellSize; z++) {
+                    // 只处理边缘位置（墙壁区域）
+                    boolean isWall = x < THICK || x >= shellSize - THICK ||
+                            y < THICK || y >= shellHeight - THICK ||
+                            z < THICK || z >= shellSize - THICK;
+
+                    if (isWall) {
+                        world.setBlockState(base.add(x, y, z), wallBlock, 2);
+                    }
                 }
             }
         }

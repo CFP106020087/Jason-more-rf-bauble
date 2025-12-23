@@ -92,6 +92,11 @@ public class OverworldSchematicGenerator implements IWorldGenerator {
     @Override
     public void generate(Random random, int chunkX, int chunkZ, World world,
                          IChunkGenerator chunkGenerator, IChunkProvider chunkProvider) {
+        // ⚠️ 暂时禁用主世界 schematic 1, 2 的生成
+        // TODO: 需要重新设计后再启用
+        return;
+
+        /*
         // 只在主世界生成
         if (world.provider.getDimension() != 0) return;
 
@@ -121,6 +126,7 @@ public class OverworldSchematicGenerator implements IWorldGenerator {
         placeStructure(world, basePos, schematic, random);
 
         System.out.println("[OverworldSchematicGenerator] 生成结构于 " + basePos);
+        */
     }
 
     /**
