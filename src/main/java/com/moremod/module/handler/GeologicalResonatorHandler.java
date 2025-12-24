@@ -68,9 +68,9 @@ public class GeologicalResonatorHandler implements IModuleEventHandler {
         for (String name : oreNames) {
             // 只缓存以 "ore" 开头的词典名称
             if (name.startsWith("ore")) {
-                // 排除下界合金相关（避免模组兼容性问题）
+                // 排除下界合金/远古残骸相关（避免模组兼容性问题）
                 String lowerName = name.toLowerCase();
-                if (lowerName.contains("netherite") || lowerName.contains("debris") || lowerName.contains("ancient")) {
+                if (lowerName.contains("netherite") || lowerName.contains("ancientdebris") || lowerName.contains("ancient_debris")) {
                     continue;
                 }
                 KNOWN_ORE_IDS.add(OreDictionary.getOreID(name));
