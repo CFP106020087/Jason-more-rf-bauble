@@ -68,6 +68,11 @@ public class GeologicalResonatorHandler implements IModuleEventHandler {
         for (String name : oreNames) {
             // 只缓存以 "ore" 开头的词典名称
             if (name.startsWith("ore")) {
+                // 排除下界合金相关（避免模组兼容性问题）
+                String lowerName = name.toLowerCase();
+                if (lowerName.contains("netherite") || lowerName.contains("debris") || lowerName.contains("ancient")) {
+                    continue;
+                }
                 KNOWN_ORE_IDS.add(OreDictionary.getOreID(name));
             }
         }
@@ -260,7 +265,7 @@ public class GeologicalResonatorHandler implements IModuleEventHandler {
             return false;
         }
 
-        // 检查是否是特殊可提取方块（如远古残骸、天辉水晶）
+        // 检查是否是特殊可提取方块（如天辉水晶等模组矿物）
         if (block.getRegistryName() != null && SPECIAL_VALUABLE_BLOCKS.contains(block.getRegistryName().toString())) {
             return true;
         }
