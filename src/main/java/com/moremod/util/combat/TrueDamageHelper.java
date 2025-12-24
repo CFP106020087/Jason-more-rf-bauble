@@ -172,7 +172,8 @@ public class TrueDamageHelper {
 
         // 9. 应用伤害并处理死亡
         if (newHealth <= 0) {
-            triggerVanillaDeathChain(victim);
+            // ★ 使用带攻击者信息的伤害源，确保掠夺/抢夺等附魔正常工作
+            triggerVanillaDeathChain(victim, source);
         } else {
             victim.setHealth(newHealth);
         }
