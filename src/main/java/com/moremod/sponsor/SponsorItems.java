@@ -1,8 +1,10 @@
 package com.moremod.sponsor;
 
+import com.moremod.accessorybox.EarlyConfigLoader;
 import com.moremod.sponsor.item.SponsorArmor;
 import com.moremod.sponsor.item.SponsorBauble;
 import com.moremod.sponsor.item.SponsorSword;
+import com.moremod.sponsor.item.ZhuxianSword;
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.inventory.EntityEquipmentSlot;
 import net.minecraft.item.Item;
@@ -29,6 +31,9 @@ public class SponsorItems {
 
     // ========== 物品列表（用于统一管理） ==========
     private static final List<Item> ALL_SPONSOR_ITEMS = new ArrayList<>();
+
+    // ========== 诛仙剑 ==========
+    public static ZhuxianSword ZHUXIAN_SWORD;
 
     // ========== 示例赞助者武器 ==========
     // 取消注释并添加你的赞助者武器
@@ -76,6 +81,14 @@ public class SponsorItems {
         System.out.println("[moremod] ========== 注册赞助者物品 ==========");
 
         // ========== 在这里创建并注册你的赞助者物品 ==========
+
+        // 诛仙剑
+        if (EarlyConfigLoader.isZhuxianSwordEnabled()) {
+            ZHUXIAN_SWORD = newSafe(ZhuxianSword::new, "zhuxian_sword");
+            System.out.println("[moremod] 诛仙剑已注册");
+        } else {
+            System.out.println("[moremod] 诛仙剑已禁用，跳过注册");
+        }
 
         // 示例：赞助者武器
         // if (SponsorConfig.isWeaponsEnabled()) {
