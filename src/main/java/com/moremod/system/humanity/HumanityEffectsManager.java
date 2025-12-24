@@ -84,16 +84,29 @@ public class HumanityEffectsManager {
         // 不再修改 maxHealth 属性，只限制当前血量
 
         // 获取当前血量上限（取 maxHealth 和 BROKEN_GOD_MAX_HEALTH 的较小值）
-        double effectiveMaxHealth = Math.min(player.getMaxHealth(), BROKEN_GOD_MAX_HEALTH);
+        // 防御性检查：如果 maxHealth 被其他模组设为0或负数，使用 BROKEN_GOD_MAX_HEALTH 作为下限
+        double playerMaxHealth = player.getMaxHealth();
+        double effectiveMaxHealth;
+        if (playerMaxHealth <= 0) {
+            // maxHealth 异常，使用固定值作为安全下限
+            effectiveMaxHealth = BROKEN_GOD_MAX_HEALTH;
+        } else {
+            effectiveMaxHealth = Math.min(playerMaxHealth, BROKEN_GOD_MAX_HEALTH);
+        }
 
         // 确保当前血量不超过有效上限
         if (player.getHealth() > effectiveMaxHealth) {
             DirectHealthHelper.setHealthDirect(player, (float) effectiveMaxHealth);
         }
 
-        // 确保当前血量不为0或负数
+        // 确保当前血量不为0或负数（防止其他模组直接设置血量为0）
         if (player.getHealth() <= 0) {
-            DirectHealthHelper.setHealthDirect(player, (float) effectiveMaxHealth);
+            // 检查是否在停机状态，停机状态血量应为1
+            if (com.moremod.system.ascension.BrokenGodHandler.isInShutdown(player)) {
+                DirectHealthHelper.setHealthDirect(player, 1.0f);
+            } else {
+                DirectHealthHelper.setHealthDirect(player, (float) effectiveMaxHealth);
+            }
         }
     }
 
