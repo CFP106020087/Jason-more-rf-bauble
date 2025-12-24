@@ -38,9 +38,6 @@ public class HumanityEffectsManager {
     /** 修改器名称 */
     private static final String HUMANITY_HP_MODIFIER_NAME = "Humanity MaxHP Modifier";
 
-    /** 破碎之神当前血量上限（不修改 maxHealth，只限制 currentHealth） */
-    private static final double BROKEN_GOD_MAX_HEALTH = 10.0;
-
     /**
      * 更新玩家的 MaxHP 基于人性值
      * 在 PlayerTickEvent 中每秒调用
@@ -52,19 +49,14 @@ public class HumanityEffectsManager {
         if (data == null || !data.isSystemActive()) {
             // 系统未激活，移除修改器
             removeHPModifier(player);
-            removeBrokenGodHPLock(player);
             return;
         }
 
-        // 破碎之神：强制锁定最大血量为 10
+        // 破碎之神：不做 MaxHP 修改，由死亡保护系统处理
         if (data.getAscensionRoute() == AscensionRoute.BROKEN_GOD) {
             removeHPModifier(player);
-            applyBrokenGodHPLock(player);
             return;
         }
-
-        // 非破碎之神：移除锁定修改器
-        removeBrokenGodHPLock(player);
 
         float humanity = data.getHumanity();
 
@@ -73,50 +65,6 @@ public class HumanityEffectsManager {
 
         // 应用修改器
         applyHPModifier(player, hpReduction);
-    }
-
-    /**
-     * 应用破碎之神当前血量锁定
-     * 不修改 maxHealth 属性，只限制 currentHealth 不超过 BROKEN_GOD_MAX_HEALTH
-     * 这样可以保留其他模组对 maxHealth 的修改，同时限制实际血量
-     */
-    private static void applyBrokenGodHPLock(EntityPlayer player) {
-        // 不再修改 maxHealth 属性，只限制当前血量
-
-        // 获取当前血量上限（取 maxHealth 和 BROKEN_GOD_MAX_HEALTH 的较小值）
-        // 防御性检查：如果 maxHealth 被其他模组设为0或负数，使用 BROKEN_GOD_MAX_HEALTH 作为下限
-        double playerMaxHealth = player.getMaxHealth();
-        double effectiveMaxHealth;
-        if (playerMaxHealth <= 0) {
-            // maxHealth 异常，使用固定值作为安全下限
-            effectiveMaxHealth = BROKEN_GOD_MAX_HEALTH;
-        } else {
-            effectiveMaxHealth = Math.min(playerMaxHealth, BROKEN_GOD_MAX_HEALTH);
-        }
-
-        // 确保当前血量不超过有效上限
-        if (player.getHealth() > effectiveMaxHealth) {
-            DirectHealthHelper.setHealthDirect(player, (float) effectiveMaxHealth);
-        }
-
-        // 确保当前血量不为0或负数（防止其他模组直接设置血量为0）
-        if (player.getHealth() <= 0) {
-            // 检查是否在停机状态，停机状态血量应为1
-            if (com.moremod.system.ascension.BrokenGodHandler.isInShutdown(player)) {
-                DirectHealthHelper.setHealthDirect(player, 1.0f);
-            } else {
-                DirectHealthHelper.setHealthDirect(player, (float) effectiveMaxHealth);
-            }
-        }
-    }
-
-    /**
-     * 移除破碎之神血量锁定
-     * 注：当前实现不修改 maxHealth 属性，所以此方法仅用于兼容性
-     */
-    private static void removeBrokenGodHPLock(EntityPlayer player) {
-        // 新实现不再添加属性修改器，所以无需移除
-        // 保留此方法以保持 API 兼容性
     }
 
     /**

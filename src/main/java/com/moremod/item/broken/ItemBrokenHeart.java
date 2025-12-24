@@ -100,23 +100,18 @@ public class ItemBrokenHeart extends ItemBrokenBaubleBase {
      * 强制应用生命值压缩（每tick检查）
      * 使用更激进的方式确保max HP始终为目标值
      *
-     * 注意：如果玩家是破碎之神，HP压缩由 HumanityEffectsManager 处理，
-     * 避免两个系统同时应用修改器导致 max HP 变为 0
+     * 注意：破碎之神不再进行血量锁定，完全依赖死亡保护系统
      */
     private void enforceHPCompression(EntityPlayer player) {
         IAttributeInstance maxHealthAttr = player.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH);
         if (maxHealthAttr == null) return;
 
-        // ⚠️ 如果玩家是破碎之神，HP压缩由 HumanityEffectsManager 处理
-        // 这里只移除本物品的修改器，避免重复应用导致 max HP = 0
+        // ⚠️ 破碎之神：不做任何血量锁定，完全依赖死亡保护系统
         if (BrokenGodHandler.isBrokenGod(player)) {
+            // 只移除本物品的修改器，不做血量限制
             AttributeModifier existing = maxHealthAttr.getModifier(HP_COMPRESS_UUID);
             if (existing != null) {
                 maxHealthAttr.removeModifier(existing);
-            }
-            // 确保血量不超过目标值
-            if (player.getHealth() > TARGET_MAX_HP) {
-                player.setHealth((float) TARGET_MAX_HP);
             }
             return;
         }
@@ -241,7 +236,6 @@ public class ItemBrokenHeart extends ItemBrokenBaubleBase {
     @SideOnly(Side.CLIENT)
     public void addInformation(ItemStack stack, @Nullable World worldIn, List<String> tooltip, ITooltipFlag flagIn) {
         tooltip.add(TextFormatting.RED + "" + TextFormatting.BOLD + "破碎_心核");
-        tooltip.add(TextFormatting.GOLD + "◆ 生命压缩: " + TextFormatting.GRAY + "最大HP固定 " + (int) TARGET_MAX_HP);
         tooltip.add(TextFormatting.GREEN + "◆ 吸血: " + TextFormatting.GRAY + (int)(BrokenGodConfig.heartcoreLifestealRatio * 100) + "% 溢出转吸收");
         tooltip.add(TextFormatting.RED + "◆ 狂战士: " + TextFormatting.GRAY + "低血高伤 最高×" + (int) BrokenGodConfig.heartcoreBerserkerMaxMultiplier);
         tooltip.add(TextFormatting.AQUA + "◆ 不朽: " + TextFormatting.GRAY + "HP≥1 免疫凋零/中毒");
