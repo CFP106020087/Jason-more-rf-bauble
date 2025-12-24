@@ -35,18 +35,11 @@ public class HumanityEffectsManager {
     /** MaxHP 修改器的 UUID */
     private static final UUID HUMANITY_HP_MODIFIER_UUID = UUID.fromString("a5b6c7d8-e9f0-1234-5678-9abcdef01234");
 
-    /** 破碎之神 MaxHP 锁定修改器的 UUID */
-    private static final UUID BROKEN_GOD_HP_LOCK_UUID = UUID.fromString("b6c7d8e9-f0a1-2345-6789-abcdef012345");
-
     /** 修改器名称 */
     private static final String HUMANITY_HP_MODIFIER_NAME = "Humanity MaxHP Modifier";
-    private static final String BROKEN_GOD_HP_LOCK_NAME = "Broken God MaxHP Lock";
 
-    /** 破碎之神固定最大血量 */
+    /** 破碎之神当前血量上限（不修改 maxHealth，只限制 currentHealth） */
     private static final double BROKEN_GOD_MAX_HEALTH = 10.0;
-
-    /** 缓存上次的调整值，避免不必要的属性操作 */
-    private static final java.util.Map<java.util.UUID, Double> lastAdjustmentCache = new java.util.HashMap<>();
 
     /**
      * 更新玩家的 MaxHP 基于人性值
@@ -83,76 +76,34 @@ public class HumanityEffectsManager {
     }
 
     /**
-     * 应用破碎之神最大血量锁定
-     * 强制将最大血量设为 10，无论其他任何修改器
-     *
-     * 优化：缓存调整值，只在变化时才重新应用修改器
+     * 应用破碎之神当前血量锁定
+     * 不修改 maxHealth 属性，只限制 currentHealth 不超过 BROKEN_GOD_MAX_HEALTH
+     * 这样可以保留其他模组对 maxHealth 的修改，同时限制实际血量
      */
     private static void applyBrokenGodHPLock(EntityPlayer player) {
-        IAttributeInstance maxHealthAttr = player.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH);
-        if (maxHealthAttr == null) return;
+        // 不再修改 maxHealth 属性，只限制当前血量
 
-        java.util.UUID playerId = player.getUniqueID();
+        // 获取当前血量上限（取 maxHealth 和 BROKEN_GOD_MAX_HEALTH 的较小值）
+        double effectiveMaxHealth = Math.min(player.getMaxHealth(), BROKEN_GOD_MAX_HEALTH);
 
-        // 获取当前修改器
-        AttributeModifier existingMod = maxHealthAttr.getModifier(BROKEN_GOD_HP_LOCK_UUID);
-        double existingAdjustment = existingMod != null ? existingMod.getAmount() : 0;
-
-        // 临时移除我们的修改器来计算"真实"的当前值
-        if (existingMod != null) {
-            maxHealthAttr.removeModifier(existingMod);
-        }
-
-        // 获取移除我们修改器后的当前值（包含其他模组的修改器）
-        double currentMaxHealth = maxHealthAttr.getAttributeValue();
-
-        // 计算需要的调整量：目标是让最终值 = 10
-        double adjustment = BROKEN_GOD_MAX_HEALTH - currentMaxHealth;
-
-        // 检查是否需要更新（调整量变化超过阈值）
-        Double cachedAdjustment = lastAdjustmentCache.get(playerId);
-        boolean needsUpdate = cachedAdjustment == null || Math.abs(cachedAdjustment - adjustment) > 0.01;
-
-        if (needsUpdate && Math.abs(adjustment) > 0.001) {
-            // 创建新的锁定修改器
-            AttributeModifier lockMod = new AttributeModifier(
-                    BROKEN_GOD_HP_LOCK_UUID,
-                    BROKEN_GOD_HP_LOCK_NAME,
-                    adjustment,
-                    0 // Operation: Add
-            );
-            maxHealthAttr.applyModifier(lockMod);
-            lastAdjustmentCache.put(playerId, adjustment);
-        } else if (existingMod != null && Math.abs(adjustment) > 0.001) {
-            // 不需要更新，恢复旧的修改器
-            maxHealthAttr.applyModifier(existingMod);
-        }
-
-        // 确保当前血量不超过最大值（使用直接设置绕过 First Aid）
-        if (player.getHealth() > BROKEN_GOD_MAX_HEALTH) {
-            DirectHealthHelper.setHealthDirect(player, (float) BROKEN_GOD_MAX_HEALTH);
+        // 确保当前血量不超过有效上限
+        if (player.getHealth() > effectiveMaxHealth) {
+            DirectHealthHelper.setHealthDirect(player, (float) effectiveMaxHealth);
         }
 
         // 确保当前血量不为0或负数
         if (player.getHealth() <= 0) {
-            DirectHealthHelper.setHealthDirect(player, (float) BROKEN_GOD_MAX_HEALTH);
+            DirectHealthHelper.setHealthDirect(player, (float) effectiveMaxHealth);
         }
     }
 
     /**
-     * 移除破碎之神最大血量锁定
+     * 移除破碎之神血量锁定
+     * 注：当前实现不修改 maxHealth 属性，所以此方法仅用于兼容性
      */
     private static void removeBrokenGodHPLock(EntityPlayer player) {
-        IAttributeInstance maxHealthAttr = player.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH);
-        if (maxHealthAttr == null) return;
-
-        AttributeModifier existingMod = maxHealthAttr.getModifier(BROKEN_GOD_HP_LOCK_UUID);
-        if (existingMod != null) {
-            maxHealthAttr.removeModifier(existingMod);
-        }
-
-        // 清理缓存
-        lastAdjustmentCache.remove(player.getUniqueID());
+        // 新实现不再添加属性修改器，所以无需移除
+        // 保留此方法以保持 API 兼容性
     }
 
     /**
