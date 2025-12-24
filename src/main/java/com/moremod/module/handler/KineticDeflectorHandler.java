@@ -21,8 +21,8 @@ import net.minecraft.world.WorldServer;
  */
 public class KineticDeflectorHandler implements IModuleEventHandler {
 
-    // 判定窗口 (ticks) [Lv0, Lv1(6t/0.3s), Lv2(8t/0.4s), Lv3(10t/0.5s)]
-    private static final int[] PARRY_WINDOW = {0, 6, 8, 10};
+    // 判定窗口 (ticks) [Lv0, Lv1(20t/1s), Lv2(30t/1.5s), Lv3(40t/2s)]
+    private static final int[] PARRY_WINDOW = {0, 20, 30, 40};
     private static final int ENERGY_COST = 1000;
 
     @Override
