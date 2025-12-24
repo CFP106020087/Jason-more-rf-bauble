@@ -82,53 +82,44 @@ public class HumanityEffectsManager {
     /**
      * 应用破碎之神最大血量锁定
      * 强制将最大血量设为 10，无论其他任何修改器
+     *
+     * 修复：每次都重新计算并应用修改器，防止其他模组修改血量属性导致归零
      */
     private static void applyBrokenGodHPLock(EntityPlayer player) {
         IAttributeInstance maxHealthAttr = player.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH);
         if (maxHealthAttr == null) return;
 
-        // 获取基础值（不包含修改器）
-        double baseValue = maxHealthAttr.getBaseValue();
-
-        // 计算需要的修改量：目标是让最终值 = 10
-        // 最终值 = 基础值 + 加法修改器 + (基础值 * 乘法修改器)
-        // 使用 Operation 0 (加法) 来直接设置到 10
-        // amount = 目标值 - 基础值
-        double currentMaxHealth = maxHealthAttr.getAttributeValue();
-
-        // 如果已经是 10，不需要修改
-        if (Math.abs(currentMaxHealth - BROKEN_GOD_MAX_HEALTH) < 0.01) {
-            // 确保当前血量不超过最大值（使用直接设置绕过 First Aid）
-            if (player.getHealth() > BROKEN_GOD_MAX_HEALTH) {
-                DirectHealthHelper.setHealthDirect(player, (float) BROKEN_GOD_MAX_HEALTH);
-            }
-            return;
-        }
-
-        // 移除旧的锁定修改器
+        // 先移除旧的锁定修改器（这样才能获取"无我们修改器时"的真实值）
         AttributeModifier existingMod = maxHealthAttr.getModifier(BROKEN_GOD_HP_LOCK_UUID);
         if (existingMod != null) {
             maxHealthAttr.removeModifier(existingMod);
         }
 
-        // 重新计算当前值（移除旧修改器后）
-        currentMaxHealth = maxHealthAttr.getAttributeValue();
+        // 获取移除我们修改器后的当前值（包含其他模组的修改器）
+        double currentMaxHealth = maxHealthAttr.getAttributeValue();
 
-        // 计算需要的调整量
+        // 计算需要的调整量：目标是让最终值 = 10
         double adjustment = BROKEN_GOD_MAX_HEALTH - currentMaxHealth;
 
-        // 创建新的锁定修改器
-        AttributeModifier lockMod = new AttributeModifier(
-                BROKEN_GOD_HP_LOCK_UUID,
-                BROKEN_GOD_HP_LOCK_NAME,
-                adjustment,
-                0 // Operation: Add
-        );
-
-        maxHealthAttr.applyModifier(lockMod);
+        // 只有在需要调整时才添加修改器
+        if (Math.abs(adjustment) > 0.001) {
+            // 创建新的锁定修改器
+            AttributeModifier lockMod = new AttributeModifier(
+                    BROKEN_GOD_HP_LOCK_UUID,
+                    BROKEN_GOD_HP_LOCK_NAME,
+                    adjustment,
+                    0 // Operation: Add
+            );
+            maxHealthAttr.applyModifier(lockMod);
+        }
 
         // 确保当前血量不超过最大值（使用直接设置绕过 First Aid）
         if (player.getHealth() > BROKEN_GOD_MAX_HEALTH) {
+            DirectHealthHelper.setHealthDirect(player, (float) BROKEN_GOD_MAX_HEALTH);
+        }
+
+        // 确保当前血量不为0或负数
+        if (player.getHealth() <= 0) {
             DirectHealthHelper.setHealthDirect(player, (float) BROKEN_GOD_MAX_HEALTH);
         }
     }
