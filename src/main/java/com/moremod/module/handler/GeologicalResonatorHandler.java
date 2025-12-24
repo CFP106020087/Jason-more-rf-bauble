@@ -266,8 +266,17 @@ public class GeologicalResonatorHandler implements IModuleEventHandler {
         }
 
         // 检查是否是特殊可提取方块（如天辉水晶等模组矿物）
-        if (block.getRegistryName() != null && SPECIAL_VALUABLE_BLOCKS.contains(block.getRegistryName().toString())) {
-            return true;
+        if (block.getRegistryName() != null) {
+            String regName = block.getRegistryName().toString().toLowerCase();
+
+            // ★ 早期排除下界合金/远古残骸（避免getPickBlock反射导致卡死）
+            if (regName.contains("netherite") || regName.contains("debris") || regName.contains("ancient_debris")) {
+                return false;
+            }
+
+            if (SPECIAL_VALUABLE_BLOCKS.contains(block.getRegistryName().toString())) {
+                return true;
+            }
         }
 
         // 获取方块对应的 ItemStack，用于矿物词典查询
