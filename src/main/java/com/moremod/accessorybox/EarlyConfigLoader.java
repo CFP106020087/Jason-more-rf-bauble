@@ -59,13 +59,19 @@ public class EarlyConfigLoader {
 
             if (configFile == null) {
                 System.out.println("[EarlyConfigLoader] 配置文件不存在，使用默认值");
-                printConfig();
-                loaded = true;
-                return;
+            } else {
+                // 读取主配置
+                readConfig(configFile);
             }
 
-            // 读取配置
-            readConfig(configFile);
+            // ========== 读取赞助物品配置 ==========
+            File sponsorConfigFile = new File("config/moremod/sponsor_items.cfg");
+            if (sponsorConfigFile.exists()) {
+                System.out.println("[EarlyConfigLoader] 找到赞助物品配置: config/moremod/sponsor_items.cfg");
+                readSponsorConfig(sponsorConfigFile);
+            } else {
+                System.out.println("[EarlyConfigLoader] 赞助物品配置文件不存在，使用默认值");
+            }
 
             printConfig();
             loaded = true;
@@ -74,6 +80,57 @@ public class EarlyConfigLoader {
             System.err.println("[EarlyConfigLoader] 配置加载失败，使用默认值");
             e.printStackTrace();
             loaded = true;
+        }
+    }
+
+    /**
+     * 读取赞助物品配置文件 (sponsor_items.cfg)
+     */
+    private static void readSponsorConfig(File file) throws Exception {
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            String line;
+            String currentSection = "";
+
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+
+                // 跳过注释和空行
+                if (line.isEmpty() || line.startsWith("#")) {
+                    continue;
+                }
+
+                // 检测区块开始
+                if (line.endsWith("{")) {
+                    // 提取区块名称，如 "general {" -> "general"
+                    currentSection = line.replace("{", "").replace("\"", "").trim();
+                    continue;
+                }
+
+                // 检测区块结束
+                if (line.equals("}")) {
+                    currentSection = "";
+                    continue;
+                }
+
+                // 解析配置项
+                // 格式: B:enabled=false 或 B:"enabled"=false
+                if (currentSection.equals("general") && line.contains("enabled")) {
+                    // 主开关
+                    enableSponsorWeapons = parseBoolean(line);
+                    System.out.println("[EarlyConfigLoader] 解析赞助物品: enabled = " + enableSponsorWeapons);
+                }
+                else if (currentSection.equals("weapons") && line.contains("enabled")) {
+                    // 武器开关 - 用于更细粒度控制
+                    boolean weaponsEnabled = parseBoolean(line);
+                    // 如果主开关关闭，武器也关闭
+                    if (!enableSponsorWeapons) {
+                        weaponsEnabled = false;
+                    }
+                    // 诛仙剑跟随武器开关
+                    enableZhuxianSword = weaponsEnabled;
+                    System.out.println("[EarlyConfigLoader] 解析赞助物品: weapons.enabled = " + weaponsEnabled);
+                }
+            }
         }
     }
 
