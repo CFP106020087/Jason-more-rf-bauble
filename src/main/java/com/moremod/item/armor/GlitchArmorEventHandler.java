@@ -1,5 +1,6 @@
 package com.moremod.item.armor;
 
+import com.moremod.item.causal.EnergyHelper;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.monster.EntityMob;
@@ -56,6 +57,17 @@ public class GlitchArmorEventHandler {
 
     // BSOD時停狀態
     private static final Map<UUID, BSODData> BSOD_ACTIVE = new HashMap<>();
+
+    // 頭盔存檔點冷卻
+    private static final Map<UUID, Long> CHECKPOINT_COOLDOWNS = new HashMap<>();
+    private static final long CHECKPOINT_COOLDOWN_MS = 30000; // 30秒冷卻
+
+    // 護腿緩存釋放冷卻
+    private static final Map<UUID, Long> BUFFER_RELEASE_COOLDOWNS = new HashMap<>();
+    private static final long BUFFER_RELEASE_COOLDOWN_MS = 10000; // 10秒冷卻
+
+    // 緩存傷害上限
+    private static final float MAX_BUFFERED_DAMAGE = 100.0f;
 
     // ========== 閃爍狀態共享 ==========
 
@@ -253,13 +265,23 @@ public class GlitchArmorEventHandler {
         // 檢查護腿
         if (!ItemGlitchArmor.hasArmorPiece(player, EntityEquipmentSlot.LEGS)) return;
 
-        // 50%傷害進入緩衝區
-        float bufferedDamage = event.getAmount() * 0.5f;
-        event.setAmount(event.getAmount() * 0.5f);
-
         // 存儲緩衝傷害
         BufferData buffer = DAMAGE_BUFFERS.computeIfAbsent(player.getUniqueID(),
                 k -> new BufferData());
+
+        // 檢查是否已達上限
+        if (buffer.getTotalBuffered() >= MAX_BUFFERED_DAMAGE) {
+            // 緩存已滿，不再吸收傷害
+            return;
+        }
+
+        // 50%傷害進入緩衝區
+        float bufferedDamage = event.getAmount() * 0.5f;
+        // 確保不超過上限
+        float remaining = MAX_BUFFERED_DAMAGE - buffer.getTotalBuffered();
+        bufferedDamage = Math.min(bufferedDamage, remaining);
+
+        event.setAmount(event.getAmount() - bufferedDamage); // 實際減少的傷害
         buffer.addDamage(bufferedDamage);
 
         spawnGlitchParticles(player, 3);
@@ -369,6 +391,16 @@ public class GlitchArmorEventHandler {
      */
     private static void handleCheckpointAbility(EntityPlayer player) {
         UUID uuid = player.getUniqueID();
+
+        // 檢查冷卻
+        Long lastUse = CHECKPOINT_COOLDOWNS.get(uuid);
+        if (lastUse != null && System.currentTimeMillis() - lastUse < CHECKPOINT_COOLDOWN_MS) {
+            long remaining = (CHECKPOINT_COOLDOWN_MS - (System.currentTimeMillis() - lastUse)) / 1000;
+            player.sendStatusMessage(new TextComponentString(
+                    TextFormatting.GRAY + "[Checkpoint] 冷卻中 (" + remaining + "秒)"), true);
+            return;
+        }
+
         CheckpointData checkpoint = CHECKPOINTS.get(uuid);
 
         if (checkpoint == null || !checkpoint.isValid()) {
@@ -416,6 +448,7 @@ public class GlitchArmorEventHandler {
                     TextFormatting.GRAY + "已傳送回存檔點"), true);
 
             CHECKPOINTS.remove(uuid);
+            CHECKPOINT_COOLDOWNS.put(uuid, System.currentTimeMillis()); // 傳送後進入冷卻
         }
     }
 
@@ -424,6 +457,16 @@ public class GlitchArmorEventHandler {
      */
     private static void handleBufferRelease(EntityPlayer player) {
         UUID uuid = player.getUniqueID();
+
+        // 檢查冷卻
+        Long lastUse = BUFFER_RELEASE_COOLDOWNS.get(uuid);
+        if (lastUse != null && System.currentTimeMillis() - lastUse < BUFFER_RELEASE_COOLDOWN_MS) {
+            long remaining = (BUFFER_RELEASE_COOLDOWN_MS - (System.currentTimeMillis() - lastUse)) / 1000;
+            player.sendStatusMessage(new TextComponentString(
+                    TextFormatting.GRAY + "[Buffer] 冷卻中 (" + remaining + "秒)"), true);
+            return;
+        }
+
         BufferData buffer = DAMAGE_BUFFERS.get(uuid);
 
         if (buffer == null || buffer.getTotalBuffered() <= 0) {
@@ -432,8 +475,9 @@ public class GlitchArmorEventHandler {
             return;
         }
 
-        float totalDamage = buffer.getTotalBuffered();
+        float totalDamage = Math.min(buffer.getTotalBuffered(), MAX_BUFFERED_DAMAGE); // 限制最大傷害
         buffer.entries.clear(); // 清空緩存
+        BUFFER_RELEASE_COOLDOWNS.put(uuid, System.currentTimeMillis()); // 進入冷卻
 
         // 對周圍敵人造成傷害
         List<EntityLivingBase> enemies = player.world.getEntitiesWithinAABB(EntityLivingBase.class,
@@ -533,14 +577,21 @@ public class GlitchArmorEventHandler {
 
     // ========== 全套：藍屏死機 (BSOD) ==========
 
+    private static final int BSOD_ENERGY_COST = 50000; // 50,000 RF
+
     /**
      * 啟動BSOD領域（由外部調用）
      */
     public static boolean activateBSOD(EntityPlayer player) {
         if (!ItemGlitchArmor.hasFullSet(player)) return false;
 
-        // 檢查能量（需要與機械核心聯動）
-        // TODO: 檢查50,000 RF消耗
+        // 檢查並消耗能量
+        if (!EnergyHelper.drainCoreEnergy(player, BSOD_ENERGY_COST)) {
+            player.sendStatusMessage(new TextComponentString(
+                    TextFormatting.RED + "[BSOD] " +
+                    TextFormatting.GRAY + "能量不足 (需要 " + BSOD_ENERGY_COST + " RF)"), true);
+            return false;
+        }
 
         BSODData bsod = new BSODData(System.currentTimeMillis() + 5000); // 5秒持續
         BSOD_ACTIVE.put(player.getUniqueID(), bsod);
