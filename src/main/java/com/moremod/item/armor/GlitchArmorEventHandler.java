@@ -22,6 +22,7 @@ import net.minecraftforge.event.entity.living.LivingDamageEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingFallEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
@@ -343,6 +344,193 @@ public class GlitchArmorEventHandler {
         }
     }
 
+    // ========== Shift+右鍵交互 ==========
+
+    @SubscribeEvent
+    public static void onPlayerRightClick(PlayerInteractEvent.RightClickItem event) {
+        EntityPlayer player = event.getEntityPlayer();
+        if (player.world.isRemote) return;
+        if (!player.isSneaking()) return;
+
+        // 頭盔：存檔讀取
+        if (ItemGlitchArmor.hasArmorPiece(player, EntityEquipmentSlot.HEAD)) {
+            handleCheckpointAbility(player);
+        }
+
+        // 護腿：釋放緩存AOE
+        if (ItemGlitchArmor.hasArmorPiece(player, EntityEquipmentSlot.LEGS)) {
+            handleBufferRelease(player);
+        }
+    }
+
+    /**
+     * 頭盔：存檔點能力
+     * 第一次使用保存位置，第二次使用傳送回去
+     */
+    private static void handleCheckpointAbility(EntityPlayer player) {
+        UUID uuid = player.getUniqueID();
+        CheckpointData checkpoint = CHECKPOINTS.get(uuid);
+
+        if (checkpoint == null || !checkpoint.isValid()) {
+            // 保存當前位置
+            CheckpointData newCheckpoint = new CheckpointData(player.getPosition(), player.dimension);
+            CHECKPOINTS.put(uuid, newCheckpoint);
+
+            // 效果
+            if (player.world instanceof WorldServer) {
+                WorldServer world = (WorldServer) player.world;
+                world.spawnParticle(EnumParticleTypes.END_ROD,
+                        player.posX, player.posY + 1, player.posZ,
+                        20, 0.5, 0.5, 0.5, 0.05);
+                world.playSound(null, player.posX, player.posY, player.posZ,
+                        SoundEvents.BLOCK_BEACON_ACTIVATE, SoundCategory.PLAYERS, 0.5f, 1.5f);
+            }
+
+            player.sendStatusMessage(new TextComponentString(
+                    TextFormatting.LIGHT_PURPLE + "[Checkpoint] " +
+                    TextFormatting.GRAY + "位置已保存 (10秒內再次使用傳送回此處)"), true);
+        } else {
+            // 傳送回保存的位置
+            if (checkpoint.dimensionId != player.dimension) {
+                player.sendStatusMessage(new TextComponentString(
+                        TextFormatting.RED + "[Error] 跨維度傳送失敗"), true);
+                CHECKPOINTS.remove(uuid);
+                return;
+            }
+
+            BlockPos pos = checkpoint.position;
+            player.setPositionAndUpdate(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
+
+            // 效果
+            if (player.world instanceof WorldServer) {
+                WorldServer world = (WorldServer) player.world;
+                world.spawnParticle(EnumParticleTypes.PORTAL,
+                        player.posX, player.posY + 1, player.posZ,
+                        50, 0.5, 1, 0.5, 0.1);
+                world.playSound(null, player.posX, player.posY, player.posZ,
+                        SoundEvents.ENTITY_ENDERMEN_TELEPORT, SoundCategory.PLAYERS, 1.0f, 1.2f);
+            }
+
+            player.sendStatusMessage(new TextComponentString(
+                    TextFormatting.LIGHT_PURPLE + "[Checkpoint] " +
+                    TextFormatting.GRAY + "已傳送回存檔點"), true);
+
+            CHECKPOINTS.remove(uuid);
+        }
+    }
+
+    /**
+     * 護腿：釋放緩存傷害為AOE
+     */
+    private static void handleBufferRelease(EntityPlayer player) {
+        UUID uuid = player.getUniqueID();
+        BufferData buffer = DAMAGE_BUFFERS.get(uuid);
+
+        if (buffer == null || buffer.getTotalBuffered() <= 0) {
+            player.sendStatusMessage(new TextComponentString(
+                    TextFormatting.GRAY + "[Buffer] 緩存為空"), true);
+            return;
+        }
+
+        float totalDamage = buffer.getTotalBuffered();
+        buffer.entries.clear(); // 清空緩存
+
+        // 對周圍敵人造成傷害
+        List<EntityLivingBase> enemies = player.world.getEntitiesWithinAABB(EntityLivingBase.class,
+                player.getEntityBoundingBox().grow(5.0),
+                e -> e != player && e instanceof EntityMob);
+
+        if (enemies.isEmpty()) {
+            // 沒有敵人，傷害轉為自我治療
+            player.heal(totalDamage * 0.5f);
+            player.sendStatusMessage(new TextComponentString(
+                    TextFormatting.GREEN + "[Buffer] " +
+                    TextFormatting.GRAY + String.format("無敵人，轉換為治療 +%.1f", totalDamage * 0.5f)), true);
+        } else {
+            // 對每個敵人造成傷害
+            float damagePerEnemy = totalDamage * 1.5f; // 150%傷害加成
+            for (EntityLivingBase enemy : enemies) {
+                enemy.attackEntityFrom(DamageSource.causePlayerDamage(player), damagePerEnemy);
+            }
+
+            player.sendStatusMessage(new TextComponentString(
+                    TextFormatting.RED + "[Buffer Overflow] " +
+                    TextFormatting.GRAY + String.format("釋放 %.1f 傷害給 %d 個敵人", damagePerEnemy, enemies.size())), true);
+        }
+
+        // 效果
+        if (player.world instanceof WorldServer) {
+            WorldServer world = (WorldServer) player.world;
+            world.spawnParticle(EnumParticleTypes.EXPLOSION_LARGE,
+                    player.posX, player.posY + 0.5, player.posZ,
+                    5, 2, 0.5, 2, 0);
+            world.playSound(null, player.posX, player.posY, player.posZ,
+                    SoundEvents.ENTITY_GENERIC_EXPLODE, SoundCategory.PLAYERS, 0.8f, 1.2f);
+        }
+    }
+
+    // ========== 靴子：踩踏崩潰 ==========
+
+    private static final Map<UUID, BlockPos> LAST_BLOCK_POS = new HashMap<>();
+
+    @SubscribeEvent
+    public static void onPlayerMove(TickEvent.PlayerTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) return;
+        if (event.player.world.isRemote) return;
+
+        EntityPlayer player = event.player;
+
+        // 檢查靴子
+        if (!ItemGlitchArmor.hasArmorPiece(player, EntityEquipmentSlot.FEET)) return;
+
+        // 檢查是否在地面上
+        if (!player.onGround) return;
+
+        BlockPos currentPos = player.getPosition().down();
+        UUID uuid = player.getUniqueID();
+        BlockPos lastPos = LAST_BLOCK_POS.get(uuid);
+
+        // 檢查是否移動到新方塊
+        if (lastPos != null && lastPos.equals(currentPos)) return;
+        LAST_BLOCK_POS.put(uuid, currentPos);
+
+        // 1%機率觸發崩潰
+        if (RANDOM.nextFloat() < 0.01f) {
+            triggerBlockCollapse(player, currentPos);
+        }
+    }
+
+    private static void triggerBlockCollapse(EntityPlayer player, BlockPos pos) {
+        if (!(player.world instanceof WorldServer)) return;
+        WorldServer world = (WorldServer) player.world;
+
+        // 暫時將方塊變成空氣（視覺效果）
+        // 使用粒子模擬崩潰
+        world.spawnParticle(EnumParticleTypes.BLOCK_CRACK,
+                pos.getX() + 0.5, pos.getY() + 1, pos.getZ() + 0.5,
+                30, 0.3, 0.1, 0.3, 0.05,
+                net.minecraft.block.Block.getStateId(world.getBlockState(pos)));
+
+        world.playSound(null, pos.getX(), pos.getY(), pos.getZ(),
+                SoundEvents.BLOCK_GLASS_BREAK, SoundCategory.BLOCKS, 0.5f, 0.5f);
+
+        // 給周圍敵人造成輕微傷害
+        List<EntityLivingBase> nearby = world.getEntitiesWithinAABB(EntityLivingBase.class,
+                new AxisAlignedBB(pos).grow(2.0),
+                e -> e != player && e instanceof EntityMob);
+
+        for (EntityLivingBase entity : nearby) {
+            entity.attackEntityFrom(DamageSource.causePlayerDamage(player), 2.0f);
+            entity.addPotionEffect(new PotionEffect(MobEffects.SLOWNESS, 40, 1)); // 2秒緩慢
+        }
+
+        if (!nearby.isEmpty()) {
+            player.sendStatusMessage(new TextComponentString(
+                    TextFormatting.DARK_AQUA + "[Stack Underflow] " +
+                    TextFormatting.GRAY + "地面崩潰！"), true);
+        }
+    }
+
     // ========== 全套：藍屏死機 (BSOD) ==========
 
     /**
@@ -472,7 +660,7 @@ public class GlitchArmorEventHandler {
     }
 
     private static class BufferData {
-        private final List<DamageEntry> entries = new ArrayList<>();
+        final List<DamageEntry> entries = new ArrayList<>();
 
         void addDamage(float amount) {
             entries.add(new DamageEntry(amount, System.currentTimeMillis()));
