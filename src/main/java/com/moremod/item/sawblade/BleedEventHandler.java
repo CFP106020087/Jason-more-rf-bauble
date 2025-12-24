@@ -2,6 +2,7 @@ package com.moremod.item.sawblade;
 
 import com.moremod.item.ItemSawBladeSword;
 import com.moremod.item.sawblade.potion.PotionBloodEuphoria;
+import com.moremod.util.combat.TrueDamageHelper;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.monster.IMob;
 import net.minecraft.entity.player.EntityPlayer;
@@ -20,6 +21,8 @@ import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+
+import java.util.UUID;
 
 /**
  * 锯刃剑 - 核心出血系统事件处理器
@@ -136,9 +139,12 @@ public class BleedEventHandler {
             damage = Math.max(0, currentHP - 1.0f);
         }
         
-        // 造成真实伤害
+        // 造成真实伤害（使用TrueDamageHelper，支持抢夺/掠夺附魔）
         if (damage > 0) {
-            target.attackEntityFrom(DamageSource.MAGIC, damage);
+            TrueDamageHelper.applyWrappedTrueDamage(
+                target, player, damage,
+                TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE
+            );
         }
         
         // 重置出血
@@ -212,9 +218,22 @@ public class BleedEventHandler {
             int count = data.getInteger(KEY_LACERATION_COUNT);
             
             if (count > 0) {
-                // 造成撕裂伤害
+                // 造成撕裂伤害（使用TrueDamageHelper，支持抢夺/掠夺附魔）
                 float damage = data.getFloat("moremod_laceration_damage");
-                entity.attackEntityFrom(DamageSource.MAGIC, damage);
+
+                // 获取攻击者玩家
+                EntityPlayer attacker = null;
+                String attackerUUID = data.getString("moremod_laceration_attacker");
+                if (!attackerUUID.isEmpty()) {
+                    try {
+                        attacker = entity.world.getPlayerEntityByUUID(UUID.fromString(attackerUUID));
+                    } catch (Exception ignored) {}
+                }
+
+                TrueDamageHelper.applyWrappedTrueDamage(
+                    entity, attacker, damage,
+                    TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE
+                );
                 
                 // 小幅出血累积
                 float bleed = data.getFloat(KEY_BLEED);
