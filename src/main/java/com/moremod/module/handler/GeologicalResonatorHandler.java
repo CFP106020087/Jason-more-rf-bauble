@@ -77,21 +77,9 @@ public class GeologicalResonatorHandler implements IModuleEventHandler {
             }
         }
 
-        // 添加特殊可提取方块（非标准矿物词典）
-        // Astral Sorcery
-        SPECIAL_VALUABLE_BLOCKS.add("astralsorcery:blockcustomore");
-        SPECIAL_VALUABLE_BLOCKS.add("astralsorcery:blockcelestialcrystals");
-        SPECIAL_VALUABLE_BLOCKS.add("astralsorcery:celestialcrystals");
-        SPECIAL_VALUABLE_BLOCKS.add("astralsorcery:blockcollectorcrystal");
-        SPECIAL_VALUABLE_BLOCKS.add("astralsorcery:blockcelestialcollectorcrystal");
-        SPECIAL_VALUABLE_BLOCKS.add("astralsorcery:blockcelestialcrystalcluster");
-        SPECIAL_VALUABLE_BLOCKS.add("astralsorcery:celestialcrystalcluster");
-        SPECIAL_VALUABLE_BLOCKS.add("astralsorcery:block_celestial_crystals");
-        SPECIAL_VALUABLE_BLOCKS.add("astralsorcery:celestial_crystals");
-        SPECIAL_VALUABLE_BLOCKS.add("astralsorcery:rockcrystalore");
-        SPECIAL_VALUABLE_BLOCKS.add("astralsorcery:rock_crystal_ore");
+        // 特殊可提取方块已清空（移除了Astral Sorcery天辉水晶等问题方块）
 
-        System.out.println("[GeologicalResonator] 缓存了 " + KNOWN_ORE_IDS.size() + " 种矿物类型，" + SPECIAL_VALUABLE_BLOCKS.size() + " 种特殊方块。");
+        System.out.println("[GeologicalResonator] 缓存了 " + KNOWN_ORE_IDS.size() + " 种矿物类型。");
     }
 
     @Override
@@ -265,7 +253,7 @@ public class GeologicalResonatorHandler implements IModuleEventHandler {
             return false;
         }
 
-        // 检查是否是特殊可提取方块（如天辉水晶等模组矿物）
+        // 检查是否是特殊可提取方块
         if (block.getRegistryName() != null) {
             String regName = block.getRegistryName().toString().toLowerCase();
 
