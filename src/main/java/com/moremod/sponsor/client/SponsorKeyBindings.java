@@ -1,5 +1,6 @@
 package com.moremod.sponsor.client;
 
+import com.moremod.accessorybox.EarlyConfigLoader;
 import com.moremod.sponsor.item.ZhuxianSword;
 import com.moremod.sponsor.network.SponsorNetworkHandler;
 import com.moremod.sponsor.network.PacketToggleSkill;
@@ -52,6 +53,13 @@ public class SponsorKeyBindings {
      */
     public static void registerKeyBindings() {
         if (initialized) return;
+
+        // 配置检查
+        if (!EarlyConfigLoader.isZhuxianSwordEnabled()) {
+            System.out.println("[moremod/sponsor] 诛仙剑已禁用，跳过快捷键注册");
+            return;
+        }
+
         initialized = true;
 
         KEY_TIANXIN = new KeyBinding(
@@ -98,6 +106,9 @@ public class SponsorKeyBindings {
      */
     @SubscribeEvent
     public static void onKeyInput(InputEvent.KeyInputEvent event) {
+        // 快捷键未注册则跳过
+        if (!initialized) return;
+
         Minecraft mc = Minecraft.getMinecraft();
         EntityPlayer player = mc.player;
 

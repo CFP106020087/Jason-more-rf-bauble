@@ -27,6 +27,7 @@ import com.moremod.item.ItemSwordChengYue;
 import com.moremod.item.sawblade.client.BloodEuphoriaRenderer;
 import com.moremod.moremod;
 import com.moremod.printer.TileEntityPrinter;
+import com.moremod.accessorybox.EarlyConfigLoader;
 import com.moremod.sponsor.client.SponsorKeyBindings;
 import com.moremod.network.PacketHandler;
 import com.moremod.network.PacketSyncRejectionData;
@@ -98,8 +99,12 @@ public class ClientProxy extends CommonProxy {
 
         // 打印机渲染器 - 由用户手动实现
 
-        // 赞助者物品快捷键
-        SponsorKeyBindings.registerKeyBindings();
+        // 赞助者物品快捷键（仅在诛仙剑启用时注册）
+        if (EarlyConfigLoader.isZhuxianSwordEnabled()) {
+            SponsorKeyBindings.registerKeyBindings();
+        } else {
+            System.out.println("[moremod] 诛仙剑已禁用，跳过快捷键注册");
+        }
 
         registerEntityRenderers();
     }
