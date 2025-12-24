@@ -232,6 +232,17 @@ public class TileEntityPrinter extends TileEntity implements ITickable {
     private void finishProcessing() {
         if (currentRecipe == null) return;
 
+        // ⚠️ 重新验证材料（防止玩家中途取走材料作弊）
+        List<ItemStack> materials = getMaterialStacks();
+        if (!currentRecipe.matchesMaterials(materials)) {
+            // 材料不足，重置进度但不给输出
+            isProcessing = false;
+            progress = 0;
+            energyConsumed = 0;
+            maxProgress = 0;
+            return;
+        }
+
         // 消耗材料
         consumeMaterials();
 
