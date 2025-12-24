@@ -44,6 +44,10 @@ public class GeologicalResonatorHandler implements IModuleEventHandler {
     private static final int CONVERSION_COST = 800;
     private final Random random = new Random();
 
+    // 采样频率控制（每 X tick 采样一次）
+    private static final int SAMPLE_INTERVAL = 10; // 每0.5秒采样一次
+    private int tickCounter = 0;
+
     // FakePlayer 配置
     private static final GameProfile RESONATOR_PROFILE = new GameProfile(
             UUID.fromString("41C82C87-7AFB-4024-BA57-13D2C99CAE77"),
@@ -95,7 +99,14 @@ public class GeologicalResonatorHandler implements IModuleEventHandler {
         if (ctx.player.world.isRemote) return;
         if (!(ctx.player.world instanceof WorldServer)) return;
 
-        // 根据等级决定每 Tick 采样次数 (1, 2, 3)
+        // ★ 性能优化：降低采样频率，每 SAMPLE_INTERVAL tick 采样一次
+        tickCounter++;
+        if (tickCounter < SAMPLE_INTERVAL) {
+            return;
+        }
+        tickCounter = 0;
+
+        // 根据等级决定每次采样数量 (1, 2, 3)
         int samples = ctx.level;
 
         for (int i = 0; i < samples; i++) {
@@ -141,18 +152,8 @@ public class GeologicalResonatorHandler implements IModuleEventHandler {
         IBlockState state = world.getBlockState(targetPos);
         Block block = state.getBlock();
 
-        // 调试: 检测到特殊方块时输出日志
-        if (block.getRegistryName() != null) {
-            String regName = block.getRegistryName().toString();
-            if (SPECIAL_VALUABLE_BLOCKS.contains(regName)) {
-                System.out.println("[GeologicalResonator] DEBUG: 采样到特殊方块 " + regName + " @ " + targetPos);
-            }
-        }
-
-        // 判断是否是矿物
+        // 判断是否是矿物并执行提取
         if (isValuableOre(state, world, targetPos, player)) {
-            System.out.println("[GeologicalResonator] DEBUG: 确认为矿物，尝试提取: " + block.getRegistryName() + " @ " + targetPos);
-            // 执行提取
             return extractOreWithFakePlayer((WorldServer) world, player, targetPos, state);
         }
         return false;
@@ -182,9 +183,7 @@ public class GeologicalResonatorHandler implements IModuleEventHandler {
         List<EntityItem> itemsBefore = world.getEntitiesWithinAABB(EntityItem.class, collectBox);
 
         // 3. 执行完整挖矿流程
-        // 使用 removedByPlayer -> harvestBlock 流程
         boolean canHarvest = block.canHarvestBlock(world, pos, fakePlayer);
-        System.out.println("[GeologicalResonator] DEBUG: canHarvestBlock=" + canHarvest + " for " + registryName);
 
         if (canHarvest) {
             // 调用 removedByPlayer（触发方块的 breakBlock 逻辑）
@@ -234,7 +233,6 @@ public class GeologicalResonatorHandler implements IModuleEventHandler {
 
             // 播放效果
             playResonanceEffect(world, pos);
-            System.out.println("[GeologicalResonator] 成功提取: " + registryName + " @ " + pos);
         }
 
         return success;
