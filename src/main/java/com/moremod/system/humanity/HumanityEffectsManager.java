@@ -45,6 +45,9 @@ public class HumanityEffectsManager {
     /** 破碎之神固定最大血量 */
     private static final double BROKEN_GOD_MAX_HEALTH = 10.0;
 
+    /** 缓存上次的调整值，避免不必要的属性操作 */
+    private static final java.util.Map<java.util.UUID, Double> lastAdjustmentCache = new java.util.HashMap<>();
+
     /**
      * 更新玩家的 MaxHP 基于人性值
      * 在 PlayerTickEvent 中每秒调用
@@ -83,14 +86,19 @@ public class HumanityEffectsManager {
      * 应用破碎之神最大血量锁定
      * 强制将最大血量设为 10，无论其他任何修改器
      *
-     * 修复：每次都重新计算并应用修改器，防止其他模组修改血量属性导致归零
+     * 优化：缓存调整值，只在变化时才重新应用修改器
      */
     private static void applyBrokenGodHPLock(EntityPlayer player) {
         IAttributeInstance maxHealthAttr = player.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH);
         if (maxHealthAttr == null) return;
 
-        // 先移除旧的锁定修改器（这样才能获取"无我们修改器时"的真实值）
+        java.util.UUID playerId = player.getUniqueID();
+
+        // 获取当前修改器
         AttributeModifier existingMod = maxHealthAttr.getModifier(BROKEN_GOD_HP_LOCK_UUID);
+        double existingAdjustment = existingMod != null ? existingMod.getAmount() : 0;
+
+        // 临时移除我们的修改器来计算"真实"的当前值
         if (existingMod != null) {
             maxHealthAttr.removeModifier(existingMod);
         }
@@ -101,8 +109,11 @@ public class HumanityEffectsManager {
         // 计算需要的调整量：目标是让最终值 = 10
         double adjustment = BROKEN_GOD_MAX_HEALTH - currentMaxHealth;
 
-        // 只有在需要调整时才添加修改器
-        if (Math.abs(adjustment) > 0.001) {
+        // 检查是否需要更新（调整量变化超过阈值）
+        Double cachedAdjustment = lastAdjustmentCache.get(playerId);
+        boolean needsUpdate = cachedAdjustment == null || Math.abs(cachedAdjustment - adjustment) > 0.01;
+
+        if (needsUpdate && Math.abs(adjustment) > 0.001) {
             // 创建新的锁定修改器
             AttributeModifier lockMod = new AttributeModifier(
                     BROKEN_GOD_HP_LOCK_UUID,
@@ -111,6 +122,10 @@ public class HumanityEffectsManager {
                     0 // Operation: Add
             );
             maxHealthAttr.applyModifier(lockMod);
+            lastAdjustmentCache.put(playerId, adjustment);
+        } else if (existingMod != null && Math.abs(adjustment) > 0.001) {
+            // 不需要更新，恢复旧的修改器
+            maxHealthAttr.applyModifier(existingMod);
         }
 
         // 确保当前血量不超过最大值（使用直接设置绕过 First Aid）
@@ -135,6 +150,9 @@ public class HumanityEffectsManager {
         if (existingMod != null) {
             maxHealthAttr.removeModifier(existingMod);
         }
+
+        // 清理缓存
+        lastAdjustmentCache.remove(player.getUniqueID());
     }
 
     /**
