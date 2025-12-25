@@ -362,11 +362,23 @@ public class LegacyRitualCT {
         @Override
         public void apply() {
             List<ItemStack> mcItems = new ArrayList<>();
+
+            // ★ 修复：展开堆叠数量，[<item:A> * 2] 会创建2个 ItemStack
             for (IItemStack item : items) {
                 if (item != null) {
-                    mcItems.add(CraftTweakerMC.getItemStack(item));
+                    ItemStack mcStack = CraftTweakerMC.getItemStack(item);
+                    int amount = mcStack.getCount();
+
+                    // 为每个数量创建单独的 ItemStack（count=1）
+                    for (int i = 0; i < amount; i++) {
+                        ItemStack single = mcStack.copy();
+                        single.setCount(1);
+                        mcItems.add(single);
+                    }
                 }
             }
+
+            System.out.println("[LegacyRitual] Setting " + ritualId + " pedestal items: " + mcItems.size() + " items (expanded)");
             LegacyRitualConfig.setPedestalItems(ritualId, mcItems);
         }
 
