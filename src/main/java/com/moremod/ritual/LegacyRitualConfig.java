@@ -7,6 +7,7 @@ import net.minecraft.item.ItemStack;
 
 import javax.annotation.Nullable;
 import java.util.*;
+import java.util.Iterator;
 import java.util.function.Predicate;
 
 /**
@@ -520,6 +521,7 @@ public class LegacyRitualConfig {
 
     /**
      * 检查基座物品是否满足仪式材料需求
+     * 注意：每个基座只能放一个物品，所以这里统计的是"有多少个基座放了匹配的物品"
      *
      * @param ritualId 仪式ID
      * @param pedestalItems 基座上的物品列表
@@ -531,7 +533,7 @@ public class LegacyRitualConfig {
             return true; // 无材料需求
         }
 
-        // 创建可用物品的副本（用于计数）
+        // 创建可用物品的副本（每个基座只能放一个物品，所以每个物品只能匹配一次）
         List<ItemStack> available = new ArrayList<>();
         for (ItemStack stack : pedestalItems) {
             if (!stack.isEmpty()) {
@@ -540,13 +542,19 @@ public class LegacyRitualConfig {
         }
 
         // 检查每个需求是否满足
+        // 每个需求可能需要多个物品（例如钻石×4）
+        // 需要从可用物品中找到足够数量的匹配物品
         for (MaterialRequirement req : requirements) {
             int needed = req.getCount();
             int found = 0;
 
-            for (ItemStack stack : available) {
+            // 遍历可用物品，统计匹配的基座数量（不是堆叠数量）
+            Iterator<ItemStack> iter = available.iterator();
+            while (iter.hasNext() && found < needed) {
+                ItemStack stack = iter.next();
                 if (req.matches(stack)) {
-                    found += stack.getCount();
+                    found++;
+                    iter.remove(); // 这个物品已被此需求使用，从可用列表中移除
                 }
             }
 
