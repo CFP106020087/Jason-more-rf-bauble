@@ -149,8 +149,20 @@ public class RitualCraftTweaker {
             this.failChance = failChance;
             this.requiredTier = requiredTier;
             this.pedestalItems = new ArrayList<>();
+
+            // ★ 修复：展开堆叠数量，确保每个物品都被正确消耗
+            // 例如 [<item:A> * 2, <item:B> * 4] 会展开为6个 Ingredient
             for (IIngredient pedestal : pedestals) {
-                this.pedestalItems.add(CraftTweakerMC.getIngredient(pedestal));
+                if (pedestal == null) continue;
+
+                // 获取数量（IIngredient 的 getAmount 返回堆叠数量）
+                int amount = pedestal.getAmount();
+
+                // 为每个数量创建一个 Ingredient
+                Ingredient ingredient = CraftTweakerMC.getIngredient(pedestal);
+                for (int i = 0; i < amount; i++) {
+                    this.pedestalItems.add(ingredient);
+                }
             }
         }
 
