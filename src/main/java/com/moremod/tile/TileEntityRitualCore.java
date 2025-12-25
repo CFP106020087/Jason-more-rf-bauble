@@ -3613,20 +3613,9 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     private boolean checkUnbreakableMaterials() {
         List<ItemStack> pedestalItems = collectPedestalItems();
 
-        System.out.println("[Unbreakable DEBUG] checkUnbreakableMaterials called");
-        System.out.println("[Unbreakable DEBUG]   pedestalItems count: " + pedestalItems.size());
-        for (ItemStack stack : pedestalItems) {
-            System.out.println("[Unbreakable DEBUG]     - " + stack.getItem().getRegistryName() + " x" + stack.getCount());
-        }
-
         // 如果有自定义材料配置，使用配置系统检查
-        boolean hasCustom = LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.UNBREAKABLE);
-        System.out.println("[Unbreakable DEBUG]   hasCustomMaterials: " + hasCustom);
-
-        if (hasCustom) {
-            boolean result = LegacyRitualConfig.checkMaterialRequirements(LegacyRitualConfig.UNBREAKABLE, pedestalItems);
-            System.out.println("[Unbreakable DEBUG]   checkMaterialRequirements result: " + result);
-            return result;
+        if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.UNBREAKABLE)) {
+            return LegacyRitualConfig.checkMaterialRequirements(LegacyRitualConfig.UNBREAKABLE, pedestalItems);
         }
 
         // 默认硬编码检查
@@ -4005,20 +3994,9 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     private boolean checkSoulboundMaterials() {
         List<ItemStack> pedestalItems = collectPedestalItems();
 
-        System.out.println("[Soulbound DEBUG] checkSoulboundMaterials called");
-        System.out.println("[Soulbound DEBUG]   pedestalItems count: " + pedestalItems.size());
-        for (ItemStack stack : pedestalItems) {
-            System.out.println("[Soulbound DEBUG]     - " + stack.getItem().getRegistryName() + " x" + stack.getCount());
-        }
-
         // 如果有自定义材料配置，使用配置系统检查
-        boolean hasCustom = LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.SOULBOUND);
-        System.out.println("[Soulbound DEBUG]   hasCustomMaterials: " + hasCustom);
-
-        if (hasCustom) {
-            boolean result = LegacyRitualConfig.checkMaterialRequirements(LegacyRitualConfig.SOULBOUND, pedestalItems);
-            System.out.println("[Soulbound DEBUG]   checkMaterialRequirements result: " + result);
-            return result;
+        if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.SOULBOUND)) {
+            return LegacyRitualConfig.checkMaterialRequirements(LegacyRitualConfig.SOULBOUND, pedestalItems);
         }
 
         // 默认硬编码检查

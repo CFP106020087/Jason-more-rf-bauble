@@ -207,19 +207,6 @@ public class LegacyRitualConfig {
         params.pedestalItems = new ArrayList<>(items);
         // 设置材料后也标记为已修改（即使是空列表）
         CLEARED_MATERIALS.add(id);
-
-        // 详细调试日志
-        System.out.println("[LegacyRitual DEBUG] setPedestalItems called for: " + ritualId + " (normalized: " + id + ")");
-        System.out.println("[LegacyRitual DEBUG]   items.size() = " + items.size());
-        System.out.println("[LegacyRitual DEBUG]   params.pedestalItems.size() = " + params.pedestalItems.size());
-        for (int i = 0; i < params.pedestalItems.size(); i++) {
-            ItemStack s = params.pedestalItems.get(i);
-            System.out.println("[LegacyRitual DEBUG]   [" + i + "] " + s.getItem().getRegistryName() + ":" + s.getMetadata() + " x" + s.getCount());
-        }
-        System.out.println("[LegacyRitual DEBUG]   OVERRIDES now contains " + id + ": " + (OVERRIDES.get(id) != null));
-        System.out.println("[LegacyRitual DEBUG]   OVERRIDES.get(" + id + ").pedestalItems.size() = " +
-            (OVERRIDES.get(id) != null && OVERRIDES.get(id).pedestalItems != null ? OVERRIDES.get(id).pedestalItems.size() : "null"));
-
         log("Set " + ritualId + " pedestal items (" + items.size() + " items)");
     }
 
@@ -511,15 +498,13 @@ public class LegacyRitualConfig {
             List<MaterialRequirement> result = new ArrayList<>();
             Map<String, Integer> countMap = new HashMap<>();
 
-            // 统计每种物品的数量
+            // ★ 修复：统计每种物品在列表中出现的次数（每个条目计数1）
+            // 不再使用 stack.getCount()，因为每个基座只能放一个物品
+            // pedestalItems 列表中的每个条目代表一个需要的材料位置
             for (ItemStack stack : override.pedestalItems) {
                 String key = stack.getItem().getRegistryName() + ":" + stack.getMetadata();
-                countMap.merge(key, stack.getCount(), Integer::sum);
+                countMap.merge(key, 1, Integer::sum);  // 每个列表条目计数1
             }
-
-            System.out.println("[LegacyRitual DEBUG] getMaterialRequirements for " + ritualId + ":");
-            System.out.println("[LegacyRitual DEBUG]   pedestalItems count: " + override.pedestalItems.size());
-            System.out.println("[LegacyRitual DEBUG]   countMap: " + countMap);
 
             // 创建 MaterialRequirement
             for (ItemStack stack : override.pedestalItems) {
@@ -527,7 +512,6 @@ public class LegacyRitualConfig {
                 Integer count = countMap.remove(key);
                 if (count != null) {
                     result.add(new MaterialRequirement(stack.getItem(), stack.getMetadata(), count));
-                    System.out.println("[LegacyRitual DEBUG]   Created requirement: " + key + " x" + count);
                 }
             }
 
@@ -550,11 +534,7 @@ public class LegacyRitualConfig {
     public static boolean checkMaterialRequirements(String ritualId, List<ItemStack> pedestalItems) {
         List<MaterialRequirement> requirements = getMaterialRequirements(ritualId);
 
-        System.out.println("[LegacyRitual DEBUG] checkMaterialRequirements for " + ritualId);
-        System.out.println("[LegacyRitual DEBUG]   requirements count: " + requirements.size());
-
         if (requirements.isEmpty()) {
-            System.out.println("[LegacyRitual DEBUG]   No requirements - returning true");
             return true; // 无材料需求
         }
 
@@ -564,11 +544,6 @@ public class LegacyRitualConfig {
             if (!stack.isEmpty()) {
                 available.add(stack.copy());
             }
-        }
-
-        System.out.println("[LegacyRitual DEBUG]   available pedestals: " + available.size());
-        for (ItemStack stack : available) {
-            System.out.println("[LegacyRitual DEBUG]     - " + stack.getItem().getRegistryName() + ":" + stack.getMetadata() + " x" + stack.getCount());
         }
 
         // 检查每个需求是否满足
@@ -588,15 +563,11 @@ public class LegacyRitualConfig {
                 }
             }
 
-            System.out.println("[LegacyRitual DEBUG]   Requirement " + req.getDescription() + ": found " + found + " / needed " + needed);
-
             if (found < needed) {
-                System.out.println("[LegacyRitual DEBUG]   FAILED - not enough materials");
                 return false;
             }
         }
 
-        System.out.println("[LegacyRitual DEBUG]   SUCCESS - all requirements met");
         return true;
     }
 
@@ -636,16 +607,11 @@ public class LegacyRitualConfig {
 
         // 如果材料已被清除，返回true（即使pedestalItems为空）
         if (CLEARED_MATERIALS.contains(id)) {
-            System.out.println("[LegacyRitual DEBUG] hasCustomMaterials(" + ritualId + "): true (cleared)");
             return true;
         }
 
         // 否则检查是否有非空的自定义材料
         RitualParams override = OVERRIDES.get(id);
-        boolean result = override != null && override.pedestalItems != null && !override.pedestalItems.isEmpty();
-        System.out.println("[LegacyRitual DEBUG] hasCustomMaterials(" + ritualId + "): " + result +
-            " (override=" + (override != null) +
-            ", pedestalItems=" + (override != null && override.pedestalItems != null ? override.pedestalItems.size() : "null") + ")");
-        return result;
+        return override != null && override.pedestalItems != null && !override.pedestalItems.isEmpty();
     }
 }
