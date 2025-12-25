@@ -4005,9 +4005,20 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     private boolean checkSoulboundMaterials() {
         List<ItemStack> pedestalItems = collectPedestalItems();
 
+        System.out.println("[Soulbound DEBUG] checkSoulboundMaterials called");
+        System.out.println("[Soulbound DEBUG]   pedestalItems count: " + pedestalItems.size());
+        for (ItemStack stack : pedestalItems) {
+            System.out.println("[Soulbound DEBUG]     - " + stack.getItem().getRegistryName() + " x" + stack.getCount());
+        }
+
         // 如果有自定义材料配置，使用配置系统检查
-        if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.SOULBOUND)) {
-            return LegacyRitualConfig.checkMaterialRequirements(LegacyRitualConfig.SOULBOUND, pedestalItems);
+        boolean hasCustom = LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.SOULBOUND);
+        System.out.println("[Soulbound DEBUG]   hasCustomMaterials: " + hasCustom);
+
+        if (hasCustom) {
+            boolean result = LegacyRitualConfig.checkMaterialRequirements(LegacyRitualConfig.SOULBOUND, pedestalItems);
+            System.out.println("[Soulbound DEBUG]   checkMaterialRequirements result: " + result);
+            return result;
         }
 
         // 默认硬编码检查

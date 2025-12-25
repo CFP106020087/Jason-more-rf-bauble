@@ -202,9 +202,24 @@ public class LegacyRitualConfig {
      * 设置自定义基座材料
      */
     public static void setPedestalItems(String ritualId, List<ItemStack> items) {
-        getOrCreateOverride(ritualId).pedestalItems = new ArrayList<>(items);
+        String id = ritualId.toLowerCase(Locale.ROOT);
+        RitualParams params = getOrCreateOverride(id);
+        params.pedestalItems = new ArrayList<>(items);
         // 设置材料后也标记为已修改（即使是空列表）
-        CLEARED_MATERIALS.add(ritualId.toLowerCase(Locale.ROOT));
+        CLEARED_MATERIALS.add(id);
+
+        // 详细调试日志
+        System.out.println("[LegacyRitual DEBUG] setPedestalItems called for: " + ritualId + " (normalized: " + id + ")");
+        System.out.println("[LegacyRitual DEBUG]   items.size() = " + items.size());
+        System.out.println("[LegacyRitual DEBUG]   params.pedestalItems.size() = " + params.pedestalItems.size());
+        for (int i = 0; i < params.pedestalItems.size(); i++) {
+            ItemStack s = params.pedestalItems.get(i);
+            System.out.println("[LegacyRitual DEBUG]   [" + i + "] " + s.getItem().getRegistryName() + ":" + s.getMetadata() + " x" + s.getCount());
+        }
+        System.out.println("[LegacyRitual DEBUG]   OVERRIDES now contains " + id + ": " + (OVERRIDES.get(id) != null));
+        System.out.println("[LegacyRitual DEBUG]   OVERRIDES.get(" + id + ").pedestalItems.size() = " +
+            (OVERRIDES.get(id) != null && OVERRIDES.get(id).pedestalItems != null ? OVERRIDES.get(id).pedestalItems.size() : "null"));
+
         log("Set " + ritualId + " pedestal items (" + items.size() + " items)");
     }
 
