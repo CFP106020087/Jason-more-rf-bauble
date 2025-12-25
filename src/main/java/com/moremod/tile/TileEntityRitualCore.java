@@ -3613,9 +3613,20 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     private boolean checkUnbreakableMaterials() {
         List<ItemStack> pedestalItems = collectPedestalItems();
 
+        System.out.println("[Unbreakable DEBUG] checkUnbreakableMaterials called");
+        System.out.println("[Unbreakable DEBUG]   pedestalItems count: " + pedestalItems.size());
+        for (ItemStack stack : pedestalItems) {
+            System.out.println("[Unbreakable DEBUG]     - " + stack.getItem().getRegistryName() + " x" + stack.getCount());
+        }
+
         // 如果有自定义材料配置，使用配置系统检查
-        if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.UNBREAKABLE)) {
-            return LegacyRitualConfig.checkMaterialRequirements(LegacyRitualConfig.UNBREAKABLE, pedestalItems);
+        boolean hasCustom = LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.UNBREAKABLE);
+        System.out.println("[Unbreakable DEBUG]   hasCustomMaterials: " + hasCustom);
+
+        if (hasCustom) {
+            boolean result = LegacyRitualConfig.checkMaterialRequirements(LegacyRitualConfig.UNBREAKABLE, pedestalItems);
+            System.out.println("[Unbreakable DEBUG]   checkMaterialRequirements result: " + result);
+            return result;
         }
 
         // 默认硬编码检查
