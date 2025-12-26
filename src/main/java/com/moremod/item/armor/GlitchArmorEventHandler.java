@@ -415,7 +415,7 @@ public class GlitchArmorEventHandler {
                         player.posX, player.posY + 1, player.posZ,
                         20, 0.5, 0.5, 0.5, 0.05);
                 world.playSound(null, player.posX, player.posY, player.posZ,
-                        SoundEvents.BLOCK_BEACON_ACTIVATE, SoundCategory.PLAYERS, 0.5f, 1.5f);
+                        SoundEvents.BLOCK_ENCHANTMENT_TABLE_USE, SoundCategory.PLAYERS, 0.5f, 1.5f);
             }
 
             player.sendStatusMessage(new TextComponentString(
@@ -507,7 +507,7 @@ public class GlitchArmorEventHandler {
             WorldServer world = (WorldServer) player.world;
             world.spawnParticle(EnumParticleTypes.EXPLOSION_LARGE,
                     player.posX, player.posY + 0.5, player.posZ,
-                    5, 2, 0.5, 2, 0);
+                    5, 2, 0.5, 2.0, 0);
             world.playSound(null, player.posX, player.posY, player.posZ,
                     SoundEvents.ENTITY_GENERIC_EXPLODE, SoundCategory.PLAYERS, 0.8f, 1.2f);
         }

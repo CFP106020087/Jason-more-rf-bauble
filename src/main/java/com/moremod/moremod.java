@@ -143,7 +143,7 @@ public class moremod {
 
     public static final String MODID = "moremod";
     public static final String NAME = "More Mod";
-    public static final String VERSION = "3.4.0";
+    public static final String VERSION = "3.5";
 
     @Mod.Instance(MODID)
     public static moremod INSTANCE;
