@@ -439,11 +439,12 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         int energyPerPedestal = LegacyRitualConfig.getEnergyPerPedestal(ritualId);
         int totalEnergy = energyPerPedestal * pedestalCount;
 
-        // 调试日志（仅在首次检查时输出）
-        if (simulate && totalEnergy > 0) {
+        // 调试日志（每秒最多一次，避免刷屏）
+        if (simulate && world != null && world.getWorldTime() % 20 == 0) {
             System.out.println("[RitualEnergy] " + ritualId + ": energyPerPedestal=" + energyPerPedestal +
-                             ", pedestalCount=" + pedestalCount + ", totalEnergy=" + totalEnergy +
-                             ", duration=" + duration + ", peds=" + peds.size());
+                             ", pedestalCount=" + pedestalCount + ", totalRequired=" + totalEnergy +
+                             ", duration=" + duration + ", pedestals=" + peds.size() +
+                             (totalEnergy <= 0 ? " (NO ENERGY REQUIRED!)" : ""));
         }
 
         if (totalEnergy <= 0) return true; // 不需要能量

@@ -92,12 +92,31 @@ public class LegacyRitualConfig {
      * 获取仪式能量消耗（每基座）
      */
     public static int getEnergyPerPedestal(String ritualId) {
-        RitualParams override = OVERRIDES.get(ritualId.toLowerCase(Locale.ROOT));
+        String id = ritualId.toLowerCase(Locale.ROOT);
+        RitualParams override = OVERRIDES.get(id);
         if (override != null && override.energyPerPedestal != null) {
             return override.energyPerPedestal;
         }
-        RitualParams def = DEFAULTS.get(ritualId.toLowerCase(Locale.ROOT));
+        RitualParams def = DEFAULTS.get(id);
         return def != null ? def.energyPerPedestal : 100000;
+    }
+
+    /**
+     * 获取仪式能量消耗并打印调试信息（仅在仪式开始时调用）
+     */
+    public static int getEnergyPerPedestalDebug(String ritualId) {
+        String id = ritualId.toLowerCase(Locale.ROOT);
+        RitualParams override = OVERRIDES.get(id);
+        if (override != null && override.energyPerPedestal != null) {
+            System.out.println("[RitualConfig] " + ritualId + " energy=" +
+                             override.energyPerPedestal + " (OVERRIDE)");
+            return override.energyPerPedestal;
+        }
+        RitualParams def = DEFAULTS.get(id);
+        int result = def != null ? def.energyPerPedestal : 100000;
+        System.out.println("[RitualConfig] " + ritualId + " energy=" +
+                         result + " (" + (def != null ? "DEFAULT" : "FALLBACK") + ")");
+        return result;
     }
 
     /**
