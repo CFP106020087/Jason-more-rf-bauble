@@ -18,6 +18,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.world.World;
+import net.minecraft.world.WorldServer;
 import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.Optional;
 
@@ -610,7 +611,7 @@ public class ItemExplorerCompass extends Item implements IBauble {
      * 优化的粒子路径 - 分帧生成以减少卡顿
      */
     private static void createOptimizedParticlePath(EntityPlayerMP player, BlockPos target) {
-        World world = player.getServerWorld();
+        WorldServer world = player.getServerWorld();
 
         // 1. 計算起點與終點
         Vec3d start = player.getPositionVector().add(0, player.getEyeHeight() - 0.2, 0); // 稍微降低起點，不擋視野
@@ -660,19 +661,22 @@ public class ItemExplorerCompass extends Item implements IBauble {
                     double jy = (Math.random() - 0.5) * jitter;
                     double jz = (Math.random() - 0.5) * jitter;
 
-                    // 主體粒子：龍息 (紫色光輝)
-                    world.spawnParticle(EnumParticleTypes.DRAGON_BREATH, x + jx, y + jy, z + jz, 0, 0, 0);
+                    // 主體粒子：龍息 (紫色光輝) - 使用 WorldServer.spawnParticle 發送到客戶端
+                    world.spawnParticle(EnumParticleTypes.DRAGON_BREATH, false,
+                            x + jx, y + jy, z + jz, 1, 0, 0, 0, 0);
 
                     // 核心粒子：紅石 (高亮核心) - 每2個點生成一次，保持性能
                     if (i % 2 == 0) {
-                        // 紅石粒子顏色參數：Redstone 粒子的速度參數其實是 RGB 顏色
+                        // 紅石粒子顏色參數：速度參數是 RGB 顏色
                         // 這裡設為金黃色/橙色系
-                        world.spawnParticle(EnumParticleTypes.REDSTONE, x, y, z, 1.0, 0.5, 0.0);
+                        world.spawnParticle(EnumParticleTypes.REDSTONE, false,
+                                x, y, z, 1, 0, 0, 0, 1.0);
                     }
 
                     // 點綴粒子：末影光點 (增加魔法感) - 稀疏生成
                     if (i % 10 == 0) {
-                        world.spawnParticle(EnumParticleTypes.END_ROD, x, y, z, 0, 0.02, 0);
+                        world.spawnParticle(EnumParticleTypes.END_ROD, false,
+                                x, y, z, 1, 0, 0, 0, 0.02);
                     }
                 }
             });
@@ -681,23 +685,16 @@ public class ItemExplorerCompass extends Item implements IBauble {
         // 6. 只有當目標在渲染距離內時，才標記終點
         if (totalDistance <= RENDER_DISTANCE_CAP + 5) {
             world.getMinecraftServer().addScheduledTask(() -> {
-                // 終點特效：星爆
-                for (int i = 0; i < 20; i++) {
-                    world.spawnParticle(EnumParticleTypes.VILLAGER_HAPPY,
-                            targetVec.x + (Math.random() - 0.5),
-                            targetVec.y + (Math.random() - 0.5) + 1,
-                            targetVec.z + (Math.random() - 0.5),
-                            (Math.random() - 0.5) * 0.1, 0.1, (Math.random() - 0.5) * 0.1);
-                }
+                // 終點特效：星爆 - 使用 WorldServer.spawnParticle 發送到客戶端
+                world.spawnParticle(EnumParticleTypes.VILLAGER_HAPPY, false,
+                        targetVec.x, targetVec.y + 1, targetVec.z,
+                        20, 0.5, 0.5, 0.5, 0.1);
 
                 // 音效：清脆的定位音
                 world.playSound(null, target,
                         net.minecraft.init.SoundEvents.ENTITY_PLAYER_LEVELUP,
                         net.minecraft.util.SoundCategory.PLAYERS, 0.5F, 2.0F);
             });
-        } else {
-            // 如果目標很遠，在路徑盡頭播放一個指向音效
-            // 這樣玩家知道還沒到
         }
     }
 
