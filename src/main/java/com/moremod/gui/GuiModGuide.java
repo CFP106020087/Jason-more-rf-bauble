@@ -473,7 +473,7 @@ public class GuiModGuide extends GuiScreen {
         // ==================== 三階儀式祭壇 - 地板層 (9x9) ====================
         StructureTemplate ritualTier3Floor = new StructureTemplate(9, 9)
                 .addKey('Q', new ItemStack(Blocks.QUARTZ_BLOCK))            // 石英地板
-                .addKey('L', new ItemStack(Blocks.PURPUR_PILLAR));          // 柱子底座
+                .addKey('L', new ItemStack(Blocks.QUARTZ_BLOCK));           // 柱子底座（石英塊）
 
         // 三階地板層：5x5石英 + 四角柱子起點
         ritualTier3Floor.addLayer(
