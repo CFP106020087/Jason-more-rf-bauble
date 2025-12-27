@@ -35,6 +35,14 @@ public class TransferRuneManager {
     }
 
     /**
+     * 生成通配符 key (registryName:*) 用于任意 metadata 匹配
+     */
+    private static String getWildcardKey(ItemStack stack) {
+        if (stack.isEmpty()) return "";
+        return stack.getItem().getRegistryName() + ":*";
+    }
+
+    /**
      * 添加符文
      */
     public static void addRune(ItemStack item, float successRate, int xpCost) {
@@ -42,14 +50,20 @@ public class TransferRuneManager {
             System.out.println("[TransferRunes] 警告：尝试添加空物品作为符文");
             return;
         }
-        String key = getItemKey(item);
+        // 如果 metadata 是通配符 (32767)，使用通配符 key
+        String key;
+        if (item.getMetadata() == 32767) {
+            key = getWildcardKey(item);
+        } else {
+            key = getItemKey(item);
+        }
         RuneData data = new RuneData(successRate, xpCost);
         runeRegistry.put(key, data);
-        runeItems.put(key, item.copy());  // 保存副本用于显示
+        runeItems.put(key, item.copy());
         System.out.println("[TransferRunes] 注册符文: " + item.getDisplayName() +
                 " (Key: " + key + ")");
     }
-    
+
     /**
      * 检查物品是否是有效符文
      */
@@ -62,38 +76,73 @@ public class TransferRuneManager {
             loadDefaultRunes();
         }
 
-        String key = getItemKey(stack);
-        boolean valid = runeRegistry.containsKey(key);
-
-        if (!valid) {
-            // 调试日志
-            System.out.println("[TransferRunes] 检查符文失败: " + stack.getDisplayName() +
-                    " (Key: " + key + ", registry size: " + runeRegistry.size() + ")");
-            // 打印已注册的符文列表帮助调试
-            if (!runeRegistry.isEmpty()) {
-                System.out.println("[TransferRunes] 已注册符文: " + runeRegistry.keySet());
-            }
+        // 先尝试精确匹配
+        String exactKey = getItemKey(stack);
+        if (runeRegistry.containsKey(exactKey)) {
+            return true;
         }
 
-        return valid;
+        // 再尝试通配符匹配 (任意 metadata)
+        String wildcardKey = getWildcardKey(stack);
+        if (runeRegistry.containsKey(wildcardKey)) {
+            return true;
+        }
+
+        // 调试日志
+        System.out.println("[TransferRunes] 检查符文失败: " + stack.getDisplayName() +
+                " (ExactKey: " + exactKey + ", WildcardKey: " + wildcardKey +
+                ", registry size: " + runeRegistry.size() + ")");
+        if (!runeRegistry.isEmpty()) {
+            System.out.println("[TransferRunes] 已注册符文: " + runeRegistry.keySet());
+        }
+
+        return false;
     }
-    
+
     /**
      * 获取符文数据
      */
     public static RuneData getRuneData(ItemStack stack) {
-        String key = getItemKey(stack);
-        RuneData data = runeRegistry.get(key);
+        // 先尝试精确匹配
+        String exactKey = getItemKey(stack);
+        RuneData data = runeRegistry.get(exactKey);
         if (data != null) {
             return data;
         }
+
+        // 再尝试通配符匹配
+        String wildcardKey = getWildcardKey(stack);
+        data = runeRegistry.get(wildcardKey);
+        if (data != null) {
+            return data;
+        }
+
         // 默认数据
         return new RuneData(1.0f, 0);
     }
     
+    /**
+     * 获取物品对应的注册 key（考虑通配符）
+     */
+    private static String getRegisteredKey(ItemStack item) {
+        String exactKey = getItemKey(item);
+        if (runeRegistry.containsKey(exactKey)) {
+            return exactKey;
+        }
+        String wildcardKey = getWildcardKey(item);
+        if (runeRegistry.containsKey(wildcardKey)) {
+            return wildcardKey;
+        }
+        // 如果是通配符 metadata，返回通配符 key
+        if (item.getMetadata() == 32767) {
+            return wildcardKey;
+        }
+        return exactKey;
+    }
+
     // Setter方法
     public static void setSuccessModifier(ItemStack item, float modifier) {
-        String key = getItemKey(item);
+        String key = getRegisteredKey(item);
         RuneData data = runeRegistry.get(key);
         if (data != null) {
             data.successRate = Math.max(0, Math.min(1, modifier));
@@ -103,7 +152,7 @@ public class TransferRuneManager {
     }
 
     public static void setXpCost(ItemStack item, int cost) {
-        String key = getItemKey(item);
+        String key = getRegisteredKey(item);
         RuneData data = runeRegistry.get(key);
         if (data != null) {
             data.xpCost = Math.max(0, cost);
@@ -113,7 +162,7 @@ public class TransferRuneManager {
     }
 
     public static void setMaxAffixLimit(ItemStack item, int limit) {
-        String key = getItemKey(item);
+        String key = getRegisteredKey(item);
         RuneData data = runeRegistry.get(key);
         if (data != null) {
             data.maxAffixes = limit;
@@ -144,7 +193,7 @@ public class TransferRuneManager {
     }
     
     public static void removeRune(ItemStack item) {
-        String key = getItemKey(item);
+        String key = getRegisteredKey(item);
         runeRegistry.remove(key);
         runeItems.remove(key);
         System.out.println("[TransferRunes] 移除符文: " + key);
