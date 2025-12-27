@@ -56,7 +56,7 @@ public class SpecialRitualWrapper implements IRecipeWrapper {
 
         // 显示祭坛阶层要求
         String tierText = "需要: " + ritualInfo.getType().getTierName();
-        int tierColor = getTierColor(ritualInfo.getType().requiredTier);
+        int tierColor = getTierColor(ritualInfo.getType().getRequiredTier());
         fontRenderer.drawString(tierText, 5, 14, tierColor);
 
         // 显示时间（底部区域）
