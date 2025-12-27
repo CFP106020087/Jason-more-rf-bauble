@@ -23,7 +23,7 @@ public class EnergyBalanceConfig {
     /** 每级容量升级的提升值 */
     public static int ENERGY_PER_CAPACITY_LEVEL = 5_000;    // 每级+5k
     /** 基础充放电传输速率 */
-    public static int BASE_ENERGY_TRANSFER = 2_000;         // 基础传输
+    public static int BASE_ENERGY_TRANSFER = 20_000;        // 基础传输
 
     // ====== 核心消耗机制 ======
 
