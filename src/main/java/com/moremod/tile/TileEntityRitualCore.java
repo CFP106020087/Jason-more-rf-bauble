@@ -436,7 +436,16 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         if (peds.isEmpty()) return false;
 
         // 从配置获取每基座能量消耗
-        int totalEnergy = LegacyRitualConfig.getEnergyPerPedestal(ritualId) * pedestalCount;
+        int energyPerPedestal = LegacyRitualConfig.getEnergyPerPedestal(ritualId);
+        int totalEnergy = energyPerPedestal * pedestalCount;
+
+        // 调试日志（仅在首次检查时输出）
+        if (simulate && totalEnergy > 0) {
+            System.out.println("[RitualEnergy] " + ritualId + ": energyPerPedestal=" + energyPerPedestal +
+                             ", pedestalCount=" + pedestalCount + ", totalEnergy=" + totalEnergy +
+                             ", duration=" + duration + ", peds=" + peds.size());
+        }
+
         if (totalEnergy <= 0) return true; // 不需要能量
 
         // 计算每tick消耗
@@ -447,7 +456,12 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
 
         // 检查每个基座是否有足够能量
         for (TileEntityPedestal ped : peds) {
-            if (ped.getEnergy().extractEnergy(perPedestal, true) < perPedestal) {
+            int available = ped.getEnergy().extractEnergy(perPedestal, true);
+            if (available < perPedestal) {
+                if (simulate) {
+                    System.out.println("[RitualEnergy] " + ritualId + ": 能量不足! 需要=" + perPedestal +
+                                     ", 可用=" + available);
+                }
                 return false;
             }
         }
