@@ -95,10 +95,17 @@ public class LegacyRitualConfig {
         String id = ritualId.toLowerCase(Locale.ROOT);
         RitualParams override = OVERRIDES.get(id);
         if (override != null && override.energyPerPedestal != null) {
+            // 只在首次调用时打印（避免刷屏）
             return override.energyPerPedestal;
         }
         RitualParams def = DEFAULTS.get(id);
-        return def != null ? def.energyPerPedestal : 100000;
+        int result = def != null ? def.energyPerPedestal : 100000;
+        // 检查是否有 override 但 energyPerPedestal 为 null
+        if (override != null && override.energyPerPedestal == null) {
+            System.out.println("[DEBUG] getEnergyPerPedestal: id=" + id +
+                             " has override but energyPerPedestal is NULL! returning default=" + result);
+        }
+        return result;
     }
 
     /**
@@ -208,8 +215,15 @@ public class LegacyRitualConfig {
      */
     public static void setEnergyPerPedestal(String ritualId, int energy) {
         validateRitualId(ritualId, "setEnergyPerPedestal");
-        getOrCreateOverride(ritualId).energyPerPedestal = Math.max(0, energy);
+        String id = ritualId.toLowerCase(Locale.ROOT);
+        RitualParams params = getOrCreateOverride(ritualId);
+        params.energyPerPedestal = Math.max(0, energy);
         log("Set " + ritualId + " energy to " + energy + " RF/pedestal");
+        // 验证存储
+        System.out.println("[DEBUG] setEnergyPerPedestal: id=" + id +
+                         ", stored=" + params.energyPerPedestal +
+                         ", OVERRIDES.size=" + OVERRIDES.size() +
+                         ", verify=" + (OVERRIDES.get(id) != null ? OVERRIDES.get(id).energyPerPedestal : "null"));
     }
 
     /**
