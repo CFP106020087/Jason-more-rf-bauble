@@ -1212,10 +1212,6 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
         // 1. 低于门槛的伤害直接取消
         if (damageAmount < MIN_DAMAGE_THRESHOLD) {
             if (world instanceof WorldServer && gateOpenFxCooldown <= 0) {
-                WorldServer ws = (WorldServer) world;
-                ws.spawnParticle(EnumParticleTypes.BARRIER,
-                        posX, posY + height * 0.5, posZ,
-                        3, 0.3, 0.3, 0.3, 0.0);
                 playSound(SoundEvents.ITEM_SHIELD_BLOCK, 0.5F, 1.8F);
                 gateOpenFxCooldown = 3;
             }
