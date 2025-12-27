@@ -130,81 +130,102 @@ public class TileEntityTransferStation extends TileEntity implements ITickable {
         ItemStack targetGem = inventory.getStackInSlot(2);   // 右上
         ItemStack material = inventory.getStackInSlot(3);    // 左下
 
+        // 保存旧状态用于比较
+        boolean oldCanTransfer = canTransfer;
+        String oldErrorMessage = errorMessage;
+
         // 重置状态
         canTransfer = false;
         errorMessage = "";
 
+        // 使用标志位来避免多重嵌套
+        boolean checksPass = true;
+
         // 检查源宝石
-        if (sourceGem.isEmpty()) {
+        if (checksPass && sourceGem.isEmpty()) {
             errorMessage = "请放入源宝石";
-            return;
+            checksPass = false;
         }
 
-        if (!GemNBTHelper.isIdentified(sourceGem)) {
+        if (checksPass && !GemNBTHelper.isIdentified(sourceGem)) {
             errorMessage = "源宝石未鉴定";
-            return;
+            checksPass = false;
         }
 
-        if (!GemExtractionHelper.isRefined(sourceGem)) {
+        if (checksPass && !GemExtractionHelper.isRefined(sourceGem)) {
             errorMessage = "需要精炼宝石（单词条）";
-            return;
+            checksPass = false;
         }
 
         // 检查目标宝石
-        if (targetGem.isEmpty()) {
+        if (checksPass && targetGem.isEmpty()) {
             errorMessage = "请放入目标宝石";
-            return;
+            checksPass = false;
         }
 
-        if (!GemNBTHelper.isIdentified(targetGem)) {
+        if (checksPass && !GemNBTHelper.isIdentified(targetGem)) {
             errorMessage = "目标宝石未鉴定";
-            return;
+            checksPass = false;
         }
 
         // 检查材料（转移符文）
-        if (material.isEmpty()) {
+        if (checksPass && material.isEmpty()) {
             errorMessage = "需要转移符文";
-            return;
+            checksPass = false;
         }
 
-        if (!TransferRuneManager.isValidRune(material)) {
+        if (checksPass && !TransferRuneManager.isValidRune(material)) {
             errorMessage = "无效的转移符文";
-            return;
+            checksPass = false;
         }
 
         // 更新符文信息
-        updateRuneInfo();
+        if (checksPass) {
+            updateRuneInfo();
+        }
 
         // 检查目标宝石词条数
-        int targetAffixCount = GemNBTHelper.getAffixCount(targetGem);
-        if (targetAffixCount >= maxAffixLimit) {
-            errorMessage = String.format("目标宝石已满（%d/%d词条）",
-                    targetAffixCount, maxAffixLimit);
-            return;
+        if (checksPass) {
+            int targetAffixCount = GemNBTHelper.getAffixCount(targetGem);
+            if (targetAffixCount >= maxAffixLimit) {
+                errorMessage = String.format("目标宝石已满（%d/%d词条）",
+                        targetAffixCount, maxAffixLimit);
+                checksPass = false;
+            }
         }
 
         // 检查是否有重复词条类型
-        String sourceAffixType = GemExtractionHelper.getAffixTypeName(sourceGem);
-        if (sourceAffixType != null && !sourceAffixType.isEmpty()) {
-            try {
-                if (GemExtractionHelper.hasAffixType(targetGem, sourceAffixType)) {
-                    errorMessage = "目标宝石已有此类型词条";
-                    return;
+        if (checksPass) {
+            String sourceAffixType = GemExtractionHelper.getAffixTypeName(sourceGem);
+            if (sourceAffixType != null && !sourceAffixType.isEmpty()) {
+                try {
+                    if (GemExtractionHelper.hasAffixType(targetGem, sourceAffixType)) {
+                        errorMessage = "目标宝石已有此类型词条";
+                        checksPass = false;
+                    }
+                } catch (NoSuchMethodError e) {
+                    // 如果方法不存在，跳过此检查
                 }
-            } catch (NoSuchMethodError e) {
-                // 如果方法不存在，跳过此检查
             }
         }
 
         // 检查输出槽
-        if (!inventory.getStackInSlot(1).isEmpty()) {
+        if (checksPass && !inventory.getStackInSlot(1).isEmpty()) {
             errorMessage = "请先取出输出槽物品";
-            return;
+            checksPass = false;
         }
 
         // 所有检查通过
-        canTransfer = true;
-        errorMessage = "";
+        if (checksPass) {
+            canTransfer = true;
+            errorMessage = "";
+        }
+
+        // 如果状态发生变化，通知客户端同步
+        if (canTransfer != oldCanTransfer || !errorMessage.equals(oldErrorMessage)) {
+            markDirty();
+            world.notifyBlockUpdate(pos, world.getBlockState(pos), world.getBlockState(pos), 3);
+        }
     }
 
     /**
