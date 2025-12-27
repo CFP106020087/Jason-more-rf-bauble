@@ -331,7 +331,7 @@ public class LegacyRitualConfig {
             this.exactItem = new ItemStack(item);
             this.count = count;
             this.matcher = null;
-            this.description = item.getRegistryName() + " x" + count;
+            this.description = this.exactItem.getDisplayName() + " x" + count;
         }
 
         // 带meta的精确匹配构造器
@@ -339,7 +339,15 @@ public class LegacyRitualConfig {
             this.exactItem = new ItemStack(item, 1, meta);
             this.count = count;
             this.matcher = null;
-            this.description = item.getRegistryName() + ":" + meta + " x" + count;
+            this.description = this.exactItem.getDisplayName() + " x" + count;
+        }
+
+        // 从完整ItemStack创建（保留NBT数据，用于CraftTweaker的附魔书等）
+        public MaterialRequirement(ItemStack stack, int count) {
+            this.exactItem = stack.copy();
+            this.count = count;
+            this.matcher = null;
+            this.description = stack.getDisplayName() + " x" + count;
         }
 
         // 谓词匹配构造器
@@ -379,9 +387,10 @@ public class LegacyRitualConfig {
 
         /**
          * 从ItemStack创建（用于CraftTweaker）
+         * 保留完整的NBT数据以便正确显示附魔书等物品名称
          */
         public static MaterialRequirement fromItemStack(ItemStack stack) {
-            return new MaterialRequirement(stack.getItem(), stack.getMetadata(), stack.getCount());
+            return new MaterialRequirement(stack, stack.getCount());
         }
     }
 
@@ -496,23 +505,27 @@ public class LegacyRitualConfig {
         if (override != null && override.pedestalItems != null && !override.pedestalItems.isEmpty()) {
             // 将自定义 ItemStack 列表转换为 MaterialRequirement 列表
             List<MaterialRequirement> result = new ArrayList<>();
-            Map<String, Integer> countMap = new HashMap<>();
+            Map<String, Integer> countMap = new LinkedHashMap<>(); // 保持顺序
+            Map<String, ItemStack> representativeStack = new LinkedHashMap<>(); // 保存代表性物品
 
-            // ★ 修复：统计每种物品在列表中出现的次数（每个条目计数1）
+            // ★ 修复：使用显示名称作为key的一部分，以区分不同附魔的附魔书
             // 不再使用 stack.getCount()，因为每个基座只能放一个物品
             // pedestalItems 列表中的每个条目代表一个需要的材料位置
             for (ItemStack stack : override.pedestalItems) {
-                String key = stack.getItem().getRegistryName() + ":" + stack.getMetadata();
+                // 使用显示名称区分不同NBT的物品（如不同附魔的书）
+                String key = stack.getItem().getRegistryName() + ":" + stack.getMetadata() + ":" + stack.getDisplayName();
                 countMap.merge(key, 1, Integer::sum);  // 每个列表条目计数1
+                if (!representativeStack.containsKey(key)) {
+                    representativeStack.put(key, stack); // 保存第一个遇到的完整物品
+                }
             }
 
-            // 创建 MaterialRequirement
-            for (ItemStack stack : override.pedestalItems) {
-                String key = stack.getItem().getRegistryName() + ":" + stack.getMetadata();
-                Integer count = countMap.remove(key);
-                if (count != null) {
-                    result.add(new MaterialRequirement(stack.getItem(), stack.getMetadata(), count));
-                }
+            // 创建 MaterialRequirement（保留NBT以显示正确名称）
+            for (Map.Entry<String, Integer> entry : countMap.entrySet()) {
+                String key = entry.getKey();
+                int count = entry.getValue();
+                ItemStack stack = representativeStack.get(key);
+                result.add(new MaterialRequirement(stack, count));
             }
 
             return result;
