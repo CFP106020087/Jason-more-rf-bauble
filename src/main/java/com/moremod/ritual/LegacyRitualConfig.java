@@ -170,6 +170,7 @@ public class LegacyRitualConfig {
      * 设置仪式持续时间
      */
     public static void setDuration(String ritualId, int duration) {
+        validateRitualId(ritualId, "setDuration");
         getOrCreateOverride(ritualId).duration = duration;
         log("Set " + ritualId + " duration to " + duration + " ticks");
     }
@@ -178,6 +179,7 @@ public class LegacyRitualConfig {
      * 设置仪式失败率
      */
     public static void setFailChance(String ritualId, float chance) {
+        validateRitualId(ritualId, "setFailChance");
         getOrCreateOverride(ritualId).failChance = Math.max(0, Math.min(1, chance));
         log("Set " + ritualId + " fail chance to " + (chance * 100) + "%");
     }
@@ -186,6 +188,7 @@ public class LegacyRitualConfig {
      * 设置仪式能量消耗
      */
     public static void setEnergyPerPedestal(String ritualId, int energy) {
+        validateRitualId(ritualId, "setEnergyPerPedestal");
         getOrCreateOverride(ritualId).energyPerPedestal = Math.max(0, energy);
         log("Set " + ritualId + " energy to " + energy + " RF/pedestal");
     }
@@ -194,6 +197,7 @@ public class LegacyRitualConfig {
      * 设置仪式所需阶层
      */
     public static void setRequiredTier(String ritualId, int tier) {
+        validateRitualId(ritualId, "setRequiredTier");
         getOrCreateOverride(ritualId).requiredTier = Math.max(1, Math.min(3, tier));
         log("Set " + ritualId + " required tier to " + tier);
     }
@@ -202,6 +206,7 @@ public class LegacyRitualConfig {
      * 设置自定义基座材料
      */
     public static void setPedestalItems(String ritualId, List<ItemStack> items) {
+        validateRitualId(ritualId, "setPedestalItems");
         String id = ritualId.toLowerCase(Locale.ROOT);
         RitualParams params = getOrCreateOverride(id);
         params.pedestalItems = new ArrayList<>(items);
@@ -216,6 +221,7 @@ public class LegacyRitualConfig {
      * 或者之后使用 setPedestalItems 设置新材料
      */
     public static void clearMaterials(String ritualId) {
+        validateRitualId(ritualId, "clearMaterials");
         String id = ritualId.toLowerCase(Locale.ROOT);
         getOrCreateOverride(id).pedestalItems = new ArrayList<>(); // 空列表
         CLEARED_MATERIALS.add(id);
@@ -226,6 +232,7 @@ public class LegacyRitualConfig {
      * 禁用仪式
      */
     public static void disable(String ritualId) {
+        validateRitualId(ritualId, "disable");
         DISABLED.add(ritualId.toLowerCase(Locale.ROOT));
         log("Disabled ritual: " + ritualId);
     }
@@ -234,6 +241,7 @@ public class LegacyRitualConfig {
      * 启用仪式
      */
     public static void enable(String ritualId) {
+        validateRitualId(ritualId, "enable");
         DISABLED.remove(ritualId.toLowerCase(Locale.ROOT));
         log("Enabled ritual: " + ritualId);
     }
@@ -242,6 +250,7 @@ public class LegacyRitualConfig {
      * 重置仪式到默认值
      */
     public static void reset(String ritualId) {
+        validateRitualId(ritualId, "reset");
         String id = ritualId.toLowerCase(Locale.ROOT);
         OVERRIDES.remove(id);
         DISABLED.remove(id);
@@ -260,6 +269,25 @@ public class LegacyRitualConfig {
     }
 
     // ==================== 工具方法 ====================
+
+    /**
+     * 验证仪式ID是否有效
+     */
+    private static boolean isValidRitualId(String ritualId) {
+        return DEFAULTS.containsKey(ritualId.toLowerCase(Locale.ROOT));
+    }
+
+    /**
+     * 验证并警告无效的仪式ID
+     */
+    private static boolean validateRitualId(String ritualId, String methodName) {
+        if (!isValidRitualId(ritualId)) {
+            System.out.println("[moremod] ⚠ 警告: " + methodName + " - 无效的仪式ID: '" + ritualId + "'");
+            System.out.println("[moremod]   有效的仪式ID: " + DEFAULTS.keySet());
+            return false;
+        }
+        return true;
+    }
 
     private static RitualParams getOrCreateOverride(String ritualId) {
         return OVERRIDES.computeIfAbsent(ritualId.toLowerCase(Locale.ROOT), k -> new RitualParams());
