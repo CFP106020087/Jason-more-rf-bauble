@@ -321,16 +321,27 @@ public class LegacyRitualConfig {
      */
     public static void printAll() {
         System.out.println("=== Legacy Ritual Configuration ===");
+        System.out.println("OVERRIDES count: " + OVERRIDES.size());
         for (String id : DEFAULTS.keySet()) {
             String status = isEnabled(id) ? "ENABLED" : "DISABLED";
-            boolean hasOverride = OVERRIDES.containsKey(id);
+            RitualParams override = OVERRIDES.get(id);
+            RitualParams defaults = DEFAULTS.get(id);
+
+            StringBuilder modInfo = new StringBuilder();
+            if (override != null) {
+                if (override.duration != null) modInfo.append("dur=").append(override.duration).append(" ");
+                if (override.failChance != null) modInfo.append("fail=").append(override.failChance).append(" ");
+                if (override.energyPerPedestal != null) modInfo.append("energy=").append(override.energyPerPedestal).append(" ");
+                if (override.requiredTier != null) modInfo.append("tier=").append(override.requiredTier).append(" ");
+            }
+
             System.out.println(String.format("  [%s] %s: %d ticks, %.0f%% fail, %d RF, Tier %d %s",
                     status, id,
                     getDuration(id),
                     getFailChance(id) * 100,
                     getEnergyPerPedestal(id),
                     getRequiredTier(id),
-                    hasOverride ? "(MODIFIED)" : ""));
+                    modInfo.length() > 0 ? "(MODIFIED: " + modInfo.toString().trim() + ")" : ""));
         }
         System.out.println("===================================");
     }
