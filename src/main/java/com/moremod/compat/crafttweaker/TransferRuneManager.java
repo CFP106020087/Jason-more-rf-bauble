@@ -179,6 +179,19 @@ public class TransferRuneManager {
         defaultsLoaded = true;  // 防止默认符文自动加载
         System.out.println("[TransferRunes] 已清空所有符文配置");
     }
+
+    /**
+     * 完全重置所有配置（供 CRT 自动初始化使用）
+     */
+    public static void resetAll() {
+        runeRegistry.clear();
+        runeItems.clear();
+        allowAnyItem = false;
+        baseXpCost = 5;
+        destroyOnFail = false;
+        defaultsLoaded = false;  // 允许默认符文重新加载
+        System.out.println("[TransferRunes] 已重置所有配置");
+    }
     
     public static void setAllowAnyItem(boolean allow) {
         allowAnyItem = allow;

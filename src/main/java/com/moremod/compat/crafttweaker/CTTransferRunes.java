@@ -13,12 +13,28 @@ import stanhebben.zenscript.annotations.ZenMethod;
 @ZenRegister
 @ZenClass("mods.moremod.TransferRunes")
 public class CTTransferRunes {
-    
+
+    // 标记是否已经在本次 CRT 加载周期中初始化过
+    private static boolean initialized = false;
+
+    /**
+     * 确保在 CRT 脚本执行时清空旧配置
+     * 解决 /reload 或类缓存导致的配置残留问题
+     */
+    private static void ensureInitialized() {
+        if (!initialized) {
+            initialized = true;
+            TransferRuneManager.resetAll();
+            System.out.println("[TransferRunes] Auto-reset config for new CRT loading cycle");
+        }
+    }
+
     /**
      * 添加可用作转移符文的物品
      */
     @ZenMethod
     public static void addRune(IItemStack item, double successRate, int xpCost) {
+        ensureInitialized();
         ItemStack stack = toItemStack(item);
         if (stack.isEmpty()) {
             CraftTweakerAPI.logError("[TransferRunes] 无效的物品");
@@ -37,6 +53,7 @@ public class CTTransferRunes {
      */
     @ZenMethod
     public static void addRuneSet(String tier, IItemStack[] items, double successRate, int xpCost) {
+        ensureInitialized();
         for (IItemStack item : items) {
             addRune(item, successRate, xpCost);
         }
@@ -51,6 +68,7 @@ public class CTTransferRunes {
      */
     @ZenMethod
     public static void removeRune(IItemStack item) {
+        ensureInitialized();
         ItemStack stack = toItemStack(item);
         if (stack.isEmpty()) {
             CraftTweakerAPI.logError("[TransferRunes] 无效的物品");
@@ -66,6 +84,7 @@ public class CTTransferRunes {
      */
     @ZenMethod
     public static void setSuccessModifier(IItemStack item, double modifier) {
+        ensureInitialized();
         ItemStack stack = toItemStack(item);
         if (stack.isEmpty()) {
             CraftTweakerAPI.logError("[TransferRunes] 无效的物品");
@@ -80,6 +99,7 @@ public class CTTransferRunes {
      */
     @ZenMethod
     public static void setXpCost(IItemStack item, int cost) {
+        ensureInitialized();
         ItemStack stack = toItemStack(item);
         if (stack.isEmpty()) {
             CraftTweakerAPI.logError("[TransferRunes] 无效的物品");
@@ -94,6 +114,7 @@ public class CTTransferRunes {
      */
     @ZenMethod
     public static void setMaxAffixLimit(IItemStack item, int maxAffixes) {
+        ensureInitialized();
         ItemStack stack = toItemStack(item);
         if (stack.isEmpty()) {
             CraftTweakerAPI.logError("[TransferRunes] 无效的物品");
@@ -108,6 +129,7 @@ public class CTTransferRunes {
      */
     @ZenMethod
     public static void clear() {
+        ensureInitialized();
         TransferRuneManager.clearRunes();
         CraftTweakerAPI.logInfo("[TransferRunes] 清空所有符文配置");
     }
@@ -117,6 +139,7 @@ public class CTTransferRunes {
      */
     @ZenMethod
     public static void loadPresets() {
+        ensureInitialized();
         // 基础级
         ItemStack enderPearl = new ItemStack(net.minecraft.init.Items.ENDER_PEARL);
         ItemStack blazePowder = new ItemStack(net.minecraft.init.Items.BLAZE_POWDER);
@@ -146,6 +169,7 @@ public class CTTransferRunes {
      */
     @ZenMethod
     public static void setBaseXpCost(int cost) {
+        ensureInitialized();
         TransferRuneManager.setBaseXpCost(cost);
         CraftTweakerAPI.logInfo("[TransferRunes] 设置基础经验消耗: " + cost);
     }
@@ -155,6 +179,7 @@ public class CTTransferRunes {
      */
     @ZenMethod
     public static void setDestroyOnFail(boolean destroy) {
+        ensureInitialized();
         TransferRuneManager.setDestroyOnFail(destroy);
         CraftTweakerAPI.logInfo("[TransferRunes] 失败销毁: " + destroy);
     }
@@ -164,6 +189,7 @@ public class CTTransferRunes {
      */
     @ZenMethod
     public static void setAllowAnyItem(boolean allow) {
+        ensureInitialized();
         TransferRuneManager.setAllowAnyItem(allow);
         CraftTweakerAPI.logInfo("[TransferRunes] 允许任何物品: " + allow);
     }
@@ -174,6 +200,7 @@ public class CTTransferRunes {
      */
     @ZenMethod
     public static void reloadDefaults() {
+        ensureInitialized();
         TransferRuneManager.reloadDefaults();
         CraftTweakerAPI.logInfo("[TransferRunes] 已重新加载默认符文");
     }
