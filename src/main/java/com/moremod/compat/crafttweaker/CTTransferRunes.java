@@ -167,7 +167,34 @@ public class CTTransferRunes {
         TransferRuneManager.setAllowAnyItem(allow);
         CraftTweakerAPI.logInfo("[TransferRunes] 允许任何物品: " + allow);
     }
-    
+
+    /**
+     * 重新加载默认符文配置
+     * 用于在 clear() 后恢复默认符文
+     */
+    @ZenMethod
+    public static void reloadDefaults() {
+        TransferRuneManager.reloadDefaults();
+        CraftTweakerAPI.logInfo("[TransferRunes] 已重新加载默认符文");
+    }
+
+    /**
+     * 打印所有已注册的符文（调试用）
+     */
+    @ZenMethod
+    public static void printAll() {
+        TransferRuneManager.printAllRunes();
+        CraftTweakerAPI.logInfo("[TransferRunes] 已打印符文列表到控制台");
+    }
+
+    /**
+     * 获取已注册符文数量
+     */
+    @ZenMethod
+    public static int getCount() {
+        return TransferRuneManager.getRuneCount();
+    }
+
     /**
      * 辅助方法：将IItemStack转换为ItemStack
      */
