@@ -71,6 +71,7 @@ public class UniversalFabricRituals {
 
     /**
      * 通用布料织入配方 - 修复版
+     * 修复：添加清理缓存机制防止物品复制
      */
     public static class UniversalFabricRecipe extends RitualInfusionRecipe {
 
@@ -79,6 +80,7 @@ public class UniversalFabricRituals {
         private Item spindleItem; // 延迟查找
         private ItemStack currentCoreItem = ItemStack.EMPTY;
         private List<ItemStack> currentPedestalItems = new ArrayList<>();
+        private boolean outputConsumed = false; // 标记输出是否已被消费
 
         public UniversalFabricRecipe(String fabricId, int time, int energy) {
             super(
@@ -151,9 +153,13 @@ public class UniversalFabricRituals {
 
         /**
          * 重写核心验证 - 保存当前核心物品
+         * 修复：在新匹配开始时重置输出消费标志
          */
         @Override
         public Ingredient getCore() {
+            // 当开始新的匹配时，重置输出消费标志
+            resetOutputConsumed();
+
             return new ArmorIngredient() {
                 @Override
                 public boolean apply(ItemStack stack) {
@@ -235,13 +241,24 @@ public class UniversalFabricRituals {
 
         /**
          * 重写getOutput - 返回动态生成的输出
+         * 修复：获取输出后标记为已消费，防止重复获取
          */
         @Override
         public ItemStack getOutput() {
-            // 如果有动态生成的输出，返回它
+            // 如果已被消费，不再返回动态输出
+            if (outputConsumed) {
+                System.out.println("[Fabric] Output already consumed, returning empty");
+                return ItemStack.EMPTY;
+            }
+
+            // 如果有动态生成的输出，返回它并标记为已消费
             if (this.output != null && !this.output.isEmpty() && FabricWeavingSystem.hasFabric(this.output)) {
                 System.out.println("[Fabric] Returning dynamic output: " + this.output.getDisplayName());
-                return this.output.copy();
+                ItemStack result = this.output.copy();
+                // 标记为已消费，清理缓存状态
+                outputConsumed = true;
+                clearCachedState();
+                return result;
             }
 
             // 否则返回示例输出（用于JEI显示）
@@ -254,6 +271,27 @@ public class UniversalFabricRituals {
             ItemStack fabricStack = new ItemStack(fabric);
             FabricWeavingSystem.weaveIntoArmor(example, fabricStack);
             return example;
+        }
+
+        /**
+         * 清理缓存状态，防止下次仪式受到影响
+         */
+        private void clearCachedState() {
+            this.currentCoreItem = ItemStack.EMPTY;
+            this.currentPedestalItems.clear();
+            // 注意：不清理 this.output，让 outputConsumed 标志来控制
+            System.out.println("[Fabric] Cached state cleared");
+        }
+
+        /**
+         * 重置输出消费标志（在新仪式开始匹配时调用）
+         */
+        private void resetOutputConsumed() {
+            if (outputConsumed) {
+                outputConsumed = false;
+                this.output = ItemStack.EMPTY;
+                System.out.println("[Fabric] Output consumed flag reset for new ritual");
+            }
         }
     }
 
@@ -305,6 +343,7 @@ public class UniversalFabricRituals {
 
     /**
      * 基础织布配方 - 不需要虚空纺锤，只需要布料
+     * 修复：添加清理缓存机制防止物品复制
      */
     public static class BasicFabricRecipe extends RitualInfusionRecipe {
 
@@ -312,6 +351,7 @@ public class UniversalFabricRituals {
         private Item fabricItem;  // 延迟查找
         private ItemStack currentCoreItem = ItemStack.EMPTY;
         private List<ItemStack> currentPedestalItems = new ArrayList<>();
+        private boolean outputConsumed = false; // 标记输出是否已被消费
 
         public BasicFabricRecipe(String fabricId, int time, int energy) {
             super(
@@ -369,8 +409,15 @@ public class UniversalFabricRituals {
             return items;
         }
 
+        /**
+         * 重写核心验证 - 保存当前核心物品
+         * 修复：在新匹配开始时重置输出消费标志
+         */
         @Override
         public Ingredient getCore() {
+            // 当开始新的匹配时，重置输出消费标志
+            resetOutputConsumed();
+
             return new ArmorIngredient() {
                 @Override
                 public boolean apply(ItemStack stack) {
@@ -437,11 +484,26 @@ public class UniversalFabricRituals {
             }
         }
 
+        /**
+         * 重写getOutput - 返回动态生成的输出
+         * 修复：获取输出后标记为已消费，防止重复获取
+         */
         @Override
         public ItemStack getOutput() {
+            // 如果已被消费，不再返回动态输出
+            if (outputConsumed) {
+                System.out.println("[Basic Fabric] Output already consumed, returning empty");
+                return ItemStack.EMPTY;
+            }
+
+            // 如果有动态生成的输出，返回它并标记为已消费
             if (this.output != null && !this.output.isEmpty() && FabricWeavingSystem.hasFabric(this.output)) {
                 System.out.println("[Basic Fabric] Returning dynamic output: " + this.output.getDisplayName());
-                return this.output.copy();
+                ItemStack result = this.output.copy();
+                // 标记为已消费，清理缓存状态
+                outputConsumed = true;
+                clearCachedState();
+                return result;
             }
 
             // JEI显示用
@@ -454,6 +516,26 @@ public class UniversalFabricRituals {
             ItemStack fabricStack = new ItemStack(fabric);
             FabricWeavingSystem.weaveIntoArmor(example, fabricStack);
             return example;
+        }
+
+        /**
+         * 清理缓存状态，防止下次仪式受到影响
+         */
+        private void clearCachedState() {
+            this.currentCoreItem = ItemStack.EMPTY;
+            this.currentPedestalItems.clear();
+            System.out.println("[Basic Fabric] Cached state cleared");
+        }
+
+        /**
+         * 重置输出消费标志（在新仪式开始匹配时调用）
+         */
+        private void resetOutputConsumed() {
+            if (outputConsumed) {
+                outputConsumed = false;
+                this.output = ItemStack.EMPTY;
+                System.out.println("[Basic Fabric] Output consumed flag reset for new ritual");
+            }
         }
     }
 }

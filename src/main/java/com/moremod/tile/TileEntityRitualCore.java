@@ -505,10 +505,14 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         // 失敗判定 (Risk mechanics)
         if (adjustedFailChance > 0 && world.rand.nextFloat() < adjustedFailChance) {
             System.out.println("[Ritual] Failed! Explosion!");
+            // 失败时也要消耗核心物品
+            inv.extractItem(0, 1, false);
+            System.out.println("[Ritual] Core item consumed from slot 0 (failure case)");
             doFailExplosion();
             notifyRitualResult(false, false);
         } else {
             // 成功：產生產物
+            // 修复：先获取输出（此时会标记为已消费），防止重复获取导致物品复制
             ItemStack output = recipe.getOutput();
             System.out.println("[Ritual] Recipe output: " + output + " isEmpty=" + output.isEmpty());
 
@@ -518,20 +522,28 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
 
             if (output.isEmpty()) {
                 System.err.println("[Ritual] ERROR: Output is empty! Recipe class: " + recipe.getClass().getSimpleName());
+                notifyRitualResult(true, false);
             } else {
                 ItemStack outputCopy = output.copy();
                 if (doubled) {
                     outputCopy.setCount(outputCopy.getCount() * 2);
                     System.out.println("[Ritual] DOUBLED! Output count: " + outputCopy.getCount());
                 }
+
+                // 修复：先消耗核心物品，再放入产出，防止同时存在两个物品导致复制
+                // 消耗核心物品
+                inv.extractItem(0, 1, false);
+                System.out.println("[Ritual] Core item consumed from slot 0 BEFORE placing output");
+
                 System.out.println("[Ritual] Setting output slot to: " + outputCopy.getDisplayName());
                 inv.setStackInSlot(1, outputCopy); // 放入產出槽
+
+                notifyRitualResult(true, doubled);
             }
-            notifyRitualResult(true, doubled);
         }
 
-        // 消耗原材料（使用保存的配方引用）
-        consumeIngredientsWithRecipe(peds, recipe);
+        // 消耗原材料（使用保存的配方引用）- 现在只消耗基座物品，核心已在上面消耗
+        consumePedestalIngredientsOnly(peds, recipe);
 
         // 視覺通知
         IBlockState state = world.getBlockState(pos);
@@ -546,6 +558,53 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         // 安全检查
         if (recipe == null) {
             System.err.println("[Ritual] Warning: recipe is null in consumeIngredients!");
+            return;
+        }
+
+        List<net.minecraft.item.crafting.Ingredient> pedestalItems = recipe.getPedestalItems();
+        System.out.println("[Ritual] Pedestal items to consume: " + (pedestalItems != null ? pedestalItems.size() : "null"));
+
+        if (pedestalItems == null || pedestalItems.isEmpty()) {
+            System.err.println("[Ritual] Warning: Recipe has null/empty pedestal items!");
+            // 仍然尝试消耗基座上的物品（每个基座消耗1个）
+            int consumed = 0;
+            for (TileEntityPedestal ped : peds) {
+                if (!ped.isEmpty()) {
+                    ped.consumeOne();
+                    consumed++;
+                    if (consumed >= 2) break; // 最多消耗2个基座的物品
+                }
+            }
+            System.out.println("[Ritual] Fallback: consumed " + consumed + " pedestal items");
+            return;
+        }
+
+        List<net.minecraft.item.crafting.Ingredient> needed = new ArrayList<>(pedestalItems);
+        // 簡單的匹配消耗邏輯
+        for (TileEntityPedestal ped : peds) {
+            ItemStack stack = ped.getInv().getStackInSlot(0);
+            System.out.println("[Ritual] Checking pedestal with: " + stack.getDisplayName());
+            for (int i = 0; i < needed.size(); i++) {
+                boolean matches = needed.get(i).apply(stack);
+                System.out.println("[Ritual]   - Ingredient " + i + " matches: " + matches);
+                if (matches) {
+                    ped.consumeOne();
+                    needed.remove(i);
+                    System.out.println("[Ritual]   - Consumed! Remaining needed: " + needed.size());
+                    break;
+                }
+            }
+        }
+    }
+
+    /**
+     * 只消耗基座物品（核心物品已在 finishRitual 中提前消耗）
+     * 修复：防止物品复制问题
+     */
+    private void consumePedestalIngredientsOnly(List<TileEntityPedestal> peds, RitualInfusionRecipe recipe) {
+        // 安全检查
+        if (recipe == null) {
+            System.err.println("[Ritual] Warning: recipe is null in consumePedestalIngredientsOnly!");
             return;
         }
 
