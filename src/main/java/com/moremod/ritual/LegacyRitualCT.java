@@ -125,6 +125,21 @@ import java.util.List;
 @ZenRegister
 public class LegacyRitualCT {
 
+    // 标记是否已经在本次 CRT 加载周期中初始化过
+    private static boolean initialized = false;
+
+    /**
+     * 确保在 CRT 脚本执行时清空旧配置
+     * 解决 /reload 或类缓存导致的配置残留问题
+     */
+    private static void ensureInitialized() {
+        if (!initialized) {
+            initialized = true;
+            LegacyRitualConfig.resetAll();
+            System.out.println("[LegacyRitual] Auto-reset config for new CRT loading cycle");
+        }
+    }
+
     /**
      * 设置仪式持续时间
      * @param ritualId 仪式ID
@@ -132,6 +147,7 @@ public class LegacyRitualCT {
      */
     @ZenMethod
     public static void setDuration(String ritualId, int ticks) {
+        ensureInitialized();
         if (ticks <= 0) {
             CraftTweakerAPI.logError("[LegacyRitual] Duration must be positive: " + ticks);
             return;
@@ -146,6 +162,7 @@ public class LegacyRitualCT {
      */
     @ZenMethod
     public static void setFailChance(String ritualId, float chance) {
+        ensureInitialized();
         if (chance < 0 || chance > 1) {
             CraftTweakerAPI.logError("[LegacyRitual] Fail chance must be 0.0-1.0: " + chance);
             return;
@@ -160,6 +177,7 @@ public class LegacyRitualCT {
      */
     @ZenMethod
     public static void setEnergy(String ritualId, int energy) {
+        ensureInitialized();
         if (energy < 0) {
             CraftTweakerAPI.logError("[LegacyRitual] Energy must be non-negative: " + energy);
             return;
@@ -174,6 +192,7 @@ public class LegacyRitualCT {
      */
     @ZenMethod
     public static void setTier(String ritualId, int tier) {
+        ensureInitialized();
         if (tier < 1 || tier > 3) {
             CraftTweakerAPI.logError("[LegacyRitual] Tier must be 1-3: " + tier);
             return;
@@ -188,6 +207,7 @@ public class LegacyRitualCT {
      */
     @ZenMethod
     public static void setPedestalItems(String ritualId, IItemStack[] items) {
+        ensureInitialized();
         if (items == null || items.length == 0 || items.length > 8) {
             CraftTweakerAPI.logError("[LegacyRitual] Pedestal items must be 1-8 items");
             return;
@@ -212,6 +232,7 @@ public class LegacyRitualCT {
      */
     @ZenMethod
     public static void clearMaterials(String ritualId) {
+        ensureInitialized();
         CraftTweakerAPI.apply(new ClearMaterialsAction(ritualId));
     }
 
@@ -221,6 +242,7 @@ public class LegacyRitualCT {
      */
     @ZenMethod
     public static void disable(String ritualId) {
+        ensureInitialized();
         CraftTweakerAPI.apply(new DisableAction(ritualId));
     }
 
@@ -230,6 +252,7 @@ public class LegacyRitualCT {
      */
     @ZenMethod
     public static void enable(String ritualId) {
+        ensureInitialized();
         CraftTweakerAPI.apply(new EnableAction(ritualId));
     }
 
