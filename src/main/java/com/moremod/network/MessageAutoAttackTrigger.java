@@ -66,8 +66,10 @@ public class MessageAutoAttackTrigger implements IMessage {
     }
     
     public static class Handler implements IMessageHandler<MessageAutoAttackTrigger, IMessage> {
-        
-        private static final double MAX_ATTACK_DISTANCE = 6.5;
+
+        // 动态计算攻击距离上限（基于玩家触及距离属性）
+        private static final double BASE_ATTACK_TOLERANCE = 1.5; // 额外容差
+        private static final double ABSOLUTE_MAX_DISTANCE = 12.0; // 绝对上限，防止作弊
         
         @Override
         public IMessage onMessage(final MessageAutoAttackTrigger message, MessageContext ctx) {
@@ -80,9 +82,10 @@ public class MessageAutoAttackTrigger implements IMessage {
                     
                     // 验证目标有效性
                     if (target != null && !target.isDead && target.canBeAttackedWithItem()) {
-                        // 距离检查
+                        // 动态距离检查（基于玩家触及距离属性）
                         double distance = player.getDistance(target);
-                        if (distance <= MAX_ATTACK_DISTANCE) {
+                        double maxDistance = getPlayerMaxAttackDistance(player);
+                        if (distance <= maxDistance) {
                             // 检查武器
                             ItemStack weapon = player.getHeldItemMainhand();
                             if (!weapon.isEmpty() && weapon.getItem() instanceof ItemSword) {
@@ -195,6 +198,26 @@ public class MessageAutoAttackTrigger implements IMessage {
             }
         }
         
+        /**
+         * 获取玩家的最大攻击距离（基于触及距离属性）
+         */
+        private double getPlayerMaxAttackDistance(EntityPlayerMP player) {
+            double reachDistance = 3.0; // 默认生存模式触及距离
+
+            try {
+                net.minecraft.entity.ai.attributes.IAttributeInstance reachAttr =
+                    player.getEntityAttribute(net.minecraft.entity.player.EntityPlayer.REACH_DISTANCE);
+                if (reachAttr != null) {
+                    reachDistance = reachAttr.getAttributeValue();
+                }
+            } catch (Exception e) {
+                // 属性不存在，使用默认值
+            }
+
+            // 加上容差，但不超过绝对上限
+            return Math.min(reachDistance + BASE_ATTACK_TOLERANCE, ABSOLUTE_MAX_DISTANCE);
+        }
+
         private boolean hasAutoAttackAffix(ItemStack weapon) {
             if (!GemSocketHelper.hasSocketedGems(weapon)) {
                 return false;
