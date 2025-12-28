@@ -193,7 +193,14 @@ public class SpecialRitualInfo {
     private static List<ItemStack> getExamplesForRequirement(LegacyRitualConfig.MaterialRequirement req) {
         List<ItemStack> examples = new ArrayList<>();
 
-        // 尝试常见的物品
+        // ★ 优先使用精确匹配的物品（CRT配置的模组物品会正确显示）
+        ItemStack exactItem = req.getExampleItem();
+        if (exactItem != null && !exactItem.isEmpty()) {
+            examples.add(exactItem.copy());
+            return examples;
+        }
+
+        // 谓词匹配模式：尝试常见的物品
         ItemStack[] testItems = {
                 new ItemStack(Items.NETHER_STAR),
                 new ItemStack(Items.DIAMOND),

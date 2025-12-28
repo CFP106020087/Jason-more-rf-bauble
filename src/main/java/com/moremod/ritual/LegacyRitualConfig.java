@@ -439,6 +439,16 @@ public class LegacyRitualConfig {
         }
 
         /**
+         * 获取代表性物品（用于JEI显示）
+         * 如果是精确匹配模式，返回exactItem
+         * 如果是谓词匹配模式，返回null
+         */
+        @Nullable
+        public ItemStack getExampleItem() {
+            return exactItem != null ? exactItem.copy() : null;
+        }
+
+        /**
          * 检查物品是否匹配此需求
          */
         public boolean matches(ItemStack stack) {
