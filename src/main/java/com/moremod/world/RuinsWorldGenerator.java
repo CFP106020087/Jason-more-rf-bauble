@@ -395,11 +395,6 @@ public class RuinsWorldGenerator implements IWorldGenerator {
         setBlockSafe(world, pos.add(-5, 2, -5), Blocks.AIR.getDefaultState());
 
         placeRuinContents(world, pos.add(-5, 1, -5), random, RuinType.ENERGY_STATION.lootTier);
-
-        // 额外特殊方块 (降低概率)
-        if (random.nextFloat() < 0.2f) {
-            placeSpecialBlock(world, pos.add(3, 1, 3), random);
-        }
     }
 
     // ============== 新增结构: 数据中心废墟 (20x20x8) ==============
@@ -508,11 +503,6 @@ public class RuinsWorldGenerator implements IWorldGenerator {
         // 实验日志和战利品
         placeRuinContents(world, pos.add(4, 0, 4), random, RuinType.TEMPORAL_LAB.lootTier);
         placeRuinContents(world, pos.add(-4, 0, -4), random, RuinType.TEMPORAL_LAB.lootTier);
-
-        // 特殊方块 (降低概率)
-        if (random.nextFloat() < 0.3f) {
-            placeSpecialBlock(world, pos.add(0, 6, 0), random);
-        }
     }
 
     // ============== v3.1 新增结构 ==============
@@ -582,7 +572,6 @@ public class RuinsWorldGenerator implements IWorldGenerator {
         decorateRuin(world, pos, random, 6, 4);
 
         placeRuinContents(world, pos.add(2, 0, 0), random, RuinType.DATA_OBELISK.lootTier);
-        placeSpecialBlockGuaranteed(world, pos.add(0, 1, 0), random, 0.25f);
     }
 
     // 生态穹顶 (18x18x12) - 废弃的生物圈实验室
@@ -666,7 +655,6 @@ public class RuinsWorldGenerator implements IWorldGenerator {
 
         decorateRuin(world, pos, random, 10, 5);
         placeRuinContents(world, pos.add(6, 0, 0), random, RuinType.BIO_DOME.lootTier);
-        placeSpecialBlockGuaranteed(world, pos.add(-3, 0, 3), random, 0.15f);
     }
 
     // 聚变反应环 (20x20x8) - 环形聚变发电设施
@@ -741,7 +729,6 @@ public class RuinsWorldGenerator implements IWorldGenerator {
         decorateRuin(world, pos, random, 12, 8);
         placeRuinContents(world, pos.add(outerRadius + 1, 0, 2), random, RuinType.FUSION_RING.lootTier);
         placeRuinContents(world, pos.add(-outerRadius - 1, 0, -2), random, RuinType.FUSION_RING.lootTier);
-        placeSpecialBlockGuaranteed(world, pos.add(3, 0, 3), random, 0.3f);
     }
 
     // 坠毁空降舱 (12x8x6) - 小型坠毁逃生舱
@@ -825,7 +812,6 @@ public class RuinsWorldGenerator implements IWorldGenerator {
         }
 
         placeRuinContents(world, pos, random, RuinType.CRASHED_POD.lootTier);
-        placeSpecialBlockGuaranteed(world, pos.add(0, 0, 0), random, 0.12f);
     }
 
     // 虚空工厂 (26x20x16) - 大型工业废墟
@@ -952,10 +938,6 @@ public class RuinsWorldGenerator implements IWorldGenerator {
         placeRuinContents(world, pos.add(-8, 0, 0), random, RuinType.VOID_FACTORY.lootTier);
         placeRuinContents(world, pos.add(8, 0, 0), random, RuinType.VOID_FACTORY.lootTier);
         placeRuinContents(world, pos.add(0, 0, 6), random, RuinType.VOID_FACTORY.lootTier);
-
-        // 特殊方块 (降低概率)
-        placeSpecialBlockGuaranteed(world, pos.add(0, 1, 0), random, 0.35f);
-        placeSpecialBlockGuaranteed(world, pos.add(-6, 0, -5), random, 0.2f);
     }
 
     // ============== v3.1 新增辅助方法 ==============
@@ -1117,9 +1099,6 @@ public class RuinsWorldGenerator implements IWorldGenerator {
         setBlockSafe(world, pos.add(0, 2, 0), Blocks.BEACON.getDefaultState());
 
         placeRuinContents(world, pos, random, RuinType.MECHANICAL_COMPLEX.lootTier);
-        if (random.nextFloat() < 0.15f) {
-            placeSpecialBlock(world, pos.add(4, 0, 4), random);
-        }
     }
 
     private void generateSignalTower(World world, BlockPos pos, Random random) {
@@ -1182,10 +1161,6 @@ public class RuinsWorldGenerator implements IWorldGenerator {
 
         placeRuinContents(world, vaultPos.up(), random, RuinType.UNDERGROUND_VAULT.lootTier);
         placeRuinContents(world, vaultPos.add(4, 1, 4), random, RuinType.UNDERGROUND_VAULT.lootTier);
-
-        if (random.nextFloat() < 0.25f) {
-            placeSpecialBlock(world, vaultPos.add(-4, 1, -4), random);
-        }
     }
 
     private void generateCrashedTransport(World world, BlockPos pos, Random random) {
@@ -1269,10 +1244,6 @@ public class RuinsWorldGenerator implements IWorldGenerator {
 
         placeRuinContents(world, pos, random, RuinType.FACTORY_RUINS.lootTier);
         placeRuinContents(world, pos.add(-6, 0, 6), random, RuinType.FACTORY_RUINS.lootTier);
-
-        if (random.nextFloat() < 0.2f) {
-            placeSpecialBlock(world, pos.add(6, 0, -6), random);
-        }
     }
 
     // ============== 辅助方法 ==============
@@ -1333,13 +1304,10 @@ public class RuinsWorldGenerator implements IWorldGenerator {
             }
         }
 
-        // ★ 放置功能性方块 (固定2个) ★
-        int specialBlockCount = 2;  // 固定为2个机械方块
-        for (int i = 0; i < specialBlockCount; i++) {
-            BlockPos specialPos = findValidInteriorPos(world, center, innerRadius, random);
-            if (specialPos != null) {
-                placeSpecialBlock(world, specialPos, random);
-            }
+        // ★ 放置功能性方块 (固定1个) ★
+        BlockPos specialPos = findValidInteriorPos(world, center, innerRadius, random);
+        if (specialPos != null) {
+            placeSpecialBlock(world, specialPos, random);
         }
 
         // ★ 放置哭泣天使刷怪笼 (确保在建筑内) ★
