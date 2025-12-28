@@ -32,6 +32,11 @@ public class EnergySwordClientHandler {
     private static boolean isAutoAttacking = false;
     private static boolean mouseHeld = false;
 
+    // 触及距离缓存（性能优化）
+    private static double cachedReachDistance = 6.0;
+    private static int reachCacheTimer = 0;
+    private static final int REACH_CACHE_INTERVAL = 20; // 每20tick更新一次
+
     /**
      * 监听鼠标点击事件
      */
@@ -91,6 +96,13 @@ public class EnergySwordClientHandler {
             return;
         }
 
+        // 更新触及距离缓存
+        reachCacheTimer++;
+        if (reachCacheTimer >= REACH_CACHE_INTERVAL) {
+            reachCacheTimer = 0;
+            cachedReachDistance = getPlayerReachDistance(mc.player);
+        }
+
         if (isAutoAttacking) {
             attackTicker++;
             if (attackTicker >= 3) { // 每3tick攻击一次
@@ -106,7 +118,8 @@ public class EnergySwordClientHandler {
      * 执行攻击动作
      */
     private static void performAttack(Minecraft mc) {
-        Entity target = getMouseOverEntity(mc, 6.0D);
+        // 使用缓存的触及距离
+        Entity target = getMouseOverEntity(mc, cachedReachDistance);
         if (target != null) {
             mc.player.connection.sendPacket(new net.minecraft.network.play.client.CPacketUseEntity(target));
             mc.player.attackTargetEntityWithCurrentItem(target);
@@ -150,11 +163,35 @@ public class EnergySwordClientHandler {
     }
 
     /**
+     * 获取玩家的触及距离（包含属性加成）
+     */
+    private static double getPlayerReachDistance(EntityPlayer player) {
+        double baseReach = 6.0; // 鬼妖默认攻击距离
+
+        try {
+            net.minecraft.entity.ai.attributes.IAttributeInstance reachAttr =
+                player.getEntityAttribute(EntityPlayer.REACH_DISTANCE);
+            if (reachAttr != null) {
+                double attrValue = reachAttr.getAttributeValue();
+                // 属性值是触及方块的距离，攻击距离通常比这个大一些
+                // 基础值: 生存模式4.5, 创造模式5.0
+                // 我们用 attrValue + 2.0 作为攻击距离，但至少保持6.0
+                baseReach = Math.max(6.0, attrValue + 2.0);
+            }
+        } catch (Exception e) {
+            // 属性不存在，使用默认值
+        }
+
+        return baseReach;
+    }
+
+    /**
      * 重置状态（用于切换物品等情况）
      */
     public static void reset() {
         isAutoAttacking = false;
         attackTicker = 0;
         mouseHeld = false;
+        reachCacheTimer = 0;
     }
 }
