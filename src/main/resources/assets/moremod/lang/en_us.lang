@@ -3,6 +3,7 @@
 key.categories.moremod=moremod
 key.moremod.jetpack_toggle=Jetpack toggle
 key.moremod.hover_toggle=Hover toggle
+key.moremod.vein_mining=Vein Mining Trigger
 
 # Death Messages
 death.attack.dissolution=%s died from completely detaching from the laws of existence

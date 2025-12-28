@@ -2,6 +2,7 @@ package com.moremod.module.handler;
 
 import com.moremod.module.effect.EventContext;
 import com.moremod.module.effect.IModuleEventHandler;
+import com.moremod.network.PacketVeinMiningKey;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.player.EntityPlayer;
@@ -15,6 +16,7 @@ import java.util.*;
  * 范围挖掘模块处理器 (Vein Mining)
  *
  * 效果: 挖掘方块时自动连锁挖掘相邻的同类型方块
+ * 触发条件: 玩家必须按住 ~ 键才会触发范围挖掘
  *
  * Lv1: 最多连锁 8 个方块
  * Lv2: 最多连锁 16 个方块
@@ -45,6 +47,11 @@ public class AreaMiningBoostHandler implements IModuleEventHandler {
 
         // 只在服务端执行
         if (event.getWorld().isRemote) return;
+
+        // 检查玩家是否按住范围挖掘触发键（~键）
+        if (!PacketVeinMiningKey.isPlayerHoldingKey(player.getUniqueID())) {
+            return; // 没有按住按键，不触发范围挖掘
+        }
 
         // 执行连锁挖掘
         performVeinMine(ctx, event.getWorld(), event.getPos(), event.getState());

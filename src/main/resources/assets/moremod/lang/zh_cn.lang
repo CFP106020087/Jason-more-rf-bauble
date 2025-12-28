@@ -165,6 +165,10 @@ key.moremod.speed_toggle=速度档位
 
 # ===== 香巴拉按键 =====
 key.moremod.shambhala_peace_aura=宁静光环
+
+# ===== 范围挖掘 =====
+key.moremod.vein_mining=范围挖掘触发键
+
 item.moremod.antikythera_gear.name=安迪基西拉的齿轮
 item.upgrade_selector.name=升级选择器
 item.battery_basic.name=基础电池

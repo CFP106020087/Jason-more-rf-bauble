@@ -5,6 +5,7 @@ import baubles.api.cap.IBaublesItemHandler;
 import com.moremod.item.ItemJetpackBauble;
 import com.moremod.item.ItemCreativeJetpackBauble;
 import com.moremod.item.ItemMechanicalCore;
+import com.moremod.network.PacketVeinMiningKey;
 import com.moremod.upgrades.EnergyEfficiencyManager;
 
 import net.minecraft.client.Minecraft;
@@ -658,6 +659,9 @@ public class EventHandlerJetpack {
         hoverAscendSpeeds.remove(id);
         playerCaches.remove(id);
         lastSyncedEnergy.remove(id);
+
+        // 清理范围挖掘按键状态
+        PacketVeinMiningKey.clearPlayerState(id);
     }
 
     // ========== 监听交互：刷新缓存；若手持机械核心且模块关，则清理内部状态 ==========

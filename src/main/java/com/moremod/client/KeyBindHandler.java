@@ -10,6 +10,7 @@ import com.moremod.item.ItemMechanicalCoreExtended;
 import com.moremod.item.ItemVoidBackpackLink;
 import com.moremod.network.*;
 import com.moremod.network.PacketShambhalaPeaceAura;
+import com.moremod.network.PacketVeinMiningKey;
 import com.moremod.upgrades.auxiliary.AuxiliaryUpgradeManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.settings.KeyBinding;
@@ -47,6 +48,7 @@ public class KeyBindHandler {
     // 在 KeyBindHandler.java 的按键声明部分添加
     public static KeyBinding rejectionStatusKey;
     public static KeyBinding shambhalaPeaceAuraKey;  // ☀ 香巴拉宁静光环
+    public static KeyBinding veinMiningKey;  // ⛏ 范围挖掘触发键
 
 
     // ===== 按键状态管理 =====
@@ -65,6 +67,7 @@ public class KeyBindHandler {
     private static boolean scrollKeyPressed = false;
     private static boolean voidBackpackKeyPressed = false;  // 🌌 虚空背包按键状态
     private static boolean peaceAuraKeyPressed = false;  // ☀ 香巴拉宁静光环按键状态
+    private static boolean veinMiningKeyHeld = false;  // ⛏ 范围挖掘按键状态（持续追踪）
     private static int scrollOffset = 0;
 
     // ===== 按键分类常量 =====
@@ -130,6 +133,11 @@ public class KeyBindHandler {
                 KeyConflictContext.IN_GAME, Keyboard.KEY_R, CATEGORY_SHAMBHALA);
         ClientRegistry.registerKeyBinding(shambhalaPeaceAuraKey);
 
+        // ========== 范围挖掘触发键 ==========
+        veinMiningKey = new KeyBinding("key.moremod.vein_mining",
+                KeyConflictContext.IN_GAME, Keyboard.KEY_GRAVE, CATEGORY_MECHANICAL_CORE);
+        ClientRegistry.registerKeyBinding(veinMiningKey);
+
         System.out.println("[moremod] 按键绑定完成");
     }
 
@@ -194,9 +202,23 @@ public class KeyBindHandler {
             peaceAuraKeyPressed = false;
         }
 
+        // ⛏ 范围挖掘触发键（持续追踪状态）
+        handleVeinMiningKey();
+
         // 其他按键处理
         handleDimensionalKeys(player);
         handleMechanicalCoreKeys(player);
+    }
+
+    /** ⛏ 范围挖掘按键处理 - 持续追踪按键状态并同步到服务器 */
+    private static void handleVeinMiningKey() {
+        boolean currentlyHeld = veinMiningKey.isKeyDown();
+
+        // 状态变化时发送网络包
+        if (currentlyHeld != veinMiningKeyHeld) {
+            veinMiningKeyHeld = currentlyHeld;
+            PacketHandler.INSTANCE.sendToServer(new PacketVeinMiningKey(currentlyHeld));
+        }
     }
 
     /** 附魔增强激活处理 */

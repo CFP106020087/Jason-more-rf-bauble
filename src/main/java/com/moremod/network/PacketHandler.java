@@ -217,6 +217,14 @@ public class PacketHandler {
                 Side.SERVER
         );
 
+        // === 范围挖掘按键状态 (C->S) ===
+        INSTANCE.registerMessage(
+                PacketVeinMiningKey.Handler.class,
+                PacketVeinMiningKey.class,
+                id++,
+                Side.SERVER
+        );
+
         System.out.println("[MoreMod] 网络包注册完成，共 " + id + " 个消息类型");
     }
 }
