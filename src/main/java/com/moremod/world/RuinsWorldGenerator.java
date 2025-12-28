@@ -72,8 +72,8 @@ public class RuinsWorldGenerator implements IWorldGenerator {
     // 稀有方块概率系数 (提高为1.5倍 - 补偿降低的生成率)
     private static final float SPECIAL_BLOCK_CHANCE_MULTIPLIER = 1.5f;
 
-    // Glitch Armor 出现概率 (15% - 提高补偿)
-    private static final float GLITCH_ARMOR_CHANCE = 0.15f;
+    // Glitch Armor 出现概率
+    private static final float GLITCH_ARMOR_CHANCE = 0.05f;
 
     // 刷怪笼数量 (每个结构)
     private static final int MIN_SPAWNERS = 2;
@@ -1450,31 +1450,11 @@ public class RuinsWorldGenerator implements IWorldGenerator {
             chest.setInventorySlotContents(slot, faultyGear);
         }
 
-        // ★ 下界之星 (1% 概率，最多1个) ★
-        if (tier >= 4 && random.nextFloat() < 0.01f) {
-            int slot = random.nextInt(27);
-            chest.setInventorySlotContents(slot, new ItemStack(Items.NETHER_STAR, 1));
-        }
-
-        // ★ 其他稀有物品 (龙息、鞘翅) ★
-        // 注：已移除不死图腾
-        if (tier >= 3 && random.nextFloat() < 0.12f) {
-            int slot = random.nextInt(27);
-            int rareType = random.nextInt(2);
-            switch (rareType) {
-                case 0:
-                    chest.setInventorySlotContents(slot, new ItemStack(Items.DRAGON_BREATH, 2 + random.nextInt(3)));
-                    break;
-                default:
-                    chest.setInventorySlotContents(slot, new ItemStack(Items.ELYTRA, 1));
-            }
-        }
-
         // ★ 模组特殊物品 ★
         if (random.nextFloat() < 0.2f * tier) {
             try {
                 int slot = random.nextInt(27);
-                int modItemType = random.nextInt(6);
+                int modItemType = random.nextInt(5);
                 switch (modItemType) {
                     case 0:
                         if (ModItems.ANCIENT_CORE_FRAGMENT != null) {
@@ -1487,16 +1467,11 @@ public class RuinsWorldGenerator implements IWorldGenerator {
                         }
                         break;
                     case 2:
-                        if (ModItems.ETHEREAL_SHARD != null) {
-                            chest.setInventorySlotContents(slot, new ItemStack(ModItems.ETHEREAL_SHARD, 1));
-                        }
-                        break;
-                    case 3:
                         if (ModItems.VOID_ICHOR != null) {
                             chest.setInventorySlotContents(slot, new ItemStack(ModItems.VOID_ICHOR, 1));
                         }
                         break;
-                    case 4:
+                    case 3:
                         if (ModItems.DIMENSIONAL_WEAVER_CORE != null) {
                             chest.setInventorySlotContents(slot, new ItemStack(ModItems.DIMENSIONAL_WEAVER_CORE, 1));
                         }
@@ -1786,10 +1761,6 @@ public class RuinsWorldGenerator implements IWorldGenerator {
             case 12:
                 return new ItemStack(Items.ENDER_PEARL, 1 + random.nextInt(2));
             case 13:
-                // 下界之星极为稀有 (仅tier 4+且4%概率)
-                if (tier >= 4 && random.nextFloat() < 0.04f) {
-                    return new ItemStack(Items.NETHER_STAR, 1);
-                }
                 return new ItemStack(Items.BLAZE_POWDER, 1 + random.nextInt(2));
             default:
                 try {
