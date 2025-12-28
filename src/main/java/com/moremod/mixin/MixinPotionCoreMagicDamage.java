@@ -18,13 +18,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * PotionCore 魔法加成拦截器（指数连击版）
  *
  * 功能：
- * 1. 元素武器 → 完全中和魔力，并清空余灼
- * 2. 魔力吸收模块 → 吸收法伤倍率偏移，叠加余灼与连击标记
+ * 1. 元素武器 + 魔力吸收模块 → 中和魔力加成，转化为余灼
+ * 2. 元素武器（无模块） → 中和魔力加成，不叠余灼
+ * 3. 普通武器 + 魔力吸收模块 → 吸收法伤倍率偏移，叠加余灼与连击标记
  *
  * 连击机制：
  * - 余灼越高，触发概率越大（最高80%）
- * - 连击伤害指数增长（1.25^n，最高5倍）
- * - 20层余灼触发爆心（强制5连击）
+ * - 连击伤害指数增长（1.30^n，最高6倍）
+ * - 20层余灼触发爆心（强制6连击）
  */
 @Pseudo
 @Mixin(targets = "com.tmtravlr.potioncore.PotionCoreEventHandler", remap = false)
@@ -64,15 +65,13 @@ public class MixinPotionCoreMagicDamage {
         if (weapon.isEmpty()) return;
 
         // ───────────────────────────
-        // ① 元素武器 → 完全不吃法伤
+        // ① 检测元素武器
         // ───────────────────────────
-        if (ElementUtil.isElementalWeapon(weapon) || ElementUtil.hasElementConversion(weapon)) {
-            TL_IS_ELEMENTAL.set(true);
-            return;
-        }
+        boolean isElemental = ElementUtil.isElementalWeapon(weapon) || ElementUtil.hasElementConversion(weapon);
+        TL_IS_ELEMENTAL.set(isElemental);
 
         // ───────────────────────────
-        // ② 魔力吸收模块
+        // ② 检测魔力吸收模块
         // ───────────────────────────
         ItemStack core = ItemMechanicalCore.getCoreFromPlayer(player);
         if (!core.isEmpty()) {
@@ -105,16 +104,11 @@ public class MixinPotionCoreMagicDamage {
             double magicMult = (before > 0) ? (after / before) : 1.0;
 
             /* ───────────────────────────
-             * ① 元素武器 → 中和魔力
+             * ① 元素武器（无模块）→ 仅中和魔力
              * ─────────────────────────── */
-            if (isElemental) {
-                // 元素武器：恢复原伤害
+            if (isElemental && moduleLevel <= 0) {
+                // 元素武器无模块：恢复原伤害，不叠余灼
                 event.setAmount(before);
-
-                // 如果有魔力吸收模块：清空余灼
-                if (moduleLevel > 0) {
-                    MagicDamageAbsorbHandler.clearScorchTags(player);
-                }
                 return;
             }
 
