@@ -8,6 +8,7 @@ import net.minecraft.entity.EntityCreature;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.monster.EntityMob;
 import net.minecraft.entity.monster.EntityPolarBear;
+import net.minecraft.entity.passive.EntityAnimal;
 import net.minecraft.entity.passive.EntityWolf;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
@@ -206,9 +207,17 @@ public class MixinEnigmaticEvents {
         if (className.contains("SnowMan") || className.contains("Snowman")) return true;
         // 蜘蛛 - 只在黑暗中攻击
         if (className.contains("Spider") && !className.contains("CaveSpider")) return true;
-        // 所有非EntityMob的生物（如动物）
-        if (!(entity instanceof EntityMob)) return true;
 
+        // 被动动物（如猪、牛、羊等）- 正常不攻击玩家
+        // 注意：排除狼和北极熊，因为它们已在上面处理
+        if (entity instanceof EntityAnimal && !(entity instanceof EntityWolf) && !(entity instanceof EntityPolarBear)) {
+            return true;
+        }
+
+        // 村民类实体
+        if (className.contains("Villager")) return true;
+
+        // 其他所有实体（包括EntityMob和未知的mod怪物）默认不是条件攻击型
         return false;
     }
 
