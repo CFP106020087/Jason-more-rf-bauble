@@ -56,30 +56,41 @@ public class DungeonBossSpawner {
         try {
             if (world.isRemote) return false;
 
+            System.out.println("[Boss召唤] ===== 开始召唤流程 =====");
+            System.out.println("[Boss召唤] 祭坛位置: " + altarPos + ", 玩家: " + player.getName());
+
             // ★ 检测 GeckoLib 是否已加载（Boss实体依赖GeckoLib）
             if (!isGeckoLibLoaded()) {
                 player.sendMessage(new TextComponentString("§c[错误] 服务端未安装 GeckoLib 模组，无法召唤Boss！"));
                 System.err.println("[Boss召唤] 失败: GeckoLib (geckolib3) 未加载，Boss实体需要此依赖");
                 return false;
             }
+            System.out.println("[Boss召唤] GeckoLib检测: 已加载");
 
             if (world.getBlockState(altarPos).getBlock() != ModBlocks.UNBREAKABLE_BARRIER_QUANTUM) {
+                System.out.println("[Boss召唤] 失败: 祭坛方块不是量子锁定方块");
                 return false;
             }
+            System.out.println("[Boss召唤] 祭坛方块检测: 通过");
 
             if (hasBossNearby(world, altarPos, 50)) {
                 player.sendMessage(new TextComponentString("§c强大的Boss已经存在于此区域！"));
+                System.out.println("[Boss召唤] 失败: 附近已有Boss");
                 return false;
             }
+            System.out.println("[Boss召唤] 附近Boss检测: 无现有Boss");
 
             int playerCount = countPlayersNearby(world, altarPos, 30);
             if (playerCount < 1) {
                 player.sendMessage(new TextComponentString("§c需要至少1名玩家在场才能召唤Boss！"));
+                System.out.println("[Boss召唤] 失败: 附近玩家数量不足");
                 return false;
             }
+            System.out.println("[Boss召唤] 玩家检测: " + playerCount + " 名玩家在场");
 
             // 随机选择要召唤的Boss类型（使用world.rand）
             BossType bossType = selectRandomBossType(world);
+            System.out.println("[Boss召唤] 选择Boss类型: " + bossType.getDisplayName());
             return spawnBoss(world, altarPos, player, bossType);
         } catch (Exception e) {
             System.err.println("[Boss召唤] trySpawnBoss异常: " + e.getMessage());
@@ -129,13 +140,19 @@ public class DungeonBossSpawner {
             spawnSummonEffects(ws, altarPos, bossType);
 
             // 生成Boss
+            System.out.println("[Boss召唤] 调用 spawnEntity，Boss标签: " + boss.getTags());
             boolean spawned = ws.spawnEntity(boss);
-            System.out.println("[Boss召唤] spawnEntity结果: " + spawned + ", isAddedToWorld: " + boss.isAddedToWorld());
+            System.out.println("[Boss召唤] spawnEntity结果: " + spawned +
+                ", isAddedToWorld: " + boss.isAddedToWorld() +
+                ", isDead: " + boss.isDead +
+                ", EntityID: " + boss.getEntityId());
 
             if (!spawned || !boss.isAddedToWorld()) {
+                System.out.println("[Boss召唤] 失败原因分析: spawned=" + spawned + ", isAddedToWorld=" + boss.isAddedToWorld());
                 activator.sendMessage(new TextComponentString("§c[调试] Boss生成失败，可能被其他系统拦截"));
                 return false;
             }
+            System.out.println("[Boss召唤] ===== 召唤成功 =====");
 
             // 广播Boss生成消息
             broadcastBossSpawn(ws, altarPos, activator, bossType);

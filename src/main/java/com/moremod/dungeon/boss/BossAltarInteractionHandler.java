@@ -36,12 +36,20 @@ public class BossAltarInteractionHandler {
 
         ItemStack heldItem = player.getHeldItem(event.getHand());
 
+        // ★ 调试：输出物品信息（铁砧重命名不影响 getItem() 检查）
+        System.out.println("[Boss祭坛] 手持物品: " +
+            (heldItem.isEmpty() ? "空" : heldItem.getItem().getRegistryName()) +
+            ", 显示名: " + (heldItem.isEmpty() ? "无" : heldItem.getDisplayName()) +
+            ", 是下界之星: " + (heldItem.getItem() == Items.NETHER_STAR));
+
         // 检查玩家是否持有下界之星
         if (heldItem.isEmpty() || heldItem.getItem() != Items.NETHER_STAR) {
             player.sendMessage(new TextComponentString("§c需要下界之星才能激活量子祭坛！"));
             event.setCanceled(true);
             return;
         }
+
+        System.out.println("[Boss祭坛] 物品检查通过，尝试召唤Boss...");
 
         // 尝试生成Boss
         if (DungeonBossSpawner.trySpawnBoss(world, pos, player)) {
