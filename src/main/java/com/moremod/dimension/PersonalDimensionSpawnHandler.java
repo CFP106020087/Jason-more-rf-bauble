@@ -106,12 +106,14 @@ public class PersonalDimensionSpawnHandler {
             return;
         }
 
-        // Boss实体
+        // Boss实体 - 不调整位置，保持原始生成位置
         if (entity instanceof EntityRiftwarden) {
             entity.addTag("boss_entity");
             entity.addTag("riftwarden_boss");
             activeBosses.add(entity);
-            adjustEntityToGround(event.getWorld(), entity);
+            System.out.println("[生成处理] 允许Boss EntityRiftwarden @ " + entity.getPosition() + " (不调整位置)");
+            // ★ 不调用 adjustEntityToGround - Boss位置由DungeonBossSpawner精确设置
+            // adjustEntityToGround 可能因为基岩限制导致Boss位置被错误调整
             return;
         }
 
@@ -119,7 +121,8 @@ public class PersonalDimensionSpawnHandler {
             entity.addTag("boss_entity");
             entity.addTag("stone_sentinel_boss");
             activeBosses.add(entity);
-            adjustEntityToGround(event.getWorld(), entity);
+            System.out.println("[生成处理] 允许Boss EntityStoneSentinel @ " + entity.getPosition() + " (不调整位置)");
+            // ★ 不调用 adjustEntityToGround - Boss位置由DungeonBossSpawner精确设置
             return;
         }
 
