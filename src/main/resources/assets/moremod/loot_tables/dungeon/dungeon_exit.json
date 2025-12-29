@@ -147,33 +147,6 @@
           "chance": 0.05
         }
       ]
-    },
-    {
-      "name": "exit_portal_key",
-      "rolls": 1,
-      "entries": [
-        {
-          "type": "item",
-          "name": "minecraft:nether_star",
-          "weight": 1,
-          "functions": [
-            {
-              "function": "set_count",
-              "count": 1
-            },
-            {
-              "function": "set_nbt",
-              "tag": "{display:{Name:\"§b§l傳送門鑰匙\",Lore:[\"§7用於開啟返回傳送門\",\"§7或進入更深層的地牢\"]}}"
-            }
-          ]
-        }
-      ],
-      "conditions": [
-        {
-          "condition": "random_chance",
-          "chance": 0.6
-        }
-      ]
     }
   ]
 }
