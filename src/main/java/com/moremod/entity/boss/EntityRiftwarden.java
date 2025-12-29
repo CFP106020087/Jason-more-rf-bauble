@@ -86,8 +86,15 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
             .setDamageBypassesArmor()
             .setDamageIsAbsolute();
 
-    // GeckoLib
-    private AnimationFactory factory = new AnimationFactory(this);
+    // GeckoLib - 延迟初始化避免服务端崩溃
+    private AnimationFactory factory = null;
+
+    private AnimationFactory getOrCreateFactory() {
+        if (factory == null) {
+            factory = new AnimationFactory(this);
+        }
+        return factory;
+    }
 
     // DataManager参数
     private static final DataParameter<String> ANIMATION = EntityDataManager.createKey(EntityRiftwarden.class, DataSerializers.STRING);
@@ -541,7 +548,7 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
 
     @Override
     public AnimationFactory getFactory() {
-        return this.factory;
+        return getOrCreateFactory();
     }
 
     private boolean isPlayerOnRightSide(EntityPlayer player) {

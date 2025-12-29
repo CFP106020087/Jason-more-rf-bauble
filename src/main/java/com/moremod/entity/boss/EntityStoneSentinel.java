@@ -44,7 +44,15 @@ import static com.moremod.moremod.MODID;
 
 public class EntityStoneSentinel extends EntityMob implements IAnimatable {
 
-    private AnimationFactory factory = new AnimationFactory(this);
+    // GeckoLib - 延迟初始化避免服务端崩溃
+    private AnimationFactory factory = null;
+
+    private AnimationFactory getOrCreateFactory() {
+        if (factory == null) {
+            factory = new AnimationFactory(this);
+        }
+        return factory;
+    }
 
     private static final DataParameter<Integer> EYE_STATE = EntityDataManager.createKey(EntityStoneSentinel.class, DataSerializers.VARINT);
     private static final DataParameter<Boolean> IS_ANGRY  = EntityDataManager.createKey(EntityStoneSentinel.class, DataSerializers.BOOLEAN);
@@ -988,7 +996,7 @@ public class EntityStoneSentinel extends EntityMob implements IAnimatable {
         }
         return PlayState.CONTINUE;
     }
-    @Override public AnimationFactory getFactory() { return this.factory; }
+    @Override public AnimationFactory getFactory() { return getOrCreateFactory(); }
 
     @Override
     public void writeEntityToNBT(NBTTagCompound nbt) {
