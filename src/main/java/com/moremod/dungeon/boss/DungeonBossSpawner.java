@@ -15,10 +15,24 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
+import net.minecraftforge.fml.common.Loader;
 
 import java.util.List;
 
 public class DungeonBossSpawner {
+
+    // GeckoLib 检测缓存
+    private static Boolean geckoLibLoaded = null;
+
+    /**
+     * 检测 GeckoLib 是否已加载
+     */
+    private static boolean isGeckoLibLoaded() {
+        if (geckoLibLoaded == null) {
+            geckoLibLoaded = Loader.isModLoaded("geckolib3");
+        }
+        return geckoLibLoaded;
+    }
 
     // Boss类型枚举
     public enum BossType {
@@ -41,6 +55,13 @@ public class DungeonBossSpawner {
     public static boolean trySpawnBoss(World world, BlockPos altarPos, EntityPlayer player) {
         try {
             if (world.isRemote) return false;
+
+            // ★ 检测 GeckoLib 是否已加载（Boss实体依赖GeckoLib）
+            if (!isGeckoLibLoaded()) {
+                player.sendMessage(new TextComponentString("§c[错误] 服务端未安装 GeckoLib 模组，无法召唤Boss！"));
+                System.err.println("[Boss召唤] 失败: GeckoLib (geckolib3) 未加载，Boss实体需要此依赖");
+                return false;
+            }
 
             if (world.getBlockState(altarPos).getBlock() != ModBlocks.UNBREAKABLE_BARRIER_QUANTUM) {
                 return false;
