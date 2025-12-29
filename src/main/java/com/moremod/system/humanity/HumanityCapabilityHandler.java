@@ -10,6 +10,7 @@ import net.minecraftforge.event.AttachCapabilitiesEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.event.entity.player.PlayerWakeUpEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerChangedDimensionEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerLoggedInEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerRespawnEvent;
@@ -132,6 +133,22 @@ public class HumanityCapabilityHandler {
         if (event.player instanceof EntityPlayerMP) {
             EntityPlayerMP player = (EntityPlayerMP) event.player;
             // 延迟同步，确保客户端完全加载
+            player.getServerWorld().addScheduledTask(() -> {
+                HumanitySpectrumSystem.syncNow(player);
+            });
+        }
+    }
+
+    /**
+     * 玩家睡眠醒来后强制同步人性值数据到客户端
+     * 解决睡眠后世界时间跳跃导致的数据快照问题
+     */
+    @SubscribeEvent
+    public static void onPlayerWakeUp(PlayerWakeUpEvent event) {
+        if (event.getEntityPlayer().world.isRemote) return;
+        if (event.getEntityPlayer() instanceof EntityPlayerMP) {
+            EntityPlayerMP player = (EntityPlayerMP) event.getEntityPlayer();
+            // 延迟同步，确保睡眠状态完全结束
             player.getServerWorld().addScheduledTask(() -> {
                 HumanitySpectrumSystem.syncNow(player);
             });

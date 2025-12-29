@@ -926,7 +926,8 @@ public class HumanitySpectrumSystem {
         data.setHumanity(newHumanity);
         data.resetSleepDeprivation();
 
-        markDirty(player);
+        // 使用立即同步而非markDirty，避免睡眠后世界时间跳跃导致的同步时序问题
+        syncNow(player);
     }
 
     /**
