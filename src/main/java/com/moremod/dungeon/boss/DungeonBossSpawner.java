@@ -39,26 +39,33 @@ public class DungeonBossSpawner {
     }
 
     public static boolean trySpawnBoss(World world, BlockPos altarPos, EntityPlayer player) {
-        if (world.isRemote) return false;
+        try {
+            if (world.isRemote) return false;
 
-        if (world.getBlockState(altarPos).getBlock() != ModBlocks.UNBREAKABLE_BARRIER_QUANTUM) {
+            if (world.getBlockState(altarPos).getBlock() != ModBlocks.UNBREAKABLE_BARRIER_QUANTUM) {
+                return false;
+            }
+
+            if (hasBossNearby(world, altarPos, 50)) {
+                player.sendMessage(new TextComponentString("§c强大的Boss已经存在于此区域！"));
+                return false;
+            }
+
+            int playerCount = countPlayersNearby(world, altarPos, 30);
+            if (playerCount < 1) {
+                player.sendMessage(new TextComponentString("§c需要至少1名玩家在场才能召唤Boss！"));
+                return false;
+            }
+
+            // 随机选择要召唤的Boss类型（使用world.rand）
+            BossType bossType = selectRandomBossType(world);
+            return spawnBoss(world, altarPos, player, bossType);
+        } catch (Exception e) {
+            System.err.println("[Boss召唤] trySpawnBoss异常: " + e.getMessage());
+            e.printStackTrace();
+            player.sendMessage(new TextComponentString("§c[错误] Boss召唤过程中发生异常，请查看日志"));
             return false;
         }
-
-        if (hasBossNearby(world, altarPos, 50)) {
-            player.sendMessage(new TextComponentString("§c强大的Boss已经存在于此区域！"));
-            return false;
-        }
-
-        int playerCount = countPlayersNearby(world, altarPos, 30);
-        if (playerCount < 1) {
-            player.sendMessage(new TextComponentString("§c需要至少1名玩家在场才能召唤Boss！"));
-            return false;
-        }
-
-        // 随机选择要召唤的Boss类型（使用world.rand）
-        BossType bossType = selectRandomBossType(world);
-        return spawnBoss(world, altarPos, player, bossType);
     }
 
     private static BossType selectRandomBossType(World world) {
@@ -67,83 +74,103 @@ public class DungeonBossSpawner {
     }
 
     private static boolean spawnBoss(World world, BlockPos altarPos, EntityPlayer activator, BossType bossType) {
-        if (!(world instanceof WorldServer)) {
-            System.out.println("[Boss召唤] 失败: world不是WorldServer");
+        try {
+            if (!(world instanceof WorldServer)) {
+                System.out.println("[Boss召唤] 失败: world不是WorldServer");
+                return false;
+            }
+
+            WorldServer ws = (WorldServer) world;
+            EntityLiving boss = null;
+
+            switch (bossType) {
+                case RIFTWARDEN:
+                    boss = createRiftwarden(ws, altarPos, activator);
+                    break;
+                case STONE_SENTINEL:
+                    boss = createStoneSentinel(ws, altarPos, activator);
+                    break;
+            }
+
+            if (boss == null) {
+                System.out.println("[Boss召唤] 失败: boss实体为null (可能实体类初始化异常)");
+                activator.sendMessage(new TextComponentString("§c[错误] Boss实体创建失败，请查看日志"));
+                return false;
+            }
+
+            // ★ 添加Boss标记，确保不被维度地牢生成处理器拦截
+            boss.addTag("boss_summoned");
+            boss.addTag("altar_spawned");
+
+            System.out.println("[Boss召唤] 准备生成 " + bossType.getDisplayName() + " @ " + boss.getPosition());
+
+            // 生成特效
+            spawnSummonEffects(ws, altarPos, bossType);
+
+            // 生成Boss
+            boolean spawned = ws.spawnEntity(boss);
+            System.out.println("[Boss召唤] spawnEntity结果: " + spawned + ", isAddedToWorld: " + boss.isAddedToWorld());
+
+            if (!spawned || !boss.isAddedToWorld()) {
+                activator.sendMessage(new TextComponentString("§c[调试] Boss生成失败，可能被其他系统拦截"));
+                return false;
+            }
+
+            // 广播Boss生成消息
+            broadcastBossSpawn(ws, altarPos, activator, bossType);
+
+            // 将祭坛变为空气
+            world.setBlockState(altarPos, Blocks.AIR.getDefaultState());
+
+            return true;
+        } catch (Exception e) {
+            System.err.println("[Boss召唤] spawnBoss异常: " + e.getMessage());
+            e.printStackTrace();
+            activator.sendMessage(new TextComponentString("§c[错误] Boss生成过程中发生异常: " + e.getClass().getSimpleName()));
             return false;
         }
-
-        WorldServer ws = (WorldServer) world;
-        EntityLiving boss = null;
-
-        switch (bossType) {
-            case RIFTWARDEN:
-                boss = createRiftwarden(ws, altarPos, activator);
-                break;
-            case STONE_SENTINEL:
-                boss = createStoneSentinel(ws, altarPos, activator);
-                break;
-        }
-
-        if (boss == null) {
-            System.out.println("[Boss召唤] 失败: boss实体为null");
-            return false;
-        }
-
-        // ★ 添加Boss标记，确保不被维度地牢生成处理器拦截
-        boss.addTag("boss_summoned");
-        boss.addTag("altar_spawned");
-
-        System.out.println("[Boss召唤] 准备生成 " + bossType.getDisplayName() + " @ " + boss.getPosition());
-
-        // 生成特效
-        spawnSummonEffects(ws, altarPos, bossType);
-
-        // 生成Boss
-        boolean spawned = ws.spawnEntity(boss);
-        System.out.println("[Boss召唤] spawnEntity结果: " + spawned + ", isAddedToWorld: " + boss.isAddedToWorld());
-
-        if (!spawned || !boss.isAddedToWorld()) {
-            activator.sendMessage(new TextComponentString("§c[调试] Boss生成失败，可能被其他系统拦截"));
-            return false;
-        }
-
-        // 广播Boss生成消息
-        broadcastBossSpawn(ws, altarPos, activator, bossType);
-
-        // 将祭坛变为空气
-        world.setBlockState(altarPos, Blocks.AIR.getDefaultState());
-
-        return true;
     }
 
     private static EntityRiftwarden createRiftwarden(WorldServer world, BlockPos altarPos, EntityPlayer activator) {
-        EntityRiftwarden boss = new EntityRiftwarden(world);
+        try {
+            EntityRiftwarden boss = new EntityRiftwarden(world);
 
-        boss.setPosition(
-                altarPos.getX() + 0.5,
-                altarPos.getY() ,  // 降低一格
-                altarPos.getZ() + 0.5
-        );
+            boss.setPosition(
+                    altarPos.getX() + 0.5,
+                    altarPos.getY() ,  // 降低一格
+                    altarPos.getZ() + 0.5
+            );
 
-        boss.setCustomNameTag("§5虚空守望者");
-        boss.setAttackTarget(activator);
+            boss.setCustomNameTag("§5虚空守望者");
+            boss.setAttackTarget(activator);
 
-        return boss;
+            return boss;
+        } catch (Exception e) {
+            System.err.println("[Boss召唤] 创建Riftwarden失败: " + e.getMessage());
+            e.printStackTrace();
+            return null;
+        }
     }
 
     private static EntityStoneSentinel createStoneSentinel(WorldServer world, BlockPos altarPos, EntityPlayer activator) {
-        EntityStoneSentinel boss = new EntityStoneSentinel(world);
+        try {
+            EntityStoneSentinel boss = new EntityStoneSentinel(world);
 
-        boss.setPosition(
-                altarPos.getX() + 0.5,
-                altarPos.getY() ,  // 降低一格
-                altarPos.getZ() + 0.5
-        );
+            boss.setPosition(
+                    altarPos.getX() + 0.5,
+                    altarPos.getY() ,  // 降低一格
+                    altarPos.getZ() + 0.5
+            );
 
-        boss.setCustomNameTag("§7石像哨兵");
-        boss.setAttackTarget(activator);
+            boss.setCustomNameTag("§7石像哨兵");
+            boss.setAttackTarget(activator);
 
-        return boss;
+            return boss;
+        } catch (Exception e) {
+            System.err.println("[Boss召唤] 创建StoneSentinel失败: " + e.getMessage());
+            e.printStackTrace();
+            return null;
+        }
     }
 
     private static void spawnGuards(WorldServer world, BlockPos center, BossType bossType) {
