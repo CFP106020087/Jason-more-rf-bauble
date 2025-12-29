@@ -173,9 +173,10 @@ public class DungeonBossSpawner {
         try {
             EntityRiftwarden boss = new EntityRiftwarden(world);
 
+            // ★ 修复：Boss生成在祭坛上方（+1），祭坛本身是不可破坏方块会阻挡生成
             boss.setPosition(
                     altarPos.getX() + 0.5,
-                    altarPos.getY() ,  // 降低一格
+                    altarPos.getY() + 1,
                     altarPos.getZ() + 0.5
             );
 
@@ -194,9 +195,10 @@ public class DungeonBossSpawner {
         try {
             EntityStoneSentinel boss = new EntityStoneSentinel(world);
 
+            // ★ 修复：Boss生成在祭坛上方（+1），祭坛本身是不可破坏方块会阻挡生成
             boss.setPosition(
                     altarPos.getX() + 0.5,
-                    altarPos.getY() ,  // 降低一格
+                    altarPos.getY() + 1,
                     altarPos.getZ() + 0.5
             );
 
