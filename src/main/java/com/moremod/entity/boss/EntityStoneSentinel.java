@@ -549,17 +549,17 @@ public class EntityStoneSentinel extends EntityMob implements IAnimatable {
                         double angle = (Math.PI * 2) * i / particles;
                         double r = radius + layer * 0.3;
 
-                        ws.spawnParticle(EnumParticleTypes.BLOCK_CRACK,
+                        ws.spawnParticle(EnumParticleTypes.CLOUD,
                                 posX + Math.cos(angle) * r,
                                 posY + 0.1,
                                 posZ + Math.sin(angle) * r,
-                                2, 0, 0.2, 0, 0.05, 1);
+                                2, 0, 0.2, 0, 0.05);
 
-                        ws.spawnParticle(EnumParticleTypes.BLOCK_DUST,
+                        ws.spawnParticle(EnumParticleTypes.SMOKE_NORMAL,
                                 posX + Math.cos(angle) * r,
                                 posY + 0.5 + layer * 0.2,
                                 posZ + Math.sin(angle) * r,
-                                1, 0.1, 0.3, 0.1, 0, 3);
+                                1, 0.1, 0.3, 0.1, 0);
 
                         if (i % 4 == 0) {
                             ws.spawnParticle(EnumParticleTypes.CRIT,
@@ -575,11 +575,11 @@ public class EntityStoneSentinel extends EntityMob implements IAnimatable {
                 for (int i = 0; i < 20; i++) {
                     double randAngle = rand.nextDouble() * Math.PI * 2;
                     double randRadius = radius + (rand.nextDouble() - 0.5) * 2;
-                    ws.spawnParticle(EnumParticleTypes.BLOCK_CRACK,
+                    ws.spawnParticle(EnumParticleTypes.CLOUD,
                             posX + Math.cos(randAngle) * randRadius,
                             posY + rand.nextDouble() * 2,
                             posZ + Math.sin(randAngle) * randRadius,
-                            1, 0, 0.8, 0, 0.1, 1);
+                            1, 0, 0.8, 0, 0.1);
                 }
             }
 
@@ -746,11 +746,11 @@ public class EntityStoneSentinel extends EntityMob implements IAnimatable {
                 double a = rand.nextDouble()*Math.PI*2;
                 double r = rand.nextDouble()*3;
                 double h = rand.nextDouble()*this.height;
-                ws.spawnParticle(EnumParticleTypes.BLOCK_CRACK,
+                ws.spawnParticle(EnumParticleTypes.CLOUD,
                         posX + (rand.nextDouble()-0.5)*width,
                         posY + h,
                         posZ + (rand.nextDouble()-0.5)*width,
-                        1, Math.cos(a)*0.2, 0.3, Math.sin(a)*0.2, 0, 1);
+                        1, Math.cos(a)*0.2, 0.3, Math.sin(a)*0.2, 0);
             }
             if (deathAnimationTimer >= 40) {
                 for (int i = 0; i < 240; i++) {
@@ -778,11 +778,11 @@ public class EntityStoneSentinel extends EntityMob implements IAnimatable {
         if (!(world instanceof WorldServer)) return;
         WorldServer ws = (WorldServer) world;
         for (int i = 0; i < 3; i++) {
-            ws.spawnParticle(EnumParticleTypes.BLOCK_DUST,
+            ws.spawnParticle(EnumParticleTypes.SMOKE_NORMAL,
                     posX + (rand.nextDouble()-0.5)*width,
                     posY + rand.nextDouble()*this.height,
                     posZ + (rand.nextDouble()-0.5)*width,
-                    1, 0, -0.1, 0, 0.0, 1);
+                    1, 0, -0.1, 0, 0.0);
         }
         if (getIsAngry()) {
             ws.spawnParticle(EnumParticleTypes.FLAME,
@@ -951,7 +951,7 @@ public class EntityStoneSentinel extends EntityMob implements IAnimatable {
                 p.addPotionEffect(new PotionEffect(MobEffects.SLOWNESS, 60, 1));
             }
             if (world instanceof WorldServer) {
-                ((WorldServer)world).spawnParticle(EnumParticleTypes.BLOCK_DUST, posX, posY+1, posZ, 40, 2,1,2.0, 0);
+                ((WorldServer)world).spawnParticle(EnumParticleTypes.EXPLOSION_NORMAL, posX, posY+1, posZ, 40, 2,1,2.0, 0);
             }
             playSound(SoundEvents.ENTITY_GENERIC_EXPLODE, 2.2F, 0.7F);
 
