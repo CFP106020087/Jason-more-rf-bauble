@@ -30,6 +30,7 @@ public class BossAltarInteractionHandler {
         // 检查是否在Boss房间内
         if (!isInBossRoom(world, pos)) {
             // 不在Boss房间的信标不做处理
+            player.sendMessage(new TextComponentString("§e[调试] 检测到量子祭坛，但未找到Boss房间结构"));
             return;
         }
 
@@ -76,13 +77,15 @@ public class BossAltarInteractionHandler {
                 {7, 7}       // 27-20 = 7, 27-20 = 7
         };
 
+        StringBuilder debugInfo = new StringBuilder();
+
         // 检查每个可能的柱子位置
         for (int[] offset : pillarOffsets) {
             BlockPos pillarBase = altarPos.add(offset[0], 0, offset[1]);
 
-            // 检查柱子是否存在（检查柱子的几个高度）
+            // ★ 扩大Y轴搜索范围：从 -2 到 +20（覆盖整个柱子高度）
             boolean hasPillar = false;
-            for (int y = -1; y <= 5; y++) {
+            for (int y = -2; y <= 20; y++) {
                 BlockPos checkPos = pillarBase.up(y);
                 net.minecraft.block.Block block = world.getBlockState(checkPos).getBlock();
 
@@ -92,12 +95,18 @@ public class BossAltarInteractionHandler {
                         block == com.moremod.init.ModBlocks.UNBREAKABLE_BARRIER_TEMPORAL ||
                         block instanceof com.moremod.block.BlockUnbreakableBarrier) {
                     hasPillar = true;
+                    debugInfo.append("  柱子").append(pillarsFound + 1).append(": ").append(checkPos).append(" [").append(block.getLocalizedName()).append("]\n");
                     break;
                 }
             }
 
             if (hasPillar) {
                 pillarsFound++;
+            } else {
+                // ★ 调试：显示该位置实际有什么方块
+                BlockPos samplePos = pillarBase.up(1);
+                net.minecraft.block.Block sampleBlock = world.getBlockState(samplePos).getBlock();
+                debugInfo.append("  未找到柱子@").append(pillarBase).append(" 实际方块: ").append(sampleBlock.getLocalizedName()).append("\n");
             }
         }
 
@@ -106,6 +115,9 @@ public class BossAltarInteractionHandler {
 
         // 调试日志
         System.out.println("[Boss祭坛] 祭坛位置: " + altarPos + ", 找到柱子: " + pillarsFound + "/4, 判定: " + (isBossRoom ? "是Boss房间" : "不是Boss房间"));
+        if (!isBossRoom) {
+            System.out.println("[Boss祭坛] 详细信息:\n" + debugInfo.toString());
+        }
 
         return isBossRoom;
     }
