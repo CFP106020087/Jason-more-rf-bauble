@@ -76,6 +76,10 @@ public class EquipmentTimeTracker {
             boolean hasEnigmatic = checkHasEnigmaticItems(player);
 
             NBTTagCompound playerData = player.getEntityData();
+
+            // ✅ 迁移旧数据（从 ForgeData 迁移到 PlayerPersisted）
+            migrateOldData(playerData);
+
             NBTTagCompound persistentData = getOrCreatePersistentData(playerData);
 
             long currentTime = System.currentTimeMillis();
@@ -553,7 +557,65 @@ public class EquipmentTimeTracker {
     }
 
     /**
-     * ✅ 修复：使用 ForgeData 存储数据
+     * ✅ 迁移旧数据：从 ForgeData 迁移到 PlayerPersisted
+     * 确保现有玩家的数据不会丢失
+     */
+    private static void migrateOldData(NBTTagCompound playerData) {
+        if (playerData == null) return;
+
+        try {
+            final String OLD_FORGE_DATA = "ForgeData";
+            final String OLD_MOREMOD_DATA = "moremod_equipment_time";
+            final String PERSISTED_TAG = EntityPlayer.PERSISTED_NBT_TAG;
+
+            // 检查是否有旧数据
+            if (!playerData.hasKey(OLD_FORGE_DATA)) return;
+
+            NBTTagCompound forgeData = playerData.getCompoundTag(OLD_FORGE_DATA);
+            if (!forgeData.hasKey(OLD_MOREMOD_DATA)) return;
+
+            NBTTagCompound oldData = forgeData.getCompoundTag(OLD_MOREMOD_DATA);
+
+            // 检查旧数据是否有有效内容
+            if (!oldData.hasKey(NBT_FIRST_JOIN_TIME)) return;
+
+            // 确保新位置存在
+            if (!playerData.hasKey(PERSISTED_TAG)) {
+                playerData.setTag(PERSISTED_TAG, new NBTTagCompound());
+            }
+            NBTTagCompound persistedData = playerData.getCompoundTag(PERSISTED_TAG);
+
+            // 检查新位置是否已有数据（避免覆盖）
+            if (persistedData.hasKey(OLD_MOREMOD_DATA)) {
+                NBTTagCompound newData = persistedData.getCompoundTag(OLD_MOREMOD_DATA);
+                if (newData.hasKey(NBT_FIRST_JOIN_TIME)) {
+                    // 新位置已有数据，删除旧数据
+                    forgeData.removeTag(OLD_MOREMOD_DATA);
+                    System.out.println("[EquipmentTimeTracker] 新位置已有数据，跳过迁移并清理旧数据");
+                    return;
+                }
+            }
+
+            // 迁移数据到新位置
+            persistedData.setTag(OLD_MOREMOD_DATA, oldData.copy());
+
+            // 删除旧位置的数据
+            forgeData.removeTag(OLD_MOREMOD_DATA);
+
+            System.out.println("[EquipmentTimeTracker] ✅ 已将玩家数据从 ForgeData 迁移到 PlayerPersisted");
+            System.out.println("  - FirstJoinTime: " + oldData.getLong(NBT_FIRST_JOIN_TIME));
+            System.out.println("  - EquippedInTime: " + oldData.getBoolean(NBT_EQUIPPED_IN_TIME));
+            System.out.println("  - PermanentlyBanned: " + oldData.getBoolean(NBT_PERMANENTLY_BANNED));
+
+        } catch (Exception e) {
+            System.err.println("[EquipmentTimeTracker] 迁移旧数据失败: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * ✅ 修复：使用 EntityPlayer.PERSISTED_NBT_TAG 存储数据
+     * 这是 Minecraft 专门用于跨会话保留玩家数据的标签
      */
     private static NBTTagCompound getOrCreatePersistentData(NBTTagCompound playerData) {
         if (playerData == null) {
@@ -561,23 +623,24 @@ public class EquipmentTimeTracker {
         }
 
         try {
-            // ✅ 使用 ForgeData 标签（更可靠的持久化方式）
-            final String FORGE_DATA = "ForgeData";
+            // ✅ 使用 EntityPlayer.PERSISTED_NBT_TAG ("PlayerPersisted")
+            // 这个标签会在玩家退出/重新登录时保留
+            final String PERSISTED_TAG = EntityPlayer.PERSISTED_NBT_TAG;
             final String MOREMOD_DATA = "moremod_equipment_time";
 
-            // 确保 ForgeData 存在
-            if (!playerData.hasKey(FORGE_DATA)) {
-                playerData.setTag(FORGE_DATA, new NBTTagCompound());
+            // 确保 PlayerPersisted 存在
+            if (!playerData.hasKey(PERSISTED_TAG)) {
+                playerData.setTag(PERSISTED_TAG, new NBTTagCompound());
             }
 
-            NBTTagCompound forgeData = playerData.getCompoundTag(FORGE_DATA);
+            NBTTagCompound persistedData = playerData.getCompoundTag(PERSISTED_TAG);
 
             // 确保我们的数据标签存在
-            if (!forgeData.hasKey(MOREMOD_DATA)) {
-                forgeData.setTag(MOREMOD_DATA, new NBTTagCompound());
+            if (!persistedData.hasKey(MOREMOD_DATA)) {
+                persistedData.setTag(MOREMOD_DATA, new NBTTagCompound());
             }
 
-            return forgeData.getCompoundTag(MOREMOD_DATA);
+            return persistedData.getCompoundTag(MOREMOD_DATA);
 
         } catch (Exception e) {
             System.err.println("[EquipmentTimeTracker] 获取持久化数据失败: " + e.getMessage());
