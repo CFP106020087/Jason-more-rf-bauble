@@ -136,7 +136,9 @@ public class PersonalDimensionSpawnHandler {
             // ✅ 如果已有合法标签，直接允许
             if (entity.getTags().contains("spawner_spawned") ||
                 entity.getTags().contains("boss_summoned") ||
+                entity.getTags().contains("altar_spawned") ||
                 entity.getTags().contains("player_summoned")) {
+                System.out.println("[生成处理] 允许带标签的实体: " + entity.getClass().getSimpleName() + " 标签: " + entity.getTags());
                 adjustEntityToGround(event.getWorld(), entity);
                 return;
             }

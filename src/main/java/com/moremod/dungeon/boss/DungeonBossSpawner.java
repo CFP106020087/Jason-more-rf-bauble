@@ -67,7 +67,10 @@ public class DungeonBossSpawner {
     }
 
     private static boolean spawnBoss(World world, BlockPos altarPos, EntityPlayer activator, BossType bossType) {
-        if (!(world instanceof WorldServer)) return false;
+        if (!(world instanceof WorldServer)) {
+            System.out.println("[Boss召唤] 失败: world不是WorldServer");
+            return false;
+        }
 
         WorldServer ws = (WorldServer) world;
         EntityLiving boss = null;
@@ -81,13 +84,28 @@ public class DungeonBossSpawner {
                 break;
         }
 
-        if (boss == null) return false;
+        if (boss == null) {
+            System.out.println("[Boss召唤] 失败: boss实体为null");
+            return false;
+        }
+
+        // ★ 添加Boss标记，确保不被维度地牢生成处理器拦截
+        boss.addTag("boss_summoned");
+        boss.addTag("altar_spawned");
+
+        System.out.println("[Boss召唤] 准备生成 " + bossType.getDisplayName() + " @ " + boss.getPosition());
 
         // 生成特效
         spawnSummonEffects(ws, altarPos, bossType);
 
         // 生成Boss
-        ws.spawnEntity(boss);
+        boolean spawned = ws.spawnEntity(boss);
+        System.out.println("[Boss召唤] spawnEntity结果: " + spawned + ", isAddedToWorld: " + boss.isAddedToWorld());
+
+        if (!spawned || !boss.isAddedToWorld()) {
+            activator.sendMessage(new TextComponentString("§c[调试] Boss生成失败，可能被其他系统拦截"));
+            return false;
+        }
 
         // 广播Boss生成消息
         broadcastBossSpawn(ws, altarPos, activator, bossType);
