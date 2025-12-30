@@ -14,7 +14,7 @@ buildscript {
 apply plugin: 'net.minecraftforge.gradle.forge'
 apply plugin: 'org.spongepowered.mixin'
 
-version = "3.6.1"
+version = "3.5"
 group = "com.moremod"
 archivesBaseName = "Jasons-more-rf-bauble"
 
