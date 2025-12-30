@@ -131,7 +131,7 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
         modid = moremod.MODID,
         name = moremod.NAME,
         version = moremod.VERSION,
-        dependencies = "required-after:fermiumbooter;required-after:baubles;after:srparasites;after:lycanitesmobs"
+        dependencies = "required-after:fermiumbooter;required-after:baubles;required-after:geckolib3;required-after:redstoneflux;after:srparasites;after:lycanitesmobs"
 )
 @Mod.EventBusSubscriber(modid = moremod.MODID)
 public class moremod {
