@@ -922,8 +922,13 @@ public class HumanitySpectrumSystem {
         float restoreAmount = (float) HumanityConfig.sleepRestore;
         float cap = (float) HumanityConfig.sleepRestoreCap;
 
-        float newHumanity = Math.min(currentHumanity + restoreAmount, cap);
-        data.setHumanity(newHumanity);
+        // 只有当前人性值低于上限时才恢复，不会降低已经高于上限的人性值
+        if (currentHumanity < cap) {
+            float newHumanity = Math.min(currentHumanity + restoreAmount, cap);
+            data.setHumanity(newHumanity);
+        }
+        // 如果已经高于上限，不做任何改变（不会降低人性值）
+
         data.resetSleepDeprivation();
 
         // 使用立即同步而非markDirty，避免睡眠后世界时间跳跃导致的同步时序问题
