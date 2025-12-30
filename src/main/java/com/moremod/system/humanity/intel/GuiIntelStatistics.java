@@ -112,6 +112,9 @@ public class GuiIntelStatistics extends GuiScreen {
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
+        // 每帧刷新数据，确保动态更新
+        refreshData();
+
         // 绘制半透明背景
         drawDefaultBackground();
 
@@ -197,17 +200,30 @@ public class GuiIntelStatistics extends GuiScreen {
                     String tierName = ItemIntelStatisticsBook.getTierName(profile.getCurrentTier());
                     int tierColor = ItemIntelStatisticsBook.getTierColorInt(profile.getCurrentTier());
 
-                    // 名称和等级
+                    // 第一行：名称 + 等级 + 样本/击杀
                     fontRenderer.drawStringWithShadow("§f" + entityName, guiLeft + 15, entryY + 2, 0xFFFFFF);
-                    fontRenderer.drawStringWithShadow("[" + tierName + "]", guiLeft + 15, entryY + 12, tierColor);
+                    fontRenderer.drawStringWithShadow("[" + tierName + "]", guiLeft + 100, entryY + 2, tierColor);
+                    fontRenderer.drawStringWithShadow(String.format("§7样本:§a%d §7击杀:§c%d",
+                            profile.getSampleCount(), profile.getKillCount()),
+                            guiLeft + 145, entryY + 2, 0xFFFFFF);
 
-                    // 加成信息
+                    // 第二行：加成信息
                     float dmgBonus = profile.getDamageBonus() * 100;
                     float dropBonus = profile.getDropBonus() * 100;
-                    fontRenderer.drawStringWithShadow(String.format("§c+%d%%伤害", (int) dmgBonus),
-                            guiLeft + 100, entryY + 7, 0xFFFFFF);
-                    fontRenderer.drawStringWithShadow(String.format("§a+%d%%掉落", (int) dropBonus),
-                            guiLeft + 155, entryY + 7, 0xFFFFFF);
+                    float critBonus = profile.getCritBonus() * 100;
+                    int intelLevel = IntelDataHelper.getIntelLevel(data, entityId);
+
+                    StringBuilder bonusLine = new StringBuilder();
+                    bonusLine.append(String.format("§c+%d%%伤害 ", (int) dmgBonus));
+                    bonusLine.append(String.format("§a+%d%%掉落", (int) dropBonus));
+                    if (critBonus > 0) {
+                        bonusLine.append(String.format(" §d+%d%%暴击", (int) critBonus));
+                    }
+                    if (intelLevel > 0) {
+                        float intelDmg = (IntelDataHelper.calculateDamageMultiplier(data, entityId) - 1.0f) * 100;
+                        bonusLine.append(String.format(" §5情报+%d%%", (int) intelDmg));
+                    }
+                    fontRenderer.drawStringWithShadow(bonusLine.toString(), guiLeft + 15, entryY + 12, 0xFFFFFF);
                 }
             }
 
