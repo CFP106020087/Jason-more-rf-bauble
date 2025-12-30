@@ -12,9 +12,9 @@ import net.minecraftforge.event.entity.living.LivingDropsEvent;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
-// Lycanites Mobs
-import com.lycanitesmobs.core.entity.BaseCreatureEntity;
-import com.lycanitesmobs.core.entity.TameableCreatureEntity;
+// Phase 1 解耦: Lycanites Mobs 改用反射检测
+// 已移除: import com.lycanitesmobs.core.entity.BaseCreatureEntity;
+// 已移除: import com.lycanitesmobs.core.entity.TameableCreatureEntity;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -198,20 +198,9 @@ public class GemLootGenerator {
             return true;
         }
         
-        // Lycanites驯服生物
-        if (entity instanceof TameableCreatureEntity) {
-            TameableCreatureEntity tameable = (TameableCreatureEntity) entity;
-            if (tameable.isTamed() || !tameable.isAggressive()) {
-                return true;
-            }
-        }
-        
-        // Lycanites非攻击性生物
-        if (entity instanceof BaseCreatureEntity) {
-            BaseCreatureEntity creature = (BaseCreatureEntity) entity;
-            if (!creature.isAggressive()) {
-                return true;
-            }
+        // Phase 1 解耦: Lycanites生物检测改用反射
+        if (isLycanitesFriendlyEntity(entity)) {
+            return true;
         }
         
         // 村民
@@ -248,5 +237,54 @@ public class GemLootGenerator {
         if (debugMode && !filter) {
             System.out.println("[GemLoot] 警告：友善生物过滤始终开启");
         }
+    }
+
+    // ==========================================
+    // Phase 1 解耦: Lycanites反射辅助方法
+    // ==========================================
+
+    private static Class<?> tameableCreatureClass = null;
+    private static Class<?> baseCreatureClass = null;
+    private static java.lang.reflect.Method isTamedMethod = null;
+    private static java.lang.reflect.Method isAggressiveMethod = null;
+    private static boolean lycanitesChecked = false;
+
+    /**
+     * 使用反射检测Lycanites友善生物
+     * 当Lycanites Mobs不存在时安全返回false
+     */
+    private static boolean isLycanitesFriendlyEntity(EntityLivingBase entity) {
+        if (!lycanitesChecked) {
+            lycanitesChecked = true;
+            try {
+                tameableCreatureClass = Class.forName("com.lycanitesmobs.core.entity.TameableCreatureEntity");
+                baseCreatureClass = Class.forName("com.lycanitesmobs.core.entity.BaseCreatureEntity");
+                isTamedMethod = tameableCreatureClass.getMethod("isTamed");
+                isAggressiveMethod = baseCreatureClass.getMethod("isAggressive");
+            } catch (Exception e) {
+                // Lycanites Mobs不存在，静默失败
+                tameableCreatureClass = null;
+                baseCreatureClass = null;
+            }
+        }
+
+        if (tameableCreatureClass == null) return false;
+
+        try {
+            // 检查驯服生物
+            if (tameableCreatureClass.isInstance(entity)) {
+                boolean isTamed = (Boolean) isTamedMethod.invoke(entity);
+                boolean isAggressive = (Boolean) isAggressiveMethod.invoke(entity);
+                if (isTamed || !isAggressive) return true;
+            }
+            // 检查非攻击性生物
+            else if (baseCreatureClass.isInstance(entity)) {
+                boolean isAggressive = (Boolean) isAggressiveMethod.invoke(entity);
+                if (!isAggressive) return true;
+            }
+        } catch (Exception e) {
+            // 反射调用失败，静默失败
+        }
+        return false;
     }
 }

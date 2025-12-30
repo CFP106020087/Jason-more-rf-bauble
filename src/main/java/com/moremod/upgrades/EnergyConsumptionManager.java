@@ -6,7 +6,7 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
-import com.lycanitesmobs.core.entity.creature.EntityAmalgalich;
+// 已移除: import com.lycanitesmobs.core.entity.creature.EntityAmalgalich; (Phase 1 解耦)
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;

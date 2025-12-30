@@ -43,26 +43,30 @@ repositories {
 }
 
 dependencies {
-    // JEI
-    deobfProvided "mezz.jei:jei_1.12.2:4.16.1.1013:api"
-
-    // Mod dependencies
-    compileOnly name:'MmmMmmMmmMmm-1.12-2.0.5'
-    compileOnly name:'Ice and Fire-2.1.7'
-    // compileOnly name:'champions-1.12.2-1.0.11.10'  // 已改用反射，无需编译时依赖
-    compileOnly name:'InfernalMobs-1.12.2'
-    compileOnly name:'morerefinedstorage-2.3.2'
+    // ========== 核心依赖 (1.20迁移时需替换) ==========
+    // Baubles -> Curios API
     compileOnly name:'Baubles-1.12-1.5.2'
-    compileOnly name:'RedstoneFlux-1.12-2.1.1.1-universal'
-    compileOnly name:'SRParasites-1.12.2v1.9.21'
+    // GeckoLib -> GeckoLib 4.x
     compileOnly name:'geckolib-forge-1.12.2-3.0.31'
-    compileOnly name:'lycanitesmobs-1.12.2-2.0.8.10'
+    // CraftTweaker -> CraftTweaker 1.20
     compileOnly name:'CraftTweaker2-1.12-4.1.20.703'
-    compileOnly name:'firstaid-1.6.22'
-    runtimeOnly name:'`FermiumBooter-1.2.0'
-    compileOnly name:'`FermiumBooter-1.2.0'
-    compileOnly name:'EnhancedVisuals_v1.4.4_mc1.12.2'
-    compileOnly name:'PotionCore-1.9_for_1.12.2'
+    // RF能量API
+    compileOnly name:'RedstoneFlux-1.12-2.1.1.1-universal'
+
+    // ========== 已移除的可选依赖 (Phase 1 解耦) ==========
+    // 以下依赖已移至 libs_backup_optional/
+    // - MmmMmmMmmMmm-1.12-2.0.5
+    // - Ice and Fire-2.1.7
+    // - champions-1.12.2-1.0.11.10
+    // - InfernalMobs-1.12.2
+    // - morerefinedstorage-2.3.2
+    // - SRParasites-1.12.2v1.9.21
+    // - lycanitesmobs-1.12.2-2.0.8.10
+    // - firstaid-1.6.22
+    // - FermiumBooter-1.2.0
+    // - EnhancedVisuals_v1.4.4_mc1.12.2
+    // - PotionCore-1.9_for_1.12.2
+    // - jei_1.12.2-4.16.1.1013
 
     // ========== Mixin 配置 ==========
     compile('org.spongepowered:mixin:0.8.5') {

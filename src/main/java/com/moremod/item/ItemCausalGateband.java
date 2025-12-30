@@ -5,8 +5,8 @@ import baubles.api.cap.IBaublesItemHandler;
 import com.moremod.item.causal.CausalFieldManager;
 import com.moremod.item.causal.EnergyHelper;
 import com.moremod.creativetab.moremodCreativeTab;
-import atomicstryker.infernalmobs.common.InfernalMobsCore;
-import com.moremod.compat.ChampionReflectionHelper;
+// 已移除: import atomicstryker.infernalmobs.common.InfernalMobsCore; (Phase 1 解耦)
+// 已移除: import com.moremod.compat.ChampionReflectionHelper; (Phase 1 解耦)
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.*;
@@ -95,19 +95,57 @@ public class ItemCausalGateband extends Item implements IBauble {
         }
     }
 
+    /**
+     * 检测附近是否有精英怪
+     * Phase 1 解耦: 移除了 InfernalMobs 和 Champions 的直接依赖
+     * 使用反射方式检测（MOD不存在时安全跳过）
+     */
     private boolean hasEliteNearby(EntityPlayer p, int r){
         AxisAlignedBB box = new AxisAlignedBB(p.posX-r, p.posY-3, p.posZ-r, p.posX+r, p.posY+3, p.posZ+r);
         for (EntityLivingBase e : p.world.getEntitiesWithinAABB(EntityLivingBase.class, box)) {
             if (!e.isEntityAlive() || e==p) continue;
-            // Infernal
-            if (InfernalMobsCore.getIsRareEntity(e)) return true;
-            // Champions
-            if (e instanceof EntityLiving && ChampionReflectionHelper.isChampionsAvailable()) {
-                Object chp = ChampionReflectionHelper.getChampionship((EntityLiving) e);
-                Object rank = chp != null ? ChampionReflectionHelper.getRank(chp) : null;
-                if (rank != null && ChampionReflectionHelper.getTier(rank) > 0) return true;
+            // 使用反射检测 Infernal Mobs (已解耦)
+            if (isInfernalElite(e)) return true;
+            // 使用反射检测 Champions (已解耦)
+            if (e instanceof EntityLiving && isChampionsElite((EntityLiving) e)) return true;
+        }
+        return false;
+    }
+
+    // ===== 反射辅助方法（Phase 1 解耦：无直接依赖）=====
+    private static Boolean infernalAvailable = null;
+    private static java.lang.reflect.Method getIsRareEntity = null;
+
+    private boolean isInfernalElite(EntityLivingBase e) {
+        if (infernalAvailable == null) {
+            try {
+                Class<?> clazz = Class.forName("atomicstryker.infernalmobs.common.InfernalMobsCore");
+                getIsRareEntity = clazz.getMethod("getIsRareEntity", EntityLivingBase.class);
+                infernalAvailable = true;
+            } catch (Exception ex) {
+                infernalAvailable = false;
             }
         }
+        if (!infernalAvailable) return false;
+        try {
+            return (Boolean) getIsRareEntity.invoke(null, e);
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    private static Boolean championsAvailable = null;
+    private boolean isChampionsElite(EntityLiving e) {
+        if (championsAvailable == null) {
+            try {
+                Class.forName("c4.champions.common.capability.CapabilityChampionship");
+                championsAvailable = true;
+            } catch (Exception ex) {
+                championsAvailable = false;
+            }
+        }
+        // Phase 1: Champions检测暂时禁用（ChampionReflectionHelper已移除）
+        // 如需恢复，请参考 src_backup_compat/compat/ChampionReflectionHelper.java
         return false;
     }
 

@@ -1,7 +1,8 @@
 package com.moremod.core;
 
 import net.minecraftforge.fml.relauncher.IFMLLoadingPlugin;
-import fermiumbooter.FermiumRegistryAPI;
+import org.spongepowered.asm.launch.MixinBootstrap;
+import org.spongepowered.asm.mixin.Mixins;
 import java.util.Map;
 
 @IFMLLoadingPlugin.MCVersion("1.12.2")
@@ -11,33 +12,32 @@ import java.util.Map;
 public class moremodMixinPlugin implements IFMLLoadingPlugin {
 
     static {
-        // FermiumBooter 处理所有四个 mixin 配置
+        // 使用标准Mixin加载方式 (不依赖FermiumBooter)
         try {
-            // 先加载 villager mixin
-            FermiumRegistryAPI.enqueueMixin(false, "mixins.moremod.villager.json");
-            FermiumRegistryAPI.enqueueMixin(false, "mixins.moremod.otherworldly.json");
-            FermiumRegistryAPI.enqueueMixin(false, "mixins.moremod.enchant.json");
+            MixinBootstrap.init();
 
-            // 然后加载其他 mod 的 mixins
-            FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.lycanites.json");
-            FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.parasites.json");
-           FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.champion.json");
-            FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.silent.json");
-            FermiumRegistryAPI.enqueueMixin(false, "mixins.moremod.element.json");
-            FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.dummy.json");
-            FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.bauble.json");
-            FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.potioncore.json");
-            FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.ev.json");
+            // 核心Mixin配置 (已解耦外部MOD依赖)
+            Mixins.addConfiguration("mixins.moremod.villager.json");
+            Mixins.addConfiguration("mixins.moremod.otherworldly.json");
+            Mixins.addConfiguration("mixins.moremod.enchant.json");
+            Mixins.addConfiguration("mixins.moremod.silent.json");
+            Mixins.addConfiguration("mixins.moremod.element.json");
+            Mixins.addConfiguration("mixins.moremod.dummy.json");
+            Mixins.addConfiguration("mixins.moremod.bauble.json");
+            Mixins.addConfiguration("mixins.moremod.enigmaticlegacy.json");
 
-            // Enigmatic Legacy 七圣遗物效果拦截
-            FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.enigmaticlegacy.json");
+            // 已移除的外部MOD Mixin配置 (Phase 1 解耦):
+            // - mixins.moremod.lycanites.json
+            // - mixins.moremod.parasites.json
+            // - mixins.moremod.champion.json
+            // - mixins.moremod.potioncore.json
+            // - mixins.moremod.ev.json
+            // - mixins.moremod.fermiummixins.json
+            // - mixins.moremod.rs.json
 
-            // FermiumMixins 兼容 - 绕过假玩家检测
-            FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.fermiummixins.json");
-
-            System.out.println("[moremod] All mixins queued via FermiumBooter");
+            System.out.println("[moremod] All core mixins loaded (decoupled from external mods)");
         } catch (Throwable e) {
-            System.err.println("[moremod] FermiumBooter registration failed: " + e);
+            System.err.println("[moremod] Mixin registration failed: " + e);
         }
     }
 

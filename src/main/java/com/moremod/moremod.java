@@ -12,7 +12,7 @@ import com.moremod.client.gui.SmartRejectionGuide;
 import com.moremod.commands.CommandLootDebug;
 import com.moremod.commands.CommandResetEquipTime;
 import com.moremod.commands.CommandHumanity;
-import com.moremod.compat.PotionCoreCompatEnhanced;
+// 已移除: import com.moremod.compat.PotionCoreCompatEnhanced; (Phase 1 解耦)
 import com.moremod.config.*;
 import com.moremod.dimension.PersonalDimensionManager;
 import com.moremod.dimension.PersonalDimensionSpawnHandler;
@@ -38,7 +38,7 @@ import com.moremod.init.GemSystemInit;
 import com.moremod.init.ModFluids;
 import com.moremod.init.SimpleReverseDeducer;
 import com.moremod.integration.ModIntegration;
-import com.moremod.integration.jei.JEIIntegrationManager;
+// 已移除: import com.moremod.integration.jei.JEIIntegrationManager; (Phase 1 解耦)
 import com.moremod.item.ItemDimensionalRipper;
 import com.moremod.item.ItemMechanicalCore;
 import com.moremod.item.chengyue.ChengYueEventHandler;
@@ -64,7 +64,7 @@ import com.moremod.handler.DimensionalRipperEventHandler;
 import com.moremod.capability.*;
 
 // 机械核心系统导入
-import com.moremod.shields.integrated.EnhancedVisualsHandler;
+// 已移除: import com.moremod.shields.integrated.EnhancedVisualsHandler; (Phase 1 解耦)
 import com.moremod.system.*;
 import com.moremod.upgrades.MechanicalCoreNetworkHandler;
 import com.moremod.upgrades.auxiliary.AuxiliaryUpgradeManager;
