@@ -30,8 +30,8 @@ import java.util.Random;
 /**
  * 资源磁化戒指 - 掉落物增强
  * 每3模块：吸取范围+2格
- * 每6模块：自动熔炼矿物
- * 每10模块：10%双倍掉落
+ * 每6模块：自动熔炼矿物（2倍产出）
+ * 每10模块：10%双倍掉落（仅对非熔炼物品生效）
  */
 @Mod.EventBusSubscriber
 public class ItemResourceMagnetRing extends Item implements IBauble {
@@ -198,22 +198,33 @@ public class ItemResourceMagnetRing extends Item implements IBauble {
 
     // ===== 掉落物处理 =====
     private void processItemPickup(EntityPlayer player, EntityItem entityItem, ItemStack ring) {
-        ItemStack itemStack = entityItem.getItem().copy();
+        ItemStack originalStack = entityItem.getItem();
+        ItemStack itemStack = originalStack.copy();
+        int originalCount = originalStack.getCount();
 
         boolean hasSmelting = getHasSmelting(ring);
         boolean hasDouble = getHasDouble(ring);
+        boolean wasSmelted = false;
 
-        // 自动熔炼
+        // 自动熔炼 - 产出2倍
         if (hasSmelting) {
-            ItemStack smelted = FurnaceRecipes.instance().getSmeltingResult(itemStack);
-            if (!smelted.isEmpty()) {
-                itemStack = smelted.copy();
-                itemStack.setCount(entityItem.getItem().getCount());
+            ItemStack smeltResult = FurnaceRecipes.instance().getSmeltingResult(itemStack);
+            if (!smeltResult.isEmpty()) {
+                // 计算产出数量：输入数量 × 配方产出 × 2（熔炼加成）
+                int recipeOutputCount = smeltResult.getCount();
+                int totalOutput = originalCount * recipeOutputCount * 2;
+
+                // 限制最大堆叠数量，防止超出物品最大堆叠
+                int maxStack = smeltResult.getMaxStackSize();
+
+                itemStack = smeltResult.copy();
+                itemStack.setCount(Math.min(totalOutput, maxStack * 4)); // 最多4组
+                wasSmelted = true;
             }
         }
 
-        // 双倍掉落
-        if (hasDouble && RANDOM.nextDouble() < DOUBLE_DROP_CHANCE) {
+        // 双倍掉落（仅对非熔炼物品生效，避免重复加成）
+        if (!wasSmelted && hasDouble && RANDOM.nextDouble() < DOUBLE_DROP_CHANCE) {
             itemStack.grow(itemStack.getCount()); // 数量翻倍
 
             // 特效提示
@@ -233,6 +244,12 @@ public class ItemResourceMagnetRing extends Item implements IBauble {
                     net.minecraft.init.SoundEvents.ENTITY_ITEM_PICKUP,
                     net.minecraft.util.SoundCategory.PLAYERS, 0.2f,
                     ((RANDOM.nextFloat() - RANDOM.nextFloat()) * 0.7f + 1.0f) * 2.0f);
+        } else {
+            // 背包满了，掉落剩余物品
+            if (!itemStack.isEmpty()) {
+                player.dropItem(itemStack, false);
+                entityItem.setDead();
+            }
         }
     }
 
@@ -280,7 +297,7 @@ public class ItemResourceMagnetRing extends Item implements IBauble {
                     String.format("%.1f", stats.range) + " 格");
 
             if (stats.hasSmelting) {
-                tip.add(TextFormatting.GREEN + "✓ " + TextFormatting.WHITE + "自动熔炼矿物");
+                tip.add(TextFormatting.GREEN + "✓ " + TextFormatting.WHITE + "自动熔炼矿物 (2倍产出)");
             } else {
                 tip.add(TextFormatting.GRAY + "✗ 自动熔炼 (需要 " + MODULES_FOR_SMELTING + " 模块)");
             }
@@ -309,7 +326,7 @@ public class ItemResourceMagnetRing extends Item implements IBauble {
             tip.add(TextFormatting.GRAY + "• 每 " + MODULES_PER_RANGE_TIER +
                     " 个模块增加 " + String.format("%.1f", RANGE_PER_TIER) + " 格范围");
             tip.add(TextFormatting.GRAY + "• " + MODULES_FOR_SMELTING +
-                    " 模块解锁自动熔炼");
+                    " 模块解锁自动熔炼 (2倍产出)");
             tip.add(TextFormatting.GRAY + "• " + MODULES_FOR_DOUBLE_DROP +
                     " 模块解锁双倍掉落");
             tip.add(TextFormatting.GRAY + "• 最大范围: " + String.format("%.1f", MAX_RANGE) + " 格");
