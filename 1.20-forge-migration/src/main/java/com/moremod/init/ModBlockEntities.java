@@ -142,6 +142,44 @@ public class ModBlockEntities {
                     () -> BlockEntityType.Builder.of(BottlingMachineBlockEntity::new,
                             ModBlocks.BOTTLING_MACHINE.get()).build(null));
 
+    // 抽油机核心
+    public static final RegistryObject<BlockEntityType<OilExtractorCoreBlockEntity>> OIL_EXTRACTOR_CORE =
+            BLOCK_ENTITIES.register("oil_extractor_core",
+                    () -> BlockEntityType.Builder.of(OilExtractorCoreBlockEntity::new,
+                            ModBlocks.OIL_EXTRACTOR_CORE.get()).build(null));
+
+    // ========== 新增方块实体 (Phase 3.3) ==========
+
+    // 维度织布机
+    public static final RegistryObject<BlockEntityType<DimensionLoomBlockEntity>> DIMENSION_LOOM =
+            BLOCK_ENTITIES.register("dimension_loom",
+                    () -> BlockEntityType.Builder.of(DimensionLoomBlockEntity::new,
+                            ModBlocks.DIMENSION_LOOM.get()).build(null));
+
+    // 提取站
+    public static final RegistryObject<BlockEntityType<ExtractionStationBlockEntity>> EXTRACTION_STATION =
+            BLOCK_ENTITIES.register("extraction_station",
+                    () -> BlockEntityType.Builder.of(ExtractionStationBlockEntity::new,
+                            ModBlocks.EXTRACTION_STATION.get()).build(null));
+
+    // 假玩家激活器
+    public static final RegistryObject<BlockEntityType<FakePlayerActivatorBlockEntity>> FAKE_PLAYER_ACTIVATOR =
+            BLOCK_ENTITIES.register("fake_player_activator",
+                    () -> BlockEntityType.Builder.of(FakePlayerActivatorBlockEntity::new,
+                            ModBlocks.FAKE_PLAYER_ACTIVATOR.get()).build(null));
+
+    // 提纯祭坛
+    public static final RegistryObject<BlockEntityType<PurificationAltarBlockEntity>> PURIFICATION_ALTAR =
+            BLOCK_ENTITIES.register("purification_altar",
+                    () -> BlockEntityType.Builder.of(PurificationAltarBlockEntity::new,
+                            ModBlocks.PURIFICATION_ALTAR.get()).build(null));
+
+    // 剑升级工作站
+    public static final RegistryObject<BlockEntityType<SwordUpgradeStationBlockEntity>> SWORD_UPGRADE_STATION =
+            BLOCK_ENTITIES.register("sword_upgrade_station",
+                    () -> BlockEntityType.Builder.of(SwordUpgradeStationBlockEntity::new,
+                            ModBlocks.SWORD_UPGRADE_STATION.get()).build(null));
+
     // ========== TODO: 更多方块实体 ==========
     // - AnimalFeederBlockEntity
     // - BioGeneratorBlockEntity

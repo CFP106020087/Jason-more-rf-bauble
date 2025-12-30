@@ -164,6 +164,64 @@ public class ModBlocks {
     public static final RegistryObject<Block> BOTTLING_MACHINE = BLOCKS.register("bottling_machine",
             BottlingMachineBlock::new);
 
+    // 抽油机核心
+    public static final RegistryObject<Block> OIL_EXTRACTOR_CORE = BLOCKS.register("oil_extractor_core",
+            OilExtractorCoreBlock::new);
+
+    // ========== 特殊方块 ==========
+
+    // 不可破坏屏障 - 虚空水晶
+    public static final RegistryObject<Block> UNBREAKABLE_BARRIER_VOID_CRYSTAL = BLOCKS.register(
+            "unbreakable_barrier_void_crystal",
+            () -> new UnbreakableBarrierBlock(UnbreakableBarrierBlock.BarrierType.VOID_CRYSTAL));
+
+    // 不可破坏屏障 - 量子力场
+    public static final RegistryObject<Block> UNBREAKABLE_BARRIER_QUANTUM_FIELD = BLOCKS.register(
+            "unbreakable_barrier_quantum_field",
+            () -> new UnbreakableBarrierBlock(UnbreakableBarrierBlock.BarrierType.QUANTUM_FIELD));
+
+    // ========== 新增方块 (Phase 3.3) ==========
+
+    // 古代核心
+    public static final RegistryObject<Block> ANCIENT_CORE = BLOCKS.register("ancient_core",
+            AncientCoreBlock::new);
+
+    // 维度织布机
+    public static final RegistryObject<Block> DIMENSION_LOOM = BLOCKS.register("dimension_loom",
+            DimensionLoomBlock::new);
+
+    // 提取站
+    public static final RegistryObject<Block> EXTRACTION_STATION = BLOCKS.register("extraction_station",
+            ExtractionStationBlock::new);
+
+    // 假玩家激活器
+    public static final RegistryObject<Block> FAKE_PLAYER_ACTIVATOR = BLOCKS.register("fake_player_activator",
+            FakePlayerActivatorBlock::new);
+
+    // 提纯祭坛
+    public static final RegistryObject<Block> PURIFICATION_ALTAR = BLOCKS.register("purification_altar",
+            PurificationAltarBlock::new);
+
+    // 剑升级工作站
+    public static final RegistryObject<Block> SWORD_UPGRADE_STATION = BLOCKS.register("sword_upgrade_station",
+            SwordUpgradeStationBlock::new);
+
+    // 附魔增强方块 - 奥术石
+    public static final RegistryObject<Block> ENCHANTING_BOOSTER_ARCANE = BLOCKS.register("enchanting_booster_arcane",
+            () -> new EnchantingBoosterBlock(EnchantingBoosterBlock.BoosterType.ARCANE_STONE));
+
+    // 附魔增强方块 - 强化书架
+    public static final RegistryObject<Block> ENCHANTING_BOOSTER_BOOKSHELF = BLOCKS.register("enchanting_booster_bookshelf",
+            () -> new EnchantingBoosterBlock(EnchantingBoosterBlock.BoosterType.ENCHANTED_BOOKSHELF));
+
+    // 附魔增强方块 - 知识水晶
+    public static final RegistryObject<Block> ENCHANTING_BOOSTER_CRYSTAL = BLOCKS.register("enchanting_booster_crystal",
+            () -> new EnchantingBoosterBlock(EnchantingBoosterBlock.BoosterType.KNOWLEDGE_CRYSTAL));
+
+    // 附魔增强方块 - 灵魂图书馆
+    public static final RegistryObject<Block> ENCHANTING_BOOSTER_SOUL = BLOCKS.register("enchanting_booster_soul",
+            () -> new EnchantingBoosterBlock(EnchantingBoosterBlock.BoosterType.SOUL_LIBRARY));
+
     // ========== TODO: 更多方块 ==========
     // - BlockAncientCore
     // - BlockAnimalFeeder
