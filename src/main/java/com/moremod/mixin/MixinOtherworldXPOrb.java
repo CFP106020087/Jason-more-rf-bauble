@@ -18,7 +18,7 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 @Mixin(EntityXPOrb.class)
 public class MixinOtherworldXPOrb {
 
-    @Shadow
+    @Shadow(aliases = {"field_70530_e"})
     private int xpValue;
 
     /**
