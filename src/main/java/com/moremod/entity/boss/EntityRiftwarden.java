@@ -1289,6 +1289,22 @@ public class EntityRiftwarden extends EntityMob implements IAnimatable {
         }
     }
 
+    // —— 声音方法：防止返回null导致客户端崩溃 —— //
+    @Override
+    protected SoundEvent getAmbientSound() {
+        return SoundEvents.ENTITY_ENDERMEN_AMBIENT;
+    }
+
+    @Override
+    protected SoundEvent getHurtSound(DamageSource damageSourceIn) {
+        return SoundEvents.ENTITY_ENDERMEN_HURT;
+    }
+
+    @Override
+    protected SoundEvent getDeathSound() {
+        return SoundEvents.ENTITY_ENDERMEN_DEATH;
+    }
+
     private void updateLightningArcs() {
         Iterator<EntityLightningArc> iterator = activeArcs.iterator();
         while (iterator.hasNext()) {

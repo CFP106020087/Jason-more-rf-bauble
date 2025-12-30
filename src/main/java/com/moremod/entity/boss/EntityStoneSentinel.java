@@ -21,6 +21,7 @@ import net.minecraft.util.DamageSource;
 import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.SoundCategory;
+import net.minecraft.util.SoundEvent;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
@@ -831,6 +832,22 @@ public class EntityStoneSentinel extends EntityMob implements IAnimatable {
     @Override public boolean canBePushed() { return false; }
     @Override public void move(net.minecraft.entity.MoverType type, double x, double y, double z) {}
     @Override public boolean isNonBoss() { return false; }
+
+    // —— 声音方法：防止返回null导致客户端崩溃 —— //
+    @Override
+    protected SoundEvent getAmbientSound() {
+        return SoundEvents.ENTITY_IRONGOLEM_STEP;
+    }
+
+    @Override
+    protected SoundEvent getHurtSound(DamageSource damageSourceIn) {
+        return SoundEvents.ENTITY_IRONGOLEM_HURT;
+    }
+
+    @Override
+    protected SoundEvent getDeathSound() {
+        return SoundEvents.ENTITY_IRONGOLEM_DEATH;
+    }
 
     // —— 负面效果免疫：仅允许正面Buff —— //
     @Override
