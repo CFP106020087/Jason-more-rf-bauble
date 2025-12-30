@@ -7,19 +7,20 @@ import com.raoulvdberge.refinedstorage.api.network.item.INetworkItem;
 import com.raoulvdberge.refinedstorage.api.network.item.INetworkItemHandler;
 import com.raoulvdberge.refinedstorage.api.network.item.INetworkItemProvider;
 import com.raoulvdberge.refinedstorage.api.network.node.INetworkNode;
-import com.raoulvdberge.refinedstorage.apiimpl.network.item.NetworkItemHandler;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.text.TextComponentTranslation;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;
+import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 
 import java.util.Map;
 
-@Mixin(value = NetworkItemHandler.class, remap = false, priority = 1001)
+@Pseudo
+@Mixin(targets = "com.raoulvdberge.refinedstorage.apiimpl.network.item.NetworkItemHandler", remap = false, priority = 1001)
 public abstract class MixinNetworkItemHandler implements INetworkItemHandler {
 
     @Shadow @Final private INetwork network;

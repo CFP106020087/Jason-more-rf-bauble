@@ -10,11 +10,9 @@ import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import team.creative.enhancedvisuals.client.render.EVRenderer;
-
 // @Pseudo 防止没装 EnhancedVisuals 时崩端
 @Pseudo
-@Mixin(value = EVRenderer.class, remap = false)
+@Mixin(targets = "team.creative.enhancedvisuals.client.render.EVRenderer", remap = false)
 public class MixinEVRenderer {
 
     /**
