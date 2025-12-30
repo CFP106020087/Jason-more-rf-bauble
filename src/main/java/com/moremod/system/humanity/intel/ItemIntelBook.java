@@ -1,7 +1,9 @@
 package com.moremod.system.humanity.intel;
 
+import com.moremod.system.humanity.BiologicalProfile;
 import com.moremod.system.humanity.HumanityCapabilityHandler;
 import com.moremod.system.humanity.IHumanityData;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.EntityList;
@@ -166,6 +168,57 @@ public class ItemIntelBook extends Item {
         if (entityId != null) {
             tooltip.add(TextFormatting.GOLD + "情报目标: " + TextFormatting.WHITE + entityName);
             tooltip.add(TextFormatting.GRAY + "(" + entityId.toString() + ")");
+
+            // 显示玩家已有的猎人协议数据
+            EntityPlayer player = Minecraft.getMinecraft().player;
+            if (player != null) {
+                IHumanityData data = HumanityCapabilityHandler.getData(player);
+                if (data != null && data.isSystemActive()) {
+                    BiologicalProfile profile = data.getProfile(entityId);
+                    if (profile != null && profile.getCurrentTier() != BiologicalProfile.Tier.NONE) {
+                        tooltip.add("");
+                        tooltip.add(TextFormatting.GOLD + "【猎人协议】");
+                        tooltip.add(TextFormatting.WHITE + "  档案等级: " +
+                                getTierColor(profile.getCurrentTier()) + profile.getCurrentTier().displayNameCN);
+                        tooltip.add(TextFormatting.WHITE + "  已收集样本: " +
+                                TextFormatting.GREEN + profile.getSampleCount());
+                        tooltip.add(TextFormatting.WHITE + "  击杀数: " +
+                                TextFormatting.RED + profile.getKillCount());
+
+                        float damageBonus = profile.getDamageBonus() * 100;
+                        if (damageBonus > 0) {
+                            tooltip.add(TextFormatting.WHITE + "  伤害加成: " +
+                                    TextFormatting.YELLOW + "+" + String.format("%.0f%%", damageBonus));
+                        }
+
+                        float critBonus = profile.getCritBonus() * 100;
+                        if (critBonus > 0) {
+                            tooltip.add(TextFormatting.WHITE + "  暴击率: " +
+                                    TextFormatting.LIGHT_PURPLE + "+" + String.format("%.0f%%", critBonus));
+                        }
+
+                        // 显示激活状态
+                        if (profile.isActive()) {
+                            tooltip.add(TextFormatting.GREEN + "  ✓ 已激活");
+                        } else {
+                            tooltip.add(TextFormatting.GRAY + "  ○ 未激活");
+                        }
+                    }
+
+                    // 显示当前情报等级
+                    int intelLevel = IntelDataHelper.getIntelLevel(data, entityId);
+                    if (intelLevel > 0) {
+                        tooltip.add("");
+                        tooltip.add(TextFormatting.LIGHT_PURPLE + "【已学习情报】");
+                        tooltip.add(TextFormatting.WHITE + "  情报等级: " +
+                                TextFormatting.AQUA + intelLevel + "/" + IntelDataHelper.MAX_INTEL_LEVEL);
+                        float intelDamage = (IntelDataHelper.calculateDamageMultiplier(data, entityId) - 1.0f) * 100;
+                        tooltip.add(TextFormatting.WHITE + "  额外伤害: " +
+                                TextFormatting.YELLOW + "+" + String.format("%.0f%%", intelDamage));
+                    }
+                }
+            }
+
             tooltip.add("");
             tooltip.add(TextFormatting.GREEN + "右键学习:");
             tooltip.add(TextFormatting.AQUA + "  永久获得对该生物 +" +
@@ -173,6 +226,23 @@ public class ItemIntelBook extends Item {
             tooltip.add(TextFormatting.GRAY + "  可与相同情报叠加");
         } else {
             tooltip.add(TextFormatting.RED + "损坏的情报书");
+        }
+    }
+
+    /**
+     * 根据档案等级返回对应的颜色
+     */
+    @SideOnly(Side.CLIENT)
+    private static TextFormatting getTierColor(BiologicalProfile.Tier tier) {
+        switch (tier) {
+            case MASTERED:
+                return TextFormatting.GOLD;
+            case COMPLETE:
+                return TextFormatting.GREEN;
+            case BASIC:
+                return TextFormatting.YELLOW;
+            default:
+                return TextFormatting.GRAY;
         }
     }
 

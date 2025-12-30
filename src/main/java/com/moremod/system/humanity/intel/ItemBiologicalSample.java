@@ -1,9 +1,14 @@
 package com.moremod.system.humanity.intel;
 
+import com.moremod.system.humanity.BiologicalProfile;
+import com.moremod.system.humanity.HumanityCapabilityHandler;
+import com.moremod.system.humanity.IHumanityData;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.EntityList;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -110,11 +115,79 @@ public class ItemBiologicalSample extends Item {
         if (entityId != null) {
             tooltip.add(TextFormatting.AQUA + "样本来源: " + TextFormatting.WHITE + entityName);
             tooltip.add(TextFormatting.GRAY + "(" + entityId.toString() + ")");
+
+            // 显示玩家已有的猎人协议数据
+            EntityPlayer player = Minecraft.getMinecraft().player;
+            if (player != null) {
+                IHumanityData data = HumanityCapabilityHandler.getData(player);
+                if (data != null && data.isSystemActive()) {
+                    BiologicalProfile profile = data.getProfile(entityId);
+                    if (profile != null && profile.getCurrentTier() != BiologicalProfile.Tier.NONE) {
+                        tooltip.add("");
+                        tooltip.add(TextFormatting.GOLD + "【猎人协议】");
+                        tooltip.add(TextFormatting.WHITE + "  档案等级: " +
+                                getTierColor(profile.getCurrentTier()) + profile.getCurrentTier().displayNameCN);
+                        tooltip.add(TextFormatting.WHITE + "  已收集样本: " +
+                                TextFormatting.GREEN + profile.getSampleCount());
+                        tooltip.add(TextFormatting.WHITE + "  击杀数: " +
+                                TextFormatting.RED + profile.getKillCount());
+
+                        float damageBonus = profile.getDamageBonus() * 100;
+                        if (damageBonus > 0) {
+                            tooltip.add(TextFormatting.WHITE + "  伤害加成: " +
+                                    TextFormatting.YELLOW + "+" + String.format("%.0f%%", damageBonus));
+                        }
+
+                        float critBonus = profile.getCritBonus() * 100;
+                        if (critBonus > 0) {
+                            tooltip.add(TextFormatting.WHITE + "  暴击率: " +
+                                    TextFormatting.LIGHT_PURPLE + "+" + String.format("%.0f%%", critBonus));
+                        }
+
+                        // 显示激活状态
+                        if (profile.isActive()) {
+                            tooltip.add(TextFormatting.GREEN + "  ✓ 已激活");
+                        } else {
+                            tooltip.add(TextFormatting.GRAY + "  ○ 未激活");
+                        }
+                    }
+
+                    // 显示情报系统数据
+                    int intelLevel = IntelDataHelper.getIntelLevel(data, entityId);
+                    if (intelLevel > 0) {
+                        tooltip.add("");
+                        tooltip.add(TextFormatting.LIGHT_PURPLE + "【情报系统】");
+                        tooltip.add(TextFormatting.WHITE + "  情报等级: " +
+                                TextFormatting.AQUA + intelLevel + "/" + IntelDataHelper.MAX_INTEL_LEVEL);
+                        float intelDamage = (IntelDataHelper.calculateDamageMultiplier(data, entityId) - 1.0f) * 100;
+                        tooltip.add(TextFormatting.WHITE + "  额外伤害: " +
+                                TextFormatting.YELLOW + "+" + String.format("%.0f%%", intelDamage));
+                    }
+                }
+            }
+
             tooltip.add("");
             tooltip.add(TextFormatting.YELLOW + "可用于合成情报书");
             tooltip.add(TextFormatting.GRAY + "配方: 样本 + 书 + 经验瓶");
         } else {
             tooltip.add(TextFormatting.RED + "无效样本");
+        }
+    }
+
+    /**
+     * 根据档案等级返回对应的颜色
+     */
+    @SideOnly(Side.CLIENT)
+    private static TextFormatting getTierColor(BiologicalProfile.Tier tier) {
+        switch (tier) {
+            case MASTERED:
+                return TextFormatting.GOLD;
+            case COMPLETE:
+                return TextFormatting.GREEN;
+            case BASIC:
+                return TextFormatting.YELLOW;
+            default:
+                return TextFormatting.GRAY;
         }
     }
 
