@@ -85,7 +85,7 @@ public class GuiModGuide extends GuiScreen {
         this.guiLeft = (this.width - BOOK_WIDTH) / 2;
         this.guiTop = (this.height - BOOK_HEIGHT) / 2;
         loadCategory(currentCategory);
-        initButtons();
+        // 注意：loadCategory 內部已調用 initButtons()，不需要再次調用
     }
 
     private void loadCategory(int category) {
@@ -2296,23 +2296,27 @@ public class GuiModGuide extends GuiScreen {
 
     @Override
     protected void actionPerformed(GuiButton button) throws IOException {
+        // 禁用按钮防止重复触发
+        button.enabled = false;
+
         if (button.id == BTN_NEXT) {
             if (currentPage < currentPages.size() - 1) {
                 currentPage++;
-                initButtons();
             }
         } else if (button.id == BTN_PREV) {
             if (currentPage > 0) {
                 currentPage--;
-                initButtons();
             }
         } else if (button.id >= BTN_CAT_START && button.id < BTN_CAT_START + CATEGORIES.length) {
             int newCategory = button.id - BTN_CAT_START;
             if (newCategory != currentCategory) {
                 loadCategory(newCategory);
-                // 不需要再次 initButtons，loadCategory 裡已經呼叫了
+                return; // loadCategory 已經調用 initButtons
             }
         }
+
+        // 延遲更新按鈕，避免在同一幀內重複觸發
+        initButtons();
     }
 
     @Override
