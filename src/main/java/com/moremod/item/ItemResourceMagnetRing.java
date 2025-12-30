@@ -25,6 +25,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 /**
@@ -210,16 +211,40 @@ public class ItemResourceMagnetRing extends Item implements IBauble {
         if (hasSmelting) {
             ItemStack smeltResult = FurnaceRecipes.instance().getSmeltingResult(itemStack);
             if (!smeltResult.isEmpty()) {
-                // 计算产出数量：输入数量 × 配方产出 × 2（熔炼加成）
-                int recipeOutputCount = smeltResult.getCount();
-                int totalOutput = originalCount * recipeOutputCount * 2;
+                // 查找配方所需的输入数量（CRT可能修改配方需要多个输入）
+                int requiredInputCount = 1;
+                for (Map.Entry<ItemStack, ItemStack> entry : FurnaceRecipes.instance().getSmeltingList().entrySet()) {
+                    ItemStack recipeInput = entry.getKey();
+                    if (recipeInput.getItem() == itemStack.getItem() &&
+                        (recipeInput.getMetadata() == 32767 || recipeInput.getMetadata() == itemStack.getMetadata())) {
+                        requiredInputCount = recipeInput.getCount();
+                        break;
+                    }
+                }
 
-                // 限制最大堆叠数量，防止超出物品最大堆叠
-                int maxStack = smeltResult.getMaxStackSize();
+                // 计算可以执行多少次熔炼
+                int smeltTimes = originalCount / requiredInputCount;
+                int leftover = originalCount % requiredInputCount;
 
-                itemStack = smeltResult.copy();
-                itemStack.setCount(Math.min(totalOutput, maxStack * 4)); // 最多4组
-                wasSmelted = true;
+                if (smeltTimes > 0) {
+                    // 计算产出数量：熔炼次数 × 配方产出 × 2（熔炼加成）
+                    int recipeOutputCount = smeltResult.getCount();
+                    int totalOutput = smeltTimes * recipeOutputCount * 2;
+
+                    // 限制最大堆叠数量，防止超出物品最大堆叠
+                    int maxStack = smeltResult.getMaxStackSize();
+
+                    itemStack = smeltResult.copy();
+                    itemStack.setCount(Math.min(totalOutput, maxStack * 4)); // 最多4组
+                    wasSmelted = true;
+
+                    // 如果有剩余未达到熔炼数量的物品，单独返还给玩家
+                    if (leftover > 0) {
+                        ItemStack leftoverStack = originalStack.copy();
+                        leftoverStack.setCount(leftover);
+                        player.inventory.addItemStackToInventory(leftoverStack);
+                    }
+                }
             }
         }
 
