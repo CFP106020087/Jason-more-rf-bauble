@@ -645,24 +645,17 @@ public class ItemDimensionalAnchor extends Item implements IBauble {
         EntityPlayer player = (EntityPlayer) event.getEntityLiving();
         if (!hasEquippedAnchor(player)) return;
 
-        // 只在服务端处理，避免客户端同步问题
-        if (player.world.isRemote) return;
-
         if (isInWebField != null) {
             try {
                 boolean inWeb = isInWebField.getBoolean(player);
                 if (inWeb) {
-                    // 保存当前速度（在被蜘蛛网减速之前的预期速度）
-                    double savedMotionX = player.motionX;
-                    double savedMotionY = player.motionY;
-                    double savedMotionZ = player.motionZ;
-
-                    // 清除蜘蛛网状态
+                    // 客户端和服务端都需要清除isInWeb标志
                     isInWebField.setBoolean(player, false);
 
-                    // 恢复速度（蜘蛛网会将速度乘以0.25，我们需要恢复）
-                    // 如果速度已经被大幅减少，尝试恢复
-                    restoreWebMovementSpeed(player, savedMotionX, savedMotionY, savedMotionZ);
+                    // 只在服务端恢复速度并同步
+                    if (!player.world.isRemote) {
+                        restoreWebMovementSpeed(player);
+                    }
                 }
             } catch (Exception e) {
                 handleWebCollisionFallback(player);
@@ -675,12 +668,11 @@ public class ItemDimensionalAnchor extends Item implements IBauble {
     /**
      * 恢复被蜘蛛网减速的速度
      */
-    private static void restoreWebMovementSpeed(EntityPlayer player, double motionX, double motionY, double motionZ) {
-        // 蜘蛛网会将速度乘以0.25，我们需要补偿
-        // 如果玩家正在移动，恢复到合理速度
+    private static void restoreWebMovementSpeed(EntityPlayer player) {
+        // 如果玩家正在移动，恢复到正常移动速度
         if (player.moveForward != 0 || player.moveStrafing != 0) {
             float yaw = player.rotationYaw * 0.017453292F;
-            double speed = player.isSprinting() ? 0.26 : 0.13; // 正常移动速度
+            double speed = player.isSprinting() ? 0.26 : 0.13;
 
             double newMotionX = 0;
             double newMotionZ = 0;
@@ -694,23 +686,16 @@ public class ItemDimensionalAnchor extends Item implements IBauble {
                 newMotionZ += Math.sin(yaw) * speed * Math.signum(player.moveStrafing);
             }
 
-            // 只有当当前速度明显低于正常速度时才恢复
-            double currentHorizontalSpeed = Math.sqrt(player.motionX * player.motionX + player.motionZ * player.motionZ);
-            double targetHorizontalSpeed = Math.sqrt(newMotionX * newMotionX + newMotionZ * newMotionZ);
+            // 当前速度明显低于正常速度时恢复
+            double currentSpeed = Math.sqrt(player.motionX * player.motionX + player.motionZ * player.motionZ);
+            double targetSpeed = Math.sqrt(newMotionX * newMotionX + newMotionZ * newMotionZ);
 
-            if (currentHorizontalSpeed < targetHorizontalSpeed * 0.8) {
+            if (currentSpeed < targetSpeed * 0.5) {
                 player.motionX = newMotionX;
                 player.motionZ = newMotionZ;
+                player.velocityChanged = true;
             }
         }
-
-        // 保持Y轴速度（跳跃或下落）
-        if (Math.abs(player.motionY) < Math.abs(motionY)) {
-            player.motionY = motionY;
-        }
-
-        // 强制同步到客户端
-        player.velocityChanged = true;
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
