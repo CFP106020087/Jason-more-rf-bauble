@@ -30,8 +30,8 @@ public class GuiIntelStatistics extends GuiScreen {
     private IHumanityData data;
 
     // GUI尺寸
-    private static final int GUI_WIDTH = 256;
-    private static final int GUI_HEIGHT = 200;
+    private static final int GUI_WIDTH = 280;
+    private static final int GUI_HEIGHT = 220;
     private int guiLeft;
     private int guiTop;
 
@@ -42,6 +42,13 @@ public class GuiIntelStatistics extends GuiScreen {
 
     // 激活的档案列表（用于按钮映射）
     private List<ResourceLocation> activeProfileList = new ArrayList<>();
+
+    // 已学习的情报列表
+    private List<ResourceLocation> learnedIntelList = new ArrayList<>();
+
+    // 刷新计时器（每秒刷新一次）
+    private int refreshTimer = 0;
+    private static final int REFRESH_INTERVAL = 20; // 20 ticks = 1秒
 
     public GuiIntelStatistics(EntityPlayer player) {
         this.player = player;
@@ -61,6 +68,8 @@ public class GuiIntelStatistics extends GuiScreen {
         data = HumanityCapabilityHandler.getData(player);
         if (data != null) {
             activeProfileList = new ArrayList<>(data.getActiveProfiles());
+            // 收集已学习的情报
+            learnedIntelList = new ArrayList<>(data.getLearnedIntel().keySet());
         }
     }
 
@@ -69,14 +78,15 @@ public class GuiIntelStatistics extends GuiScreen {
 
         if (data == null) return;
 
-        // 为每个激活的档案创建"卸除"按钮
+        // 为每个激活的档案创建"卸除"按钮（最多显示3个）
         int buttonId = 0;
-        int startY = guiTop + 70;
+        int startY = guiTop + 96; // 调整起始位置
 
-        for (int i = scrollOffset; i < Math.min(activeProfileList.size(), scrollOffset + VISIBLE_ENTRIES); i++) {
-            int yPos = startY + (i - scrollOffset) * ENTRY_HEIGHT;
+        int maxShow = Math.min(3, activeProfileList.size());
+        for (int i = scrollOffset; i < Math.min(activeProfileList.size(), scrollOffset + maxShow); i++) {
+            int yPos = startY + (i - scrollOffset) * 11;
             // 卸除按钮
-            buttonList.add(new GuiButton(buttonId++, guiLeft + GUI_WIDTH - 55, yPos, 45, 18, "§c卸除"));
+            buttonList.add(new GuiButton(buttonId++, guiLeft + GUI_WIDTH - 55, yPos - 1, 40, 10, "§c卸除"));
         }
 
         // 关闭按钮
@@ -111,10 +121,18 @@ public class GuiIntelStatistics extends GuiScreen {
     }
 
     @Override
-    public void drawScreen(int mouseX, int mouseY, float partialTicks) {
-        // 每帧刷新数据，确保动态更新
-        refreshData();
+    public void updateScreen() {
+        super.updateScreen();
+        // 每秒刷新一次数据
+        refreshTimer++;
+        if (refreshTimer >= REFRESH_INTERVAL) {
+            refreshTimer = 0;
+            refreshData();
+        }
+    }
 
+    @Override
+    public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         // 绘制半透明背景
         drawDefaultBackground();
 
@@ -177,62 +195,82 @@ public class GuiIntelStatistics extends GuiScreen {
         y += 6;
 
         // ========== 激活的档案列表 ==========
-        fontRenderer.drawStringWithShadow("§e【激活的情报档案】 §7(点击卸除释放槽位)", guiLeft + 10, y, 0xFFFFFF);
-        y += 14;
+        fontRenderer.drawStringWithShadow("§e【激活的猎人档案】 §7(点击卸除释放槽位)", guiLeft + 10, y, 0xFFFFFF);
+        y += 12;
 
         if (activeProfileList.isEmpty()) {
-            fontRenderer.drawStringWithShadow("§7（无激活的档案）", guiLeft + 20, y + 10, 0xFFFFFF);
+            fontRenderer.drawStringWithShadow("§7（无激活的档案）", guiLeft + 20, y, 0xFFFFFF);
+            y += 12;
         } else {
-            // 绘制档案列表
-            for (int i = scrollOffset; i < Math.min(activeProfileList.size(), scrollOffset + VISIBLE_ENTRIES); i++) {
+            // 绘制档案列表（最多显示3条）
+            int maxShow = Math.min(3, activeProfileList.size());
+            for (int i = scrollOffset; i < Math.min(activeProfileList.size(), scrollOffset + maxShow); i++) {
                 ResourceLocation entityId = activeProfileList.get(i);
                 BiologicalProfile profile = data.getProfile(entityId);
 
                 if (profile != null) {
-                    int entryY = y + (i - scrollOffset) * ENTRY_HEIGHT;
-
                     // 背景条
                     int bgColor = (i % 2 == 0) ? 0x44000000 : 0x22000000;
-                    drawRect(guiLeft + 10, entryY, guiLeft + GUI_WIDTH - 10, entryY + ENTRY_HEIGHT - 2, bgColor);
+                    drawRect(guiLeft + 10, y, guiLeft + GUI_WIDTH - 60, y + 10, bgColor);
 
                     // 档案信息
                     String entityName = entityId.getPath().replace("_", " ");
                     String tierName = ItemIntelStatisticsBook.getTierName(profile.getCurrentTier());
                     int tierColor = ItemIntelStatisticsBook.getTierColorInt(profile.getCurrentTier());
 
-                    // 第一行：名称 + 等级 + 样本/击杀
-                    fontRenderer.drawStringWithShadow("§f" + entityName, guiLeft + 15, entryY + 2, 0xFFFFFF);
-                    fontRenderer.drawStringWithShadow("[" + tierName + "]", guiLeft + 100, entryY + 2, tierColor);
-                    fontRenderer.drawStringWithShadow(String.format("§7样本:§a%d §7击杀:§c%d",
-                            profile.getSampleCount(), profile.getKillCount()),
-                            guiLeft + 145, entryY + 2, 0xFFFFFF);
-
-                    // 第二行：加成信息
                     float dmgBonus = profile.getDamageBonus() * 100;
-                    float dropBonus = profile.getDropBonus() * 100;
-                    float critBonus = profile.getCritBonus() * 100;
                     int intelLevel = IntelDataHelper.getIntelLevel(data, entityId);
-
-                    StringBuilder bonusLine = new StringBuilder();
-                    bonusLine.append(String.format("§c+%d%%伤害 ", (int) dmgBonus));
-                    bonusLine.append(String.format("§a+%d%%掉落", (int) dropBonus));
-                    if (critBonus > 0) {
-                        bonusLine.append(String.format(" §d+%d%%暴击", (int) critBonus));
-                    }
+                    float totalDmg = dmgBonus;
                     if (intelLevel > 0) {
-                        float intelDmg = (IntelDataHelper.calculateDamageMultiplier(data, entityId) - 1.0f) * 100;
-                        bonusLine.append(String.format(" §5情报+%d%%", (int) intelDmg));
+                        totalDmg += (IntelDataHelper.calculateDamageMultiplier(data, entityId) - 1.0f) * 100;
                     }
-                    fontRenderer.drawStringWithShadow(bonusLine.toString(), guiLeft + 15, entryY + 12, 0xFFFFFF);
+
+                    String info = String.format("§f%s §7[%s] §c+%d%% §7样本:%d 击杀:%d",
+                            entityName, tierName, (int) totalDmg,
+                            profile.getSampleCount(), profile.getKillCount());
+                    fontRenderer.drawStringWithShadow(info, guiLeft + 12, y + 1, tierColor);
+                    y += 11;
                 }
             }
 
             // 滚动提示
-            if (activeProfileList.size() > VISIBLE_ENTRIES) {
-                String scrollHint = String.format("§7滚轮翻页 (%d/%d)",
-                        scrollOffset / VISIBLE_ENTRIES + 1,
-                        (activeProfileList.size() - 1) / VISIBLE_ENTRIES + 1);
-                fontRenderer.drawStringWithShadow(scrollHint, guiLeft + 10, guiTop + GUI_HEIGHT - 40, 0xFFFFFF);
+            if (activeProfileList.size() > 3) {
+                fontRenderer.drawStringWithShadow(String.format("§7...还有 %d 个档案 (滚轮翻页)",
+                        activeProfileList.size() - 3), guiLeft + 15, y, 0xFFFFFF);
+                y += 10;
+            }
+        }
+
+        y += 4;
+        // 分隔线
+        drawHorizontalLine(guiLeft + 10, guiLeft + GUI_WIDTH - 10, y, 0x88FF55FF);
+        y += 6;
+
+        // ========== 已学习的情报书 ==========
+        fontRenderer.drawStringWithShadow("§d【已学习的情报书】", guiLeft + 10, y, 0xFFFFFF);
+        y += 12;
+
+        if (learnedIntelList.isEmpty()) {
+            fontRenderer.drawStringWithShadow("§7（未学习任何情报书）", guiLeft + 20, y, 0xFFFFFF);
+        } else {
+            // 绘制情报列表
+            int intelCount = 0;
+            for (ResourceLocation entityId : learnedIntelList) {
+                if (intelCount >= 4) {
+                    fontRenderer.drawStringWithShadow(String.format("§7...还有 %d 种情报",
+                            learnedIntelList.size() - 4), guiLeft + 15, y, 0xFFFFFF);
+                    break;
+                }
+
+                int level = IntelDataHelper.getIntelLevel(data, entityId);
+                float dmgBonus = (IntelDataHelper.calculateDamageMultiplier(data, entityId) - 1.0f) * 100;
+                String entityName = entityId.getPath().replace("_", " ");
+
+                String info = String.format("§f%s §5Lv.%d §7(+%d%%伤害)",
+                        entityName, level, (int) dmgBonus);
+                fontRenderer.drawStringWithShadow(info, guiLeft + 15, y, 0xFFFFFF);
+                y += 10;
+                intelCount++;
             }
         }
 
@@ -246,10 +284,11 @@ public class GuiIntelStatistics extends GuiScreen {
         // 处理滚轮
         int scroll = Mouse.getEventDWheel();
         if (scroll != 0) {
+            int maxVisible = 3;
             if (scroll > 0 && scrollOffset > 0) {
                 scrollOffset--;
                 initButtons();
-            } else if (scroll < 0 && scrollOffset < activeProfileList.size() - VISIBLE_ENTRIES) {
+            } else if (scroll < 0 && scrollOffset < activeProfileList.size() - maxVisible) {
                 scrollOffset++;
                 initButtons();
             }
