@@ -243,7 +243,7 @@ public class SpecialRitualInfo {
 
         // 如果没找到匹配的，添加一个占位符
         if (examples.isEmpty()) {
-            examples.add(new ItemStack(Items.BARRIER)); // 屏障方块作为"未知材料"占位符
+            examples.add(new ItemStack(Items.ITEM_FRAME)); // 屏障方块作为"未知材料"占位符
         }
 
         return examples;

@@ -89,7 +89,7 @@ tooltip.moremod.identifyscroll.usage_1=1. 副手持有未鉴定的宝石
 tooltip.moremod.identifyscroll.usage_2=2. 右键使用卷轴以进行鉴定
 tile.bottling_machine.name=自动装瓶器
 item.sword_chengyue.name=澄月
-item.resource_magnet_ring.name=資源磁化戒指
+item.resource_magnet_ring.name=资源磁化戒指
 tile.sword_upgrade_station_material.name=材质变化台
 container.sword_upgrade_station_material=材质变化台
 tile.sword_upgrade_station.name=宝石镶嵌台
@@ -111,11 +111,11 @@ gui.moremod.sage_book.next_page=下一页
 item.moremod.synergy_guide.name=协同效应手册
 item.adv_energy_barrier.name=高级能量屏障
 item.law_sword.name=妖刀-鬼哭
-tile.trading_station.name=自動交易站
-tile.simple_wisdom_shrine.name=簡易智慧祭壇
-item.void_backpack_link.name=虛空背包連結器
-item.resource_magnet_ring.name=資源磁鐵戒指
-item.villager_capsula.name=村民膠囊
+tile.trading_station.name=自动交易站
+tile.simple_wisdom_shrine.name=简易智慧祭坛
+item.void_backpack_link.name=虛空背包链接器
+item.resource_magnet_ring.name=资源磁铁戒指
+item.villager_capsule.name=村民胶囊
 item.energy_sword.name=鬼妖-村正
 item.basic_energy_barrier.name=基础能量护盾
 item.crude_energy_barrier.name=粗制能量护盾
@@ -503,36 +503,36 @@ tile.moremod.bio_generator.name=生物质发电机
 tile.moremod.fake_player_activator.name=假玩家激活器
 
 # ===== 升級艙系統 (Upgrade Chamber System) =====
-tile.upgrade_chamber_core.name=升級艙核心
+tile.upgrade_chamber_core.name=升級仓核心
 
 # ===== 重生倉系統 (Respawn Chamber System) =====
-tile.respawn_chamber_core.name=重生倉核心
+tile.respawn_chamber_core.name=重生仓核心
 
 # ===== 量子礦機系統 (Quantum Quarry System) =====
-tile.moremod.quantum_quarry.name=量子礦機
-tile.moremod.quarry_actuator.name=量子驅動器
+tile.moremod.quantum_quarry.name=量子矿机
+tile.moremod.quarry_actuator.name=量子驱动器
 
 # ===== 能源系統 (Energy System) =====
 # 方塊
-tile.oil_extractor_core.name=抽油機核心
-tile.plant_oil_press.name=植物油壓榨機
-tile.oil_generator.name=石油發電機
+tile.oil_extractor_core.name=抽油机核心
+tile.plant_oil_press.name=植物油压榨机
+tile.oil_generator.name=石油发电机
 tile.charging_station.name=充能站
-tile.energy_link.name=能量鏈接器
+tile.energy_link.name=能量链接器
 
 # 物品
 item.oil_prospector.name=石油探測器
 item.crude_oil_bucket.name=原油桶
 item.plant_oil_bucket.name=植物油桶
-item.moremod.speed_upgrade.name=發電機增速插件
+item.moremod.speed_upgrade.name=发电机增速插件
 
 # ===== 綜合指南書 (Comprehensive Guide) =====
-item.moremod_guide.name=MoreMod 綜合指南
+item.moremod_guide.name=MoreMod 综合指南
 
 # ===== 故障盔甲 (Glitch Armor) =====
-item.glitch_helmet.name=故障頭盔
+item.glitch_helmet.name=故障头盔
 item.glitch_chestplate.name=故障胸甲
-item.glitch_leggings.name=故障護腿
+item.glitch_leggings.name=故障护腿
 item.glitch_boots.name=故障靴子
 
 # ===== 血液发电机 (Blood Generator) =====
@@ -613,3 +613,31 @@ item.moremod.astral_pickaxe.desc4=挖铁矿概率掉落星辉锭
 # ===== 真伤附魔 =====
 enchantment.moremod.true_damage=真实伤害
 enchantment.moremod.true_damage.desc=将部分武器伤害转换为无视护甲的真实伤害
+
+# ===== 新增翻译 =====
+item.moremod.infinity_card.name=无线范围卡
+item.moremod.infinity_card.tooltip=让你可以无视距离访问RS网络
+item.moremod.rs_card.energy=放置在无线访问点使用
+
+item.moremod.dimension_card.name=维度卡
+item.moremod.dimension_card.tooltip=让你可以无视维度访问RS网络
+item.moremod.rs_card.energy=放置在无线访问点使用
+
+item.sanity_elixir_refined.name=精炼理智灵药
+item.sanity_elixir_emergency.name=紧急理智药剂
+
+item.kinetic_deflector_lv1.name=动能偏折lv1 升级组件
+item.kinetic_deflector_lv2.name=动能偏折lv2 升级组件
+item.kinetic_deflector_lv3.name=动能偏折lv3 升级组件
+
+item.geological_resonator_lv1.name=地质勘探lv1 升级组件
+item.geological_resonator_lv2.name=地质勘探lv2 升级组件
+item.geological_resonator_lv3.name=地质勘探lv3 升级组件
+
+item.saw_blade_sword.name=锯刃剑
+item.hero_sword.name=勇者之剑
+item.gem.name=宝石
+tile.mega_chest.name=超级储物箱
+
+fluid.crude_oil=石油
+fluid.plant_oil=植物油
