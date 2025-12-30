@@ -44,7 +44,7 @@ public class ItemResourceMagnetRing extends Item implements IBauble {
     private static final double MAX_RANGE = 25.0;                   // 最大25格范围
     private static final int MODULES_FOR_SMELTING = 6;              // 6模块解锁熔炼
     private static final int MODULES_FOR_DOUBLE_DROP = 10;          // 10模块解锁双倍
-    private static final double DOUBLE_DROP_CHANCE = 0.1;           // 10%几率
+    private static final double DOUBLE_DROP_CHANCE = 0.03;          // 3%几率（降低避免超模）
 
     // ===== NBT Keys =====
     private static final String NBT_CACHED_ACTIVE = "CachedActive";
