@@ -90,6 +90,9 @@ public class GuiSageBook extends GuiScreen {
 
     @Override
     protected void actionPerformed(GuiButton button) throws IOException {
+        // 禁用按钮防止重复触发
+        button.enabled = false;
+
         if (button.id >= 0 && button.id < allEnchantments.size()) {
             Enchantment ench = allEnchantments.get(button.id);
             if (selectedEnchantments.contains(ench)) {
