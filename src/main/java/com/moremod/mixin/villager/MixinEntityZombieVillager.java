@@ -31,7 +31,7 @@ public abstract class MixinEntityZombieVillager {
     @Unique
     private static final int MAX_CURE_DISCOUNTS = 1;
 
-    @Shadow(aliases = {"field_191991_br"})
+    @Shadow
     private UUID conversionStarter;
 
     /**

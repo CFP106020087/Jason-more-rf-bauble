@@ -2,19 +2,20 @@ package com.moremod.mixin.lycanites;
 
 import baubles.api.BaublesApi;
 import baubles.api.cap.IBaublesItemHandler;
+import com.lycanitesmobs.core.entity.goals.actions.abilities.ForceGoal;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.Locale;
 
-@Pseudo
-@Mixin(targets = "com.lycanitesmobs.core.entity.goals.actions.abilities.ForceGoal", remap = false)
+
+
+@Mixin(value = ForceGoal.class, remap = false)
 public class MixinForceGoal {
 
     @Inject(method = "isValidTarget", at = @At("HEAD"), cancellable = true)

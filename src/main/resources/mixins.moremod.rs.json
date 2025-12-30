@@ -1,4 +1,4 @@
-
+{
   "required": false,
   "package": "com.moremod.mixin",
   "refmap": "mixins.moremod.refmap.json",

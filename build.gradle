@@ -47,6 +47,7 @@ dependencies {
     deobfProvided "mezz.jei:jei_1.12.2:4.16.1.1013:api"
 
     // Mod dependencies
+    compileOnly name:'MmmMmmMmmMmm-1.12-2.0.5'
     compileOnly name:'Ice and Fire-2.1.7'
     // compileOnly name:'champions-1.12.2-1.0.11.10'  // 已改用反射，无需编译时依赖
     compileOnly name:'InfernalMobs-1.12.2'

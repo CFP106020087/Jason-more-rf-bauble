@@ -58,29 +58,42 @@ public class TileEntityPurificationAltar extends TileEntity implements ITickable
     
     // 随机数生成器
     private final Random random = new Random();
-    
+
+    // 性能优化：缓存canPurify结果，避免每tick检查
+    private boolean cachedCanPurify = false;
+    private int checkCooldown = 0;
+    private static final int CHECK_INTERVAL = 10; // 每10tick检查一次
+
     public TileEntityPurificationAltar() {
         // 构造函数
     }
-    
+
     // ==========================================
     // ITickable 实现
     // ==========================================
-    
+
     @Override
     public void update() {
         if (world.isRemote) {
             // 客户端：粒子效果
             if (isPurifying) {
                 spawnPurifyingParticles();
-            } else if (canPurify()) {
-                spawnIdleParticles();
+            } else {
+                // 使用缓存的canPurify结果，定期更新
+                checkCooldown++;
+                if (checkCooldown >= CHECK_INTERVAL) {
+                    checkCooldown = 0;
+                    cachedCanPurify = canPurify();
+                }
+                if (cachedCanPurify) {
+                    spawnIdleParticles();
+                }
             }
         } else {
             // 服务器：提纯逻辑
             if (isPurifying) {
                 purifyProgress++;
-                
+
                 if (purifyProgress >= maxPurifyTime) {
                     // 完成提纯
                     finishPurifying();
@@ -331,10 +344,9 @@ public class TileEntityPurificationAltar extends TileEntity implements ITickable
     public boolean canPurify() {
         // 输出槽不能有物品
         if (!inventory.getStackInSlot(OUTPUT_SLOT).isEmpty()) {
-            System.out.println("[canPurify] 输出槽有物品");
             return false;
         }
-        
+
         // 收集输入宝石
         List<ItemStack> inputGems = new ArrayList<>();
         for (int i = 0; i < INPUT_SLOTS; i++) {
@@ -343,24 +355,19 @@ public class TileEntityPurificationAltar extends TileEntity implements ITickable
                 inputGems.add(stack);
             }
         }
-        
+
         // 至少2个宝石，最多6个
         if (inputGems.size() < 2 || inputGems.size() > INPUT_SLOTS) {
-            System.out.println("[canPurify] 宝石数量不对: " + inputGems.size());
             return false;
         }
-        
+
         // 检查是否都是未鉴定的宝石
-        for (int i = 0; i < inputGems.size(); i++) {
-            ItemStack gem = inputGems.get(i);
-            boolean unidentified = isUnidentified(gem);
-            System.out.println("[canPurify] 宝石" + i + " isUnidentified: " + unidentified);
-            if (!unidentified) {
+        for (ItemStack gem : inputGems) {
+            if (!isUnidentified(gem)) {
                 return false;
             }
         }
-        
-        System.out.println("[canPurify] 检查通过!");
+
         return true;
     }
     

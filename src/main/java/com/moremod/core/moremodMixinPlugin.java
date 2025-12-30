@@ -10,21 +10,8 @@ import java.util.Map;
 @IFMLLoadingPlugin.SortingIndex(1005)
 public class moremodMixinPlugin implements IFMLLoadingPlugin {
 
-    /**
-     * 检查类是否可用（不触发完整类加载）
-     */
-    private static boolean isClassAvailable(String className) {
-        try {
-            // 使用 Class.forName 但不初始化类
-            Class.forName(className, false, moremodMixinPlugin.class.getClassLoader());
-            return true;
-        } catch (ClassNotFoundException e) {
-            return false;
-        }
-    }
-
     static {
-        // FermiumBooter 处理所有 mixin 配置
+        // FermiumBooter 处理所有四个 mixin 配置
         try {
             // 先加载 villager mixin
             FermiumRegistryAPI.enqueueMixin(false, "mixins.moremod.villager.json");
@@ -34,23 +21,13 @@ public class moremodMixinPlugin implements IFMLLoadingPlugin {
             // 然后加载其他 mod 的 mixins
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.lycanites.json");
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.parasites.json");
-            FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.champion.json");
+           FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.champion.json");
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.infernal.json");
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.rs.json");
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.silent.json");
             FermiumRegistryAPI.enqueueMixin(false, "mixins.moremod.element.json");
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.dummy.json");
-
-            // Baubles mixin - 只在 Baubles 可用时注册
-            // 注意：Baubles 是必需依赖，但 Mixin 扫描发生在模组加载之前
-            // 如果 Baubles 类不可用，跳过此 mixin 以避免 ClassNotFoundException 污染类加载器
-            if (isClassAvailable("baubles.api.IBauble")) {
-                FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.bauble.json");
-                System.out.println("[moremod] Baubles mixin registered");
-            } else {
-                System.out.println("[moremod] Baubles not found in classpath, skipping bauble mixin");
-            }
-
+            FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.bauble.json");
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.potioncore.json");
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.ev.json");
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.as.json");
