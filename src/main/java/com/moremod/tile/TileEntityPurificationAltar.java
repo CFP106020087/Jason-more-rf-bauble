@@ -331,10 +331,9 @@ public class TileEntityPurificationAltar extends TileEntity implements ITickable
     public boolean canPurify() {
         // 输出槽不能有物品
         if (!inventory.getStackInSlot(OUTPUT_SLOT).isEmpty()) {
-            System.out.println("[canPurify] 输出槽有物品");
             return false;
         }
-        
+
         // 收集输入宝石
         List<ItemStack> inputGems = new ArrayList<>();
         for (int i = 0; i < INPUT_SLOTS; i++) {
@@ -343,24 +342,19 @@ public class TileEntityPurificationAltar extends TileEntity implements ITickable
                 inputGems.add(stack);
             }
         }
-        
+
         // 至少2个宝石，最多6个
         if (inputGems.size() < 2 || inputGems.size() > INPUT_SLOTS) {
-            System.out.println("[canPurify] 宝石数量不对: " + inputGems.size());
             return false;
         }
-        
+
         // 检查是否都是未鉴定的宝石
-        for (int i = 0; i < inputGems.size(); i++) {
-            ItemStack gem = inputGems.get(i);
-            boolean unidentified = isUnidentified(gem);
-            System.out.println("[canPurify] 宝石" + i + " isUnidentified: " + unidentified);
-            if (!unidentified) {
+        for (ItemStack gem : inputGems) {
+            if (!isUnidentified(gem)) {
                 return false;
             }
         }
-        
-        System.out.println("[canPurify] 检查通过!");
+
         return true;
     }
     
