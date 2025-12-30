@@ -41,11 +41,11 @@ import java.util.List;
 public abstract class MixinContainerEnchantment extends Container {
 
     @Final
-    @Shadow
+    @Shadow(aliases = {"field_75168_e"})
     private World world;
 
     @Final
-    @Shadow
+    @Shadow(aliases = {"field_178150_h"})
     private BlockPos position;
 
     @Shadow

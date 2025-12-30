@@ -58,29 +58,42 @@ public class TileEntityPurificationAltar extends TileEntity implements ITickable
     
     // 随机数生成器
     private final Random random = new Random();
-    
+
+    // 性能优化：缓存canPurify结果，避免每tick检查
+    private boolean cachedCanPurify = false;
+    private int checkCooldown = 0;
+    private static final int CHECK_INTERVAL = 10; // 每10tick检查一次
+
     public TileEntityPurificationAltar() {
         // 构造函数
     }
-    
+
     // ==========================================
     // ITickable 实现
     // ==========================================
-    
+
     @Override
     public void update() {
         if (world.isRemote) {
             // 客户端：粒子效果
             if (isPurifying) {
                 spawnPurifyingParticles();
-            } else if (canPurify()) {
-                spawnIdleParticles();
+            } else {
+                // 使用缓存的canPurify结果，定期更新
+                checkCooldown++;
+                if (checkCooldown >= CHECK_INTERVAL) {
+                    checkCooldown = 0;
+                    cachedCanPurify = canPurify();
+                }
+                if (cachedCanPurify) {
+                    spawnIdleParticles();
+                }
             }
         } else {
             // 服务器：提纯逻辑
             if (isPurifying) {
                 purifyProgress++;
-                
+
                 if (purifyProgress >= maxPurifyTime) {
                     // 完成提纯
                     finishPurifying();

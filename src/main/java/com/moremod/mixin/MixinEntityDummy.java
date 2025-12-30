@@ -7,14 +7,15 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.DamageSource;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
-import testdummy.entity.EntityDummy;
 
 /**
  * 训练假人元素伤害 Mixin（转换率+增伤分离版本）
  */
-@Mixin(value = EntityDummy.class, remap = false)
+@Pseudo
+@Mixin(targets = "testdummy.entity.EntityDummy", remap = false)
 public abstract class MixinEntityDummy {
 
     private static final boolean DEBUG = true;

@@ -106,6 +106,10 @@ public class TileEntityTransferStation extends TileEntity implements ITickable {
     private int currentXpCost = 0;
     private int maxAffixLimit = 6;
 
+    // 性能优化：状态检查节流
+    private int statusCheckCooldown = 0;
+    private static final int STATUS_CHECK_INTERVAL = 10; // 每10tick检查一次
+
     // ==========================================
     // 核心业务逻辑
     // ==========================================
@@ -118,8 +122,12 @@ public class TileEntityTransferStation extends TileEntity implements ITickable {
             return;
         }
 
-        // 服务端：检测是否可以转移
-        updateTransferStatus();
+        // 服务端：定期检测是否可以转移（节流优化）
+        statusCheckCooldown++;
+        if (statusCheckCooldown >= STATUS_CHECK_INTERVAL) {
+            statusCheckCooldown = 0;
+            updateTransferStatus();
+        }
     }
 
     /**

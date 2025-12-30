@@ -36,10 +36,10 @@ import java.util.Map;
 @Mixin(TileEntityBrewingStand.class)
 public abstract class MixinTileEntityBrewingStand {
 
-    @Shadow
+    @Shadow(aliases = {"field_145941_a"})
     private NonNullList<ItemStack> brewingItemStacks;
 
-    @Shadow
+    @Shadow(aliases = {"field_184535_e"})
     private int fuel;
 
     @Unique

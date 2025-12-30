@@ -1,8 +1,5 @@
 package com.moremod.mixin.lycanites;
 
-import com.lycanitesmobs.core.entity.creature.EntitySpectre;
-import com.lycanitesmobs.core.entity.creature.EntityRoa;
-import com.lycanitesmobs.core.entity.creature.EntityThresher;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
@@ -12,6 +9,7 @@ import net.minecraft.network.Packet;
 import net.minecraft.network.play.server.SPacketEntityVelocity;
 
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -22,7 +20,12 @@ import baubles.api.cap.IBaublesItemHandler;
 /**
  * 统一处理 Spectre（拉扯）、Roa 和 Thresher（漩涡）的维度锚免疫
  */
-@Mixin(value = {EntitySpectre.class, EntityRoa.class, EntityThresher.class}, remap = false)
+@Pseudo
+@Mixin(targets = {
+        "com.lycanitesmobs.core.entity.creature.EntitySpectre",
+        "com.lycanitesmobs.core.entity.creature.EntityRoa",
+        "com.lycanitesmobs.core.entity.creature.EntityThresher"
+}, remap = false)
 public abstract class MixinPullAndWhirlpool {
 
     // === 拦截 EntityLivingBase.addVelocity（Spectre 用）：dev ===

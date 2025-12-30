@@ -6,6 +6,8 @@
     "mcversion": "1.12.2",
     "authorList": ["Jason"],
     "description": "More RF baubles and integrations.",
-    "acceptedMinecraftVersions": "[1.12.2]"
+    "acceptedMinecraftVersions": "[1.12.2]",
+    "requiredMods": ["baubles", "fermiumbooter", "geckolib3", "redstoneflux"],
+    "dependencies": ["baubles", "fermiumbooter", "geckolib3", "redstoneflux"]
   }
 ]

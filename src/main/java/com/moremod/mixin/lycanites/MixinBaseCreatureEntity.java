@@ -1,18 +1,19 @@
 package com.moremod.mixin.lycanites;
 
-import com.lycanitesmobs.core.entity.BaseCreatureEntity;
 import net.minecraft.util.DamageSource;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
-@Mixin(value = BaseCreatureEntity.class, remap = false)
+@Pseudo
+@Mixin(targets = "com.lycanitesmobs.core.entity.BaseCreatureEntity", remap = false)
 public class MixinBaseCreatureEntity {
 
     // 重定向damageLimit检查
     @Redirect(method = "isEntityInvulnerable", at = @At(value = "FIELD", target = "Lcom/lycanitesmobs/core/entity/BaseCreatureEntity;damageLimit:F"))
-    private float redirectDamageLimit(BaseCreatureEntity entity) {
+    private float redirectDamageLimit(Object entity) {
         return 0; // 返回0让检查永远不通过
     }
 
@@ -24,7 +25,7 @@ public class MixinBaseCreatureEntity {
 
     // 重定向boss范围检查
     @Redirect(method = "isDamageEntityApplicable", at = @At(value = "INVOKE", target = "Lcom/lycanitesmobs/core/entity/BaseCreatureEntity;getDistance(Lnet/minecraft/entity/Entity;)F"))
-    private float redirectBossRangeCheck(BaseCreatureEntity entity, net.minecraft.entity.Entity target) {
+    private float redirectBossRangeCheck(Object entity, net.minecraft.entity.Entity target) {
         return 0; // 总是返回0距离，通过范围检查
     }
 }
