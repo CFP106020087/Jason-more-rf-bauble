@@ -180,25 +180,19 @@ public class ModBlockEntities {
                     () -> BlockEntityType.Builder.of(SwordUpgradeStationBlockEntity::new,
                             ModBlocks.SWORD_UPGRADE_STATION.get()).build(null));
 
-    // ========== TODO: 更多方块实体 ==========
-    // - AnimalFeederBlockEntity
-    // - BioGeneratorBlockEntity
-    // - BloodGeneratorBlockEntity
-    // - BottlingMachineBlockEntity
-    // - CompostBinBlockEntity
-    // - DimensionLoomBlockEntity
-    // - ExtractionStationBlockEntity
-    // - FakePlayerActivatorBlockEntity
-    // - FishingNetBlockEntity
-    // - MegaChestBlockEntity
-    // - OilExtractorCoreBlockEntity
-    // - OilGeneratorBlockEntity
-    // - PlantOilPressBlockEntity
-    // - ProtectionFieldBlockEntity
-    // - PurificationAltarBlockEntity
-    // - RespawnChamberCoreBlockEntity
-    // - SwordUpgradeStationBlockEntity
-    // - TimeControllerBlockEntity
-    // - TradingStationBlockEntity
-    // - TransferStationBlockEntity
+    // 重生仓核心
+    public static final RegistryObject<BlockEntityType<RespawnChamberCoreBlockEntity>> RESPAWN_CHAMBER_CORE =
+            BLOCK_ENTITIES.register("respawn_chamber_core",
+                    () -> BlockEntityType.Builder.of(RespawnChamberCoreBlockEntity::new,
+                            ModBlocks.RESPAWN_CHAMBER_CORE.get()).build(null));
+
+    // 简易智慧之泉
+    public static final RegistryObject<BlockEntityType<SimpleWisdomShrineBlockEntity>> SIMPLE_WISDOM_SHRINE =
+            BLOCK_ENTITIES.register("simple_wisdom_shrine",
+                    () -> BlockEntityType.Builder.of(SimpleWisdomShrineBlockEntity::new,
+                            ModBlocks.SIMPLE_WISDOM_SHRINE.get()).build(null));
+
+    // ========== BlockEntity迁移基本完成 ==========
+    // 已迁移: 28/29个主要BlockEntity类型
+    // SpacetimeShardBlock 无需BlockEntity (普通矿石方块)
 }

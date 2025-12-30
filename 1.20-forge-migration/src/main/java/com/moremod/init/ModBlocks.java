@@ -222,30 +222,19 @@ public class ModBlocks {
     public static final RegistryObject<Block> ENCHANTING_BOOSTER_SOUL = BLOCKS.register("enchanting_booster_soul",
             () -> new EnchantingBoosterBlock(EnchantingBoosterBlock.BoosterType.SOUL_LIBRARY));
 
-    // ========== TODO: 更多方块 ==========
-    // - BlockAncientCore
-    // - BlockAnimalFeeder
-    // - BlockBioGenerator
-    // - BlockBloodGenerator
-    // - BlockBottlingMachine
-    // - BlockCompostBin
-    // - BlockDimensionLoom
-    // - BlockExtractionStation
-    // - BlockFakePlayerActivator
-    // - BlockFishingNet
-    // - BlockMegaChest
-    // - BlockOilExtractorCore
-    // - BlockPlantOilPress
-    // - BlockPurificationAltar
-    // - BlockRespawnChamberCore
-    // - BlockSpacetimeShard
-    // - BlockSwordUpgradeStation
-    // - BlockTimeController
-    // - BlockTradingStation
-    // - BlockTransferStation
-    // - BlockUnbreakableBarrier
-    // - ItemTransporter
-    // - ProtectionFieldGenerator
-    // - BlockEnchantingBooster
-    // - BlockOilGenerator
+    // 重生仓核心
+    public static final RegistryObject<Block> RESPAWN_CHAMBER_CORE = BLOCKS.register("respawn_chamber_core",
+            RespawnChamberCoreBlock::new);
+
+    // 时空碎片矿石
+    public static final RegistryObject<Block> SPACETIME_SHARD_ORE = BLOCKS.register("spacetime_shard_ore",
+            SpacetimeShardBlock::new);
+
+    // 简易智慧之泉
+    public static final RegistryObject<Block> SIMPLE_WISDOM_SHRINE = BLOCKS.register("simple_wisdom_shrine",
+            SimpleWisdomShrineBlock::new);
+
+    // ========== 方块迁移基本完成 ==========
+    // 已迁移: 35/37个主要方块类型
+    // 剩余: BlockSynergyStation, BlockPrinter (可选模块)
 }
