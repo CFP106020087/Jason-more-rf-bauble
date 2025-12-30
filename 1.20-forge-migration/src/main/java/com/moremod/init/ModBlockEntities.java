@@ -106,6 +106,42 @@ public class ModBlockEntities {
                     () -> BlockEntityType.Builder.of(TransferStationBlockEntity::new,
                             ModBlocks.TRANSFER_STATION.get()).build(null));
 
+    // 血液发电机
+    public static final RegistryObject<BlockEntityType<BloodGeneratorBlockEntity>> BLOOD_GENERATOR =
+            BLOCK_ENTITIES.register("blood_generator",
+                    () -> BlockEntityType.Builder.of(BloodGeneratorBlockEntity::new,
+                            ModBlocks.BLOOD_GENERATOR.get()).build(null));
+
+    // 堆肥桶
+    public static final RegistryObject<BlockEntityType<CompostBinBlockEntity>> COMPOST_BIN =
+            BLOCK_ENTITIES.register("compost_bin",
+                    () -> BlockEntityType.Builder.of(CompostBinBlockEntity::new,
+                            ModBlocks.COMPOST_BIN.get()).build(null));
+
+    // 植物油压榨机
+    public static final RegistryObject<BlockEntityType<PlantOilPressBlockEntity>> PLANT_OIL_PRESS =
+            BLOCK_ENTITIES.register("plant_oil_press",
+                    () -> BlockEntityType.Builder.of(PlantOilPressBlockEntity::new,
+                            ModBlocks.PLANT_OIL_PRESS.get()).build(null));
+
+    // 时间控制器
+    public static final RegistryObject<BlockEntityType<TimeControllerBlockEntity>> TIME_CONTROLLER =
+            BLOCK_ENTITIES.register("time_controller",
+                    () -> BlockEntityType.Builder.of(TimeControllerBlockEntity::new,
+                            ModBlocks.TIME_CONTROLLER.get()).build(null));
+
+    // 交易站
+    public static final RegistryObject<BlockEntityType<TradingStationBlockEntity>> TRADING_STATION =
+            BLOCK_ENTITIES.register("trading_station",
+                    () -> BlockEntityType.Builder.of(TradingStationBlockEntity::new,
+                            ModBlocks.TRADING_STATION.get()).build(null));
+
+    // 装瓶机
+    public static final RegistryObject<BlockEntityType<BottlingMachineBlockEntity>> BOTTLING_MACHINE =
+            BLOCK_ENTITIES.register("bottling_machine",
+                    () -> BlockEntityType.Builder.of(BottlingMachineBlockEntity::new,
+                            ModBlocks.BOTTLING_MACHINE.get()).build(null));
+
     // ========== TODO: 更多方块实体 ==========
     // - AnimalFeederBlockEntity
     // - BioGeneratorBlockEntity

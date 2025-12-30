@@ -140,6 +140,30 @@ public class ModBlocks {
                     .sound(SoundType.METAL)
                     .requiresCorrectToolForDrops()));
 
+    // 血液发电机
+    public static final RegistryObject<Block> BLOOD_GENERATOR = BLOCKS.register("blood_generator",
+            BloodGeneratorBlock::new);
+
+    // 堆肥桶
+    public static final RegistryObject<Block> COMPOST_BIN = BLOCKS.register("compost_bin",
+            CompostBinBlock::new);
+
+    // 植物油压榨机
+    public static final RegistryObject<Block> PLANT_OIL_PRESS = BLOCKS.register("plant_oil_press",
+            PlantOilPressBlock::new);
+
+    // 时间控制器
+    public static final RegistryObject<Block> TIME_CONTROLLER = BLOCKS.register("time_controller",
+            TimeControllerBlock::new);
+
+    // 交易站
+    public static final RegistryObject<Block> TRADING_STATION = BLOCKS.register("trading_station",
+            TradingStationBlock::new);
+
+    // 装瓶机
+    public static final RegistryObject<Block> BOTTLING_MACHINE = BLOCKS.register("bottling_machine",
+            BottlingMachineBlock::new);
+
     // ========== TODO: 更多方块 ==========
     // - BlockAncientCore
     // - BlockAnimalFeeder
