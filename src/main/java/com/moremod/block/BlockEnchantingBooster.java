@@ -52,12 +52,26 @@ public class BlockEnchantingBooster extends Block {
 
     @Override
     public IBlockState getStateFromMeta(int meta) {
+        // 确保meta值在有效范围内，防止无效状态
+        if (meta < 0 || meta >= BoosterType.values().length) {
+            meta = 0;
+        }
         return getDefaultState().withProperty(TYPE, BoosterType.byMeta(meta));
     }
 
     @Override
     public int getMetaFromState(IBlockState state) {
         return state.getValue(TYPE).getMeta();
+    }
+
+    /**
+     * 确保从世界获取的状态是正确的
+     * 防止区块加载时状态不一致导致贴图消失
+     */
+    @Override
+    public IBlockState getActualState(IBlockState state, IBlockAccess worldIn, BlockPos pos) {
+        // 状态完全由meta决定，无需额外处理，但显式返回确保一致性
+        return state;
     }
 
     @Override
@@ -134,6 +148,15 @@ public class BlockEnchantingBooster extends Block {
     public int getLightValue(IBlockState state, IBlockAccess world, BlockPos pos) {
         BoosterType type = state.getValue(TYPE);
         return type.getLightLevel();
+    }
+
+    /**
+     * 使用相邻方块亮度 - 对于发光方块返回true可以改善渲染
+     * 这有助于防止光照更新时贴图消失的问题
+     */
+    @Override
+    public boolean getUseNeighborBrightness(IBlockState state) {
+        return state.getValue(TYPE).getLightLevel() > 0;
     }
 
     /**

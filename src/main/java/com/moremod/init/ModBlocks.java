@@ -635,6 +635,7 @@ public class ModBlocks {
 
         // ✨ 附魔增强方块模型 (4个变体)
         if (ENCHANTING_BOOSTER != null) {
+            // 注册物品模型 - 每个变体单独注册
             for (BlockEnchantingBooster.BoosterType type : BlockEnchantingBooster.BoosterType.values()) {
                 ModelLoader.setCustomModelResourceLocation(
                     Item.getItemFromBlock(ENCHANTING_BOOSTER),
