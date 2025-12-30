@@ -95,6 +95,51 @@ public class ModBlocks {
                     .sound(SoundType.STONE)
                     .requiresCorrectToolForDrops()));
 
+    // ========== 发电机 ==========
+
+    // 生物质发电机
+    public static final RegistryObject<Block> BIO_GENERATOR = BLOCKS.register("bio_generator",
+            () -> new BioGeneratorBlock(BlockBehaviour.Properties.of()
+                    .strength(3.0F, 10.0F)
+                    .sound(SoundType.METAL)
+                    .requiresCorrectToolForDrops()));
+
+    // 石油发电机
+    public static final RegistryObject<Block> OIL_GENERATOR = BLOCKS.register("oil_generator",
+            () -> new OilGeneratorBlock(BlockBehaviour.Properties.of()
+                    .strength(4.0F, 10.0F)
+                    .sound(SoundType.METAL)
+                    .requiresCorrectToolForDrops()));
+
+    // ========== 自动化方块 ==========
+
+    // 动物喂食器
+    public static final RegistryObject<Block> ANIMAL_FEEDER = BLOCKS.register("animal_feeder",
+            () -> new AnimalFeederBlock(BlockBehaviour.Properties.of()
+                    .strength(2.0F, 5.0F)
+                    .sound(SoundType.WOOD)));
+
+    // 渔网
+    public static final RegistryObject<Block> FISHING_NET = BLOCKS.register("fishing_net",
+            () -> new FishingNetBlock(BlockBehaviour.Properties.of()
+                    .strength(0.5F, 3.0F)
+                    .sound(SoundType.WOOD)
+                    .noOcclusion()));
+
+    // 超大箱子
+    public static final RegistryObject<Block> MEGA_CHEST = BLOCKS.register("mega_chest",
+            () -> new MegaChestBlock(BlockBehaviour.Properties.of()
+                    .strength(2.5F, 5.0F)
+                    .sound(SoundType.WOOD)
+                    .noOcclusion()));
+
+    // 转移台
+    public static final RegistryObject<Block> TRANSFER_STATION = BLOCKS.register("transfer_station",
+            () -> new TransferStationBlock(BlockBehaviour.Properties.of()
+                    .strength(3.0F, 15.0F)
+                    .sound(SoundType.METAL)
+                    .requiresCorrectToolForDrops()));
+
     // ========== TODO: 更多方块 ==========
     // - BlockAncientCore
     // - BlockAnimalFeeder

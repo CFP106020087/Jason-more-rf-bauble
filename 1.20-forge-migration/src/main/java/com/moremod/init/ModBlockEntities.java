@@ -66,6 +66,46 @@ public class ModBlockEntities {
                     () -> BlockEntityType.Builder.of(PedestalBlockEntity::new,
                             ModBlocks.PEDESTAL.get()).build(null));
 
+    // ========== 发电机 ==========
+
+    // 生物质发电机
+    public static final RegistryObject<BlockEntityType<BioGeneratorBlockEntity>> BIO_GENERATOR =
+            BLOCK_ENTITIES.register("bio_generator",
+                    () -> BlockEntityType.Builder.of(BioGeneratorBlockEntity::new,
+                            ModBlocks.BIO_GENERATOR.get()).build(null));
+
+    // 石油发电机
+    public static final RegistryObject<BlockEntityType<OilGeneratorBlockEntity>> OIL_GENERATOR =
+            BLOCK_ENTITIES.register("oil_generator",
+                    () -> BlockEntityType.Builder.of(OilGeneratorBlockEntity::new,
+                            ModBlocks.OIL_GENERATOR.get()).build(null));
+
+    // ========== 自动化方块 ==========
+
+    // 动物喂食器
+    public static final RegistryObject<BlockEntityType<AnimalFeederBlockEntity>> ANIMAL_FEEDER =
+            BLOCK_ENTITIES.register("animal_feeder",
+                    () -> BlockEntityType.Builder.of(AnimalFeederBlockEntity::new,
+                            ModBlocks.ANIMAL_FEEDER.get()).build(null));
+
+    // 渔网
+    public static final RegistryObject<BlockEntityType<FishingNetBlockEntity>> FISHING_NET =
+            BLOCK_ENTITIES.register("fishing_net",
+                    () -> BlockEntityType.Builder.of(FishingNetBlockEntity::new,
+                            ModBlocks.FISHING_NET.get()).build(null));
+
+    // 超大箱子
+    public static final RegistryObject<BlockEntityType<MegaChestBlockEntity>> MEGA_CHEST =
+            BLOCK_ENTITIES.register("mega_chest",
+                    () -> BlockEntityType.Builder.of(MegaChestBlockEntity::new,
+                            ModBlocks.MEGA_CHEST.get()).build(null));
+
+    // 转移台
+    public static final RegistryObject<BlockEntityType<TransferStationBlockEntity>> TRANSFER_STATION =
+            BLOCK_ENTITIES.register("transfer_station",
+                    () -> BlockEntityType.Builder.of(TransferStationBlockEntity::new,
+                            ModBlocks.TRANSFER_STATION.get()).build(null));
+
     // ========== TODO: 更多方块实体 ==========
     // - AnimalFeederBlockEntity
     // - BioGeneratorBlockEntity
