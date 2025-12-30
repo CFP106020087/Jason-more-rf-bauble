@@ -50,15 +50,76 @@ public class ItemSwordChengYue extends ItemSword implements IAnimatable {
 
     // ==================== GeckoLib动画 ====================
 
+    // 动画名称常量
+    public static final String ANIM_FIRST_PERSON = "animation.moon_sword.first_person";
+    public static final String ANIM_FIRST_ATTACK = "animation.moon_sword.first_attack";
+    public static final String ANIM_FIRST_ATTACK2 = "animation.moon_sword.first_attack2";
+    public static final String ANIM_THIRD_PERSON = "animation.moon_sword.third_person";
+    public static final String ANIM_THIRD_ATTACK = "animation.moon_sword.third_attack";
+    public static final String ANIM_THIRD_ATTACK2 = "animation.moon_sword.third_attack2";
+
+    // 当前动画状态
+    private static String currentAnimation = ANIM_FIRST_PERSON;
+    private static boolean attackToggle = false; // 交替使用 attack1 和 attack2
+
     @Override
     public void registerControllers(AnimationData data) {
         data.addAnimationController(new AnimationController<>(
-                this, "idle", 0, this::idlePredicate
+                this, "skill_controller", 0, this::skillPredicate
         ));
     }
 
-    private PlayState idlePredicate(AnimationEvent<ItemSwordChengYue> event) {
-        return PlayState.STOP;
+    private PlayState skillPredicate(AnimationEvent<ItemSwordChengYue> event) {
+        // 检查是否处于技能状态
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc.player == null) return PlayState.STOP;
+
+        ChengYueCapability cap = mc.player.getCapability(ChengYueCapability.CAPABILITY, null);
+        if (cap == null || !cap.isSkillActive()) {
+            return PlayState.STOP;
+        }
+
+        int skillType = cap.getSkillType();
+
+        // skillType 1-6 对应 6 种动画
+        String animName;
+        switch (skillType) {
+            case 1: animName = ANIM_FIRST_PERSON; break;
+            case 2: animName = ANIM_FIRST_ATTACK; break;
+            case 3: animName = ANIM_FIRST_ATTACK2; break;
+            case 4: animName = ANIM_THIRD_PERSON; break;
+            case 5: animName = ANIM_THIRD_ATTACK; break;
+            case 6: animName = ANIM_THIRD_ATTACK2; break;
+            default:
+                // 默认根据视角选择
+                boolean isFirstPerson = mc.gameSettings.thirdPersonView == 0;
+                animName = isFirstPerson ? ANIM_FIRST_ATTACK : ANIM_THIRD_ATTACK;
+                break;
+        }
+
+        event.getController().setAnimation(new software.bernie.geckolib3.core.builder.AnimationBuilder()
+                .addAnimation(animName, false));
+
+        return PlayState.CONTINUE;
+    }
+
+    /**
+     * 触发技能动画（供外部调用）
+     */
+    public static void triggerSkillAnimation(EntityPlayer player) {
+        if (player.world.isRemote) return;
+
+        ChengYueCapability cap = player.getCapability(ChengYueCapability.CAPABILITY, null);
+        if (cap != null) {
+            // 交替使用两种攻击动画
+            attackToggle = !attackToggle;
+            int skillType = attackToggle ? 1 : 2;
+            cap.activateSkill(skillType);
+
+            System.out.println("[ChengYue] 服务端触发技能动画: skillType=" + skillType);
+        } else {
+            System.out.println("[ChengYue] 警告: cap 为 null!");
+        }
     }
 
     @Override
@@ -100,6 +161,9 @@ public class ItemSwordChengYue extends ItemSword implements IAnimatable {
         if (attacker instanceof EntityPlayer) {
             EntityPlayer player = (EntityPlayer) attacker;
             ChengYueLevel.addExp(stack, player, 10);
+
+            // 触发拔刀技能动画
+            triggerSkillAnimation(player);
         }
 
         return true;

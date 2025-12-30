@@ -111,4 +111,49 @@ public class TemporalDeathHook {
             return false;
         }
     }
+
+    // ========== Hook 3: setDead（终极防线） ==========
+
+    /**
+     * 检查是否应该阻止 setDead() 调用
+     * Called by ASM at HEAD of Entity.setDead
+     *
+     * @param entity 将要被标记为死亡的实体
+     * @return true = 阻止 setDead
+     */
+    public static boolean shouldPreventSetDead(net.minecraft.entity.Entity entity) {
+        try {
+            if (!(entity instanceof EntityPlayer)) {
+                return false;
+            }
+
+            EntityPlayer player = (EntityPlayer) entity;
+
+            // 检查是否穿戴时序织印
+            if (!FabricEventHandler.hasTemporalFabric(player)) {
+                return false;
+            }
+
+            // 如果已经在回溯保护中，阻止 setDead
+            if (FabricEventHandler.isInTemporalRewind(player)) {
+                if (player.getHealth() < 0.5f) {
+                    player.setHealth(0.5f);
+                }
+                return true;
+            }
+
+            // 最终防线：尝试触发回溯
+            boolean success = FabricEventHandler.triggerTemporalRewind(player);
+            if (success) {
+                System.out.println("[TemporalDeathHook] setDead intercepted, temporal rewind triggered: " + player.getName());
+                return true;
+            }
+
+            return false;
+
+        } catch (Throwable t) {
+            System.err.println("[TemporalDeathHook] Error in shouldPreventSetDead: " + t.getMessage());
+            return false;
+        }
+    }
 }

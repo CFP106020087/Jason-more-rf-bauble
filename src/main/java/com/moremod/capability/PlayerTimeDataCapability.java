@@ -44,12 +44,12 @@ public class PlayerTimeDataCapability {
 
     @SubscribeEvent
     public static void onPlayerClone(PlayerEvent.Clone event) {
-        if (event.isWasDeath()) {
-            IPlayerTimeData oldData = get(event.getOriginal());
-            IPlayerTimeData newData = get(event.getEntityPlayer());
-            if (oldData != null && newData != null) {
-                newData.copyFrom(oldData);
-            }
+        // 无论是死亡还是跨维度传送（如末地传送门返回主世界）都要复制数据
+        // event.isWasDeath() == false 时表示维度切换
+        IPlayerTimeData oldData = get(event.getOriginal());
+        IPlayerTimeData newData = get(event.getEntityPlayer());
+        if (oldData != null && newData != null) {
+            newData.copyFrom(oldData);
         }
     }
 
@@ -138,8 +138,8 @@ public class PlayerTimeDataCapability {
 
     private static void applyPermanentAttributes(EntityPlayer player, IPlayerTimeData data) {
         int totalDays = data.getTotalDaysPlayed();
-        double healthBonus = totalDays / 4.0;
-        double damageBonus = totalDays / 10.0;
+        double healthBonus = totalDays * 1.5;   // 6倍增强
+        double damageBonus = totalDays * 0.6;   // 6倍增强
 
         UUID PERMANENT_HEALTH_UUID = UUID.fromString("123E4567-E89B-12D3-A456-426614174000");
         UUID PERMANENT_DAMAGE_UUID = UUID.fromString("987FBC97-4BED-5078-AF07-9141BA07C9F3");

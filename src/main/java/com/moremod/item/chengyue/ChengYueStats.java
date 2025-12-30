@@ -128,11 +128,11 @@ public class ChengYueStats {
         return Math.min(2.2f, critDamage); // cap 2.2x
     }
 
-    // ==================== 生存向（强化版）====================
+    // ==================== 生存向（平衡版）====================
 
     /**
-     * 吸血比例（强化版）
-     * 8% 起步，每级 +0.3%，吃月相记忆倍率，最高 45%
+     * 吸血比例（平衡版）
+     * 5% 起步，每级 +0.2%，吃月相记忆倍率，最高 25%
      */
     public static float getLifeSteal(ItemStack stack, World world) {
         ChengYueNBT.init(stack);
@@ -140,8 +140,8 @@ public class ChengYueStats {
         int level = ChengYueNBT.getLevel(stack);
         int stage = ChengYueNBT.getStage(stack);
 
-        // 基础 8% + 每级 0.3% + 每阶 3%
-        float lifeSteal = 0.08f + level * 0.003f + stage * 0.03f;
+        // 基础 5% + 每级 0.2% + 每阶 2%
+        float lifeSteal = 0.05f + level * 0.002f + stage * 0.02f;
 
         if (world != null) {
             // 使用月相记忆倍率
@@ -149,13 +149,13 @@ public class ChengYueStats {
             lifeSteal *= moonMult;
         }
 
-        // 上限 45%
-        return Math.min(0.45f, lifeSteal);
+        // 上限 25%
+        return Math.min(0.25f, lifeSteal);
     }
 
     /**
-     * 减伤比例（强化版）
-     * 基础 10%，每阶 +10%，吃月相记忆减伤加成，最高 65%
+     * 减伤比例（平衡版）
+     * 基础 5%，每阶 +8%，吃月相记忆减伤加成，最高 45%
      */
     public static float getDamageReduction(ItemStack stack, World world) {
         ChengYueNBT.init(stack);
@@ -163,20 +163,20 @@ public class ChengYueStats {
         int stage = ChengYueNBT.getStage(stack);
         int level = ChengYueNBT.getLevel(stack);
 
-        // 基础 10% + 每阶 10% + 每级 0.15%
-        float reduction = 0.10f + stage * 0.10f + level * 0.0015f;
+        // 基础 5% + 每阶 8% + 每级 0.1%
+        float reduction = 0.05f + stage * 0.08f + level * 0.001f;
 
         if (world != null) {
             reduction += ChengYueMoonMemory.getDamageReductionBonusWithMemory(stack, world);
         }
 
-        // 上限 65%
-        return Math.min(0.65f, reduction);
+        // 上限 45%
+        return Math.min(0.45f, reduction);
     }
 
     /**
-     * 闪避率（强化版）
-     * 5级后开始给，每级 +0.4%，吃月相记忆闪避加成，最高 45%
+     * 闪避率（平衡版）
+     * 10级后开始给，每级 +0.25%，吃月相记忆闪避加成，最高 25%
      */
     public static float getDodgeChance(ItemStack stack, World world) {
         ChengYueNBT.init(stack);
@@ -184,39 +184,39 @@ public class ChengYueStats {
         int level = ChengYueNBT.getLevel(stack);
         int stage = ChengYueNBT.getStage(stack);
 
-        // 5级后开始，每级 +0.4%，每阶额外 +5%
-        float dodge = level < 5 ? 0.0f : (level - 5) * 0.004f + stage * 0.05f;
+        // 10级后开始，每级 +0.25%，每阶额外 +3%
+        float dodge = level < 10 ? 0.0f : (level - 10) * 0.0025f + stage * 0.03f;
 
         if (world != null) {
             dodge += ChengYueMoonMemory.getDodgeChanceBonusWithMemory(stack, world);
         }
 
-        // 上限 45%
-        return Math.min(0.45f, dodge);
+        // 上限 25%
+        return Math.min(0.25f, dodge);
     }
 
-    // ==================== 新增：受伤时回复 ====================
+    // ==================== 受伤时回复（平衡版）====================
 
     /**
-     * 受伤时回复比例（新机制）
+     * 受伤时回复概率（平衡版）
      * 受到伤害时，有概率回复部分生命
      */
     public static float getHurtHealChance(ItemStack stack) {
         ChengYueNBT.init(stack);
         int stage = ChengYueNBT.getStage(stack);
 
-        // 每阶 10% 概率
-        return Math.min(0.4f, stage * 0.10f);
+        // 每阶 6% 概率，上限 20%
+        return Math.min(0.20f, stage * 0.06f);
     }
 
     /**
-     * 受伤时回复量（基于受到的伤害）
+     * 受伤时回复量（平衡版）
      */
     public static float getHurtHealPercent(ItemStack stack) {
         ChengYueNBT.init(stack);
         int level = ChengYueNBT.getLevel(stack);
 
-        // 基础 15% + 每级 0.3%，上限 40%
-        return Math.min(0.40f, 0.15f + level * 0.003f);
+        // 基础 10% + 每级 0.15%，上限 20%
+        return Math.min(0.20f, 0.10f + level * 0.0015f);
     }
 }

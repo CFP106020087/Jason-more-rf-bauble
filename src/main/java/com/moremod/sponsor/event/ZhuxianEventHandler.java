@@ -1,0 +1,448 @@
+package com.moremod.sponsor.event;
+
+import com.moremod.accessorybox.EarlyConfigLoader;
+import com.moremod.sponsor.item.ZhuxianSword;
+import com.moremod.util.ThirstHelper;
+import com.moremod.util.combat.TrueDamageHelper;
+import net.minecraft.entity.EntityLiving;
+import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.monster.EntityMob;
+import net.minecraft.entity.passive.EntityVillager;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.init.MobEffects;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.potion.PotionEffect;
+import net.minecraft.util.math.AxisAlignedBB;
+import net.minecraft.util.EnumParticleTypes;
+import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.TextFormatting;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldServer;
+import net.minecraftforge.event.entity.living.*;
+import net.minecraftforge.event.entity.player.PlayerPickupXpEvent;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.common.eventhandler.EventPriority;
+import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.gameevent.TickEvent;
+
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+
+/**
+ * 诛仙四剑事件处理器
+ *
+ * 处理:
+ * - 击杀计数与形态升级
+ * - 免疫伤害（陷仙形态）
+ * - 流血效果（诛仙形态）
+ * - 陷仙形态：和平领域+怪物AI混乱+村民保护
+ * - 为生民立命：血量保护（诛仙形态）
+ */
+@Mod.EventBusSubscriber(modid = "moremod")
+public class ZhuxianEventHandler {
+
+    // 防止重复处理
+    private static final Set<Integer> PROCESSING_KILLS = new HashSet<>();
+
+    /**
+     * 快速检查诛仙剑是否启用
+     * 用于所有事件处理器的早期返回
+     */
+    private static boolean isZhuxianEnabled() {
+        return EarlyConfigLoader.isZhuxianSwordEnabled();
+    }
+
+    // ==================== 击杀处理 ====================
+
+    /**
+     * 处理击杀事件 - 更新击杀计数
+     */
+    @SubscribeEvent(priority = EventPriority.HIGH)
+    public static void onEntityDeath(LivingDeathEvent event) {
+        if (!isZhuxianEnabled()) return; // 配置关闭则跳过
+        if (event.getSource() == null) return;
+        if (!(event.getSource().getTrueSource() instanceof EntityPlayer)) return;
+
+        EntityPlayer player = (EntityPlayer) event.getSource().getTrueSource();
+        if (player.world.isRemote) return;
+
+        ItemStack sword = ZhuxianSword.getZhuxianSword(player);
+        if (sword.isEmpty()) return;
+
+        int entityId = event.getEntity().getEntityId();
+        if (!PROCESSING_KILLS.add(entityId)) return;
+
+        try {
+            ZhuxianSword item = (ZhuxianSword) sword.getItem();
+            ZhuxianSword.SwordForm form = item.getForm(sword);
+
+            // 记录击杀前的状态
+            boolean hadAoe = item.hasAoe(sword);
+            float oldDamage = item.getTotalDamage(sword);
+
+            // 增加击杀计数
+            item.addKill(sword);
+
+            // 检查是否解锁了新能力
+            float newDamage = item.getTotalDamage(sword);
+            boolean hasAoeNow = item.hasAoe(sword);
+
+            if (form == ZhuxianSword.SwordForm.ZHUXIAN && newDamage > oldDamage) {
+                player.sendStatusMessage(new TextComponentString(
+                    TextFormatting.GOLD + "★ 诛仙剑伤害提升! " + TextFormatting.RED + String.format("%.0f", newDamage)
+                ), true);
+            }
+
+            if (form == ZhuxianSword.SwordForm.LUXIAN && !hadAoe && hasAoeNow) {
+                player.sendStatusMessage(new TextComponentString(
+                    TextFormatting.DARK_RED + "★★ 戮仙剑已解锁范围伤害!"
+                ), true);
+            }
+
+            if (form == ZhuxianSword.SwordForm.XIANXIAN) {
+                int charges = item.getImmunityCharges(sword);
+                player.sendStatusMessage(new TextComponentString(
+                    TextFormatting.GOLD + "☆ 陷仙剑: 免疫层数 +" + TextFormatting.AQUA + charges
+                ), true);
+            }
+        } finally {
+            PROCESSING_KILLS.remove(entityId);
+        }
+    }
+
+    // ==================== 伤害免疫（陷仙形态） ====================
+
+    /**
+     * 陷仙形态：消耗免疫层数抵挡伤害
+     */
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onPlayerAttacked(LivingAttackEvent event) {
+        if (!isZhuxianEnabled()) return;
+        if (!(event.getEntityLiving() instanceof EntityPlayer)) return;
+
+        EntityPlayer player = (EntityPlayer) event.getEntityLiving();
+        if (player.world.isRemote) return;
+
+        ItemStack sword = ZhuxianSword.getZhuxianSword(player);
+        if (sword.isEmpty()) return;
+
+        ZhuxianSword item = (ZhuxianSword) sword.getItem();
+
+        // 陷仙形态：消耗免疫层数
+        if (item.getForm(sword) == ZhuxianSword.SwordForm.XIANXIAN ||
+            item.getForm(sword) == ZhuxianSword.SwordForm.JUEXIAN) {
+            if (item.consumeImmunityCharge(sword)) {
+                event.setCanceled(true);
+                player.sendStatusMessage(new TextComponentString(
+                    TextFormatting.AQUA + "✦ 免疫伤害! 剩余: " + item.getImmunityCharges(sword)
+                ), true);
+                return;
+            }
+        }
+
+        // 为生民立命：血量不低于20%
+        if (ZhuxianSword.isPlayerSkillActive(player, ZhuxianSword.NBT_SKILL_LIMING)) {
+            float currentHealth = player.getHealth();
+            float minHealth = player.getMaxHealth() * 0.2f;
+            float damage = event.getAmount();
+
+            if (currentHealth - damage < minHealth) {
+                // 限制伤害
+                float maxDamage = currentHealth - minHealth;
+                if (maxDamage <= 0) {
+                    event.setCanceled(true);
+                    player.sendStatusMessage(new TextComponentString(
+                        TextFormatting.GREEN + "✦ 为生民立命: 血量保护触发!"
+                    ), true);
+                }
+                // 伤害限制在LivingHurtEvent中处理
+            }
+        }
+    }
+
+    /**
+     * 为生民立命：限制伤害使血量不低于20%
+     */
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onPlayerHurt(LivingHurtEvent event) {
+        if (!isZhuxianEnabled()) return;
+        if (!(event.getEntityLiving() instanceof EntityPlayer)) return;
+
+        EntityPlayer player = (EntityPlayer) event.getEntityLiving();
+        if (player.world.isRemote) return;
+
+        if (ZhuxianSword.isPlayerSkillActive(player, ZhuxianSword.NBT_SKILL_LIMING)) {
+            float currentHealth = player.getHealth();
+            float minHealth = player.getMaxHealth() * 0.2f;
+            float damage = event.getAmount();
+
+            if (currentHealth - damage < minHealth) {
+                float maxDamage = Math.max(0, currentHealth - minHealth);
+                event.setAmount(maxDamage);
+            }
+        }
+    }
+
+    // ==================== 经验加成已移除 ====================
+    // 原为天地立心技能，现已整合到其他形态
+
+    // ==================== Tick处理 ====================
+
+    /**
+     * 每Tick处理:
+     * - 流血效果
+     * - 为往圣继绝学：村民附近敌人真伤
+     * - 太平领域效果
+     * - 村民保护
+     */
+    @SubscribeEvent
+    public static void onWorldTick(TickEvent.WorldTickEvent event) {
+        if (!isZhuxianEnabled()) return;
+        if (event.phase != TickEvent.Phase.END) return;
+        if (event.world.isRemote) return;
+
+        World world = event.world;
+        long worldTime = world.getTotalWorldTime();
+
+        // 每秒处理一次
+        if (worldTime % 20 != 0) return;
+
+        // 处理所有玩家
+        for (EntityPlayer player : world.playerEntities) {
+            ItemStack sword = ZhuxianSword.getZhuxianSword(player);
+            if (sword.isEmpty()) continue;
+
+            ZhuxianSword item = (ZhuxianSword) sword.getItem();
+
+            ZhuxianSword.SwordForm form = item.getForm(sword);
+
+            // 陷仙形态 + 为万世开太平：村民无敌/打折 + 太平领域 + 怪物AI混乱
+            if (form == ZhuxianSword.SwordForm.XIANXIAN && item.isSkillActive(sword, ZhuxianSword.NBT_SKILL_TAIPING)) {
+                // 村民保护
+                processVillagerProtection(player, world);
+
+                // 怪物AI混乱（16格内）
+                processMobConfusion(player, world);
+
+                // 太平领域
+                NBTTagCompound tag = sword.getTagCompound();
+                if (tag != null) {
+                    long taipingEndTime = tag.getLong(ZhuxianSword.NBT_TAIPING_END_TIME);
+                    if (taipingEndTime > worldTime) {
+                        processTaipingDomain(player, world);
+                    }
+                }
+            }
+        }
+
+        // 处理流血效果
+        processBleedingEntities(world);
+    }
+
+    /**
+     * 陷仙形态：怪物AI混乱（16格内怪物随机攻击目标/迷路）
+     */
+    private static void processMobConfusion(EntityPlayer player, World world) {
+        double range = 16.0;
+
+        List<EntityMob> mobs = world.getEntitiesWithinAABB(EntityMob.class,
+            player.getEntityBoundingBox().grow(range));
+
+        for (EntityMob mob : mobs) {
+            // 50%概率清除攻击目标
+            if (world.rand.nextFloat() < 0.5f) {
+                mob.setAttackTarget(null);
+                mob.setRevengeTarget(null);
+            }
+
+            // 添加反胃效果（视觉混乱）
+            mob.addPotionEffect(new PotionEffect(MobEffects.NAUSEA, 60, 0));
+
+            // 20%概率让怪物互相攻击
+            if (world.rand.nextFloat() < 0.2f && !mobs.isEmpty()) {
+                EntityMob randomTarget = mobs.get(world.rand.nextInt(mobs.size()));
+                if (randomTarget != mob) {
+                    mob.setAttackTarget(randomTarget);
+                }
+            }
+
+            // 随机改变移动方向
+            if (world.rand.nextFloat() < 0.3f && mob.getNavigator() != null) {
+                double randomX = mob.posX + (world.rand.nextDouble() - 0.5) * 10;
+                double randomZ = mob.posZ + (world.rand.nextDouble() - 0.5) * 10;
+                mob.getNavigator().tryMoveToXYZ(randomX, mob.posY, randomZ, 1.0);
+            }
+        }
+    }
+
+    /**
+     * 陷仙形态+为万世开太平：村民获得无敌
+     */
+    private static void processVillagerProtection(EntityPlayer player, World world) {
+        double range = 16.0;
+
+        List<EntityVillager> villagers = world.getEntitiesWithinAABB(EntityVillager.class,
+            player.getEntityBoundingBox().grow(range));
+
+        for (EntityVillager villager : villagers) {
+            // 给予抗性提升效果作为无敌
+            villager.addPotionEffect(new PotionEffect(MobEffects.RESISTANCE, 40, 254)); // 255级抗性=无敌
+            // 标记为受保护（用于交易特价，在Mixin中处理）
+            villager.getEntityData().setBoolean("ZhuxianProtected", true);
+        }
+    }
+
+    /**
+     * 太平领域：敌对生物停止攻击
+     * 参考香巴拉圣域实现，添加粒子效果和完整的和平效果
+     */
+    private static void processTaipingDomain(EntityPlayer player, World world) {
+        double range = 5.0;
+
+        // 太平领域粒子效果（每秒一次）
+        if (world instanceof WorldServer && world.getTotalWorldTime() % 20 == 0) {
+            spawnTaipingParticles(player, (WorldServer) world, range);
+        }
+
+        List<EntityLiving> entities = world.getEntitiesWithinAABB(EntityLiving.class,
+            player.getEntityBoundingBox().grow(range));
+
+        for (EntityLiving entity : entities) {
+            if (entity instanceof EntityMob) {
+                EntityMob mob = (EntityMob) entity;
+
+                // 清除攻击目标
+                mob.setAttackTarget(null);
+                mob.setRevengeTarget(null);
+
+                // 清除导航路径
+                if (mob.getNavigator() != null) {
+                    mob.getNavigator().clearPath();
+                }
+
+                // 添加缓慢效果（10级缓慢=完全停止）
+                mob.addPotionEffect(new PotionEffect(MobEffects.SLOWNESS, 40, 9));
+
+                // 添加失明效果使其无法定位玩家
+                mob.addPotionEffect(new PotionEffect(MobEffects.BLINDNESS, 40, 0));
+            }
+        }
+
+        // 恢复饥饿值
+        if (player.getFoodStats().getFoodLevel() < 20) {
+            player.getFoodStats().addStats(1, 0.5f);
+        }
+
+        // 恢复SimpleDifficulty口渴值
+        tryRefillThirst(player);
+    }
+
+    /**
+     * 生成太平领域粒子效果（参考香巴拉圣域）
+     * 画圆形光环边界
+     */
+    private static void spawnTaipingParticles(EntityPlayer player, WorldServer world, double range) {
+        // 画圆形边界 - 使用END_ROD粒子（淡蓝色发光）
+        for (int i = 0; i < 24; i++) {
+            double angle = (i / 24.0) * Math.PI * 2;
+            double x = player.posX + Math.cos(angle) * range;
+            double z = player.posZ + Math.sin(angle) * range;
+
+            // 底部光环
+            world.spawnParticle(EnumParticleTypes.END_ROD, x, player.posY + 0.1, z,
+                    1, 0, 0.05, 0, 0.01);
+
+            // 顶部光环（半高）
+            world.spawnParticle(EnumParticleTypes.END_ROD, x, player.posY + 1.5, z,
+                    1, 0, 0.05, 0, 0.01);
+        }
+
+        // 中心光柱效果
+        for (int i = 0; i < 4; i++) {
+            world.spawnParticle(EnumParticleTypes.PORTAL, player.posX, player.posY + 0.5 + i * 0.5, player.posZ,
+                    3, 0.2, 0.2, 0.2, 0.05);
+        }
+    }
+
+    /**
+     * 恢复SimpleDifficulty口渴值（为万世开太平效果）
+     */
+    private static void tryRefillThirst(EntityPlayer player) {
+        // 使用现有的 ThirstHelper 完全恢复口渴值
+        ThirstHelper.fullyRestoreThirst(player);
+    }
+
+    /**
+     * 处理流血效果
+     */
+    private static void processBleedingEntities(World world) {
+        long worldTime = world.getTotalWorldTime();
+
+        for (EntityLivingBase entity : world.getEntities(EntityLivingBase.class,
+            e -> e.getEntityData().getBoolean("ZhuxianBleeding"))) {
+
+            long endTime = entity.getEntityData().getLong("ZhuxianBleedEndTime");
+
+            if (worldTime < endTime) {
+                // 每秒20%最大生命真伤
+                float damage = entity.getMaxHealth() * 0.20f;
+                TrueDamageHelper.applyWrappedTrueDamage(entity, null, damage, TrueDamageHelper.TrueDamageFlag.REFLECT);
+            } else {
+                // 流血结束
+                entity.getEntityData().setBoolean("ZhuxianBleeding", false);
+            }
+        }
+    }
+
+    // ==================== 村民攻击保护 ====================
+
+    /**
+     * 阻止敌对生物攻击受保护的村民
+     */
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onVillagerAttacked(LivingAttackEvent event) {
+        if (!isZhuxianEnabled()) return;
+        if (!(event.getEntityLiving() instanceof EntityVillager)) return;
+
+        EntityVillager villager = (EntityVillager) event.getEntityLiving();
+
+        if (villager.getEntityData().getBoolean("ZhuxianProtected")) {
+            event.setCanceled(true);
+        }
+    }
+
+    /**
+     * 阻止敌对生物锁定受保护的村民
+     */
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onSetTarget(LivingSetAttackTargetEvent event) {
+        if (!isZhuxianEnabled()) return;
+        if (!(event.getTarget() instanceof EntityVillager)) return;
+
+        EntityVillager villager = (EntityVillager) event.getTarget();
+
+        if (villager.getEntityData().getBoolean("ZhuxianProtected")) {
+            if (event.getEntityLiving() instanceof EntityLiving) {
+                ((EntityLiving) event.getEntityLiving()).setAttackTarget(null);
+            }
+        }
+    }
+
+    // ==================== 清理 ====================
+
+    /**
+     * 定期清理
+     */
+    @SubscribeEvent
+    public static void onServerTick(TickEvent.ServerTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) return;
+
+        // 每5秒清理一次
+        if (System.currentTimeMillis() % 5000 < 50) {
+            PROCESSING_KILLS.clear();
+        }
+    }
+}

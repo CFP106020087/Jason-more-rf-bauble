@@ -2,6 +2,8 @@ package com.moremod.tile;
 
 import com.moremod.block.BlockBloodGenerator;
 import com.moremod.energy.BloodEnergyHandler;
+import com.moremod.item.energy.ItemSpeedUpgrade;
+import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.network.NetworkManager;
@@ -19,14 +21,13 @@ import net.minecraftforge.items.CapabilityItemHandler;
 import net.minecraftforge.items.ItemStackHandler;
 
 import net.minecraft.block.state.IBlockState;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
 
 import javax.annotation.Nullable;
 
 /**
  * 血液发电机 TileEntity
  * 从沾血武器中提取能量，转换为RF
+ * 支持升级插件提升效率
  */
 public class TileEntityBloodGenerator extends TileEntity implements ITickable {
 
@@ -41,13 +42,36 @@ public class TileEntityBloodGenerator extends TileEntity implements ITickable {
     }
 
     // 配置
-    private static final int MAX_ENERGY = 5000000;          // 500万RF容量
-    private static final int MAX_OUTPUT = 50000;            // 每tick最大输出 50000 RF
-    private static final int EXTRACTION_RATE = 10000;       // 每tick提取 10000 血液能量
+    private static final int MAX_ENERGY = 10000000;         // 1000万RF容量
+    private static final int MAX_OUTPUT = Integer.MAX_VALUE; // 无限快传输
+    private static final int BASE_EXTRACTION_RATE = 50000;  // 基础每tick提取 50000 血液能量
     private static final int CONVERSION_EFFICIENCY = 100;   // 转换效率 100% (血液能量 -> RF)
+    private static final int UPGRADE_SLOTS = 4;
+    private static final float SPEED_PER_UPGRADE = 0.5f;
 
     // 能量存储
     private final EnergyStorageInternal energyStorage = new EnergyStorageInternal(MAX_ENERGY, 0, MAX_OUTPUT);
+
+    // 升级插件槽
+    private final ItemStackHandler upgradeInventory = new ItemStackHandler(UPGRADE_SLOTS) {
+        @Override
+        protected void onContentsChanged(int slot) {
+            TileEntityBloodGenerator.this.markDirty();
+            cachedSpeedMultiplier = -1;
+        }
+
+        @Override
+        public boolean isItemValid(int slot, ItemStack stack) {
+            return isValidUpgrade(stack);
+        }
+
+        @Override
+        public int getSlotLimit(int slot) {
+            return 1;
+        }
+    };
+
+    private float cachedSpeedMultiplier = -1;
 
     // 物品存储: 0=输入槽(沾血武器), 1=输出槽(干净武器)
     private final ItemStackHandler inventory = new ItemStackHandler(2) {
@@ -81,6 +105,49 @@ public class TileEntityBloodGenerator extends TileEntity implements ITickable {
     private int currentFleshChunks = 0;     // 当前正在处理的肉块
     private int totalEnergyToExtract = 0;   // 总共要提取的能量
     private int extractedEnergy = 0;        // 已提取的能量
+
+    /**
+     * 检查是否是有效的升级材料
+     */
+    public static boolean isValidUpgrade(ItemStack stack) {
+        if (stack.getItem() instanceof ItemSpeedUpgrade) {
+            return true;
+        }
+        return stack.getItem() == Items.REDSTONE ||
+               stack.getItem() == Items.GLOWSTONE_DUST ||
+               stack.getItem() == Items.BLAZE_POWDER ||
+               stack.getItem() == Items.EMERALD;
+    }
+
+    /**
+     * 计算速度倍率
+     */
+    public float getSpeedMultiplier() {
+        if (cachedSpeedMultiplier < 0) {
+            int upgradeCount = 0;
+            for (int i = 0; i < UPGRADE_SLOTS; i++) {
+                if (!upgradeInventory.getStackInSlot(i).isEmpty()) {
+                    upgradeCount++;
+                }
+            }
+            cachedSpeedMultiplier = 1.0f + (upgradeCount * SPEED_PER_UPGRADE);
+        }
+        return cachedSpeedMultiplier;
+    }
+
+    public int getUpgradeCount() {
+        int count = 0;
+        for (int i = 0; i < UPGRADE_SLOTS; i++) {
+            if (!upgradeInventory.getStackInSlot(i).isEmpty()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    public ItemStackHandler getUpgradeInventory() {
+        return upgradeInventory;
+    }
 
     @Override
     public void update() {
@@ -131,6 +198,9 @@ public class TileEntityBloodGenerator extends TileEntity implements ITickable {
                               (bossKills * 50000);
         extractedEnergy = 0;
 
+        // 立即清除血液数据，防止取出后重复使用
+        BloodEnergyHandler.clearBloodData(inputStack);
+
         isActive = true;
         markDirty();
         syncToClient();
@@ -144,8 +214,10 @@ public class TileEntityBloodGenerator extends TileEntity implements ITickable {
         int spaceAvailable = energyStorage.getMaxEnergyStored() - energyStorage.getEnergyStored();
         if (spaceAvailable <= 0) return;
 
-        // 计算本tick提取量
-        int toExtract = Math.min(EXTRACTION_RATE, totalEnergyToExtract - extractedEnergy);
+        // 计算本tick提取量（应用速度倍率）
+        float speedMultiplier = getSpeedMultiplier();
+        int actualExtractionRate = (int)(BASE_EXTRACTION_RATE * speedMultiplier);
+        int toExtract = Math.min(actualExtractionRate, totalEnergyToExtract - extractedEnergy);
         toExtract = Math.min(toExtract, spaceAvailable);
 
         if (toExtract > 0) {
@@ -169,9 +241,7 @@ public class TileEntityBloodGenerator extends TileEntity implements ITickable {
     private void finishExtraction() {
         ItemStack inputStack = inventory.getStackInSlot(0);
         if (!inputStack.isEmpty()) {
-            // 清除血液数据
-            BloodEnergyHandler.clearBloodData(inputStack);
-
+            // 血液数据已在 startExtraction 时清除，这里只需移动物品
             // 移动到输出槽
             inventory.setStackInSlot(1, inputStack.copy());
             inventory.setStackInSlot(0, ItemStack.EMPTY);
@@ -268,10 +338,16 @@ public class TileEntityBloodGenerator extends TileEntity implements ITickable {
 
     // ========== NBT ==========
 
+    public int getRFPerTick() {
+        if (!isActive) return 0;
+        return (int)(BASE_EXTRACTION_RATE * getSpeedMultiplier());
+    }
+
     @Override
     public NBTTagCompound writeToNBT(NBTTagCompound compound) {
         super.writeToNBT(compound);
         compound.setTag("Inventory", inventory.serializeNBT());
+        compound.setTag("Upgrades", upgradeInventory.serializeNBT());
         compound.setInteger("Energy", energyStorage.getEnergyStored());
         compound.setBoolean("Active", isActive);
         compound.setInteger("CurrentBlood", currentBloodEnergy);
@@ -285,6 +361,10 @@ public class TileEntityBloodGenerator extends TileEntity implements ITickable {
     public void readFromNBT(NBTTagCompound compound) {
         super.readFromNBT(compound);
         inventory.deserializeNBT(compound.getCompoundTag("Inventory"));
+        if (compound.hasKey("Upgrades")) {
+            upgradeInventory.deserializeNBT(compound.getCompoundTag("Upgrades"));
+            cachedSpeedMultiplier = -1;
+        }
         energyStorage.setEnergy(compound.getInteger("Energy"));
         isActive = compound.getBoolean("Active");
         currentBloodEnergy = compound.getInteger("CurrentBlood");

@@ -2,10 +2,18 @@ package com.moremod.gui;
 
 import com.moremod.ritual.RitualInfusionAPI;
 import com.moremod.ritual.RitualInfusionRecipe;
+import com.moremod.ritual.LegacyRitualConfig;
+import com.moremod.init.ModBlocks;
+import com.moremod.moremod;
+import com.moremod.quarry.QuarryRegistry;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.init.Blocks;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.crafting.Ingredient;
 import net.minecraft.util.ResourceLocation;
@@ -36,6 +44,7 @@ public class GuiModGuide extends GuiScreen {
             "overview",      // 總覽
             "multiblock",    // 多方塊結構
             "energy",        // 能源系統
+            "functional",    // 功能性方塊
             "module",        // 模組系統
             "synergy",       // 協同系統
             "humanity",      // 人性系統
@@ -46,6 +55,7 @@ public class GuiModGuide extends GuiScreen {
             "總覽",
             "多方塊結構",
             "能源系統",
+            "功能方塊",
             "模組系統",
             "協同系統",
             "人性系統",
@@ -93,6 +103,9 @@ public class GuiModGuide extends GuiScreen {
             case "energy":
                 loadEnergyPages();
                 break;
+            case "functional":
+                loadFunctionalBlocksPages();
+                break;
             case "module":
                 loadModulePages();
                 break;
@@ -135,13 +148,13 @@ public class GuiModGuide extends GuiScreen {
                         "§6快速開始§r",
                         "",
                         "1. 獲取機械核心",
-                        "   (擊殺Boss或合成)",
+                            "开始时获得",
                         "",
                         "2. 建造能源設施",
                         "   (發電機、充能站)",
                         "",
                         "3. 安裝升級模組",
-                        "   (使用升級艙)",
+                        "   (使用升級艙/右键 视配置而定)",
                         "",
                         "4. 探索協同效果",
                         "   (特定模組組合)"
@@ -160,7 +173,7 @@ public class GuiModGuide extends GuiScreen {
                         "§e升級模組§r",
                         "插入機械核心的組件",
                         "有多種類型和等級",
-                        "可在升級艙中升級"
+                        "可在升級艙，或右键升級"
                 },
                 new String[]{
                         "§e能源系統§r",
@@ -177,198 +190,375 @@ public class GuiModGuide extends GuiScreen {
     }
 
     private void loadMultiblockPages() {
-        // 抽油機
+        // ==================== 抽油機 (3x3x4) ====================
+        StructureTemplate oilPumpStruct = new StructureTemplate(3, 3)
+                .addKey('I', new ItemStack(Blocks.IRON_BLOCK))
+                .addKey('C', new ItemStack(ModBlocks.OIL_EXTRACTOR_CORE))  // 抽油機核心
+                .addKey('P', new ItemStack(Blocks.PISTON));
+
+        oilPumpStruct.addLayer("I.I", ".C.", "I.I");  // 第0層 - 四角框架 + 核心
+        oilPumpStruct.addLayer("I.I", ".P.", "I.I");  // 第1層 - 四角框架 + 活塞
+        oilPumpStruct.addLayer("I.I", ".P.", "I.I");  // 第2層 - 四角框架 + 活塞
+        oilPumpStruct.addLayer("III", "III", "III");  // 第3層 - 封頂
+
         currentPages.add(new GuidePageContent(
-                "抽油機 (3x3x4)",
+                "抽油機結構",
                 new String[]{
-                        "§e第0層（地基）:§r",
-                        "  I I I",
-                        "  I C I",
-                        "  I I I",
+                        "§e自動化石油開採§r",
                         "",
-                        "§e第1-2層（機體）:§r",
-                        "  I . I",
-                        "  . P .",
-                        "  I . I",
+                        "§6預覽說明：§r",
+                        "右側為結構全息圖",
+                        "它會§a自動輪播§r",
+                        "顯示每一層結構。",
                         "",
-                        "§e第3層（頂部）:§r",
-                        "  全部鐵塊"
+                        "§6搭建材料：§r",
+                        "- 抽油機核心 x1",
+                        "- 鐵/金/鑽石塊 x13",
+                        "- 活塞 x2"
                 },
                 new String[]{
-                        "§6圖例：§r",
-                        "C = 抽油機核心",
-                        "I = 鐵/金/鑽石塊",
-                        "P = 活塞（管道）",
-                        ". = 空氣",
-                        "",
                         "§a使用方法：§r",
-                        "1. 用探測器找石油區塊",
+                        "1. 探測器找石油區塊",
                         "2. 建造多方塊結構",
                         "3. 對核心供電",
-                        "4. 從核心提取石油桶"
-                }
+                        "4. 從核心提取石油",
+                        "",
+                        "§7(滑鼠懸停查看方塊)§r"
+                },
+                oilPumpStruct
         ));
 
-        // 升級艙
+        // ==================== 升級艙 (3x3x4) ====================
+        StructureTemplate upgradeChamberStruct = new StructureTemplate(3, 3)
+                .addKey('I', new ItemStack(Blocks.IRON_BLOCK))
+                .addKey('G', new ItemStack(Blocks.GLASS))
+                .addKey('C', new ItemStack(ModBlocks.UPGRADE_CHAMBER_CORE));  // 升級艙核心
+
+        upgradeChamberStruct.addLayer("I.I", ".C.", "I.I");  // 第0層 - 四角框架 + 核心
+        upgradeChamberStruct.addLayer("G.G", "...", "G.G");  // 第1層 - 玻璃柱 + 空間
+        upgradeChamberStruct.addLayer("G.G", "...", "G.G");  // 第2層 - 玻璃柱 + 空間
+        upgradeChamberStruct.addLayer("III", "III", "III");  // 第3層 - 封頂
+
         currentPages.add(new GuidePageContent(
-                "升級艙 (3x3x3)",
+                "升級艙結構",
                 new String[]{
-                        "§e第0層（地板）:§r",
-                        "  I I I",
-                        "  I C I",
-                        "  I I I",
-                        "",
-                        "§e第1層（中間）:§r",
-                        "  I . I",
-                        "  . . .",
-                        "  I . I",
-                        "",
-                        "§e第2層（天花板）:§r",
-                        "  全部框架方塊"
-                },
-                new String[]{
-                        "§6圖例：§r",
-                        "C = 升級艙核心",
-                        "I = 框架方塊",
-                        ". = 空氣（玩家空間）",
+                        "§e模組升級設施§r",
                         "",
                         "§6框架等級：§r",
                         "鐵塊 = 基礎",
                         "金塊 = 進階",
                         "鑽石塊 = 精英",
-                        "綠寶石塊 = 終極"
-                }
-        ));
-
-        currentPages.add(new GuidePageContent(
-                "升級艙使用方法",
-                new String[]{
+                        "綠寶石塊 = 終極",
+                        "",
                         "§a使用步驟：§r",
-                        "",
-                        "1. 將升級模組放入核心",
-                        "",
+                        "1. 放入升級模組",
                         "2. 對核心供電",
-                        "   (需要充滿能量)",
-                        "",
                         "3. 裝備機械核心",
-                        "",
-                        "4. 走進升級艙",
-                        "",
-                        "5. 等待升級完成"
+                        "4. 走進升級艙"
                 },
                 new String[]{
                         "§c注意事項：§r",
+                        "能量不足會失敗",
+                        "更高等級更快",
                         "",
-                        "- 能量不足會導致",
-                        "  升級失敗",
-                        "",
-                        "- 更高等級的框架",
-                        "  升級速度更快",
-                        "",
-                        "- 模組有等級上限",
-                        "  死亡時會降級",
-                        "",
-                        "- 可使用升級艙修復",
-                        "  已降級的模組"
-                }
+                        "§7(滑鼠懸停查看方塊)§r"
+                },
+                upgradeChamberStruct
         ));
 
-        // 智慧之泉
-        currentPages.add(new GuidePageContent(
-                "智慧之泉 (7x7x4)",
-                new String[]{
-                        "§e複雜的祭壇結構§r",
-                        "",
-                        "§6核心部分 (3x3):§r",
-                        "底層：守護者石塊",
-                        "中層：符文虛空石",
-                        "頂層：遠古核心塊",
-                        "      +四角海晶燈",
-                        "",
-                        "§6外圍 (7x7):§r",
-                        "石英塊凹槽設計"
-                },
-                new String[]{
-                        "§6材料清單：§r",
-                        "- 智慧之泉核心 x1",
-                        "- 守護者石塊 x8",
-                        "- 符文虛空石塊 x8",
-                        "- 遠古核心塊 x1",
-                        "- 海晶燈 x4",
-                        "- 石英塊 若干",
-                        "- 水桶 x2",
-                        "",
-                        "§a功能：§r",
-                        "經驗轉化、附魔增強"
-                }
-        ));
+        // ==================== 簡易智慧祭壇 (3x3x3) ====================
+        StructureTemplate wisdomShrineStruct = new StructureTemplate(3, 3)
+                .addKey('E', new ItemStack(Blocks.EMERALD_BLOCK))
+                .addKey('B', new ItemStack(Blocks.BOOKSHELF))
+                .addKey('G', new ItemStack(Blocks.GOLD_BLOCK))
+                .addKey('T', new ItemStack(Blocks.ENCHANTING_TABLE))
+                .addKey('C', new ItemStack(ModBlocks.SIMPLE_WISDOM_SHRINE));  // 智慧祭壇核心
 
-        // 簡易智慧祭壇
-        currentPages.add(new GuidePageContent(
-                "簡易智慧祭壇 (3x3x3)",
-                new String[]{
-                        "§e第0層（祭壇層）:§r",
-                        "  E B E",
-                        "  B C B",
-                        "  E B E",
-                        "",
-                        "§e第1層（中間）:§r",
-                        "  B . B",
-                        "  . . .",
-                        "  B . B",
-                        "",
-                        "§e第2層（頂部）:§r",
-                        "  G B G",
-                        "  B T B",
-                        "  G B G"
-                },
-                new String[]{
-                        "§6圖例：§r",
-                        "C = 簡易智慧祭壇核心",
-                        "E = 綠寶石塊",
-                        "B = 書架",
-                        "G = 金塊",
-                        "T = 附魔台",
-                        ". = 空氣",
-                        "",
-                        "§6範圍：§r 15格",
-                        "",
-                        "§a功能：§r",
-                        "解鎖村民交易",
-                        "加速村民幼體成長"
-                }
-        ));
+        wisdomShrineStruct.addLayer("EBE", "BCB", "EBE");  // 第0層 - 綠寶石角 + 書架邊 + 核心
+        wisdomShrineStruct.addLayer("B.B", "...", "B.B");  // 第1層 - 四角書架 + 空間
+        wisdomShrineStruct.addLayer("GBG", "BTB", "GBG");  // 第2層 - 金塊角 + 書架邊 + 附魔台
 
         currentPages.add(new GuidePageContent(
-                "簡易智慧祭壇使用",
+                "簡易智慧祭壇",
                 new String[]{
-                        "§e自動效果§r",
+                        "§e村民增強設施§r",
                         "",
-                        "結構完成後自動運作",
-                        "無需任何能量供應",
+                        "§a效果1：§r解鎖交易",
+                        "每5秒檢測範圍內",
+                        "村民，重置被鎖定",
+                        "的交易。",
                         "",
-                        "§a效果1：解鎖交易§r",
-                        "每5秒檢測範圍內村民",
-                        "重置被鎖定的交易",
-                        "讓村民可以再次交易",
-                        "",
-                        "§7對經常交易的村民",
-                        "非常有用§r"
-                },
-                new String[]{
-                        "§a效果2：加速成長§r",
-                        "",
-                        "範圍內的村民幼體",
+                        "§a效果2：§r加速成長",
+                        "範圍內村民幼體",
                         "成長速度大幅加快",
                         "",
+                        "§6範圍：§r 15格"
+                },
+                new String[]{
                         "§6建造提示：§r",
-                        "- 將祭壇建在村莊中",
-                        "- 確保村民在範圍內",
-                        "- 右鍵核心查看狀態",
+                        "建在村莊中心",
+                        "無需能量供應",
                         "",
-                        "§c注意：§r",
-                        "結構不完整時無效果"
-                }
+                        "§7(滑鼠懸停查看方塊)§r"
+                },
+                wisdomShrineStruct
+        ));
+
+        // ==================== 重生艙 (3x3x3) ====================
+        StructureTemplate respawnStruct = new StructureTemplate(3, 3)
+                .addKey('I', new ItemStack(Blocks.IRON_BLOCK))
+                .addKey('L', new ItemStack(Blocks.SEA_LANTERN))  // 光源
+                .addKey('C', new ItemStack(ModBlocks.RESPAWN_CHAMBER_CORE));  // 重生艙核心
+
+        respawnStruct.addLayer("III", "ICI", "III");  // 第0層 - 框架 + 核心
+        respawnStruct.addLayer("I.I", "...", "I.I");  // 第1層 - 四角框架 + 空間
+        respawnStruct.addLayer("III", "ILI", "III");  // 第2層 - 框架 + 光源
+
+        currentPages.add(new GuidePageContent(
+                "重生艙結構",
+                new String[]{
+                        "§e重生點設施§r",
+                        "",
+                        "§a功能：§r",
+                        "設置玩家重生點",
+                        "死亡後在此復活",
+                        "",
+                        "§6使用方法：§r",
+                        "1. 建造結構",
+                        "2. 對核心供電",
+                        "3. 進入重生艙",
+                        "4. 右鍵核心綁定"
+                },
+                new String[]{
+                        "§6材料：§r",
+                        "鐵/金/鑽塊 + 核心",
+                        "頂部中心：光源",
+                        "",
+                        "§7(滑鼠懸停查看方塊)§r"
+                },
+                respawnStruct
+        ));
+
+        // ==================== 量子礦機 (3x3x3) ====================
+        StructureTemplate quarryStruct = new StructureTemplate(3, 3)
+                .addKey('A', new ItemStack(QuarryRegistry.blockQuarryActuator))  // 量子代理
+                .addKey('C', new ItemStack(QuarryRegistry.blockQuantumQuarry));  // 量子礦機核心
+
+        quarryStruct.addLayer("...", ".A.", "...");   // 底層（下方代理）
+        quarryStruct.addLayer(".A.", "ACA", ".A.");   // 中間層 - 核心 + 四方代理
+        quarryStruct.addLayer("...", ".A.", "...");   // 頂層（上方代理）
+
+        currentPages.add(new GuidePageContent(
+                "量子礦機結構",
+                new String[]{
+                        "§e自動採礦設施§r",
+                        "",
+                        "§6結構說明：§r",
+                        "核心被6個代理",
+                        "方塊包圍（上下",
+                        "左右前後各1個）",
+                        "",
+                        "§c重要：§r",
+                        "代理必須朝向核心！",
+                        "",
+                        "§6能量：§r",
+                        "640,000 RF/次"
+                },
+                new String[]{
+                        "§a功能：§r",
+                        "消耗RF隨機產礦",
+                        "",
+                        "§7(滑鼠懸停查看方塊)§r"
+                },
+                quarryStruct
+        ));
+
+        // ==================== 一階儀式祭壇 (7x7) ====================
+        // 實際基座位置：
+        // 四方向距離3格: (±3,0), (0,±3)
+        // 對角距離2格: (±2,±2)
+        StructureTemplate ritualTier1 = new StructureTemplate(7, 7)
+                .addKey('P', new ItemStack(moremod.RITUAL_PEDESTAL_BLOCK))  // 儀式基座
+                .addKey('C', new ItemStack(moremod.RITUAL_CORE_BLOCK));     // 儀式核心
+
+        ritualTier1.addLayer(
+                "...P...",   // 北 (0,-3)
+                ".P...P.",   // 西北(-2,-2)、東北(2,-2)
+                ".......",
+                "P..C..P",   // 西(-3,0)、核心、東(3,0)
+                ".......",
+                ".P...P.",   // 西南(-2,2)、東南(2,2)
+                "...P..."    // 南 (0,3)
+        );
+
+        currentPages.add(new GuidePageContent(
+                "一階祭壇 (基礎)",
+                new String[]{
+                        "§e基礎儀式祭壇§r",
+                        "",
+                        "§6結構說明：§r",
+                        "核心周圍放置8個基座",
+                        "",
+                        "§a四方向基座(4個)：§r",
+                        "距離核心3格",
+                        "(東西南北各1個)",
+                        "",
+                        "§a對角基座(4個)：§r",
+                        "距離核心2格對角"
+                },
+                new String[]{
+                        "§6材料：§r",
+                        "- 儀式核心 x1",
+                        "- 基座 x8",
+                        "",
+                        "§a可執行：§r",
+                        "基礎注魔配方",
+                        "",
+                        "§6加成：§r 無",
+                        "",
+                        "§7(滑鼠懸停查看方塊)§r"
+                },
+                ritualTier1
+        ));
+
+        // ==================== 二階儀式祭壇 (9x9) ====================
+        // 裝飾方塊位置（16個可選位置，需至少12個）：
+        // - 四方向距離4: (±4,0), (0,±4)
+        // - 四角距離3,3: (±3,±3)
+        // - 額外位置: (±4,±1), (±1,±4)
+        StructureTemplate ritualTier2 = new StructureTemplate(9, 9)
+                .addKey('P', new ItemStack(moremod.RITUAL_PEDESTAL_BLOCK))  // 儀式基座
+                .addKey('C', new ItemStack(moremod.RITUAL_CORE_BLOCK))      // 儀式核心
+                .addKey('D', new ItemStack(Blocks.REDSTONE_LAMP));          // 裝飾方塊
+
+        ritualTier2.addLayer(
+                "...DDD...",   // row0: 裝飾(0,-4),(-1,-4),(1,-4) at col3,4,5
+                ".D..P..D.",   // row1: 裝飾(-3,-3),(3,-3) at col1,7; 基座(0,-3) at col4
+                "..P...P..",   // row2: 基座(-2,-2),(2,-2) at col2,6
+                "D.......D",   // row3: 裝飾(-4,-1),(4,-1) at col0,8
+                "DP..C..PD",   // row4: 裝飾(-4,0),(4,0) at col0,8; 基座(-3,0),(3,0) at col1,7; 核心
+                "D.......D",   // row5: 裝飾(-4,1),(4,1) at col0,8
+                "..P...P..",   // row6: 基座(-2,2),(2,2) at col2,6
+                ".D..P..D.",   // row7: 裝飾(-3,3),(3,3) at col1,7; 基座(0,3) at col4
+                "...DDD..."    // row8: 裝飾(0,4),(-1,4),(1,4) at col3,4,5
+        );
+
+        currentPages.add(new GuidePageContent(
+                "二階祭壇 (進階)",
+                new String[]{
+                        "§e進階儀式祭壇§r",
+                        "",
+                        "§6結構說明：§r",
+                        "一階基礎 +",
+                        "外圍12+個裝飾方塊",
+                        "(距離核心3-4格)",
+                        "",
+                        "§6裝飾選項：§r",
+                        "紅石燈/書架/石磚",
+                        "海晶燈/螢光石等"
+                },
+                new String[]{
+                        "§a可執行：§r",
+                        "詛咒淨化、經驗加速",
+                        "",
+                        "§6加成：§r",
+                        "成功率 +10%",
+                        "翻倍幾率 5%",
+                        "",
+                        "§7(滑鼠懸停查看方塊)§r"
+                },
+                ritualTier2
+        ));
+
+        // ==================== 三階儀式祭壇 - 地板層 (9x9) ====================
+        StructureTemplate ritualTier3Floor = new StructureTemplate(9, 9)
+                .addKey('Q', new ItemStack(Blocks.QUARTZ_BLOCK))            // 石英地板
+                .addKey('L', new ItemStack(Blocks.PURPUR_PILLAR));          // 柱子底座
+
+        // 三階地板層：5x5石英 + 四角柱子起點
+        ritualTier3Floor.addLayer(
+                "L.......L",
+                ".........",
+                "..QQQQQ..",
+                "..QQQQQ..",
+                "..QQQQQ..",
+                "..QQQQQ..",
+                "..QQQQQ..",
+                ".........",
+                "L.......L"
+        );
+
+        currentPages.add(new GuidePageContent(
+                "三階祭壇 (地板層)",
+                new String[]{
+                        "§e大師祭壇 - 地板§r",
+                        "",
+                        "§6地板要求：§r",
+                        "核心下方鋪設",
+                        "5x5石英塊地板",
+                        "(至少20塊)",
+                        "",
+                        "§6四角柱子：§r",
+                        "距離核心對角4格",
+                        "放置柱子起點"
+                },
+                new String[]{
+                        "§a地板材料：§r",
+                        "石英塊/紫珀塊",
+                        "末地磚/石英台階",
+                        "",
+                        "§6柱子材料：§r",
+                        "石英塊/紫珀柱",
+                        "末地磚/石磚/地獄磚",
+                        "",
+                        "§7(滑鼠懸停查看方塊)§r"
+                },
+                ritualTier3Floor
+        ));
+
+        // ==================== 三階儀式祭壇 - 柱子側視 ====================
+        StructureTemplate ritualTier3Pillar = new StructureTemplate(3, 7)
+                .addKey('Q', new ItemStack(Blocks.QUARTZ_BLOCK))            // 石英柱
+                .addKey('T', new ItemStack(Blocks.QUARTZ_BLOCK));           // 柱頂
+
+        // 三階柱子側視圖（7格高）
+        ritualTier3Pillar.addLayer("...", "...", "..T");  // 第7層 - 頂部
+        ritualTier3Pillar.addLayer("...", "...", "..Q");  // 第6層
+        ritualTier3Pillar.addLayer("...", "...", "..Q");  // 第5層
+        ritualTier3Pillar.addLayer("...", "...", "..Q");  // 第4層
+        ritualTier3Pillar.addLayer("...", "...", "..Q");  // 第3層
+        ritualTier3Pillar.addLayer("...", "...", "..Q");  // 第2層
+        ritualTier3Pillar.addLayer("...", "...", "..Q");  // 第1層 - 底部
+
+        currentPages.add(new GuidePageContent(
+                "三階祭壇 (柱子)",
+                new String[]{
+                        "§e大師祭壇 - 柱子§r",
+                        "",
+                        "§c柱子高度：7格§r",
+                        "",
+                        "§6側視圖說明：§r",
+                        "右側顯示一根柱子",
+                        "從底部向上7格",
+                        "",
+                        "§6四根柱子位置：§r",
+                        "核心對角4格處",
+                        "(+4,+4) (+4,-4)",
+                        "(-4,+4) (-4,-4)"
+                },
+                new String[]{
+                        "§a三階加成：§r",
+                        "成功率 +25%",
+                        "翻倍幾率 15%",
+                        "",
+                        "§6可執行：§r",
+                        "附魔轉移/詛咒創造",
+                        "織印強化/七咒嵌入",
+                        "不可破壞/靈魂束縛",
+                        "",
+                        "§7需至少3根有效柱子"
+                },
+                ritualTier3Pillar
         ));
     }
 
@@ -526,6 +716,332 @@ public class GuiModGuide extends GuiScreen {
                         "",
                         "§e特點：§r",
                         "極大容量，無限快充"
+                }
+        ));
+    }
+
+    private void loadFunctionalBlocksPages() {
+        // 第1頁：功能方塊概述
+        currentPages.add(new GuidePageContent(
+                "功能方塊總覽",
+                new String[]{
+                        "§e自動化方塊§r",
+                        "",
+                        "§6渔网§r",
+                        "自動捕魚",
+                        "",
+                        "§6堆肥桶§r",
+                        "將植物轉化為骨粉",
+                        "",
+                        "§6動物餵食器§r",
+                        "自動餵食周圍動物",
+                        "",
+                        "§6假玩家激活器§r",
+                        "模擬玩家右鍵操作"
+                },
+                new String[]{
+                        "§e實用方塊§r",
+                        "",
+                        "§6物品傳輸器§r",
+                        "遠距離傳輸物品",
+                        "",
+                        "§6交易站§r",
+                        "與村民自動交易",
+                        "",
+                        "§6時間控制器§r",
+                        "加速/減速周圍方塊",
+                        "",
+                        "§6保護力場§r",
+                        "保護區域不被破壞"
+                }
+        ));
+
+        // 第2頁：渔网
+        currentPages.add(new GuidePageContent(
+                "渔网",
+                new String[]{
+                        "§e自動捕魚方塊§r",
+                        "",
+                        "放置在水面上",
+                        "每隔一段時間",
+                        "自動產生魚類",
+                        "",
+                        "§6產出物品：§r",
+                        "- 生鱈魚",
+                        "- 生鮭魚",
+                        "- 河豚",
+                        "- 熱帶魚",
+                        "- 附魔書 (稀有)"
+                },
+                new String[]{
+                        "§a使用方法：§r",
+                        "",
+                        "1. 放置在水面上",
+                        "2. 需要接觸水方塊",
+                        "3. 自動工作",
+                        "4. 漏斗可提取產物",
+                        "",
+                        "§6注意：§r",
+                        "需要足夠的水",
+                        "約10秒產出一次"
+                }
+        ));
+
+        // 第3頁：堆肥桶
+        currentPages.add(new GuidePageContent(
+                "堆肥桶",
+                new String[]{
+                        "§e植物轉骨粉§r",
+                        "",
+                        "將植物材料轉化",
+                        "為骨粉",
+                        "",
+                        "§6可堆肥材料：§r",
+                        "- 樹葉",
+                        "- 草/蕨類",
+                        "- 花朵",
+                        "- 種子",
+                        "- 農作物",
+                        "- 腐肉"
+                },
+                new String[]{
+                        "§a使用方法：§r",
+                        "",
+                        "1. 對堆肥桶右鍵",
+                        "   放入可堆肥材料",
+                        "2. 等待發酵",
+                        "3. 空手右鍵取出",
+                        "",
+                        "§6轉化率：§r",
+                        "約8個材料=1個骨粉",
+                        "",
+                        "§7自動化的骨粉來源"
+                }
+        ));
+
+        // 第4頁：動物餵食器
+        currentPages.add(new GuidePageContent(
+                "動物餵食器",
+                new String[]{
+                        "§e自動繁殖動物§r",
+                        "",
+                        "定期餵食範圍內",
+                        "的可繁殖動物",
+                        "",
+                        "§6工作範圍：§r",
+                        "以方塊為中心",
+                        "8格半徑範圍",
+                        "",
+                        "§6支持動物：§r",
+                        "牛、羊、豬、雞"
+                },
+                new String[]{
+                        "§a使用方法：§r",
+                        "",
+                        "1. 放入對應食物",
+                        "   小麥/種子/胡蘿蔔",
+                        "2. 確保動物在範圍內",
+                        "3. 自動餵食繁殖",
+                        "",
+                        "§6注意：§r",
+                        "需要RF能量供應",
+                        "約5秒餵食一次",
+                        "",
+                        "§7畜牧自動化必備"
+                }
+        ));
+
+        // 第5頁：假玩家激活器
+        currentPages.add(new GuidePageContent(
+                "假玩家激活器",
+                new String[]{
+                        "§e模擬玩家操作§r",
+                        "",
+                        "安裝靈魂核心後",
+                        "可模擬玩家行為",
+                        "",
+                        "§6功能：§r",
+                        "- 自動右鍵使用",
+                        "- 觸發機關/按鈕",
+                        "- 與方塊互動",
+                        "",
+                        "§c需要靈魂核心！§r"
+                },
+                new String[]{
+                        "§a獲取靈魂核心：§r",
+                        "",
+                        "使用儀式系統",
+                        "將頭顱綁定靈魂",
+                        "",
+                        "§6使用方法：§r",
+                        "1. 放置激活器",
+                        "2. 安裝靈魂核心",
+                        "3. 對準目標方塊",
+                        "4. 提供紅石信號",
+                        "",
+                        "§7強力自動化工具"
+                }
+        ));
+
+        // 第6頁：時間控制器
+        currentPages.add(new GuidePageContent(
+                "時間控制器",
+                new String[]{
+                        "§e加速周圍方塊§r",
+                        "",
+                        "消耗RF能量",
+                        "加速周圍方塊的tick",
+                        "",
+                        "§6影響範圍：§r",
+                        "3x3x3 區域",
+                        "",
+                        "§6可加速：§r",
+                        "- 熔爐",
+                        "- 農作物",
+                        "- 機器",
+                        "- 大部分TileEntity"
+                },
+                new String[]{
+                        "§a使用方法：§r",
+                        "",
+                        "1. 放置時間控制器",
+                        "2. 提供RF能量",
+                        "3. 提供紅石信號",
+                        "",
+                        "§6能量消耗：§r",
+                        "約100 RF/tick",
+                        "加速倍率：5x",
+                        "",
+                        "§7配合農場效果絕佳"
+                }
+        ));
+
+        // 第7頁：時域加速器
+        currentPages.add(new GuidePageContent(
+                "時域加速器",
+                new String[]{
+                        "§e更強的時間控制§r",
+                        "",
+                        "時間控制器的",
+                        "進階版本",
+                        "",
+                        "§6優勢：§r",
+                        "- 更大的範圍",
+                        "- 更高的加速倍率",
+                        "- 更低的能耗比",
+                        "",
+                        "§6影響範圍：§r",
+                        "5x5x5 區域"
+                },
+                new String[]{
+                        "§6能量需求：§r",
+                        "200 RF/tick",
+                        "加速倍率：10x",
+                        "",
+                        "§a適用場景：§r",
+                        "- 大型農場",
+                        "- 機器陣列",
+                        "- 生物生長",
+                        "",
+                        "§c注意：§r",
+                        "高能耗，確保",
+                        "電力供應充足"
+                }
+        ));
+
+        // 第8頁：保護力場生成器
+        currentPages.add(new GuidePageContent(
+                "保護力場生成器",
+                new String[]{
+                        "§e區域保護§r",
+                        "",
+                        "創建不可破壞的",
+                        "力場保護區域",
+                        "",
+                        "§6保護範圍：§r",
+                        "以方塊為中心",
+                        "可配置半徑",
+                        "",
+                        "§6效果：§r",
+                        "- 阻止方塊破壞",
+                        "- 阻止爆炸破壞",
+                        "- 阻止液體流入"
+                },
+                new String[]{
+                        "§6能量需求：§r",
+                        "容量：5,000,000 RF",
+                        "輸入：200,000 RF/t",
+                        "消耗：5,000 RF/tick",
+                        "",
+                        "§a使用方法：§r",
+                        "1. 放置生成器",
+                        "2. 充滿能量",
+                        "3. 提供紅石信號",
+                        "",
+                        "§7保護你的基地！"
+                }
+        ));
+
+        // 第9頁：量子採礦機
+        currentPages.add(new GuidePageContent(
+                "量子採礦機",
+                new String[]{
+                        "§e自動化採礦§r",
+                        "",
+                        "消耗RF能量",
+                        "自動獲取礦物",
+                        "",
+                        "§6產出物品：§r",
+                        "- 煤炭",
+                        "- 鐵礦/金礦",
+                        "- 鑽石/綠寶石",
+                        "- 紅石/青金石",
+                        "- 模組礦物"
+                },
+                new String[]{
+                        "§6能量需求：§r",
+                        "640,000 RF/次",
+                        "",
+                        "§a優化建議：§r",
+                        "配合2座發電廠",
+                        "確保持續供電",
+                        "",
+                        "§6特點：§r",
+                        "無需實際挖掘",
+                        "概率獲取礦物",
+                        "支持升級插件"
+                }
+        ));
+
+        // 第10頁：物品傳輸器
+        currentPages.add(new GuidePageContent(
+                "物品傳輸器",
+                new String[]{
+                        "§e遠距離傳輸§r",
+                        "",
+                        "將物品瞬間傳送",
+                        "到連結的位置",
+                        "",
+                        "§6工作原理：§r",
+                        "1. 放置兩個傳輸器",
+                        "2. 使用連結工具連結",
+                        "3. 物品自動傳輸",
+                        "",
+                        "§6傳輸距離：§r",
+                        "同維度內無限"
+                },
+                new String[]{
+                        "§a使用方法：§r",
+                        "",
+                        "1. 用傳輸連結器",
+                        "   右鍵第一個傳輸器",
+                        "2. 再右鍵第二個",
+                        "3. 完成連結",
+                        "",
+                        "§6能量需求：§r",
+                        "根據距離變化",
+                        "",
+                        "§7跨基地物流必備"
                 }
         ));
     }
@@ -967,6 +1483,76 @@ public class GuiModGuide extends GuiScreen {
                 }
         ));
 
+        // 第3.5頁：二階祭壇搭建方法
+        currentPages.add(new GuidePageContent(
+                "二階祭壇搭建",
+                new String[]{
+                        "§e進階祭壇結構§r",
+                        "",
+                        "§6基礎要求：§r",
+                        "一階祭壇 + 外圍裝飾",
+                        "",
+                        "§6裝飾方塊位置：§r",
+                        "距離核心3-4格處",
+                        "放置至少12個裝飾方塊",
+                        "",
+                        "§a可用裝飾方塊：§r",
+                        "- 紅石燈",
+                        "- 書架",
+                        "- 雕刻石磚"
+                },
+                new String[]{
+                        "§a更多裝飾選項：§r",
+                        "- 海晶燈",
+                        "- 螢光石",
+                        "- 海磷石",
+                        "- 末地磚",
+                        "- 紫珀塊",
+                        "- 地獄磚",
+                        "",
+                        "§6加成效果：§r",
+                        "成功率 +10%",
+                        "翻倍幾率 5%"
+                }
+        ));
+
+        // 第3.6頁：三階祭壇搭建方法
+        currentPages.add(new GuidePageContent(
+                "三階祭壇搭建",
+                new String[]{
+                        "§e大師祭壇結構§r",
+                        "",
+                        "§c必須先滿足二階條件！§r",
+                        "",
+                        "§6額外要求：§r",
+                        "",
+                        "§a1. 石英地板§r",
+                        "核心下方5x5區域",
+                        "鋪設石英塊/紫珀塊",
+                        "(至少20塊)",
+                        "",
+                        "§a2. 四角柱子§r",
+                        "距離核心對角4格處"
+                },
+                new String[]{
+                        "§6柱子要求：§r",
+                        "§e高度：7格§r",
+                        "",
+                        "§a可用柱子材料：§r",
+                        "- 石英塊",
+                        "- 紫珀柱",
+                        "- 末地磚",
+                        "- 石磚",
+                        "- 地獄磚",
+                        "",
+                        "§6加成效果：§r",
+                        "成功率 +25%",
+                        "翻倍幾率 15%",
+                        "",
+                        "§7需要至少3根有效柱子"
+                }
+        ));
+
         // 第4頁：詛咒淨化儀式
         currentPages.add(new GuidePageContent(
                 "詛咒淨化儀式 (二階)",
@@ -1091,11 +1677,10 @@ public class GuiModGuide extends GuiScreen {
                         "已織入布料的盔甲",
                         "可在祭壇中進一步強化",
                         "",
-                        "§6強化材料：§r",
-                        "- 龍息",
-                        "- 終界之眼",
-                        "- 地獄之星",
-                        "- 海晶碎片"
+                        "§6強化材料 (任一)：§r",
+                        "龍息/終界之眼/",
+                        "地獄之星/海晶碎片/",
+                        "烈焰粉"
                 },
                 new String[]{
                         "§a階層加成：§r",
@@ -1148,8 +1733,10 @@ public class GuiModGuide extends GuiScreen {
                         "",
                         "§6材料需求：§r",
                         "中心：書本",
-                        "基座：墨囊 x4",
-                        "      蜘蛛眼 x4",
+                        "基座：",
+                        "  墨囊 x1",
+                        "  腐肉/蜘蛛眼/",
+                        "  發酵蜘蛛眼 x1~2",
                         "",
                         "§a產出：§r",
                         "詛咒附魔書",
@@ -1196,6 +1783,194 @@ public class GuiModGuide extends GuiScreen {
                         "",
                         "§c失敗風險：§r",
                         "附魔書會被消耗！"
+                }
+        ));
+
+        // 第12頁：不可破壞儀式（读取CRT配置）
+        {
+            String[] defaultMats = {"  地獄之星 x2", "  黑曜石 x2", "  鑽石 x4"};
+            String[] materials = getRitualMaterials(LegacyRitualConfig.UNBREAKABLE, defaultMats);
+            String params = getRitualParamsText(LegacyRitualConfig.UNBREAKABLE);
+            int tier = LegacyRitualConfig.getRequiredTier(LegacyRitualConfig.UNBREAKABLE);
+
+            List<String> leftLines = new ArrayList<>();
+            leftLines.add("§e使物品永不損壞§r");
+            leftLines.add("");
+            leftLines.add("§6材料需求：§r");
+            leftLines.add("中心：任意有耐久物品");
+            leftLines.add("基座：");
+            for (String mat : materials) {
+                leftLines.add(mat);
+            }
+            leftLines.add("");
+            leftLines.add("§c需要" + tier + "階祭壇！§r");
+
+            currentPages.add(new GuidePageContent(
+                    "不可破壞儀式 (" + tier + "階)",
+                    leftLines.toArray(new String[0]),
+                    new String[]{
+                            "§a效果：§r",
+                            "",
+                            "為物品添加",
+                            "Unbreakable 標籤",
+                            "物品將永不損壞",
+                            "",
+                            "§6參數(CRT可改)：§r",
+                            params,
+                            "",
+                            "§6特點：§r",
+                            "- §a保留所有NBT數據§r",
+                            "- 保留所有附魔",
+                            "",
+                            "§c失敗懲罰：§r",
+                            "物品損失50%耐久"
+                    }
+            ));
+        }
+
+        // 第13頁：靈魂束縛儀式（读取CRT配置）
+        {
+            String[] defaultMats = {"  末影珍珠 x4", "  惡魂之淚 x2", "  金塊 x2"};
+            String[] materials = getRitualMaterials(LegacyRitualConfig.SOULBOUND, defaultMats);
+            String params = getRitualParamsText(LegacyRitualConfig.SOULBOUND);
+            int tier = LegacyRitualConfig.getRequiredTier(LegacyRitualConfig.SOULBOUND);
+
+            List<String> leftLines = new ArrayList<>();
+            leftLines.add("§e使物品死亡不掉落§r");
+            leftLines.add("");
+            leftLines.add("§6材料需求：§r");
+            leftLines.add("中心：任意物品");
+            leftLines.add("基座：");
+            for (String mat : materials) {
+                leftLines.add(mat);
+            }
+            leftLines.add("");
+            leftLines.add("§c需要" + tier + "階祭壇！§r");
+
+            currentPages.add(new GuidePageContent(
+                    "靈魂束縛儀式 (" + tier + "階)",
+                    leftLines.toArray(new String[0]),
+                    new String[]{
+                            "§a效果：§r",
+                            "",
+                            "為物品添加",
+                            "Soulbound 標籤",
+                            "死亡時物品不會掉落",
+                            "",
+                            "§6參數(CRT可改)：§r",
+                            params,
+                            "",
+                            "§6特點：§r",
+                            "- §a保留所有NBT數據§r",
+                            "- 保留所有附魔",
+                            "",
+                            "§c失敗懲罰：§r",
+                            "物品被虛空吞噬！"
+                    }
+            ));
+        }
+
+        // 第14頁：武器經驗加速儀式
+        currentPages.add(new GuidePageContent(
+                "武器經驗加速 (二階)",
+                new String[]{
+                        "§e加速武器升級§r",
+                        "",
+                        "§6適用武器：§r",
+                        "- 澄月 (Clarity)",
+                        "- 勇者之劍",
+                        "- 鉅刃劍",
+                        "",
+                        "§6材料需求：§r",
+                        "中心：上述武器",
+                        "基座：經驗瓶/附魔書",
+                        "      或綠寶石 (≥1)"
+                },
+                new String[]{
+                        "§a效果：§r",
+                        "",
+                        "為武器添加經驗",
+                        "加速Buff",
+                        "",
+                        "§6持續時間：§r",
+                        "10分鐘",
+                        "",
+                        "§7加速武器的經驗",
+                        "獲取速度"
+                }
+        ));
+
+        // 第14頁：村正攻擊提升儀式
+        currentPages.add(new GuidePageContent(
+                "村正攻擊提升 (二階)",
+                new String[]{
+                        "§c臨時提升村正攻擊力§r",
+                        "",
+                        "§6材料需求：§r",
+                        "中心：村正",
+                        "基座：岩漿膏/烈焰粉",
+                        "      或地獄之星 (≥1)",
+                        "",
+                        "§c需要二階祭壇！§r"
+                },
+                new String[]{
+                        "§a效果：§r",
+                        "",
+                        "村正獲得臨時的",
+                        "攻擊力提升效果",
+                        "",
+                        "§6持續時間：§r",
+                        "10分鐘",
+                        "",
+                        "§7村正的力量",
+                        "因鮮血而覺醒"
+                }
+        ));
+
+        // 第15頁：特殊儀式總覽
+        currentPages.add(new GuidePageContent(
+                "特殊儀式總覽",
+                new String[]{
+                        "§e二階祭壇儀式：§r",
+                        "",
+                        "§6詛咒淨化§r",
+                        "移除物品詛咒附魔",
+                        "",
+                        "§6詛咒創造§r",
+                        "創建詛咒卷軸",
+                        "",
+                        "§6武器經驗加速§r",
+                        "加速武器經驗獲取",
+                        "",
+                        "§6村正攻擊提升§r",
+                        "臨時提升村正攻擊力",
+                        "",
+                        "§6織印強化§r",
+                        "強化織印盔甲效果"
+                },
+                new String[]{
+                        "§e三階祭壇儀式：§r",
+                        "",
+                        "§6注魔儀式§r",
+                        "附魔書注入物品",
+                        "",
+                        "§6附魔轉移§r",
+                        "轉移附魔到其他物品",
+                        "",
+                        "§6靈魂綁定§r",
+                        "頭顱創建假玩家核心",
+                        "",
+                        "§6禁忌複製§r",
+                        "詛咒之鏡複製物品",
+                        "",
+                        "§6七聖遺物嵌入§r",
+                        "遺物嵌入七咒玩家",
+                        "",
+                        "§6不可破壞§r",
+                        "使物品永不損壞",
+                        "",
+                        "§6§l靈魂束縛§r",
+                        "使物品死亡不掉落"
                 }
         ));
 
@@ -1369,7 +2144,7 @@ public class GuiModGuide extends GuiScreen {
         drawBookBackground();
 
         if (!currentPages.isEmpty() && currentPage < currentPages.size()) {
-            drawPageContent(currentPages.get(currentPage));
+            drawPageContent(currentPages.get(currentPage), mouseX, mouseY);
         }
 
         // 繪製頁碼
@@ -1393,49 +2168,130 @@ public class GuiModGuide extends GuiScreen {
     }
 
     /**
-     * ⭐ 核心方法：使用 drawSplitString 實現自動換行
+     * ⭐ 核心方法：繪製頁面內容（支援結構渲染）
      */
-    private void drawPageContent(GuidePageContent page) {
+    private void drawPageContent(GuidePageContent page, int mouseX, int mouseY) {
         int centerX = guiLeft + BOOK_WIDTH / 2;
         int startY = guiTop + 20;
-
-        // 定義每一頁的文字寬度 (預留邊距)
-        // 書總寬 256 -> 半邊 128 -> 扣除邊距後約 100
         int pageWidth = 100;
         int leftX = guiLeft + 18;
         int rightX = centerX + 12;
-        int textColor = 0x000000;
 
-        // 1. 繪製標題 (跨頁居中)
+        // 1. 繪製標題
         GlStateManager.pushMatrix();
-        // 稍微往上移一點
         GlStateManager.translate(centerX, guiTop + 12, 0);
         GlStateManager.scale(1.2f, 1.2f, 1f);
         drawCenteredString(fontRenderer, TextFormatting.DARK_BLUE + page.title, 0, 0, 0);
         GlStateManager.popMatrix();
 
-        // 2. 繪製左頁內容
-        int y = startY + 10;
-        for (String line : page.leftContent) {
-            // 檢查是否超出頁面底部，超出則不繪製
-            if (y > guiTop + BOOK_HEIGHT - 35) break;
+        // 2. 繪製左頁文字
+        drawText(page.leftContent, leftX, startY + 10, pageWidth);
 
-            // ⭐ 關鍵：drawSplitString 自動換行
-            fontRenderer.drawSplitString(line, leftX, y, pageWidth, textColor);
+        // 3. 繪製右頁 (結構 + 文字)
+        int rightTextY = startY + 10;
 
-            // ⭐ 關鍵：根據換行後的高度動態增加 Y 座標
-            // 如果一行字換成了兩行，高度就會增加
-            y += fontRenderer.getWordWrappedHeight(line, pageWidth);
+        if (page.structure != null) {
+            // 渲染結構並獲取佔用高度
+            int structHeight = drawStructure(page.structure, centerX, guiTop, mouseX, mouseY);
+            rightTextY += structHeight + 5;
         }
 
-        // 3. 繪製右頁內容
-        y = startY + 10;
-        for (String line : page.rightContent) {
-            if (y > guiTop + BOOK_HEIGHT - 35) break;
+        // 繪製右頁剩餘文字
+        drawText(page.rightContent, rightX, rightTextY, pageWidth);
+    }
 
-            fontRenderer.drawSplitString(line, rightX, y, pageWidth, textColor);
-            y += fontRenderer.getWordWrappedHeight(line, pageWidth);
+    /**
+     * 輔助方法：繪製文字
+     */
+    private void drawText(String[] lines, int x, int y, int width) {
+        for (String line : lines) {
+            if (y > guiTop + BOOK_HEIGHT - 35) break;
+            fontRenderer.drawSplitString(line, x, y, width, 0x000000);
+            y += fontRenderer.getWordWrappedHeight(line, width);
         }
+    }
+
+    /**
+     * ⭐⭐⭐ 核心渲染方法：繪製多方塊結構 ⭐⭐⭐
+     * 包含：自動縮放、層級輪播、物品光照、Tooltip
+     * @return 渲染區域佔用的總高度
+     */
+    private int drawStructure(StructureTemplate struct, int centerX, int topY, int mouseX, int mouseY) {
+        if (struct == null || struct.layers.isEmpty()) return 0;
+
+        // 1. 計算當前輪播到哪一層 (基於世界時間)
+        long totalTime = Minecraft.getMinecraft().world != null ?
+                Minecraft.getMinecraft().world.getTotalWorldTime() : 0;
+        int totalLayers = struct.layers.size();
+        int currentIdx = (int) ((totalTime / StructureTemplate.TICKS_PER_LAYER) % totalLayers);
+
+        ItemStack[] layerBlocks = struct.layers.get(currentIdx);
+
+        // 2. 計算自動縮放比例
+        int maxWidth = 100;
+        int maxHeight = 80;
+        int realWidth = struct.sizeX * 16;
+        int realHeight = struct.sizeZ * 16;
+
+        float scale = Math.min(1.5f, Math.min((float) maxWidth / realWidth, (float) maxHeight / realHeight));
+
+        int renderW = (int) (realWidth * scale);
+        int renderH = (int) (realHeight * scale);
+
+        // 3. 計算居中位置
+        int offsetX = 12 + (maxWidth - renderW) / 2;
+        int offsetY = 25;
+
+        // 4. 開始繪製
+        GlStateManager.pushMatrix();
+        GlStateManager.translate(centerX + offsetX, topY + offsetY, 100);
+        GlStateManager.scale(scale, scale, 1.0f);
+
+        RenderHelper.enableGUIStandardItemLighting();
+
+        ItemStack hoveredStack = ItemStack.EMPTY;
+
+        for (int z = 0; z < struct.sizeZ; z++) {
+            for (int x = 0; x < struct.sizeX; x++) {
+                int idx = z * struct.sizeX + x;
+                ItemStack stack = layerBlocks[idx];
+
+                if (!stack.isEmpty()) {
+                    int itemX = x * 16;
+                    int itemY = z * 16;
+
+                    this.itemRender.renderItemAndEffectIntoGUI(stack, itemX, itemY);
+
+                    // 檢測鼠標懸停
+                    float screenX = centerX + offsetX + itemX * scale;
+                    float screenY = topY + offsetY + itemY * scale;
+                    float size = 16 * scale;
+
+                    if (mouseX >= screenX && mouseX < screenX + size &&
+                            mouseY >= screenY && mouseY < screenY + size) {
+                        hoveredStack = stack;
+                    }
+                }
+            }
+        }
+
+        RenderHelper.disableStandardItemLighting();
+        GlStateManager.popMatrix();
+
+        // 5. 繪製層級提示
+        String label = "§7第 " + currentIdx + " 層 (共" + totalLayers + "層)§r";
+        if (currentIdx == 0) label += " §8(底座)§r";
+        else if (currentIdx == totalLayers - 1) label += " §8(頂部)§r";
+
+        int labelWidth = fontRenderer.getStringWidth(label);
+        fontRenderer.drawString(label, centerX + 12 + (maxWidth - labelWidth) / 2, topY + offsetY + renderH + 5, 0x555555);
+
+        // 6. 繪製 Tooltip
+        if (!hoveredStack.isEmpty()) {
+            this.renderToolTip(hoveredStack, mouseX, mouseY);
+        }
+
+        return renderH + 20;
     }
 
     @Override
@@ -1465,17 +2321,94 @@ public class GuiModGuide extends GuiScreen {
     }
 
     /**
+     * 多方塊結構模板 - 用於存儲結構數據
+     */
+    private static class StructureTemplate {
+        final int sizeX, sizeZ;
+        final List<ItemStack[]> layers = new ArrayList<>();
+        final Map<Character, ItemStack> keyMap = new HashMap<>();
+
+        // 每層顯示時間 (Ticks)，40 ticks = 2秒
+        static final int TICKS_PER_LAYER = 40;
+
+        public StructureTemplate(int sizeX, int sizeZ) {
+            this.sizeX = sizeX;
+            this.sizeZ = sizeZ;
+            keyMap.put('.', ItemStack.EMPTY);
+            keyMap.put(' ', ItemStack.EMPTY);
+        }
+
+        public StructureTemplate addKey(char key, ItemStack stack) {
+            keyMap.put(key, stack);
+            return this;
+        }
+
+        public StructureTemplate addLayer(String... rows) {
+            ItemStack[] layerData = new ItemStack[sizeX * sizeZ];
+            for (int z = 0; z < sizeZ; z++) {
+                String row = (z < rows.length) ? rows[z] : "";
+                for (int x = 0; x < sizeX; x++) {
+                    char c = (x < row.length()) ? row.charAt(x) : ' ';
+                    layerData[z * sizeX + x] = keyMap.getOrDefault(c, ItemStack.EMPTY);
+                }
+            }
+            layers.add(layerData);
+            return this;
+        }
+    }
+
+    // ========== CRT配置读取辅助方法 ==========
+
+    /**
+     * 获取仪式的材料显示文本
+     * 自动读取CRT配置，如无配置则返回默认材料
+     */
+    private String[] getRitualMaterials(String ritualId, String[] defaultMaterials) {
+        if (LegacyRitualConfig.hasCustomMaterials(ritualId)) {
+            List<LegacyRitualConfig.MaterialRequirement> reqs = LegacyRitualConfig.getMaterialRequirements(ritualId);
+            if (reqs.isEmpty()) {
+                return new String[]{"§7(已被CRT清除)"};
+            }
+            List<String> result = new ArrayList<>();
+            for (LegacyRitualConfig.MaterialRequirement req : reqs) {
+                result.add("  " + req.getDescription());
+            }
+            return result.toArray(new String[0]);
+        }
+        return defaultMaterials;
+    }
+
+    /**
+     * 获取仪式参数显示文本（时间、能量、失败率）
+     */
+    private String getRitualParamsText(String ritualId) {
+        int duration = LegacyRitualConfig.getDuration(ritualId);
+        int energy = LegacyRitualConfig.getEnergyPerPedestal(ritualId);
+        float failChance = LegacyRitualConfig.getFailChance(ritualId);
+        float successRate = (1 - failChance) * 100;
+
+        return String.format("時間:%.1f秒 能量:%dRF/座 成功:%.0f%%",
+                duration / 20.0f, energy, successRate);
+    }
+
+    /**
      * 頁面內容容器
      */
     private static class GuidePageContent {
         final String title;
         final String[] leftContent;
         final String[] rightContent;
+        final StructureTemplate structure;
 
         GuidePageContent(String title, String[] left, String[] right) {
+            this(title, left, right, null);
+        }
+
+        GuidePageContent(String title, String[] left, String[] right, StructureTemplate structure) {
             this.title = title;
             this.leftContent = left;
             this.rightContent = right;
+            this.structure = structure;
         }
     }
 }

@@ -8,10 +8,9 @@
   "priority": 1000,
   "verbose": true,
   "mixins": [
-    "MixinContainerEnchantment"
   ],
   "client": [
-    "MixinGuiEnchantment"
+
   ],
   "server": [],
   "injectors": {

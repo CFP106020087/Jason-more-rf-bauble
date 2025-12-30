@@ -31,6 +31,7 @@ import com.moremod.block.BlockOilExtractorCore;
 import com.moremod.block.BlockPlantOilPress;
 import com.moremod.block.BlockOilGenerator;
 import com.moremod.block.energy.BlockChargingStation;
+import com.moremod.block.energy.BlockEnergyLink;
 
 // 🩸 血液发电机
 import com.moremod.block.BlockBloodGenerator;
@@ -70,6 +71,7 @@ import com.moremod.tile.TileEntityOilExtractorCore;
 import com.moremod.tile.TileEntityPlantOilPress;
 import com.moremod.tile.TileEntityOilGenerator;
 import com.moremod.tile.TileEntityChargingStation;
+import com.moremod.tile.TileEntityEnergyLink;
 
 // 🩸 血液发电机 TileEntity
 import com.moremod.tile.TileEntityBloodGenerator;
@@ -155,6 +157,7 @@ public class ModBlocks {
     public static Block PLANT_OIL_PRESS;
     public static Block OIL_GENERATOR;
     public static Block CHARGING_STATION;
+    public static Block ENERGY_LINK;
 
     // 🩸 血液发电机方块
     public static Block BLOOD_GENERATOR;
@@ -290,6 +293,10 @@ public class ModBlocks {
         event.getRegistry().register(CHARGING_STATION);
         System.out.println("[MoreMod] ⚡ 充能站方塊已註冊");
 
+        ENERGY_LINK = new BlockEnergyLink();
+        event.getRegistry().register(ENERGY_LINK);
+        System.out.println("[MoreMod] ⚡ 能量鏈接器方塊已註冊");
+
         // 🩸 血液发电机方块
         BLOOD_GENERATOR = new BlockBloodGenerator();
         event.getRegistry().register(BLOOD_GENERATOR);
@@ -391,6 +398,10 @@ public class ModBlocks {
         GameRegistry.registerTileEntity(TileEntityChargingStation.class,
                 new ResourceLocation(moremod.MODID, "charging_station"));
         System.out.println("[MoreMod] ⚡ 充能站 TileEntity 已註冊");
+
+        GameRegistry.registerTileEntity(TileEntityEnergyLink.class,
+                new ResourceLocation(moremod.MODID, "energy_link"));
+        System.out.println("[MoreMod] ⚡ 能量鏈接器 TileEntity 已註冊");
 
         // 🩸 血液发电机 TileEntity
         GameRegistry.registerTileEntity(TileEntityBloodGenerator.class,
@@ -552,6 +563,11 @@ public class ModBlocks {
                     .setRegistryName(CHARGING_STATION.getRegistryName()));
             System.out.println("[MoreMod] ⚡ 充能站 ItemBlock 已註冊");
         }
+        if (ENERGY_LINK != null) {
+            event.getRegistry().register(new ItemBlock(ENERGY_LINK)
+                    .setRegistryName(ENERGY_LINK.getRegistryName()));
+            System.out.println("[MoreMod] ⚡ 能量鏈接器 ItemBlock 已註冊");
+        }
 
         // 🩸 血液发电机 ItemBlock
         if (BLOOD_GENERATOR != null) {
@@ -687,6 +703,10 @@ public class ModBlocks {
         if (CHARGING_STATION != null) {
             registerBlockModel(CHARGING_STATION);
             System.out.println("[MoreMod] ⚡ 充能站模型已註冊");
+        }
+        if (ENERGY_LINK != null) {
+            registerBlockModel(ENERGY_LINK);
+            System.out.println("[MoreMod] ⚡ 能量鏈接器模型已註冊");
         }
 
         // 🩸 血液发电机模型

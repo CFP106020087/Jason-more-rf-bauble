@@ -1,5 +1,6 @@
 package com.moremod.tile;
 
+import com.moremod.item.energy.ItemSpeedUpgrade;
 import net.minecraft.block.Block;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.init.Blocks;
@@ -23,15 +24,19 @@ import java.util.Map;
 
 /**
  * 生物质发电机TileEntity - 使用有机物发电
+ * 支持升级插件提升效率
  */
 public class TileEntityBioGenerator extends TileEntity implements ITickable {
 
     // 能量存储
-    private static final int MAX_ENERGY = 50000;
-    private static final int RF_PER_TICK = 40;
-    private final EnergyStorageInternal energyStorage = new EnergyStorageInternal(MAX_ENERGY, 0, 1000);
+    private static final int MAX_ENERGY = 100000;
+    private static final int BASE_RF_PER_TICK = 200;  // 基础 200 RF/tick
+    private static final int UPGRADE_SLOTS = 4;
+    private static final float SPEED_PER_UPGRADE = 0.5f;
 
-    // 燃料存储 (9格)
+    private final EnergyStorageInternal energyStorage = new EnergyStorageInternal(MAX_ENERGY, 0, Integer.MAX_VALUE);
+
+    // 燃料存储 (9格) + 升级槽 (4格)
     private final ItemStackHandler fuelInventory = new ItemStackHandler(9) {
         @Override
         protected void onContentsChanged(int slot) {
@@ -43,6 +48,27 @@ public class TileEntityBioGenerator extends TileEntity implements ITickable {
             return getFuelValue(stack) > 0;
         }
     };
+
+    // 升级插件槽
+    private final ItemStackHandler upgradeInventory = new ItemStackHandler(UPGRADE_SLOTS) {
+        @Override
+        protected void onContentsChanged(int slot) {
+            markDirty();
+            cachedSpeedMultiplier = -1;
+        }
+
+        @Override
+        public boolean isItemValid(int slot, ItemStack stack) {
+            return isValidUpgrade(stack);
+        }
+
+        @Override
+        public int getSlotLimit(int slot) {
+            return 1;
+        }
+    };
+
+    private float cachedSpeedMultiplier = -1;
 
     // 当前燃烧进度
     private int burnTime = 0;
@@ -85,6 +111,49 @@ public class TileEntityBioGenerator extends TileEntity implements ITickable {
         FUEL_VALUES.put(Item.getItemFromBlock(Blocks.MELON_BLOCK), 800);
     }
 
+    /**
+     * 检查是否是有效的升级材料
+     */
+    public static boolean isValidUpgrade(ItemStack stack) {
+        if (stack.getItem() instanceof ItemSpeedUpgrade) {
+            return true;
+        }
+        return stack.getItem() == Items.REDSTONE ||
+               stack.getItem() == Items.GLOWSTONE_DUST ||
+               stack.getItem() == Items.BLAZE_POWDER ||
+               stack.getItem() == Items.EMERALD;
+    }
+
+    /**
+     * 计算速度倍率
+     */
+    public float getSpeedMultiplier() {
+        if (cachedSpeedMultiplier < 0) {
+            int upgradeCount = 0;
+            for (int i = 0; i < UPGRADE_SLOTS; i++) {
+                if (!upgradeInventory.getStackInSlot(i).isEmpty()) {
+                    upgradeCount++;
+                }
+            }
+            cachedSpeedMultiplier = 1.0f + (upgradeCount * SPEED_PER_UPGRADE);
+        }
+        return cachedSpeedMultiplier;
+    }
+
+    public int getUpgradeCount() {
+        int count = 0;
+        for (int i = 0; i < UPGRADE_SLOTS; i++) {
+            if (!upgradeInventory.getStackInSlot(i).isEmpty()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    public ItemStackHandler getUpgradeInventory() {
+        return upgradeInventory;
+    }
+
     @Override
     public void update() {
         if (world == null || world.isRemote) return;
@@ -96,9 +165,11 @@ public class TileEntityBioGenerator extends TileEntity implements ITickable {
             burnTime--;
             generating = true;
 
-            // 产生能量
+            // 产生能量（应用速度倍率）
             if (energyStorage.getEnergyStored() < energyStorage.getMaxEnergyStored()) {
-                int toAdd = Math.min(RF_PER_TICK, energyStorage.getMaxEnergyStored() - energyStorage.getEnergyStored());
+                float speedMultiplier = getSpeedMultiplier();
+                int actualRFPerTick = (int)(BASE_RF_PER_TICK * speedMultiplier);
+                int toAdd = Math.min(actualRFPerTick, energyStorage.getMaxEnergyStored() - energyStorage.getEnergyStored());
                 ((EnergyStorageInternal) energyStorage).addEnergy(toAdd);
             }
         } else {
@@ -131,8 +202,8 @@ public class TileEntityBioGenerator extends TileEntity implements ITickable {
             if (!stack.isEmpty()) {
                 int fuelValue = getFuelValue(stack);
                 if (fuelValue > 0) {
-                    // 计算燃烧时间 (fuelValue / RF_PER_TICK)
-                    maxBurnTime = fuelValue / RF_PER_TICK;
+                    // 计算燃烧时间 (fuelValue / BASE_RF_PER_TICK)
+                    maxBurnTime = fuelValue / BASE_RF_PER_TICK;
                     burnTime = maxBurnTime;
                     generating = true;
 
@@ -156,7 +227,7 @@ public class TileEntityBioGenerator extends TileEntity implements ITickable {
             if (neighbor != null && neighbor.hasCapability(CapabilityEnergy.ENERGY, facing.getOpposite())) {
                 IEnergyStorage neighborStorage = neighbor.getCapability(CapabilityEnergy.ENERGY, facing.getOpposite());
                 if (neighborStorage != null && neighborStorage.canReceive()) {
-                    int toTransfer = Math.min(1000, energyStorage.getEnergyStored());
+                    int toTransfer = Math.min(Integer.MAX_VALUE, energyStorage.getEnergyStored());
                     int transferred = neighborStorage.receiveEnergy(toTransfer, false);
                     if (transferred > 0) {
                         ((EnergyStorageInternal) energyStorage).extractEnergyInternal(transferred);
@@ -233,10 +304,16 @@ public class TileEntityBioGenerator extends TileEntity implements ITickable {
 
     // ========== NBT ==========
 
+    public int getRFPerTick() {
+        if (!generating) return 0;
+        return (int)(BASE_RF_PER_TICK * getSpeedMultiplier());
+    }
+
     @Override
     public NBTTagCompound writeToNBT(NBTTagCompound compound) {
         super.writeToNBT(compound);
         compound.setTag("Fuel", fuelInventory.serializeNBT());
+        compound.setTag("Upgrades", upgradeInventory.serializeNBT());
         compound.setInteger("Energy", energyStorage.getEnergyStored());
         compound.setInteger("BurnTime", burnTime);
         compound.setInteger("MaxBurnTime", maxBurnTime);
@@ -248,6 +325,10 @@ public class TileEntityBioGenerator extends TileEntity implements ITickable {
     public void readFromNBT(NBTTagCompound compound) {
         super.readFromNBT(compound);
         fuelInventory.deserializeNBT(compound.getCompoundTag("Fuel"));
+        if (compound.hasKey("Upgrades")) {
+            upgradeInventory.deserializeNBT(compound.getCompoundTag("Upgrades"));
+            cachedSpeedMultiplier = -1;
+        }
         ((EnergyStorageInternal) energyStorage).setEnergy(compound.getInteger("Energy"));
         burnTime = compound.getInteger("BurnTime");
         maxBurnTime = compound.getInteger("MaxBurnTime");

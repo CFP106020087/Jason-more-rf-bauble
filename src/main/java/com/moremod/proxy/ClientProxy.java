@@ -26,6 +26,9 @@ import com.moremod.item.ItemSwordChengYue;
 // ✨ 新增导入：锯刃剑渲染层
 import com.moremod.item.sawblade.client.BloodEuphoriaRenderer;
 import com.moremod.moremod;
+import com.moremod.printer.TileEntityPrinter;
+import com.moremod.accessorybox.EarlyConfigLoader;
+import com.moremod.sponsor.client.SponsorKeyBindings;
 import com.moremod.network.PacketHandler;
 import com.moremod.network.PacketSyncRejectionData;
 import com.moremod.tile.TileEntityPedestal;
@@ -39,6 +42,7 @@ import net.minecraft.client.renderer.entity.RenderPlayer;
 import net.minecraft.item.Item;
 import net.minecraftforge.client.event.ModelRegistryEvent;
 import net.minecraftforge.client.model.ModelLoader;
+import net.minecraftforge.client.model.obj.OBJLoader;
 import net.minecraftforge.common.MinecraftForge;
 
 import net.minecraftforge.fml.client.registry.ClientRegistry;
@@ -67,8 +71,12 @@ public class ClientProxy extends CommonProxy {
     @Override
     public void preInit(FMLPreInitializationEvent event) {
         super.preInit(event);
-
+        ClientRegistry.bindTileEntitySpecialRenderer(TileEntityPrinter.class, new TileEntityRendererPrinter());
         MinecraftForge.EVENT_BUS.register(new EventHUDOverlay());
+
+        // 注册 OBJLoader 域名
+        OBJLoader.INSTANCE.addDomain(moremod.MODID);
+        System.out.println("[moremod] OBJLoader domain registered");
 
         // GeckoLib init (1.12.2 requires manual call)
         try {
@@ -88,6 +96,15 @@ public class ClientProxy extends CommonProxy {
         ClientRegistry.bindTileEntitySpecialRenderer(TileEntityRitualCore.class, new TileEntityRitualCoreRenderer());
         ClientRegistry.bindTileEntitySpecialRenderer(TileEntityPedestal.class, new TileEntityPedestalRenderer());
         ClientRegistry.bindTileEntitySpecialRenderer(TileEntityProtectionField.class, new TESRProtectionField());
+
+        // 打印机渲染器 - 由用户手动实现
+
+        // 赞助者物品快捷键（仅在诛仙剑启用时注册）
+        if (EarlyConfigLoader.isZhuxianSwordEnabled()) {
+            SponsorKeyBindings.registerKeyBindings();
+        } else {
+            System.out.println("[moremod] 诛仙剑已禁用，跳过快捷键注册");
+        }
 
         registerEntityRenderers();
     }

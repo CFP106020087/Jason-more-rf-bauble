@@ -38,6 +38,18 @@ public class ModConfig {
     @Config.LangKey("config.moremod.overload")
     public static final Overload overload = new Overload();
 
+    @Config.Comment("七咒(Enigmatic Legacy)兼容设置")
+    @Config.LangKey("config.moremod.enigmatic")
+    public static final EnigmaticCompat enigmatic = new EnigmaticCompat();
+
+    @Config.Comment("宝石维度等级限制设置")
+    @Config.LangKey("config.moremod.gem_dimension")
+    public static final GemDimensionLimits gemDimension = new GemDimensionLimits();
+
+    @Config.Comment("附魔台强化设置")
+    @Config.LangKey("config.moremod.enchanting")
+    public static final EnchantingConfig enchanting = new EnchantingConfig();
+
     public static class General {
         @Config.Comment("基础运行消耗 (RF/秒)")
         @Config.RangeInt(min = 0, max = 1000)
@@ -284,43 +296,43 @@ public class ModConfig {
         }
 
         public static class Void {
-            @Config.Comment("每tick充能量")
-            @Config.RangeInt(min = 0, max = 10)
-            public int chargePerTick = 1;
+            @Config.Comment("基础每tick充能量")
+            @Config.RangeInt(min = 0, max = 30)
+            public int chargePerTick = 3;
 
-            @Config.Comment("深层Y坐标")
-            @Config.RangeInt(min = 0, max = 64)
-            public int deepYLevel = 20;
+            @Config.Comment("开始发电的Y坐标 (此高度以下开始发电)")
+            @Config.RangeInt(min = 0, max = 128)
+            public int deepYLevel = 64;
 
-            @Config.Comment("虚空Y坐标")
+            @Config.Comment("最大发电Y坐标 (此高度以下获得最大能量)")
             @Config.RangeInt(min = 0, max = 64)
-            public int voidYLevel = 10;
+            public int voidYLevel = 16;
 
             @Config.Comment("末地倍率")
-            @Config.RangeInt(min = 1, max = 10)
-            public int endMultiplier = 2;
+            @Config.RangeInt(min = 1, max = 30)
+            public int endMultiplier = 6;
 
             @Config.Comment("末地额外能量")
-            @Config.RangeInt(min = 0, max = 1000)
-            public int endBonus = 100;
+            @Config.RangeInt(min = 0, max = 3000)
+            public int endBonus = 300;
         }
 
         public static class Combat {
             @Config.Comment("每点生命值产生的能量")
-            @Config.RangeInt(min = 0, max = 100)
-            public int energyPerHp = 50;
+            @Config.RangeInt(min = 0, max = 300)
+            public int energyPerHp = 150;
 
             @Config.Comment("最大连杀加成")
-            @Config.RangeDouble(min = 1.0, max = 5.0)
-            public double maxStreakBonus = 2.0;
+            @Config.RangeDouble(min = 1.0, max = 15.0)
+            public double maxStreakBonus = 6.0;
 
             @Config.Comment("Boss倍率")
-            @Config.RangeDouble(min = 1.0, max = 10.0)
-            public double bossMultiplier = 3.0;
+            @Config.RangeDouble(min = 1.0, max = 30.0)
+            public double bossMultiplier = 9.0;
 
             @Config.Comment("小Boss倍率")
-            @Config.RangeDouble(min = 1.0, max = 5.0)
-            public double minibossMultiplier = 2.0;
+            @Config.RangeDouble(min = 1.0, max = 15.0)
+            public double minibossMultiplier = 6.0;
 
             @Config.Comment("连杀超时(tick)")
             @Config.RangeInt(min = 0, max = 12000)
@@ -370,6 +382,57 @@ public class ModConfig {
         @Config.Comment("第三级惩罚倍率")
         @Config.RangeDouble(min = 1.0, max = 5.0)
         public double tier3Penalty = 2.0;
+    }
+
+    public static class EnigmaticCompat {
+        @Config.Comment("是否阻止所有Enigmatic物品与机械核心同时佩戴")
+        public boolean blockAllEnigmatic = true;
+
+        @Config.Comment("是否输出详细的Enigmatic物品检测日志(调试用)")
+        public boolean verboseEnigmaticDetection = false;
+    }
+
+    public static class GemDimensionLimits {
+        @Config.Comment("是否启用维度等级限制")
+        public boolean enabled = true;
+
+        @Config.Comment({
+            "维度宝石等级上限配置 (可精确指定任意维度)",
+            "格式: \"维度ID:最高等级\"",
+            "例如: \"0:30\" 表示主世界(维度0)最高30级",
+            "      \"-1:40\" 表示地狱(维度-1)最高40级",
+            "      \"1:-1\" 表示末地(维度1)不限制",
+            "      \"111:50\" 表示暮色森林(维度111)最高50级",
+            "      \"-9999:60\" 表示裂缝维度最高60级",
+            "等级设为-1表示该维度不限制"
+        })
+        public String[] dimensionLevelCaps = {
+            "0:30",      // 主世界: 30级
+            "-1:40",     // 地狱: 40级
+            "1:-1",      // 末地: 不限制
+            "-9999:50"   // 裂缝维度: 50级
+        };
+
+        @Config.Comment("未在上方列表中指定的维度的默认等级上限，-1表示不限制")
+        @Config.RangeInt(min = -1, max = 100)
+        public int defaultMaxLevel = -1;
+    }
+
+    public static class EnchantingConfig {
+        @Config.Comment("是否启用附魔台强化功能")
+        public boolean enabled = true;
+
+        @Config.Comment("附魔消耗的经验等级上限(超过此值只消耗此值)")
+        @Config.RangeInt(min = 1, max = 100)
+        public int maxExpCost = 30;
+
+        @Config.Comment("附魔等级上限(超过此值只按此值计算附魔效果)")
+        @Config.RangeInt(min = 30, max = 99)
+        public int maxEnchantLevel = 99;
+
+        @Config.Comment("特殊书架每点额外能量增加的附魔等级(普通书架无法突破30级)")
+        @Config.RangeDouble(min = 1.0, max = 5.0)
+        public double specialBookshelfMultiplier = 2.0;
     }
 
     /**

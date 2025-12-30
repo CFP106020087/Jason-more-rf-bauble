@@ -14,7 +14,7 @@ buildscript {
 apply plugin: 'net.minecraftforge.gradle.forge'
 apply plugin: 'org.spongepowered.mixin'
 
-version = "3.4.2"
+version = "3.5"
 group = "com.moremod"
 archivesBaseName = "Jasons-more-rf-bauble"
 
@@ -63,6 +63,8 @@ dependencies {
     compileOnly name:'`FermiumBooter-1.2.0'
     compileOnly name:'EnhancedVisuals_v1.4.4_mc1.12.2'
     compileOnly name:'PotionCore-1.9_for_1.12.2'
+    compileOnly name:'enigmaticlegacy-legacy-2.2.1'
+
 
     // ========== Mixin 配置 ==========
     compile('org.spongepowered:mixin:0.8.5') {

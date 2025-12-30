@@ -1,0 +1,124 @@
+package com.moremod.integration.jei.ritual;
+
+import com.moremod.moremod;
+import mezz.jei.api.IGuiHelper;
+import mezz.jei.api.gui.*;
+import mezz.jei.api.ingredients.IIngredients;
+import mezz.jei.api.recipe.IRecipeCategory;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.I18n;
+import net.minecraft.item.ItemStack;
+
+import java.util.List;
+
+/**
+ * JEI特殊仪式类别
+ * 用于展示所有特殊仪式（注魔、诅咒净化、附魔转移等）
+ */
+public class SpecialRitualCategory implements IRecipeCategory<SpecialRitualWrapper> {
+
+    public static final String UID = "moremod.special_ritual";
+
+    private final IDrawable background;
+    private final IDrawable icon;
+    private final String title;
+
+    // GUI布局
+    private static final int GUI_WIDTH = 170;
+    private static final int GUI_HEIGHT = 140;
+
+    // 核心物品位置（中心）
+    private static final int CORE_X = 74;
+    private static final int CORE_Y = 55;
+
+    // 输出位置
+    private static final int OUTPUT_X = 140;
+    private static final int OUTPUT_Y = 55;
+
+    // 基座半径
+    private static final int PEDESTAL_RADIUS = 36;
+
+    public SpecialRitualCategory(IGuiHelper guiHelper) {
+        this.background = guiHelper.createBlankDrawable(GUI_WIDTH, GUI_HEIGHT);
+        this.icon = guiHelper.createDrawableIngredient(new ItemStack(moremod.RITUAL_CORE_BLOCK));
+        this.title = I18n.format("特殊仪式");
+    }
+
+    @Override
+    public String getUid() {
+        return UID;
+    }
+
+    @Override
+    public String getTitle() {
+        return title;
+    }
+
+    @Override
+    public String getModName() {
+        return "MoreMod";
+    }
+
+    @Override
+    public IDrawable getBackground() {
+        return background;
+    }
+
+    @Override
+    public IDrawable getIcon() {
+        return icon;
+    }
+
+    @Override
+    public void setRecipe(IRecipeLayout recipeLayout, SpecialRitualWrapper recipeWrapper, IIngredients ingredients) {
+        IGuiItemStackGroup guiItemStacks = recipeLayout.getItemStacks();
+
+        int slotIndex = 0;
+
+        // 核心物品槽位
+        guiItemStacks.init(slotIndex++, true, CORE_X, CORE_Y);
+
+        // 基座物品 - 环形排列
+        List<List<ItemStack>> inputs = ingredients.getInputs(ItemStack.class);
+        int pedestalCount = inputs.size() - 1; // 减去核心
+
+        if (pedestalCount > 0) {
+            double angleStep = 360.0 / Math.max(pedestalCount, 1);
+            for (int i = 0; i < pedestalCount; i++) {
+                double angle = Math.toRadians(angleStep * i - 90);
+                int x = (int)(CORE_X + Math.cos(angle) * PEDESTAL_RADIUS);
+                int y = (int)(CORE_Y + Math.sin(angle) * PEDESTAL_RADIUS);
+                guiItemStacks.init(slotIndex++, true, x, y);
+            }
+        }
+
+        // 输出槽位（如果有输出）
+        List<List<ItemStack>> outputs = ingredients.getOutputs(ItemStack.class);
+        if (!outputs.isEmpty() && !outputs.get(0).isEmpty()) {
+            guiItemStacks.init(slotIndex, false, OUTPUT_X, OUTPUT_Y);
+        }
+
+        // 设置物品
+        guiItemStacks.set(ingredients);
+    }
+
+    @Override
+    public void drawExtras(Minecraft minecraft) {
+        // 绘制装饰圆圈
+        drawRitualCircle(minecraft);
+
+        // 绘制箭头
+        minecraft.fontRenderer.drawString("→", CORE_X + 35, CORE_Y + 4, 0x404040);
+    }
+
+    private void drawRitualCircle(Minecraft minecraft) {
+        // 简单的装饰性圆圈点
+        int segments = 16;
+        for (int i = 0; i < segments; i++) {
+            double angle = (2 * Math.PI * i) / segments;
+            int x = (int)(CORE_X + 8 + Math.cos(angle) * PEDESTAL_RADIUS);
+            int y = (int)(CORE_Y + 8 + Math.sin(angle) * PEDESTAL_RADIUS);
+            minecraft.fontRenderer.drawString("·", x, y, 0x805080);
+        }
+    }
+}

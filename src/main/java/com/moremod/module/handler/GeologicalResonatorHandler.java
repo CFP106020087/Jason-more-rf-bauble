@@ -2,216 +2,157 @@ package com.moremod.module.handler;
 
 import com.moremod.module.effect.EventContext;
 import com.moremod.module.effect.IModuleEventHandler;
-import net.minecraft.block.Block;
-import net.minecraft.block.state.IBlockState;
+import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.Blocks;
-import net.minecraft.init.Items;
-import net.minecraft.inventory.InventoryHelper;
-import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumParticleTypes;
-import net.minecraft.util.NonNullList;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.RayTraceResult;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.oredict.OreDictionary;
 
-import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
-import java.util.Set;
 
 /**
- * 地质共振仪 (GEOLOGICAL_RESONATOR) 处理器 - 远程矿物提取。
+ * 地质共振仪 (GEOLOGICAL_RESONATOR) 处理器 - 随机矿物生成
+ * 从矿物词典中随机挑选矿物直接生成给玩家
  */
 public class GeologicalResonatorHandler implements IModuleEventHandler {
 
-    // 每 Tick 的维持能耗 (50 RF/t = 1000 RF/s)
-    private static final int PASSIVE_COST_PER_TICK = 50;
-    private static final int CONVERSION_COST = 800;
+    // 能耗配置
+    private static final int PASSIVE_COST_PER_TICK = 50;  // 维持能耗 50 RF/t
+    private static final int GENERATION_COST = 1000;       // 每次生成消耗 1000 RF
+
+    // 生成频率控制
+    private static final int GENERATION_INTERVAL = 40;     // 每2秒尝试生成一次
+    private int tickCounter = 0;
+
     private final Random random = new Random();
 
-    // 【优化】矿物词典缓存
-    private static final Set<Integer> KNOWN_ORE_IDS = new HashSet<>();
-    private static boolean oreCacheInitialized = false;
+    // 矿物缓存
+    private static final List<ItemStack> ORE_CACHE = new ArrayList<>();
+    private static boolean cacheInitialized = false;
 
     /**
-     * 懒加载初始化矿物缓存
+     * 初始化矿物缓存 - 从矿物词典收集所有矿物
      */
     private static void initializeOreCache() {
-        if (oreCacheInitialized) return;
-        oreCacheInitialized = true;
+        if (cacheInitialized) return;
+        cacheInitialized = true;
 
-        System.out.println("[GeologicalResonator] 正在初始化矿物缓存...");
         String[] oreNames = OreDictionary.getOreNames();
         for (String name : oreNames) {
-            // 只缓存以 "ore" 开头的词典名称
-            if (name.startsWith("ore")) {
-                KNOWN_ORE_IDS.add(OreDictionary.getOreID(name));
+            // 只收集以 "ore" 开头的词典条目
+            if (!name.startsWith("ore")) continue;
+
+            // 排除问题矿物
+            String lowerName = name.toLowerCase();
+            if (lowerName.contains("netherite") ||
+                lowerName.contains("ancientdebris") ||
+                lowerName.contains("ancient_debris")) {
+                continue;
+            }
+
+            // 获取该词典名下的所有物品
+            List<ItemStack> ores = OreDictionary.getOres(name, false);
+            for (ItemStack ore : ores) {
+                if (!ore.isEmpty()) {
+                    // 复制一份避免修改原始数据
+                    ORE_CACHE.add(ore.copy());
+                }
             }
         }
-        System.out.println("[GeologicalResonator] 缓存了 " + KNOWN_ORE_IDS.size() + " 种矿物类型。");
+
+        // 去重（基于物品ID和元数据）
+        List<ItemStack> uniqueOres = new ArrayList<>();
+        for (ItemStack ore : ORE_CACHE) {
+            boolean isDuplicate = false;
+            for (ItemStack existing : uniqueOres) {
+                if (ItemStack.areItemsEqual(ore, existing)) {
+                    isDuplicate = true;
+                    break;
+                }
+            }
+            if (!isDuplicate) {
+                uniqueOres.add(ore);
+            }
+        }
+        ORE_CACHE.clear();
+        ORE_CACHE.addAll(uniqueOres);
     }
 
     @Override
     public void onTick(EventContext ctx) {
         initializeOreCache();
 
-        // 1. 处理维持能耗 (每 Tick)
+        // 1. 处理维持能耗
         if (!ctx.consumeEnergy(PASSIVE_COST_PER_TICK)) {
             return;
         }
 
-        // 2. 执行共振采样 (仅在服务端)
+        // 2. 仅服务端执行
         if (ctx.player.world.isRemote) return;
+        if (!(ctx.player.world instanceof WorldServer)) return;
 
-        // 根据等级决定每 Tick 采样次数 (1, 2, 3)
-        int samples = ctx.level;
-
-        for (int i = 0; i < samples; i++) {
-            // 检查是否有足够的能量进行下一次转化
-            if (ctx.getEnergy() < CONVERSION_COST) return;
-
-            // 执行采样
-            if (performResonance(ctx)) {
-                // 成功转化，消耗能量
-                ctx.consumeEnergy(CONVERSION_COST);
-                // 继续下一次采样 (允许多次提取/Tick)
-            }
-        }
-    }
-
-    /**
-     * 执行一次随机采样和转化
-     */
-    private boolean performResonance(EventContext ctx) {
-        World world = ctx.player.world;
-        EntityPlayer player = ctx.player;
-
-        // 计算半径 (12, 16, 20)
-        int radius = 8 + ctx.level * 4;
-        BlockPos center = player.getPosition();
-
-        // 随机选择 X 和 Z
-        int x = center.getX() + random.nextInt(radius * 2 + 1) - radius;
-        int z = center.getZ() + random.nextInt(radius * 2 + 1) - radius;
-
-        // 【优化】Y轴偏置采样: 优先采样玩家下方区域
-        int y;
-        if (center.getY() > 5) {
-            // 从基岩层 (Y=3) 到玩家当前高度之间随机选择
-            y = random.nextInt(center.getY() - 3) + 3;
-        } else {
-            y = center.getY();
-        }
-
-        BlockPos targetPos = new BlockPos(x, y, z);
-
-        // 检查区块是否加载
-        if (!world.isBlockLoaded(targetPos)) return false;
-
-        IBlockState state = world.getBlockState(targetPos);
-
-        // 判断是否是矿物
-        if (isValuableOre(state, world, targetPos, player)) {
-            // 执行提取
-            extractOre(world, player, targetPos, state);
-            return true; // 成功转化
-        }
-        return false;
-    }
-
-    /**
-     * 提取矿物并替换
-     */
-    private void extractOre(World world, EntityPlayer player, BlockPos pos, IBlockState state) {
-        Block block = state.getBlock();
-
-        // 1. 获取掉落物 (为平衡性，不应用时运 fortune=0)
-        NonNullList<ItemStack> drops = NonNullList.create();
-        try {
-            block.getDrops(drops, world, pos, state, 0);
-        } catch (Exception e) {
-            // 捕获某些mod方块可能出现的异常
+        // 3. 频率控制
+        tickCounter++;
+        if (tickCounter < GENERATION_INTERVAL) {
             return;
         }
+        tickCounter = 0;
 
-        if (drops.isEmpty()) return;
+        // 4. 检查矿物缓存
+        if (ORE_CACHE.isEmpty()) return;
 
-        // 2. 替换方块为石头 (使用 flag 3 通知客户端更新)
-        world.setBlockState(pos, Blocks.STONE.getDefaultState(), 3);
+        // 5. 根据等级决定生成次数 (1, 2, 3)
+        int attempts = ctx.level;
 
-        // 3. 生成掉落物在玩家位置
-        for (ItemStack drop : drops) {
-            InventoryHelper.spawnItemStack(world, player.posX, player.posY + 0.5, player.posZ, drop);
+        for (int i = 0; i < attempts; i++) {
+            // 检查能量
+            if (ctx.getEnergy() < GENERATION_COST) return;
+
+            // 随机生成矿物
+            if (generateRandomOre(ctx)) {
+                ctx.consumeEnergy(GENERATION_COST);
+            }
         }
-
-        // 4. 播放粒子效果
-        playResonanceEffect(world, pos);
     }
 
     /**
-     * 【健壮实现】判断方块是否是矿物。
+     * 随机生成一个矿物给玩家
      */
-    private boolean isValuableOre(IBlockState state, World world, BlockPos pos, EntityPlayer player) {
-        Block block = state.getBlock();
+    private boolean generateRandomOre(EventContext ctx) {
+        EntityPlayer player = ctx.player;
+        WorldServer world = (WorldServer) player.world;
 
-        // 性能优化: 快速排除常见方块和无效方块
-        if (block == Blocks.AIR || block == Blocks.STONE || block == Blocks.DIRT || block == Blocks.GRASS ||
-            block == Blocks.SAND || block == Blocks.GRAVEL || state.getMaterial().isLiquid() ||
-            state.getBlockHardness(world, pos) < 0) {
-            return false;
+        // 随机选择一个矿物
+        ItemStack selectedOre = ORE_CACHE.get(random.nextInt(ORE_CACHE.size()));
+        ItemStack toGive = selectedOre.copy();
+        toGive.setCount(1);
+
+        // 尝试放入玩家背包
+        if (!player.inventory.addItemStackToInventory(toGive)) {
+            // 背包满了，掉落在玩家脚下
+            EntityItem entityItem = new EntityItem(world, player.posX, player.posY + 0.5, player.posZ, toGive);
+            entityItem.setNoPickupDelay();
+            world.spawnEntity(entityItem);
         }
 
-        // 获取方块对应的 ItemStack，用于矿物词典查询
-        ItemStack stack = ItemStack.EMPTY;
+        // 播放效果
+        playGenerationEffect(world, player);
 
-        // 方法一: 使用 getPickBlock (模拟鼠标中键)，最准确的方式
-        try {
-            // 构建一个指向方块中心的 RayTraceResult
-            Vec3d centerVec = new Vec3d(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
-            RayTraceResult raytrace = new RayTraceResult(centerVec, EnumFacing.UP, pos);
-            stack = block.getPickBlock(state, raytrace, world, pos, player);
-        } catch (Exception e) {
-            // 忽略异常，尝试后备方案
-        }
-
-        // 方法二: 后备方案，使用 damageDropped
-        if (stack.isEmpty()) {
-            Item item = Item.getItemFromBlock(block);
-            if (item != Items.AIR) {
-                try {
-                    // 使用 damageDropped 获取正确的元数据
-                    stack = new ItemStack(item, 1, block.damageDropped(state));
-                } catch (Exception ignored) {}
-            }
-        }
-
-        if (stack.isEmpty()) return false;
-
-        // 使用 Forge 矿物词典缓存检查
-        int[] oreIds = OreDictionary.getOreIDs(stack);
-        for (int id : oreIds) {
-            if (KNOWN_ORE_IDS.contains(id)) {
-                return true;
-            }
-        }
-
-        return false;
+        return true;
     }
 
-    private void playResonanceEffect(World world, BlockPos pos) {
-        if (world instanceof WorldServer) {
-            // 在被提取的方块位置播放传送门粒子效果
-            ((WorldServer) world).spawnParticle(
-                EnumParticleTypes.PORTAL,
-                pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
-                15, 0.3, 0.3, 0.3, 0.5
-            );
-        }
+    /**
+     * 播放生成效果
+     */
+    private void playGenerationEffect(WorldServer world, EntityPlayer player) {
+        world.spawnParticle(
+            EnumParticleTypes.VILLAGER_HAPPY,
+            player.posX, player.posY + 1.0, player.posZ,
+            5, 0.3, 0.3, 0.3, 0.02
+        );
     }
 
     @Override

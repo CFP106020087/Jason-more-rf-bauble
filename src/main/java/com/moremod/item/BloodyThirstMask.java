@@ -95,9 +95,9 @@ public class BloodyThirstMask extends Item implements IBauble {
 
     // 根据击杀物种数量计算吸血百分比
     public static float getLifestealAmount(int speciesCount) {
-        float base = 1.0f; // 基础1%
-        float bonus = speciesCount * 0.1f; // 每种物种增加0.2%
-        return Math.min(base + bonus, 20.0f); // 最大25%
+        float base = 10.0f;  // 基础10% (10倍增强：原1%)
+        float bonus = speciesCount * 1.0f;  // 每种物种增加1% (10倍增强：原0.1%)
+        return Math.min(base + bonus, 200.0f);  // 最大200% (10倍增强：原20%)
     }
 
     // 获取面具等级（基于物种数量）

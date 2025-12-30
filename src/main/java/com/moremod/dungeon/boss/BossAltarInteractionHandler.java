@@ -58,23 +58,22 @@ public class BossAltarInteractionHandler {
     /**
      * 检查祭坛是否在Boss房间内
      * 根据EnhancedRoomTemplates中的实际柱子位置调整
+     *
+     * Boss房间大小: 40x40
+     * 祭坛位置: (20, 1, 20) = BOSS_ROOM_SIZE / 2
+     * 柱子位置: (8,8), (8,27), (27,8), (27,27)
      */
     private static boolean isInBossRoom(World world, BlockPos altarPos) {
         int pillarsFound = 0;
 
-        // Boss房间模板中，祭坛在中心(18,1,18)
-        // 柱子位置相对于基点是: (8,8), (8,27), (27,8), (27,27)
-        // 相对于中心祭坛的偏移量:
+        // Boss房间模板中，祭坛在中心(20,1,20)
+        // 柱子位置: (8,8), (8,27), (27,8), (27,27)
+        // 相对于中心祭坛(20,20)的偏移量:
         int[][] pillarOffsets = {
-                {-10, -10},  // 8-18 = -10
-                {-10, 9},    // 8-18 = -10, 27-18 = 9
-                {9, -10},    // 27-18 = 9
-                {9, 9},      // 27-18 = 9
-                // 额外的柱子
-                {-1, -10},   // 17-18 = -1, 8-18 = -10
-                {-1, 9},     // 17-18 = -1, 27-18 = 9
-                {-10, -1},   // 8-18 = -10, 17-18 = -1
-                {9, -1}      // 27-18 = 9, 17-18 = -1
+                {-12, -12},  // 8-20 = -12, 8-20 = -12
+                {-12, 7},    // 8-20 = -12, 27-20 = 7
+                {7, -12},    // 27-20 = 7, 8-20 = -12
+                {7, 7}       // 27-20 = 7, 27-20 = 7
         };
 
         // 检查每个可能的柱子位置
@@ -102,12 +101,11 @@ public class BossAltarInteractionHandler {
             }
         }
 
-        // 至少找到4个柱子才确认是Boss房间
-        boolean isBossRoom = pillarsFound >= 4;
+        // 至少找到2个柱子才确认是Boss房间（容错处理）
+        boolean isBossRoom = pillarsFound >= 2;
 
-        if (isBossRoom) {
-            System.out.println("[Boss祭坛] 检测到Boss房间，找到 " + pillarsFound + " 个柱子");
-        }
+        // 调试日志
+        System.out.println("[Boss祭坛] 祭坛位置: " + altarPos + ", 找到柱子: " + pillarsFound + "/4, 判定: " + (isBossRoom ? "是Boss房间" : "不是Boss房间"));
 
         return isBossRoom;
     }

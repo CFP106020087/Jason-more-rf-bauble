@@ -81,7 +81,7 @@ public class ContainerSwordUpgradeStationMaterial extends Container {
         }
         @Override public boolean isItemValid(ItemStack stack) { return false; }
 
-        // 只按 XP 判定（避免 super.canTakeStack 的“模拟抽取”误判）
+        // 只按 XP 判定（避免 super.canTakeStack 的"模拟抽取"误判）
         @Override
         public boolean canTakeStack(EntityPlayer player) {
             ItemStack out = getStack();
@@ -91,7 +91,8 @@ public class ContainerSwordUpgradeStationMaterial extends Container {
             ItemStack base = tile.getStackInSlot(TileEntitySwordUpgradeStationMaterial.SLOT_BASE);
             ItemStack mat = tile.getStackInSlot(TileEntitySwordUpgradeStationMaterial.SLOT_MAT);
             if (!base.isEmpty() && !mat.isEmpty()) {
-                SwordUpgradeRegistry.Recipe r = SwordUpgradeRegistry.getRecipe(base, mat.getItem());
+                // v2.0: 使用完整ItemStack查找配方（支持材料NBT匹配）
+                SwordUpgradeRegistry.Recipe r = SwordUpgradeRegistry.getRecipe(base, mat);
                 needXp = (r == null) ? 0 : r.xpCost;
             }
             return getPlayerTotalXp(player) >= needXp;
@@ -103,7 +104,8 @@ public class ContainerSwordUpgradeStationMaterial extends Container {
             ItemStack base = tile.getStackInSlot(TileEntitySwordUpgradeStationMaterial.SLOT_BASE);
             ItemStack mat = tile.getStackInSlot(TileEntitySwordUpgradeStationMaterial.SLOT_MAT);
             if (!base.isEmpty() && !mat.isEmpty()) {
-                SwordUpgradeRegistry.Recipe r = SwordUpgradeRegistry.getRecipe(base, mat.getItem());
+                // v2.0: 使用完整ItemStack查找配方（支持材料NBT匹配）
+                SwordUpgradeRegistry.Recipe r = SwordUpgradeRegistry.getRecipe(base, mat);
                 needXp = (r == null) ? 0 : r.xpCost;
             }
             if (needXp > 0) player.addExperience(-needXp);

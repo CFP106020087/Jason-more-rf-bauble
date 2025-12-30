@@ -1,9 +1,9 @@
 package com.moremod.printer;
 
+import baubles.api.BaublesApi;
 import com.moremod.client.gui.GuiHandler;
 import com.moremod.creativetab.moremodCreativeTab;
 import com.moremod.moremod;
-import com.moremod.multiblock.MultiblockPrinter;
 import net.minecraft.block.Block;
 import net.minecraft.block.ITileEntityProvider;
 import net.minecraft.block.material.Material;
@@ -13,19 +13,28 @@ import net.minecraft.block.state.BlockStateContainer;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.BlockRenderLayer;
+import net.minecraft.util.EnumBlockRenderType;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
+import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.TextFormatting;
+import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
+import net.minecraftforge.items.IItemHandler;
 
 import javax.annotation.Nullable;
 
 /**
  * 打印机核心方块
  *
- * 多方块结构的核心，负责打印物品
+ * 单方块机器，使用TESR渲染动画模型
  */
 public class BlockPrinter extends Block implements ITileEntityProvider {
 
@@ -40,30 +49,49 @@ public class BlockPrinter extends Block implements ITileEntityProvider {
         setRegistryName("printer");
         setTranslationKey("printer");
         setDefaultState(blockState.getBaseState()
-            .withProperty(FACING, EnumFacing.NORTH)
-            .withProperty(ACTIVE, false));
+                .withProperty(FACING, EnumFacing.NORTH)
+                .withProperty(ACTIVE, false));
     }
 
     @Override
     public boolean onBlockActivated(World world, BlockPos pos, IBlockState state, EntityPlayer player,
                                     EnumHand hand, EnumFacing facing, float hitX, float hitY, float hitZ) {
         if (!world.isRemote) {
+            // 检查玩家是否佩戴诅咒戒指
+            if (hasCursedRing(player)) {
+                player.sendMessage(new TextComponentString(
+                    TextFormatting.DARK_RED + "诅咒戒指的力量阻止你使用远古打印机..."
+                ));
+                return false;
+            }
+
             TileEntity te = world.getTileEntity(pos);
             if (te instanceof TileEntityPrinter) {
-                TileEntityPrinter printer = (TileEntityPrinter) te;
-
-                // 检查多方块结构
-                if (!printer.isMultiblockFormed()) {
-                    // 发送结构未形成的消息
-                    player.sendMessage(new TextComponentString("\u00a7c" + "多方块结构未形成！"));
-                    player.sendMessage(new TextComponentString("\u00a77" + MultiblockPrinter.getBuildGuide()));
-                    return true;
-                }
-
                 player.openGui(moremod.instance, GuiHandler.PRINTER_GUI, world, pos.getX(), pos.getY(), pos.getZ());
             }
         }
         return true;
+    }
+
+    /**
+     * 检查玩家是否佩戴诅咒戒指 (Enigmatic Legacy)
+     */
+    private boolean hasCursedRing(EntityPlayer player) {
+        try {
+            IItemHandler baubles = BaublesApi.getBaublesHandler(player);
+            if (baubles == null) return false;
+
+            for (int i = 0; i < baubles.getSlots(); i++) {
+                ItemStack bauble = baubles.getStackInSlot(i);
+                if (!bauble.isEmpty() && bauble.getItem().getRegistryName() != null &&
+                    bauble.getItem().getRegistryName().toString().equals("enigmaticlegacy:cursed_ring")) {
+                    return true;
+                }
+            }
+        } catch (Exception ignored) {
+            // Baubles API 不可用
+        }
+        return false;
     }
 
     @Override
@@ -118,6 +146,8 @@ public class BlockPrinter extends Block implements ITileEntityProvider {
         super.breakBlock(world, pos, state);
     }
 
+    // ===== TESR渲染配置 =====
+
     @Override
     public boolean isOpaqueCube(IBlockState state) {
         return false;
@@ -129,7 +159,27 @@ public class BlockPrinter extends Block implements ITileEntityProvider {
     }
 
     /**
-     * 设置激活状态（用于动画）
+     * 使用ENTITYBLOCK_ANIMATED让TESR渲染
+     * 方块本身不渲染任何东西，全部由TileEntityRendererPrinter处理
+     */
+    @Override
+    public EnumBlockRenderType getRenderType(IBlockState state) {
+        return EnumBlockRenderType.ENTITYBLOCK_ANIMATED;
+    }
+
+    @Override
+    @SideOnly(Side.CLIENT)
+    public BlockRenderLayer getRenderLayer() {
+        return BlockRenderLayer.CUTOUT;
+    }
+
+    @Override
+    public AxisAlignedBB getBoundingBox(IBlockState state, IBlockAccess source, BlockPos pos) {
+        return FULL_BLOCK_AABB;
+    }
+
+    /**
+     * 设置激活状态
      */
     public static void setActive(World world, BlockPos pos, boolean active) {
         IBlockState state = world.getBlockState(pos);

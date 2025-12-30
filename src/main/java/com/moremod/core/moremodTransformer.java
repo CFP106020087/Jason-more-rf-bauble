@@ -27,6 +27,10 @@ public class moremodTransformer implements IClassTransformer {
     private static final boolean ENABLE_TEMPORAL_DEATH      = true;  // 时序织印死亡回溯
     private static final boolean ENABLE_CURSE_DEATH         = true;  // 七咒之戒-虚无之眸死亡保护
     private static final boolean ENABLE_GLITCH_ARMOR_DEATH  = true;  // 故障盔甲NULL异常
+    private static final boolean ENABLE_SETDEAD_HOOK        = true;  // setDead() 终极防护（防止 /kill、虚空等）
+    // 诛仙剑ASM开关 - 从配置动态读取
+    private static boolean ENABLE_ZHUXIAN_DEATH = true;      // 诛仙剑-为生民立命锁血
+    private static boolean ENABLE_ZHUXIAN_VILLAGER = true;   // 诛仙剑-为生民立命村民无敌(ASM)
     public static final boolean ENABLE_RS_INFINITY_BOOSTER = true;
 
     public static Side side;
@@ -37,6 +41,11 @@ public class moremodTransformer implements IClassTransformer {
 
         // ⭐ 早期加载配置（在任何转换前）
         EarlyConfigLoader.loadEarly();
+
+        // ⭐ 从配置读取诛仙剑ASM开关
+        ENABLE_ZHUXIAN_DEATH = EarlyConfigLoader.isZhuxianSwordEnabled();
+        ENABLE_ZHUXIAN_VILLAGER = EarlyConfigLoader.isZhuxianSwordEnabled();
+        System.out.println("[moremodTransformer] Zhuxian ASM enabled: " + ENABLE_ZHUXIAN_DEATH);
     }
 
     @Override
@@ -95,6 +104,12 @@ public class moremodTransformer implements IClassTransformer {
             if (ENABLE_BROKEN_GOD_DEATH && "net.minecraft.entity.EntityLivingBase".equals(transformedName)) {
                 System.out.println("[moremodTransformer] Patching EntityLivingBase.onDeath for Broken God...");
                 return transformEntityLivingBaseOnDeath(basicClass);
+            }
+
+            // setDead() 终极防护 - 在 Entity 类中 hook
+            if (ENABLE_SETDEAD_HOOK && "net.minecraft.entity.Entity".equals(transformedName)) {
+                System.out.println("[moremodTransformer] Patching Entity.setDead for ultimate protection...");
+                return transformEntitySetDead(basicClass);
             }
 
             // ============ RS Infinity Booster ============
@@ -1377,6 +1392,44 @@ public class moremodTransformer implements IClassTransformer {
                     System.out.println("[moremodTransformer]     + Injected Glitch Armor NULL exception at damageEntity HEAD");
                 }
 
+                // 诛仙剑-为生民立命：玩家锁血20%保护
+                if (ENABLE_ZHUXIAN_DEATH) {
+                    LabelNode zhuxianContinue = new LabelNode();
+                    inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                    inject.add(new VarInsnNode(Opcodes.ALOAD, 1));
+                    inject.add(new VarInsnNode(Opcodes.FLOAD, 2));
+                    inject.add(new MethodInsnNode(
+                            Opcodes.INVOKESTATIC,
+                            "com/moremod/sponsor/core/ZhuxianDeathHook",
+                            "checkAndLimitDamage",
+                            "(Lnet/minecraft/entity/EntityLivingBase;Lnet/minecraft/util/DamageSource;F)Z",
+                            false
+                    ));
+                    inject.add(new JumpInsnNode(Opcodes.IFEQ, zhuxianContinue));
+                    inject.add(new InsnNode(Opcodes.RETURN));
+                    inject.add(zhuxianContinue);
+                    System.out.println("[moremodTransformer]     + Injected Zhuxian damage limit at damageEntity HEAD");
+                }
+
+                // 诛仙剑-为生民立命村民无敌保护(ASM)
+                if (ENABLE_ZHUXIAN_VILLAGER) {
+                    LabelNode villagerContinue = new LabelNode();
+                    inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                    inject.add(new VarInsnNode(Opcodes.ALOAD, 1));
+                    inject.add(new VarInsnNode(Opcodes.FLOAD, 2));
+                    inject.add(new MethodInsnNode(
+                            Opcodes.INVOKESTATIC,
+                            "com/moremod/sponsor/core/ZhuxianVillagerHook",
+                            "shouldProtectVillager",
+                            "(Lnet/minecraft/entity/EntityLivingBase;Lnet/minecraft/util/DamageSource;F)Z",
+                            false
+                    ));
+                    inject.add(new JumpInsnNode(Opcodes.IFEQ, villagerContinue));
+                    inject.add(new InsnNode(Opcodes.RETURN));
+                    inject.add(villagerContinue);
+                    System.out.println("[moremodTransformer]     + Injected Zhuxian villager protection at damageEntity HEAD");
+                }
+
                 mn.instructions.insert(inject);
                 modified = true;
                 System.out.println("[moremodTransformer]     + Injected shutdown trigger check at damageEntity HEAD");
@@ -1476,6 +1529,42 @@ public class moremodTransformer implements IClassTransformer {
                     System.out.println("[moremodTransformer]     + Injected Glitch Armor NULL exception at onDeath HEAD");
                 }
 
+                // 诛仙剑-为生民立命死亡防护（最终防线）
+                if (ENABLE_ZHUXIAN_DEATH) {
+                    LabelNode zhuxianContinue = new LabelNode();
+                    inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                    inject.add(new VarInsnNode(Opcodes.ALOAD, 1));
+                    inject.add(new MethodInsnNode(
+                            Opcodes.INVOKESTATIC,
+                            "com/moremod/sponsor/core/ZhuxianDeathHook",
+                            "shouldPreventDeath",
+                            "(Lnet/minecraft/entity/EntityLivingBase;Lnet/minecraft/util/DamageSource;)Z",
+                            false
+                    ));
+                    inject.add(new JumpInsnNode(Opcodes.IFEQ, zhuxianContinue));
+                    inject.add(new InsnNode(Opcodes.RETURN));
+                    inject.add(zhuxianContinue);
+                    System.out.println("[moremodTransformer]     + Injected Zhuxian death prevention at onDeath HEAD");
+                }
+
+                // 诛仙剑-为生民立命村民死亡防护(ASM)
+                if (ENABLE_ZHUXIAN_VILLAGER) {
+                    LabelNode villagerContinue = new LabelNode();
+                    inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                    inject.add(new VarInsnNode(Opcodes.ALOAD, 1));
+                    inject.add(new MethodInsnNode(
+                            Opcodes.INVOKESTATIC,
+                            "com/moremod/sponsor/core/ZhuxianVillagerHook",
+                            "shouldPreventVillagerDeath",
+                            "(Lnet/minecraft/entity/EntityLivingBase;Lnet/minecraft/util/DamageSource;)Z",
+                            false
+                    ));
+                    inject.add(new JumpInsnNode(Opcodes.IFEQ, villagerContinue));
+                    inject.add(new InsnNode(Opcodes.RETURN));
+                    inject.add(villagerContinue);
+                    System.out.println("[moremodTransformer]     + Injected Zhuxian villager death prevention at onDeath HEAD");
+                }
+
                 mn.instructions.insert(inject);
                 modified = true;
                 System.out.println("[moremodTransformer]     + Injected death prevention at onDeath HEAD");
@@ -1499,6 +1588,124 @@ public class moremodTransformer implements IClassTransformer {
         System.out.println("[moremodTransformer]   ✓ EntityLivingBase patched for Broken God shutdown system");
         return cw.toByteArray();
     }
+    // ============================================================
+    // Entity.setDead() 终极防护
+    // ============================================================
+
+    /**
+     * 转换 Entity.setDead() 方法
+     * 注入检查以阻止玩家被直接 setDead（如 /kill 命令、虚空等）
+     */
+    private byte[] transformEntitySetDead(byte[] bytes) {
+        ClassNode cn = new ClassNode();
+        new ClassReader(bytes).accept(cn, ClassReader.EXPAND_FRAMES);
+        boolean modified = false;
+
+        System.out.println("[moremodTransformer]   Scanning Entity methods for setDead...");
+
+        for (MethodNode mn : cn.methods) {
+            // setDead() 或 func_70106_y() - 无参数，返回void
+            boolean isSetDead = "setDead".equals(mn.name)
+                    || "func_70106_y".equals(mn.name)
+                    || ("y".equals(mn.name) && "()V".equals(mn.desc)); // 混淆名
+
+            if (isSetDead && "()V".equals(mn.desc)) {
+                System.out.println("[moremodTransformer]   Patching setDead... (name: " + mn.name + ")");
+
+                InsnList inject = new InsnList();
+                LabelNode continueLabel = new LabelNode();
+
+                // 香巴拉 setDead 防护
+                if (ENABLE_SHAMBHALA_DEATH) {
+                    inject.add(new VarInsnNode(Opcodes.ALOAD, 0));  // this (Entity)
+                    inject.add(new MethodInsnNode(
+                            Opcodes.INVOKESTATIC,
+                            "com/moremod/core/ShambhalaDeathHook",
+                            "shouldPreventSetDead",
+                            "(Lnet/minecraft/entity/Entity;)Z",
+                            false
+                    ));
+                    inject.add(new JumpInsnNode(Opcodes.IFEQ, continueLabel));
+                    inject.add(new InsnNode(Opcodes.RETURN));  // 阻止 setDead
+                    inject.add(continueLabel);
+                    System.out.println("[moremodTransformer]     + Injected Shambhala setDead prevention");
+                }
+
+                // 破碎之神 setDead 防护
+                if (ENABLE_BROKEN_GOD_DEATH) {
+                    LabelNode brokenGodContinue = new LabelNode();
+                    inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                    inject.add(new MethodInsnNode(
+                            Opcodes.INVOKESTATIC,
+                            "com/moremod/core/BrokenGodDeathHook",
+                            "shouldPreventSetDead",
+                            "(Lnet/minecraft/entity/Entity;)Z",
+                            false
+                    ));
+                    inject.add(new JumpInsnNode(Opcodes.IFEQ, brokenGodContinue));
+                    inject.add(new InsnNode(Opcodes.RETURN));
+                    inject.add(brokenGodContinue);
+                    System.out.println("[moremodTransformer]     + Injected Broken God setDead prevention");
+                }
+
+                // 时序织印 setDead 防护
+                if (ENABLE_TEMPORAL_DEATH) {
+                    LabelNode temporalContinue = new LabelNode();
+                    inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                    inject.add(new MethodInsnNode(
+                            Opcodes.INVOKESTATIC,
+                            "com/moremod/core/TemporalDeathHook",
+                            "shouldPreventSetDead",
+                            "(Lnet/minecraft/entity/Entity;)Z",
+                            false
+                    ));
+                    inject.add(new JumpInsnNode(Opcodes.IFEQ, temporalContinue));
+                    inject.add(new InsnNode(Opcodes.RETURN));
+                    inject.add(temporalContinue);
+                    System.out.println("[moremodTransformer]     + Injected Temporal setDead prevention");
+                }
+
+                // 诛仙剑 setDead 防护
+                if (ENABLE_ZHUXIAN_DEATH) {
+                    LabelNode zhuxianContinue = new LabelNode();
+                    inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                    inject.add(new MethodInsnNode(
+                            Opcodes.INVOKESTATIC,
+                            "com/moremod/sponsor/core/ZhuxianDeathHook",
+                            "shouldPreventSetDead",
+                            "(Lnet/minecraft/entity/Entity;)Z",
+                            false
+                    ));
+                    inject.add(new JumpInsnNode(Opcodes.IFEQ, zhuxianContinue));
+                    inject.add(new InsnNode(Opcodes.RETURN));
+                    inject.add(zhuxianContinue);
+                    System.out.println("[moremodTransformer]     + Injected Zhuxian setDead prevention");
+                }
+
+                mn.instructions.insert(inject);
+                modified = true;
+                System.out.println("[moremodTransformer]     + setDead() patched successfully");
+            }
+        }
+
+        if (!modified) {
+            System.out.println("[moremodTransformer]   WARNING: setDead() method not found!");
+            System.out.println("[moremodTransformer]   Available methods in Entity:");
+            for (MethodNode mn : cn.methods) {
+                if (mn.name.contains("Dead") || mn.name.contains("dead")
+                        || mn.name.equals("func_70106_y") || mn.name.equals("y")) {
+                    System.out.println("[moremodTransformer]     - " + mn.name + " " + mn.desc);
+                }
+            }
+            return bytes;
+        }
+
+        ClassWriter cw = new SafeClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
+        cn.accept(cw);
+        System.out.println("[moremodTransformer]   ✓ Entity.setDead() patched for ultimate protection");
+        return cw.toByteArray();
+    }
+
     // ============================================================
     // SafeClassWriter - 避免在转换期间加载类
     // ============================================================

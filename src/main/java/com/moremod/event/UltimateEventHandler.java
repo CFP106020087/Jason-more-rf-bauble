@@ -2,6 +2,7 @@ package com.moremod.event;
 
 import com.moremod.compat.crafttweaker.*;
 import com.moremod.entity.EntitySwordBeam;
+import com.moremod.item.chengyue.ChengYueSweep;
 import com.moremod.util.DamageSourceSwordBeam;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
@@ -60,6 +61,26 @@ public class UltimateEventHandler {
     }
 
     // ==========================================
+    // ⭐ 新增：检查是否是AOE/横扫伤害（防止递归卡顿）
+    // ==========================================
+    private static boolean isAOEOrSweepDamage(DamageSource source) {
+        // 检查澄月横扫伤害
+        if (ChengYueSweep.ChengYueSweepDamage.isSweepDamage(source)) {
+            return true;
+        }
+
+        // 检查AOE伤害类型
+        String damageType = source.getDamageType();
+        if ("aoe".equals(damageType) ||
+            "sweep".equals(damageType) ||
+            "chengyue_sweep".equals(damageType)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    // ==========================================
     // 战斗事件 - ON_DODGE, ON_BLOCK
     // ==========================================
 
@@ -70,6 +91,11 @@ public class UltimateEventHandler {
 
         if (!(sourceEntity instanceof EntityPlayer)) return;
         if (event.getEntityLiving().world.isRemote) return;
+
+        // ⭐ 跳过AOE/横扫伤害的闪避/格挡检查
+        if (isAOEOrSweepDamage(source) || isSwordBeamDamage(source)) {
+            return;
+        }
 
         EntityPlayer attacker = (EntityPlayer) sourceEntity;
         EntityLivingBase victim = event.getEntityLiving();
@@ -126,6 +152,14 @@ public class UltimateEventHandler {
         if (isSwordBeamDamage(source)) {
             if (DEBUG) {
                 System.out.println("[UltimateEvent] ⭐ 检测到剑气伤害，跳过效果触发避免循环");
+            }
+            return;
+        }
+
+        // ⭐ 核心防循环：AOE/横扫伤害不触发新的AOE效果（防止严重卡顿）
+        if (isAOEOrSweepDamage(source)) {
+            if (DEBUG) {
+                System.out.println("[UltimateEvent] ⭐ 检测到AOE/横扫伤害，跳过效果触发避免递归卡顿");
             }
             return;
         }
@@ -330,6 +364,14 @@ public class UltimateEventHandler {
 
         if (!(sourceEntity instanceof EntityPlayer)) return;
         if (event.getEntityLiving().world.isRemote) return;
+
+        // ⭐ AOE/横扫击杀不触发效果（防止递归）
+        if (isAOEOrSweepDamage(source)) {
+            if (DEBUG) {
+                System.out.println("[UltimateEvent] ⭐ AOE/横扫击杀，跳过击杀效果");
+            }
+            return;
+        }
 
         // ⭐ 剑气击杀不触发新剑气
         boolean isBeamKill = isSwordBeamDamage(source);

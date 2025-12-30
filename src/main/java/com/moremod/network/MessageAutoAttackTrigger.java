@@ -6,6 +6,7 @@ import com.moremod.compat.crafttweaker.GemAffix;
 import com.moremod.compat.crafttweaker.GemNBTHelper;
 import com.moremod.compat.crafttweaker.GemSocketHelper;
 import com.moremod.compat.crafttweaker.IdentifiedAffix;
+import com.moremod.compat.crafttweaker.InvulnerabilityHelper;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.Entity;
@@ -112,6 +113,11 @@ public class MessageAutoAttackTrigger implements IMessage {
          * 对任意实体执行攻击
          */
         private void performAttack(EntityPlayerMP player, Entity target, ItemStack weapon) {
+            // ⭐ 使用InvulnerabilityHelper清除无敌帧，允许快速连击
+            if (target instanceof EntityLivingBase) {
+                InvulnerabilityHelper.removeInvulnerability((EntityLivingBase) target);
+            }
+
             // 计算基础伤害
             float damage = (float) player.getEntityAttribute(
                 SharedMonsterAttributes.ATTACK_DAMAGE).getAttributeValue();

@@ -1,10 +1,14 @@
 package com.moremod.printer;
 
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.Container;
+import net.minecraft.inventory.IContainerListener;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.SlotItemHandler;
 
@@ -26,6 +30,20 @@ public class ContainerPrinter extends Container {
     private static final int MATERIAL_SLOT_COUNT = 9;
     private static final int OUTPUT_SLOT = 10;
     private static final int TE_SLOT_COUNT = 11;
+
+    // 同步字段ID
+    private static final int FIELD_ENERGY_LOW = 0;
+    private static final int FIELD_ENERGY_HIGH = 1;
+    private static final int FIELD_PROGRESS = 2;
+    private static final int FIELD_MAX_PROGRESS = 3;
+    private static final int FIELD_IS_PROCESSING = 4;
+
+    // 缓存值（用于检测变化）
+    private int cachedEnergyLow = -1;
+    private int cachedEnergyHigh = -1;
+    private int cachedProgress = -1;
+    private int cachedMaxProgress = -1;
+    private int cachedIsProcessing = -1;
 
     public ContainerPrinter(InventoryPlayer playerInventory, TileEntityPrinter tile) {
         this.tile = tile;
@@ -61,6 +79,76 @@ public class ContainerPrinter extends Container {
     @Override
     public boolean canInteractWith(EntityPlayer playerIn) {
         return tile.canPlayerUse(playerIn);
+    }
+
+    @Override
+    public void detectAndSendChanges() {
+        super.detectAndSendChanges();
+
+        // 获取当前值
+        int energy = tile.getEnergyStored();
+        int energyLow = energy & 0xFFFF;
+        int energyHigh = (energy >> 16) & 0xFFFF;
+        int progress = tile.getProgress();
+        int maxProgress = tile.getMaxProgress();
+        int isProcessing = tile.isProcessing() ? 1 : 0;
+
+        // 发送变化给所有监听器
+        for (IContainerListener listener : this.listeners) {
+            if (cachedEnergyLow != energyLow) {
+                listener.sendWindowProperty(this, FIELD_ENERGY_LOW, energyLow);
+            }
+            if (cachedEnergyHigh != energyHigh) {
+                listener.sendWindowProperty(this, FIELD_ENERGY_HIGH, energyHigh);
+            }
+            if (cachedProgress != progress) {
+                listener.sendWindowProperty(this, FIELD_PROGRESS, progress);
+            }
+            if (cachedMaxProgress != maxProgress) {
+                listener.sendWindowProperty(this, FIELD_MAX_PROGRESS, maxProgress);
+            }
+            if (cachedIsProcessing != isProcessing) {
+                listener.sendWindowProperty(this, FIELD_IS_PROCESSING, isProcessing);
+            }
+        }
+
+        // 更新缓存
+        cachedEnergyLow = energyLow;
+        cachedEnergyHigh = energyHigh;
+        cachedProgress = progress;
+        cachedMaxProgress = maxProgress;
+        cachedIsProcessing = isProcessing;
+    }
+
+    @Override
+    @SideOnly(Side.CLIENT)
+    public void updateProgressBar(int id, int data) {
+        switch (id) {
+            case FIELD_ENERGY_LOW:
+                cachedEnergyLow = data;
+                updateTileEnergy();
+                break;
+            case FIELD_ENERGY_HIGH:
+                cachedEnergyHigh = data;
+                updateTileEnergy();
+                break;
+            case FIELD_PROGRESS:
+                tile.setClientProgress(data);
+                break;
+            case FIELD_MAX_PROGRESS:
+                tile.setClientMaxProgress(data);
+                break;
+            case FIELD_IS_PROCESSING:
+                tile.setClientProcessing(data == 1);
+                break;
+        }
+    }
+
+    private void updateTileEnergy() {
+        if (cachedEnergyLow >= 0 && cachedEnergyHigh >= 0) {
+            int energy = cachedEnergyLow | (cachedEnergyHigh << 16);
+            tile.setClientEnergy(energy);
+        }
     }
 
     @Override

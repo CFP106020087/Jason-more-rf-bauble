@@ -5,6 +5,7 @@ import com.moremod.entity.EntityRitualSeat;
 import com.moremod.entity.curse.EmbeddedCurseManager;
 import com.moremod.entity.curse.EmbeddedCurseManager.EmbeddedRelicType;
 import com.moremod.ritual.AltarTier;
+import com.moremod.ritual.LegacyRitualConfig;
 import com.moremod.ritual.RitualInfusionAPI;
 import com.moremod.ritual.RitualInfusionRecipe;
 import com.moremod.ritual.TierRitualHandler;
@@ -85,52 +86,131 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     // 注魔仪式系统 (Enchantment Infusion Ritual)
     private boolean enchantInfusionActive = false;
     private int enchantInfusionProgress = 0;
-    private static final int ENCHANT_INFUSION_TIME = 200; // 10秒注魔时间
-    private static final float ENCHANT_SUCCESS_RATE = 0.05f; // 5%成功率 (七咒之戒佩戴者10%)
+    // 时间和成功率现在从 LegacyRitualConfig 读取
 
     // 复制仪式系统 (Duplication Ritual)
     private boolean duplicationRitualActive = false;
     private int duplicationProgress = 0;
-    private static final int DUPLICATION_TIME = 300; // 15秒复制时间
-    private static final float DUPLICATION_SUCCESS_RATE = 0.01f; // 1%成功率
+    // 时间和成功率现在从 LegacyRitualConfig 读取
 
     // 灵魂绑定仪式系统 (Soul Binding Ritual) - 从玩家头颅创建假玩家核心
     private boolean soulBindingActive = false;
     private int soulBindingProgress = 0;
-    private static final int SOUL_BINDING_TIME = 400; // 20秒绑定时间
-    private static final float SOUL_BINDING_SUCCESS_RATE = 0.50f; // 50%成功率
+    // 时间和成功率现在从 LegacyRitualConfig 读取
 
     // 詛咒淨化儀式系統 (Curse Purification Ritual) - 二階以上
     private boolean cursePurificationActive = false;
     private int cursePurificationProgress = 0;
-    private static final int CURSE_PURIFICATION_TIME = 200; // 10秒
+    // 时间现在从 LegacyRitualConfig 读取
 
     // 附魔轉移儀式系統 (Enchantment Transfer Ritual) - 三階
     private boolean enchantTransferActive = false;
     private int enchantTransferProgress = 0;
-    private static final int ENCHANT_TRANSFER_TIME = 300; // 15秒
+    // 时间现在从 LegacyRitualConfig 读取
 
     // 詛咒創造儀式系統 (Curse Creation Ritual)
     private boolean curseCreationActive = false;
     private int curseCreationProgress = 0;
-    private static final int CURSE_CREATION_TIME = 200; // 10秒
+    // 时间现在从 LegacyRitualConfig 读取
 
     // 武器經驗加速儀式系統 (Weapon Exp Boost Ritual)
     private boolean weaponExpBoostActive = false;
     private int weaponExpBoostProgress = 0;
-    private static final int WEAPON_EXP_BOOST_TIME = 150; // 7.5秒
-    private static final int WEAPON_EXP_BOOST_DURATION = 12000; // 10分鐘效果
+    private static final int WEAPON_EXP_BOOST_DURATION = 12000; // 10分鐘效果（保留）
+    // 仪式时间现在从 LegacyRitualConfig 读取
 
     // 村正攻擊提升儀式系統 (Muramasa Boost Ritual)
     private boolean muramasaBoostActive = false;
     private int muramasaBoostProgress = 0;
-    private static final int MURAMASA_BOOST_TIME = 150; // 7.5秒
-    private static final int MURAMASA_BOOST_DURATION = 12000; // 10分鐘效果
+    private static final int MURAMASA_BOOST_DURATION = 12000; // 10分鐘效果（保留）
+    // 仪式时间现在从 LegacyRitualConfig 读取
 
     // 織印強化儀式系統 (Fabric Enhancement Ritual)
     private boolean fabricEnhanceActive = false;
     private int fabricEnhanceProgress = 0;
-    private static final int FABRIC_ENHANCE_TIME = 200; // 10秒
+    // 时间现在从 LegacyRitualConfig 读取
+
+    // 不可破坏仪式系统 (Unbreakable Ritual)
+    private boolean unbreakableRitualActive = false;
+    private int unbreakableProgress = 0;
+    // 时间和成功率现在从 LegacyRitualConfig 读取
+
+    // 灵魂束缚仪式系统 (Soulbound Ritual) - 死亡不掉落
+    private boolean soulboundRitualActive = false;
+    private int soulboundProgress = 0;
+    // 时间和成功率现在从 LegacyRitualConfig 读取
+
+    // 能量超载系统 - 记录仪式开始时的总能量（用于计算超载加成）
+    private int initialTotalEnergy = 0;
+
+    // ========== 配置读取辅助方法 ==========
+
+    private int getEnchantInfusionTime() {
+        return LegacyRitualConfig.getDuration(LegacyRitualConfig.ENCHANT_INFUSION);
+    }
+    private float getEnchantInfusionSuccessRate() {
+        return 1.0f - LegacyRitualConfig.getFailChance(LegacyRitualConfig.ENCHANT_INFUSION);
+    }
+
+    private int getDuplicationTime() {
+        return LegacyRitualConfig.getDuration(LegacyRitualConfig.DUPLICATION);
+    }
+    private float getDuplicationSuccessRate() {
+        return 1.0f - LegacyRitualConfig.getFailChance(LegacyRitualConfig.DUPLICATION);
+    }
+
+    private int getSoulBindingTime() {
+        return LegacyRitualConfig.getDuration(LegacyRitualConfig.SOUL_BINDING);
+    }
+    private float getSoulBindingSuccessRate() {
+        return 1.0f - LegacyRitualConfig.getFailChance(LegacyRitualConfig.SOUL_BINDING);
+    }
+
+    private int getCursePurificationTime() {
+        return LegacyRitualConfig.getDuration(LegacyRitualConfig.CURSE_PURIFICATION);
+    }
+
+    private int getEnchantTransferTime() {
+        return LegacyRitualConfig.getDuration(LegacyRitualConfig.ENCHANT_TRANSFER);
+    }
+    private float getEnchantTransferSuccessRate() {
+        return 1.0f - LegacyRitualConfig.getFailChance(LegacyRitualConfig.ENCHANT_TRANSFER);
+    }
+
+    private int getCurseCreationTime() {
+        return LegacyRitualConfig.getDuration(LegacyRitualConfig.CURSE_CREATION);
+    }
+
+    private int getWeaponExpBoostTime() {
+        return LegacyRitualConfig.getDuration(LegacyRitualConfig.WEAPON_EXP_BOOST);
+    }
+
+    private int getMuramasaBoostTime() {
+        return LegacyRitualConfig.getDuration(LegacyRitualConfig.MURAMASA_BOOST);
+    }
+
+    private int getFabricEnhanceTime() {
+        return LegacyRitualConfig.getDuration(LegacyRitualConfig.FABRIC_ENHANCE);
+    }
+
+    private int getUnbreakableTime() {
+        return LegacyRitualConfig.getDuration(LegacyRitualConfig.UNBREAKABLE);
+    }
+    private float getUnbreakableSuccessRate() {
+        return 1.0f - LegacyRitualConfig.getFailChance(LegacyRitualConfig.UNBREAKABLE);
+    }
+
+    private int getSoulboundTime() {
+        return LegacyRitualConfig.getDuration(LegacyRitualConfig.SOULBOUND);
+    }
+    private float getSoulboundSuccessRate() {
+        return 1.0f - LegacyRitualConfig.getFailChance(LegacyRitualConfig.SOULBOUND);
+    }
+
+    // 成功率显示系统
+    private RitualInfusionRecipe lastNotifiedRecipe = null;
+    private int successRateDisplayCooldown = 0;
+    private static final int SUCCESS_RATE_DISPLAY_INTERVAL = 60; // 每3秒刷新一次成功率显示
 
     // 用於客戶端平滑渲染的緩存變量
     public float clientRotation = 0;
@@ -216,6 +296,16 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             return;
         }
 
+        // 0.15 检测不可破坏仪式
+        if (updateUnbreakableRitual()) {
+            return;
+        }
+
+        // 0.16 检测灵魂束缚仪式（死亡不掉落）
+        if (updateSoulboundRitual()) {
+            return;
+        }
+
         // 1. 查找有效基座 (必須有物品)
         List<TileEntityPedestal> peds = findValidPedestals();
         if (peds.isEmpty()) {
@@ -228,12 +318,30 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         if (activeRecipe == null || !activeRecipe.getCore().apply(inv.getStackInSlot(0))) {
             activeRecipe = findMatchingRecipe(peds);
             process = 0; // 新配方，進度歸零
+            lastNotifiedRecipe = null; // 重置通知状态以便显示新配方信息
+
+            // 能量超载：在仪式开始时记录总能量（此时能量尚未被消耗）
+            if (activeRecipe != null) {
+                initialTotalEnergy = 0;
+                for (TileEntityPedestal ped : peds) {
+                    initialTotalEnergy += ped.getEnergy().getEnergyStored();
+                }
+            }
         }
 
         // 如果還是找不到配方，歸位
         if (activeRecipe == null) {
             updateState(false, false);
+            lastNotifiedRecipe = null;
             return;
+        }
+
+        // 显示成功率信息（配方首次匹配或定时刷新）
+        successRateDisplayCooldown--;
+        if (lastNotifiedRecipe != activeRecipe || successRateDisplayCooldown <= 0) {
+            notifySuccessRateInfo(peds, activeRecipe);
+            lastNotifiedRecipe = activeRecipe;
+            successRateDisplayCooldown = SUCCESS_RATE_DISPLAY_INTERVAL;
         }
 
         // 3. 運行中完整性檢查 (二次確認)
@@ -314,6 +422,45 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         return true;
     }
 
+    /**
+     * 特殊仪式（Legacy Ritual）的能量消耗检查与扣除
+     *
+     * @param ritualId 仪式ID（用于从 LegacyRitualConfig 获取能量配置）
+     * @param pedestalCount 参与仪式的基座数量
+     * @param duration 仪式总持续时间（tick）
+     * @param simulate 是否为模拟检查（true=只检查不扣除）
+     * @return true 如果能量足够（或已成功扣除）
+     */
+    private boolean checkAndConsumeEnergyForLegacyRitual(String ritualId, int pedestalCount, int duration, boolean simulate) {
+        List<TileEntityPedestal> peds = findValidPedestals();
+        if (peds.isEmpty()) return false;
+
+        // 从配置获取每基座能量消耗
+        int totalEnergy = LegacyRitualConfig.getEnergyPerPedestal(ritualId) * pedestalCount;
+        if (totalEnergy <= 0) return true; // 不需要能量
+
+        // 计算每tick消耗
+        int energyPerTick = Math.max(1, totalEnergy / Math.max(1, duration));
+
+        // 平均分配到各基座
+        int perPedestal = Math.max(1, energyPerTick / Math.max(1, peds.size()));
+
+        // 检查每个基座是否有足够能量
+        for (TileEntityPedestal ped : peds) {
+            if (ped.getEnergy().extractEnergy(perPedestal, true) < perPedestal) {
+                return false;
+            }
+        }
+
+        // 实际扣除
+        if (!simulate) {
+            for (TileEntityPedestal ped : peds) {
+                ped.getEnergy().extractEnergy(perPedestal, false);
+            }
+        }
+        return true;
+    }
+
     private void finishRitual(List<TileEntityPedestal> peds) {
         // 先保存配方引用，因为后续操作可能触发reset()
         RitualInfusionRecipe recipe = activeRecipe;
@@ -321,11 +468,24 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         // 标记为非活动状态，防止onContentsChanged触发reset
         isActive = false;
 
-        // 使用祭坛阶层调整后的失败率
-        float adjustedFailChance = recipe.getAdjustedFailChance(currentTier);
+        // 使用仪式开始时记录的能量（initialTotalEnergy），而非当前剩余能量
+        // 这样超载机制才能正确计算加成
+        int totalAvailableEnergy = initialTotalEnergy;
+
+        // 使用能量超载调整后的失败率
+        float adjustedFailChance = recipe.getOverloadAdjustedFailChance(currentTier, totalAvailableEnergy);
+        float overloadBonus = recipe.getOverloadBonus(totalAvailableEnergy);
+
         System.out.println("[Ritual] Tier: " + currentTier.getDisplayName() +
                          ", Base fail: " + recipe.getFailChance() +
-                         ", Adjusted fail: " + adjustedFailChance);
+                         ", Tier adjusted: " + recipe.getAdjustedFailChance(currentTier) +
+                         ", Overload bonus: " + (int)(overloadBonus * 100) + "%" +
+                         ", Final fail: " + adjustedFailChance);
+
+        // 通知玩家超载信息
+        if (overloadBonus > 0) {
+            notifyOverloadBonus(overloadBonus);
+        }
 
         // 失敗判定 (Risk mechanics)
         if (adjustedFailChance > 0 && world.rand.nextFloat() < adjustedFailChance) {
@@ -418,6 +578,7 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     private void reset() {
         process = 0;
         activeRecipe = null;
+        initialTotalEnergy = 0; // 重置能量超载记录
         updateState(false, false);
     }
 
@@ -520,6 +681,87 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
                 player.sendMessage(new TextComponentString(
                     TextFormatting.RED + "✗ 仪式失败！祭坛爆炸！"));
             }
+        }
+    }
+
+    /**
+     * 通知玩家能量超载加成
+     */
+    private void notifyOverloadBonus(float bonus) {
+        AxisAlignedBB area = new AxisAlignedBB(pos).grow(10);
+        List<EntityPlayer> players = world.getEntitiesWithinAABB(EntityPlayer.class, area);
+        int bonusPercent = (int)(bonus * 100);
+        for (EntityPlayer player : players) {
+            player.sendStatusMessage(new TextComponentString(
+                TextFormatting.AQUA + "⚡ 能量超载！成功率+" + bonusPercent + "%"), true);
+        }
+    }
+
+    /**
+     * 通知玩家当前仪式的成功率信息
+     */
+    private void notifySuccessRateInfo(List<TileEntityPedestal> peds, RitualInfusionRecipe recipe) {
+        // 使用仪式开始时记录的能量（如果已记录），否则计算当前能量
+        int totalAvailableEnergy;
+        if (initialTotalEnergy > 0) {
+            totalAvailableEnergy = initialTotalEnergy;
+        } else {
+            totalAvailableEnergy = 0;
+            for (TileEntityPedestal ped : peds) {
+                totalAvailableEnergy += ped.getEnergy().getEnergyStored();
+            }
+        }
+
+        // 计算各项数值
+        float baseFailChance = recipe.getFailChance();
+        float tierAdjustedFailChance = recipe.getAdjustedFailChance(currentTier);
+        float overloadBonus = recipe.getOverloadBonus(totalAvailableEnergy);
+        float finalFailChance = recipe.getOverloadAdjustedFailChance(currentTier, totalAvailableEnergy);
+
+        // 计算成功率
+        int baseSuccessRate = (int)((1.0f - baseFailChance) * 100);
+        int tierBonus = (int)(currentTier.getSuccessBonus() * 100);
+        int overloadBonusPercent = (int)(overloadBonus * 100);
+        int finalSuccessRate = (int)((1.0f - finalFailChance) * 100);
+
+        // 计算能量状态
+        int requiredEnergy = recipe.getEnergyPerPedestal() * recipe.getPedestalCount();
+        int energyPercent = requiredEnergy > 0 ? (totalAvailableEnergy * 100 / requiredEnergy) : 100;
+
+        // 构建显示消息
+        AxisAlignedBB area = new AxisAlignedBB(pos).grow(10);
+        List<EntityPlayer> players = world.getEntitiesWithinAABB(EntityPlayer.class, area);
+
+        for (EntityPlayer player : players) {
+            StringBuilder sb = new StringBuilder();
+            sb.append(TextFormatting.GOLD).append("⚗ ");
+            sb.append(TextFormatting.WHITE).append(recipe.getOutput().getDisplayName());
+            sb.append(TextFormatting.GRAY).append(" | ");
+
+            // 成功率显示
+            TextFormatting successColor = finalSuccessRate >= 90 ? TextFormatting.GREEN :
+                                         (finalSuccessRate >= 70 ? TextFormatting.YELLOW :
+                                         (finalSuccessRate >= 50 ? TextFormatting.GOLD : TextFormatting.RED));
+            sb.append(TextFormatting.GRAY).append("成功:");
+            sb.append(successColor).append(finalSuccessRate).append("%");
+
+            // 祭坛加成
+            if (tierBonus > 0) {
+                sb.append(TextFormatting.AQUA).append(" (+").append(tierBonus).append("% ").append(currentTier.getDisplayName()).append(")");
+            }
+
+            // 超载加成
+            if (overloadBonusPercent > 0) {
+                sb.append(TextFormatting.LIGHT_PURPLE).append(" (+").append(overloadBonusPercent).append("% 超载)");
+            }
+
+            // 能量状态
+            sb.append(TextFormatting.GRAY).append(" | 能量:");
+            TextFormatting energyColor = energyPercent >= 100 ? TextFormatting.GREEN :
+                                        (energyPercent >= 50 ? TextFormatting.YELLOW : TextFormatting.RED);
+            sb.append(energyColor).append(energyPercent).append("%");
+
+            player.sendStatusMessage(new TextComponentString(sb.toString()), true);
         }
     }
 
@@ -846,6 +1088,15 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
      * @return true 如果正在进行注魔仪式
      */
     private boolean updateEnchantInfusionRitual() {
+        // 检查仪式是否启用
+        if (!LegacyRitualConfig.isEnabled(LegacyRitualConfig.ENCHANT_INFUSION)) {
+            if (enchantInfusionActive) {
+                enchantInfusionActive = false;
+                enchantInfusionProgress = 0;
+            }
+            return false;
+        }
+
         // 必须是三阶祭坛
         if (currentTier != AltarTier.TIER_3) {
             if (enchantInfusionActive) {
@@ -877,19 +1128,36 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             enchantInfusionActive = true;
             enchantInfusionProgress = 0;
             notifyEnchantInfusionStart(coreItem, bookPedestals.size());
+
+            // 能量超载：记录仪式开始时的总能量
+            initialTotalEnergy = 0;
+            List<TileEntityPedestal> allPeds = findValidPedestals();
+            for (TileEntityPedestal ped : allPeds) {
+                initialTotalEnergy += ped.getEnergy().getEnergyStored();
+            }
+            System.out.println("[EnchantInfusion] Recorded initial energy: " + initialTotalEnergy);
         }
+
+        // 能量消耗检查（基于附魔书数量）
+        int enchantPedestalCount = bookPedestals.size();
+        if (!checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.ENCHANT_INFUSION, enchantPedestalCount, getEnchantInfusionTime(), true)) {
+            // 能量不足，暂停进度
+            return true;
+        }
+        // 实际消耗能量
+        checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.ENCHANT_INFUSION, enchantPedestalCount, getEnchantInfusionTime(), false);
 
         enchantInfusionProgress++;
 
         // 进度效果
         if (enchantInfusionProgress % 20 == 0) {
-            int seconds = (ENCHANT_INFUSION_TIME - enchantInfusionProgress) / 20;
+            int seconds = (getEnchantInfusionTime() - enchantInfusionProgress) / 20;
             notifyEnchantInfusionProgress(seconds, bookPedestals.size());
             spawnEnchantInfusionParticles();
         }
 
         // 完成注魔
-        if (enchantInfusionProgress >= ENCHANT_INFUSION_TIME) {
+        if (enchantInfusionProgress >= getEnchantInfusionTime()) {
             performEnchantInfusion(coreItem, bookPedestals);
             enchantInfusionActive = false;
             enchantInfusionProgress = 0;
@@ -900,16 +1168,40 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
 
     /**
      * 查找所有放着附魔书的基座
+     * 如果有自定义材料配置，则查找匹配自定义材料的基座
      */
     private List<TileEntityPedestal> findEnchantedBookPedestals() {
         List<TileEntityPedestal> list = new ArrayList<>();
-        for (BlockPos off : OFFS8) {
-            TileEntity te = world.getTileEntity(pos.add(off));
-            if (te instanceof TileEntityPedestal) {
-                TileEntityPedestal ped = (TileEntityPedestal) te;
-                ItemStack stack = ped.getInv().getStackInSlot(0);
-                if (!stack.isEmpty() && stack.getItem() == Items.ENCHANTED_BOOK) {
-                    list.add(ped);
+
+        // 如果有自定义材料配置，使用配置系统匹配
+        if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.ENCHANT_INFUSION)) {
+            List<LegacyRitualConfig.MaterialRequirement> reqs =
+                LegacyRitualConfig.getMaterialRequirements(LegacyRitualConfig.ENCHANT_INFUSION);
+            for (BlockPos off : OFFS8) {
+                TileEntity te = world.getTileEntity(pos.add(off));
+                if (te instanceof TileEntityPedestal) {
+                    TileEntityPedestal ped = (TileEntityPedestal) te;
+                    ItemStack stack = ped.getInv().getStackInSlot(0);
+                    if (!stack.isEmpty()) {
+                        for (LegacyRitualConfig.MaterialRequirement req : reqs) {
+                            if (req.matches(stack)) {
+                                list.add(ped);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            // 默认：只匹配附魔书
+            for (BlockPos off : OFFS8) {
+                TileEntity te = world.getTileEntity(pos.add(off));
+                if (te instanceof TileEntityPedestal) {
+                    TileEntityPedestal ped = (TileEntityPedestal) te;
+                    ItemStack stack = ped.getInv().getStackInSlot(0);
+                    if (!stack.isEmpty() && stack.getItem() == Items.ENCHANTED_BOOK) {
+                        list.add(ped);
+                    }
                 }
             }
         }
@@ -921,7 +1213,7 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
      */
     private void performEnchantInfusion(ItemStack coreItem, List<TileEntityPedestal> bookPedestals) {
         // 计算成功率 (基础5%，七咒之戒佩戴者10%)
-        float successRate = ENCHANT_SUCCESS_RATE;
+        float successRate = getEnchantInfusionSuccessRate();
 
         // 检测附近是否有佩戴七咒之戒的玩家
         AxisAlignedBB area = new AxisAlignedBB(pos).grow(10);
@@ -937,6 +1229,23 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         // 七咒之戒佩戴者概率翻倍（5% -> 10%）
         if (hasCursedRingPlayer) {
             successRate = successRate * 2.0f; // 10%
+        }
+
+        // 计算能量超载加成
+        int pedestalCount = bookPedestals.size();
+        float overloadBonus = LegacyRitualConfig.getOverloadBonus(
+            LegacyRitualConfig.ENCHANT_INFUSION, pedestalCount, initialTotalEnergy);
+        successRate = successRate + overloadBonus;
+
+        System.out.println("[EnchantInfusion] Base success: " + (getEnchantInfusionSuccessRate() * 100) + "%" +
+                         ", Cursed ring bonus: " + hasCursedRingPlayer +
+                         ", Overload bonus: " + (int)(overloadBonus * 100) + "%" +
+                         ", Final success: " + (int)(successRate * 100) + "%" +
+                         ", Initial energy: " + initialTotalEnergy);
+
+        // 通知玩家超载信息
+        if (overloadBonus > 0) {
+            notifyOverloadBonus(overloadBonus);
         }
 
         // 判定成功/失败
@@ -1187,6 +1496,15 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
      * @return true 如果正在进行复制仪式
      */
     private boolean updateDuplicationRitual() {
+        // 检查仪式是否启用
+        if (!LegacyRitualConfig.isEnabled(LegacyRitualConfig.DUPLICATION)) {
+            if (duplicationRitualActive) {
+                duplicationRitualActive = false;
+                duplicationProgress = 0;
+            }
+            return false;
+        }
+
         // 必须是三阶祭坛
         if (currentTier != AltarTier.TIER_3) {
             if (duplicationRitualActive) {
@@ -1226,19 +1544,35 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             duplicationProgress = 0;
             ItemStack storedItem = ItemCursedMirror.getStoredItem(coreItem);
             notifyDuplicationStart(storedItem);
+
+            // 能量超载：记录仪式开始时的总能量
+            initialTotalEnergy = 0;
+            List<TileEntityPedestal> allPeds = findValidPedestals();
+            for (TileEntityPedestal ped : allPeds) {
+                initialTotalEnergy += ped.getEnergy().getEnergyStored();
+            }
+            System.out.println("[Duplication] Recorded initial energy: " + initialTotalEnergy);
         }
+
+        // 能量消耗检查（8个虚空精华基座）
+        if (!checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.DUPLICATION, 8, getDuplicationTime(), true)) {
+            // 能量不足，暂停进度
+            return true;
+        }
+        // 实际消耗能量
+        checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.DUPLICATION, 8, getDuplicationTime(), false);
 
         duplicationProgress++;
 
         // 进度效果
         if (duplicationProgress % 20 == 0) {
-            int seconds = (DUPLICATION_TIME - duplicationProgress) / 20;
+            int seconds = (getDuplicationTime() - duplicationProgress) / 20;
             notifyDuplicationProgress(seconds);
             spawnDuplicationParticles();
         }
 
         // 完成复制
-        if (duplicationProgress >= DUPLICATION_TIME) {
+        if (duplicationProgress >= getDuplicationTime()) {
             performDuplication(coreItem, essencePedestals);
             duplicationRitualActive = false;
             duplicationProgress = 0;
@@ -1249,16 +1583,40 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
 
     /**
      * 查找所有放着虚空精华的基座
+     * 如果有自定义材料配置，则查找匹配自定义材料的基座
      */
     private List<TileEntityPedestal> findVoidEssencePedestals() {
         List<TileEntityPedestal> list = new ArrayList<>();
-        for (BlockPos off : OFFS8) {
-            TileEntity te = world.getTileEntity(pos.add(off));
-            if (te instanceof TileEntityPedestal) {
-                TileEntityPedestal ped = (TileEntityPedestal) te;
-                ItemStack stack = ped.getInv().getStackInSlot(0);
-                if (!stack.isEmpty() && stack.getItem() == ModItems.VOID_ESSENCE) {
-                    list.add(ped);
+
+        // 如果有自定义材料配置，使用配置系统匹配
+        if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.DUPLICATION)) {
+            List<LegacyRitualConfig.MaterialRequirement> reqs =
+                LegacyRitualConfig.getMaterialRequirements(LegacyRitualConfig.DUPLICATION);
+            for (BlockPos off : OFFS8) {
+                TileEntity te = world.getTileEntity(pos.add(off));
+                if (te instanceof TileEntityPedestal) {
+                    TileEntityPedestal ped = (TileEntityPedestal) te;
+                    ItemStack stack = ped.getInv().getStackInSlot(0);
+                    if (!stack.isEmpty()) {
+                        for (LegacyRitualConfig.MaterialRequirement req : reqs) {
+                            if (req.matches(stack)) {
+                                list.add(ped);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            // 默认：只匹配虚空精华
+            for (BlockPos off : OFFS8) {
+                TileEntity te = world.getTileEntity(pos.add(off));
+                if (te instanceof TileEntityPedestal) {
+                    TileEntityPedestal ped = (TileEntityPedestal) te;
+                    ItemStack stack = ped.getInv().getStackInSlot(0);
+                    if (!stack.isEmpty() && stack.getItem() == ModItems.VOID_ESSENCE) {
+                        list.add(ped);
+                    }
                 }
             }
         }
@@ -1277,8 +1635,24 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             ped.consumeOne();
         }
 
-        // 判定成功/失败 (1%成功率)
-        boolean success = world.rand.nextFloat() < DUPLICATION_SUCCESS_RATE;
+        // 计算能量超载加成
+        int pedestalCount = essencePedestals.size();
+        float overloadBonus = LegacyRitualConfig.getOverloadBonus(
+            LegacyRitualConfig.DUPLICATION, pedestalCount, initialTotalEnergy);
+        float finalSuccessRate = getDuplicationSuccessRate() + overloadBonus;
+
+        System.out.println("[Duplication] Base success: " + (getDuplicationSuccessRate() * 100) + "%" +
+                         ", Overload bonus: " + (int)(overloadBonus * 100) + "%" +
+                         ", Final success: " + (int)(finalSuccessRate * 100) + "%" +
+                         ", Initial energy: " + initialTotalEnergy);
+
+        // 通知玩家超载信息
+        if (overloadBonus > 0) {
+            notifyOverloadBonus(overloadBonus);
+        }
+
+        // 判定成功/失败
+        boolean success = world.rand.nextFloat() < finalSuccessRate;
 
         if (success) {
             // 成功：复制物品，保留原物品
@@ -1573,6 +1947,15 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
      * @return true 如果正在进行灵魂绑定仪式
      */
     private boolean updateSoulBindingRitual() {
+        // 检查仪式是否启用
+        if (!LegacyRitualConfig.isEnabled(LegacyRitualConfig.SOUL_BINDING)) {
+            if (soulBindingActive) {
+                soulBindingActive = false;
+                soulBindingProgress = 0;
+            }
+            return false;
+        }
+
         // 必须是三阶祭坛
         if (currentTier != AltarTier.TIER_3) {
             if (soulBindingActive) {
@@ -1620,19 +2003,35 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             soulBindingActive = true;
             soulBindingProgress = 0;
             notifySoulBindingStart(skullProfile);
+
+            // 能量超载：记录仪式开始时的总能量
+            initialTotalEnergy = 0;
+            List<TileEntityPedestal> allPeds = findValidPedestals();
+            for (TileEntityPedestal ped : allPeds) {
+                initialTotalEnergy += ped.getEnergy().getEnergyStored();
+            }
+            System.out.println("[SoulBinding] Recorded initial energy: " + initialTotalEnergy);
         }
+
+        // 能量消耗检查（4个灵魂材料基座）
+        if (!checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.SOUL_BINDING, 4, getSoulBindingTime(), true)) {
+            // 能量不足，暂停进度
+            return true;
+        }
+        // 实际消耗能量
+        checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.SOUL_BINDING, 4, getSoulBindingTime(), false);
 
         soulBindingProgress++;
 
         // 进度效果
         if (soulBindingProgress % 20 == 0) {
-            int seconds = (SOUL_BINDING_TIME - soulBindingProgress) / 20;
+            int seconds = (getSoulBindingTime() - soulBindingProgress) / 20;
             notifySoulBindingProgress(seconds, skullProfile);
             spawnSoulBindingParticles();
         }
 
         // 完成灵魂绑定
-        if (soulBindingProgress >= SOUL_BINDING_TIME) {
+        if (soulBindingProgress >= getSoulBindingTime()) {
             performSoulBinding(coreItem, skullProfile, soulMaterialPedestals);
             soulBindingActive = false;
             soulBindingProgress = 0;
@@ -1644,16 +2043,40 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     /**
      * 查找所有放着灵魂材料的基座
      * 灵魂材料：灵魂果实、虚空精华、凝视碎片、灵魂锚点等
+     * 如果有自定义材料配置，则查找匹配自定义材料的基座
      */
     private List<TileEntityPedestal> findSoulMaterialPedestals() {
         List<TileEntityPedestal> list = new ArrayList<>();
-        for (BlockPos off : OFFS8) {
-            TileEntity te = world.getTileEntity(pos.add(off));
-            if (te instanceof TileEntityPedestal) {
-                TileEntityPedestal ped = (TileEntityPedestal) te;
-                ItemStack stack = ped.getInv().getStackInSlot(0);
-                if (!stack.isEmpty() && isSoulMaterial(stack)) {
-                    list.add(ped);
+
+        // 如果有自定义材料配置，使用配置系统匹配
+        if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.SOUL_BINDING)) {
+            List<LegacyRitualConfig.MaterialRequirement> reqs =
+                LegacyRitualConfig.getMaterialRequirements(LegacyRitualConfig.SOUL_BINDING);
+            for (BlockPos off : OFFS8) {
+                TileEntity te = world.getTileEntity(pos.add(off));
+                if (te instanceof TileEntityPedestal) {
+                    TileEntityPedestal ped = (TileEntityPedestal) te;
+                    ItemStack stack = ped.getInv().getStackInSlot(0);
+                    if (!stack.isEmpty()) {
+                        for (LegacyRitualConfig.MaterialRequirement req : reqs) {
+                            if (req.matches(stack)) {
+                                list.add(ped);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            // 默认：使用硬编码灵魂材料
+            for (BlockPos off : OFFS8) {
+                TileEntity te = world.getTileEntity(pos.add(off));
+                if (te instanceof TileEntityPedestal) {
+                    TileEntityPedestal ped = (TileEntityPedestal) te;
+                    ItemStack stack = ped.getInv().getStackInSlot(0);
+                    if (!stack.isEmpty() && isSoulMaterial(stack)) {
+                        list.add(ped);
+                    }
                 }
             }
         }
@@ -1661,7 +2084,7 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     }
 
     /**
-     * 判断是否是灵魂材料
+     * 判断是否是灵魂材料（默认硬编码列表）
      */
     private boolean isSoulMaterial(ItemStack stack) {
         if (stack.isEmpty()) return false;
@@ -1683,8 +2106,24 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             ped.consumeOne();
         }
 
-        // 判定成功/失败 (50%成功率)
-        boolean success = world.rand.nextFloat() < SOUL_BINDING_SUCCESS_RATE;
+        // 计算能量超载加成
+        int pedestalCount = materialPedestals.size();
+        float overloadBonus = LegacyRitualConfig.getOverloadBonus(
+            LegacyRitualConfig.SOUL_BINDING, pedestalCount, initialTotalEnergy);
+        float finalSuccessRate = getSoulBindingSuccessRate() + overloadBonus;
+
+        System.out.println("[SoulBinding] Base success: " + (getSoulBindingSuccessRate() * 100) + "%" +
+                         ", Overload bonus: " + (int)(overloadBonus * 100) + "%" +
+                         ", Final success: " + (int)(finalSuccessRate * 100) + "%" +
+                         ", Initial energy: " + initialTotalEnergy);
+
+        // 通知玩家超载信息
+        if (overloadBonus > 0) {
+            notifyOverloadBonus(overloadBonus);
+        }
+
+        // 判定成功/失败
+        boolean success = world.rand.nextFloat() < finalSuccessRate;
 
         if (success) {
             // 成功：消耗头颅，创建假玩家核心
@@ -1876,7 +2315,7 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         // 灵魂漩涡粒子
         for (int i = 0; i < 8; i++) {
             double angle = i * Math.PI / 4 + (soulBindingProgress * 0.05);
-            double radius = 2.0 - (soulBindingProgress / (float) SOUL_BINDING_TIME);
+            double radius = 2.0 - (soulBindingProgress / (float) getSoulBindingTime());
             double x = pos.getX() + 0.5 + Math.cos(angle) * radius;
             double z = pos.getZ() + 0.5 + Math.sin(angle) * radius;
 
@@ -1934,6 +2373,15 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
      * 二階以上 + 詛咒物品 + 聖水/金蘋果
      */
     private boolean updateCursePurificationRitual() {
+        // 检查仪式是否启用
+        if (!LegacyRitualConfig.isEnabled(LegacyRitualConfig.CURSE_PURIFICATION)) {
+            if (cursePurificationActive) {
+                cursePurificationActive = false;
+                cursePurificationProgress = 0;
+            }
+            return false;
+        }
+
         // 需要二階以上
         if (currentTier.getLevel() < 2) {
             if (cursePurificationActive) {
@@ -1952,7 +2400,18 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         // 收集基座物品
         List<ItemStack> pedestalItems = collectPedestalItems();
 
-        if (!TierRitualHandler.canPurifyCurse(world, pos, centerItem, pedestalItems, currentTier)) {
+        // 检查材料需求（支持CRT自定义）
+        boolean materialsValid;
+        if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.CURSE_PURIFICATION)) {
+            // 使用自定义材料配置，但仍需检查中心物品是否有诅咒附魔
+            materialsValid = LegacyRitualConfig.checkMaterialRequirements(LegacyRitualConfig.CURSE_PURIFICATION, pedestalItems)
+                          && hasCurseEnchantment(centerItem);
+        } else {
+            // 默认使用TierRitualHandler检查
+            materialsValid = TierRitualHandler.canPurifyCurse(world, pos, centerItem, pedestalItems, currentTier);
+        }
+
+        if (!materialsValid) {
             if (cursePurificationActive) resetCursePurification();
             return false;
         }
@@ -1962,17 +2421,32 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             cursePurificationActive = true;
             cursePurificationProgress = 0;
             notifyRitualStart("詛咒淨化", TextFormatting.YELLOW);
+
+            // 能量超载：记录仪式开始时的总能量
+            initialTotalEnergy = 0;
+            List<TileEntityPedestal> allPeds = findValidPedestals();
+            for (TileEntityPedestal ped : allPeds) {
+                initialTotalEnergy += ped.getEnergy().getEnergyStored();
+            }
         }
+
+        // 能量消耗检查（4个基座参与）
+        if (!checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.CURSE_PURIFICATION, 4, getCursePurificationTime(), true)) {
+            // 能量不足，暂停进度
+            return true;
+        }
+        // 实际消耗能量
+        checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.CURSE_PURIFICATION, 4, getCursePurificationTime(), false);
 
         cursePurificationProgress++;
 
         if (cursePurificationProgress % 20 == 0) {
-            int seconds = (CURSE_PURIFICATION_TIME - cursePurificationProgress) / 20;
+            int seconds = (getCursePurificationTime() - cursePurificationProgress) / 20;
             notifyRitualProgress("詛咒淨化", seconds, TextFormatting.YELLOW);
             spawnPurificationParticles();
         }
 
-        if (cursePurificationProgress >= CURSE_PURIFICATION_TIME) {
+        if (cursePurificationProgress >= getCursePurificationTime()) {
             performCursePurification(centerItem);
             resetCursePurification();
         }
@@ -1986,13 +2460,48 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     }
 
     private void performCursePurification(ItemStack centerItem) {
+        // 检查CRT配置的失败率（默认0%）
+        float baseFailChance = LegacyRitualConfig.getFailChance(LegacyRitualConfig.CURSE_PURIFICATION);
+
+        // 如果有失败率，计算超载加成
+        if (baseFailChance > 0) {
+            int pedestalCount = collectPedestalItems().size();
+            float overloadBonus = LegacyRitualConfig.getOverloadBonus(
+                LegacyRitualConfig.CURSE_PURIFICATION, pedestalCount, initialTotalEnergy);
+            float finalFailChance = Math.max(0, baseFailChance - overloadBonus);
+
+            if (overloadBonus > 0) {
+                notifyOverloadBonus(overloadBonus);
+            }
+
+            // 随机失败判定
+            if (world.rand.nextFloat() < finalFailChance) {
+                TierRitualHandler.notifyPlayers(world, pos,
+                    "✗ 詛咒淨化失敗！神聖能量被反噬...", TextFormatting.RED);
+                // 消耗材料但不净化
+                if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.CURSE_PURIFICATION)) {
+                    consumeCustomMaterials(LegacyRitualConfig.CURSE_PURIFICATION);
+                } else {
+                    consumeAllMatchingPedestalItems(stack -> isHolyItem(stack));
+                }
+                syncToClient();
+                markDirty();
+                return;
+            }
+        }
+
         TierRitualHandler.PurificationResult result =
             TierRitualHandler.performCursePurification(world, pos, centerItem, currentTier);
 
         if (result.success) {
             TierRitualHandler.notifyPlayers(world, pos,
                 "✓ 成功淨化 " + result.removedCount + " 個詛咒！", TextFormatting.GREEN);
-            consumeOnePedestalItem(stack -> isHolyItem(stack));
+            // 消耗材料（支持CRT自定义）
+            if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.CURSE_PURIFICATION)) {
+                consumeCustomMaterials(LegacyRitualConfig.CURSE_PURIFICATION);
+            } else {
+                consumeAllMatchingPedestalItems(stack -> isHolyItem(stack));
+            }
         } else {
             TierRitualHandler.notifyPlayers(world, pos,
                 "✗ " + result.errorMessage, TextFormatting.RED);
@@ -2021,6 +2530,12 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
      * 三階 + 附魔物品（中心）+ 目標物品（基座）+ 青金石（基座）
      */
     private boolean updateEnchantTransferRitual() {
+        // 检查仪式是否启用
+        if (!LegacyRitualConfig.isEnabled(LegacyRitualConfig.ENCHANT_TRANSFER)) {
+            if (enchantTransferActive) resetEnchantTransfer();
+            return false;
+        }
+
         // 必須是三階
         if (currentTier != AltarTier.TIER_3) {
             if (enchantTransferActive) resetEnchantTransfer();
@@ -2035,7 +2550,18 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
 
         List<ItemStack> pedestalItems = collectPedestalItems();
 
-        if (!TierRitualHandler.canTransferEnchantment(world, pos, centerItem, pedestalItems, currentTier)) {
+        // 检查材料需求（支持CRT自定义）
+        boolean materialsValid;
+        if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.ENCHANT_TRANSFER)) {
+            // 使用自定义材料配置，但仍需检查是否有目标物品
+            materialsValid = LegacyRitualConfig.checkMaterialRequirements(LegacyRitualConfig.ENCHANT_TRANSFER, pedestalItems)
+                          && !findTransferTarget().isEmpty();
+        } else {
+            // 默认使用TierRitualHandler检查
+            materialsValid = TierRitualHandler.canTransferEnchantment(world, pos, centerItem, pedestalItems, currentTier);
+        }
+
+        if (!materialsValid) {
             if (enchantTransferActive) resetEnchantTransfer();
             return false;
         }
@@ -2044,17 +2570,32 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             enchantTransferActive = true;
             enchantTransferProgress = 0;
             notifyRitualStart("附魔轉移", TextFormatting.AQUA);
+
+            // 能量超载：记录仪式开始时的总能量
+            initialTotalEnergy = 0;
+            List<TileEntityPedestal> allPeds = findValidPedestals();
+            for (TileEntityPedestal ped : allPeds) {
+                initialTotalEnergy += ped.getEnergy().getEnergyStored();
+            }
         }
+
+        // 能量消耗检查（4个基座参与）
+        if (!checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.ENCHANT_TRANSFER, 4, getEnchantTransferTime(), true)) {
+            // 能量不足，暂停进度
+            return true;
+        }
+        // 实际消耗能量
+        checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.ENCHANT_TRANSFER, 4, getEnchantTransferTime(), false);
 
         enchantTransferProgress++;
 
         if (enchantTransferProgress % 20 == 0) {
-            int seconds = (ENCHANT_TRANSFER_TIME - enchantTransferProgress) / 20;
+            int seconds = (getEnchantTransferTime() - enchantTransferProgress) / 20;
             notifyRitualProgress("附魔轉移", seconds, TextFormatting.AQUA);
             spawnTransferParticles();
         }
 
-        if (enchantTransferProgress >= ENCHANT_TRANSFER_TIME) {
+        if (enchantTransferProgress >= getEnchantTransferTime()) {
             performEnchantTransfer(centerItem);
             resetEnchantTransfer();
         }
@@ -2068,6 +2609,38 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     }
 
     private void performEnchantTransfer(ItemStack sourceItem) {
+        // 检查CRT配置的失败率（默认0%）
+        float baseFailChance = LegacyRitualConfig.getFailChance(LegacyRitualConfig.ENCHANT_TRANSFER);
+
+        // 如果有失败率，计算超载加成
+        if (baseFailChance > 0) {
+            int pedestalCount = collectPedestalItems().size();
+            float overloadBonus = LegacyRitualConfig.getOverloadBonus(
+                LegacyRitualConfig.ENCHANT_TRANSFER, pedestalCount, initialTotalEnergy);
+            float finalFailChance = Math.max(0, baseFailChance - overloadBonus);
+
+            if (overloadBonus > 0) {
+                notifyOverloadBonus(overloadBonus);
+            }
+
+            // 随机失败判定
+            if (world.rand.nextFloat() < finalFailChance) {
+                TierRitualHandler.notifyPlayers(world, pos,
+                    "✗ 附魔轉移失敗！魔力共鳴中斷...", TextFormatting.RED);
+                // 消耗材料
+                if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.ENCHANT_TRANSFER)) {
+                    consumeCustomMaterials(LegacyRitualConfig.ENCHANT_TRANSFER);
+                } else {
+                    consumeAllMatchingPedestalItems(stack ->
+                        (stack.getItem() == Items.DYE && stack.getMetadata() == 4) ||
+                        stack.getItem() == Items.DRAGON_BREATH);
+                }
+                syncToClient();
+                markDirty();
+                return;
+            }
+        }
+
         // 找到目標物品
         ItemStack targetItem = findTransferTarget();
         if (targetItem.isEmpty()) {
@@ -2080,9 +2653,14 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
         if (transferred > 0) {
             TierRitualHandler.notifyPlayers(world, pos,
                 "★ 成功轉移 " + transferred + " 個附魔！", TextFormatting.GOLD);
-            consumeOnePedestalItem(stack ->
-                (stack.getItem() == Items.DYE && stack.getMetadata() == 4) ||
-                stack.getItem() == Items.DRAGON_BREATH);
+            // 消耗材料（支持CRT自定义）
+            if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.ENCHANT_TRANSFER)) {
+                consumeCustomMaterials(LegacyRitualConfig.ENCHANT_TRANSFER);
+            } else {
+                consumeAllMatchingPedestalItems(stack ->
+                    (stack.getItem() == Items.DYE && stack.getMetadata() == 4) ||
+                    stack.getItem() == Items.DRAGON_BREATH);
+            }
         } else {
             TierRitualHandler.notifyPlayers(world, pos, "✗ 無法轉移附魔！", TextFormatting.RED);
         }
@@ -2122,6 +2700,12 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
      * 書 + 墨囊 + 腐肉/蜘蛛眼
      */
     private boolean updateCurseCreationRitual() {
+        // 检查仪式是否启用
+        if (!LegacyRitualConfig.isEnabled(LegacyRitualConfig.CURSE_CREATION)) {
+            if (curseCreationActive) resetCurseCreation();
+            return false;
+        }
+
         ItemStack centerItem = inv.getStackInSlot(0);
         if (centerItem.isEmpty() || centerItem.getItem() != Items.BOOK) {
             if (curseCreationActive) resetCurseCreation();
@@ -2130,19 +2714,30 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
 
         List<ItemStack> pedestalItems = collectPedestalItems();
 
-        // 需要墨囊和詛咒材料
-        boolean hasInk = false;
+        // 检查材料需求（支持CRT自定义）
+        boolean materialsValid;
         int curseMaterials = 0;
-        for (ItemStack stack : pedestalItems) {
-            if (stack.getItem() == Items.DYE && stack.getMetadata() == 0) hasInk = true; // 墨囊
-            if (stack.getItem() == Items.ROTTEN_FLESH ||
-                stack.getItem() == Items.SPIDER_EYE ||
-                stack.getItem() == Items.FERMENTED_SPIDER_EYE) {
-                curseMaterials++;
+
+        if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.CURSE_CREATION)) {
+            // 使用自定义材料配置
+            materialsValid = LegacyRitualConfig.checkMaterialRequirements(LegacyRitualConfig.CURSE_CREATION, pedestalItems);
+            // 对于自定义材料，默认诅咒数量为1
+            curseMaterials = materialsValid ? 1 : 0;
+        } else {
+            // 默认硬编码检查：需要墨囊和詛咒材料
+            boolean hasInk = false;
+            for (ItemStack stack : pedestalItems) {
+                if (stack.getItem() == Items.DYE && stack.getMetadata() == 0) hasInk = true; // 墨囊
+                if (stack.getItem() == Items.ROTTEN_FLESH ||
+                    stack.getItem() == Items.SPIDER_EYE ||
+                    stack.getItem() == Items.FERMENTED_SPIDER_EYE) {
+                    curseMaterials++;
+                }
             }
+            materialsValid = hasInk && curseMaterials >= 1;
         }
 
-        if (!hasInk || curseMaterials < 1) {
+        if (!materialsValid) {
             if (curseCreationActive) resetCurseCreation();
             return false;
         }
@@ -2151,17 +2746,32 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             curseCreationActive = true;
             curseCreationProgress = 0;
             notifyRitualStart("詛咒創造", TextFormatting.DARK_PURPLE);
+
+            // 能量超载：记录仪式开始时的总能量
+            initialTotalEnergy = 0;
+            List<TileEntityPedestal> allPeds = findValidPedestals();
+            for (TileEntityPedestal ped : allPeds) {
+                initialTotalEnergy += ped.getEnergy().getEnergyStored();
+            }
         }
+
+        // 能量消耗检查（4个基座参与）
+        if (!checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.CURSE_CREATION, 4, getCurseCreationTime(), true)) {
+            // 能量不足，暂停进度
+            return true;
+        }
+        // 实际消耗能量
+        checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.CURSE_CREATION, 4, getCurseCreationTime(), false);
 
         curseCreationProgress++;
 
         if (curseCreationProgress % 20 == 0) {
-            int seconds = (CURSE_CREATION_TIME - curseCreationProgress) / 20;
+            int seconds = (getCurseCreationTime() - curseCreationProgress) / 20;
             notifyRitualProgress("詛咒創造", seconds, TextFormatting.DARK_PURPLE);
             spawnCurseParticles();
         }
 
-        if (curseCreationProgress >= CURSE_CREATION_TIME) {
+        if (curseCreationProgress >= getCurseCreationTime()) {
             performCurseCreation(Math.min(curseMaterials, 2));
             resetCurseCreation();
         }
@@ -2175,6 +2785,32 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     }
 
     private void performCurseCreation(int curseCount) {
+        // 检查CRT配置的失败率（默认0%）
+        float baseFailChance = LegacyRitualConfig.getFailChance(LegacyRitualConfig.CURSE_CREATION);
+
+        // 如果有失败率，计算超载加成
+        if (baseFailChance > 0) {
+            int pedestalCount = collectPedestalItems().size();
+            float overloadBonus = LegacyRitualConfig.getOverloadBonus(
+                LegacyRitualConfig.CURSE_CREATION, pedestalCount, initialTotalEnergy);
+            float finalFailChance = Math.max(0, baseFailChance - overloadBonus);
+
+            if (overloadBonus > 0) {
+                notifyOverloadBonus(overloadBonus);
+            }
+
+            // 随机失败判定
+            if (world.rand.nextFloat() < finalFailChance) {
+                TierRitualHandler.notifyPlayers(world, pos,
+                    "✗ 詛咒創造失敗！黑暗能量失控...", TextFormatting.RED);
+                // 消耗书本
+                inv.extractItem(0, 1, false);
+                syncToClient();
+                markDirty();
+                return;
+            }
+        }
+
         // 消耗書
         inv.extractItem(0, 1, false);
 
@@ -2191,13 +2827,19 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             world.spawnEntity(entity);
         }
 
-        // 消耗材料
-        consumeOnePedestalItem(stack -> stack.getItem() == Items.DYE && stack.getMetadata() == 0);
-        for (int i = 0; i < curseCount; i++) {
-            consumeOnePedestalItem(stack ->
-                stack.getItem() == Items.ROTTEN_FLESH ||
-                stack.getItem() == Items.SPIDER_EYE ||
-                stack.getItem() == Items.FERMENTED_SPIDER_EYE);
+        // 消耗材料（支持CRT自定义）
+        if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.CURSE_CREATION)) {
+            // 使用自定义材料配置消耗
+            consumeCustomMaterials(LegacyRitualConfig.CURSE_CREATION);
+        } else {
+            // 默认材料消耗
+            consumeOnePedestalItem(stack -> stack.getItem() == Items.DYE && stack.getMetadata() == 0);
+            for (int i = 0; i < curseCount; i++) {
+                consumeOnePedestalItem(stack ->
+                    stack.getItem() == Items.ROTTEN_FLESH ||
+                    stack.getItem() == Items.SPIDER_EYE ||
+                    stack.getItem() == Items.FERMENTED_SPIDER_EYE);
+            }
         }
 
         TierRitualHandler.notifyPlayers(world, pos,
@@ -2224,6 +2866,12 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
      * 澄月/勇者之劍/鉅刃劍 + 經驗瓶/附魔書
      */
     private boolean updateWeaponExpBoostRitual() {
+        // 检查仪式是否启用
+        if (!LegacyRitualConfig.isEnabled(LegacyRitualConfig.WEAPON_EXP_BOOST)) {
+            if (weaponExpBoostActive) resetWeaponExpBoost();
+            return false;
+        }
+
         ItemStack centerItem = inv.getStackInSlot(0);
         if (centerItem.isEmpty() || !TierRitualHandler.isExpBoostableWeapon(centerItem)) {
             if (weaponExpBoostActive) resetWeaponExpBoost();
@@ -2232,14 +2880,21 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
 
         List<ItemStack> pedestalItems = collectPedestalItems();
 
-        // 需要經驗瓶或附魔書
-        boolean hasExpMaterial = false;
-        for (ItemStack stack : pedestalItems) {
-            if (stack.getItem() == Items.EXPERIENCE_BOTTLE ||
-                stack.getItem() == Items.ENCHANTED_BOOK ||
-                stack.getItem() == Items.EMERALD) {
-                hasExpMaterial = true;
-                break;
+        // 检查材料需求（支持CRT自定义）
+        boolean hasExpMaterial;
+        if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.WEAPON_EXP_BOOST)) {
+            // 使用自定义材料配置
+            hasExpMaterial = LegacyRitualConfig.checkMaterialRequirements(LegacyRitualConfig.WEAPON_EXP_BOOST, pedestalItems);
+        } else {
+            // 默认硬编码检查：需要經驗瓶或附魔書
+            hasExpMaterial = false;
+            for (ItemStack stack : pedestalItems) {
+                if (stack.getItem() == Items.EXPERIENCE_BOTTLE ||
+                    stack.getItem() == Items.ENCHANTED_BOOK ||
+                    stack.getItem() == Items.EMERALD) {
+                    hasExpMaterial = true;
+                    break;
+                }
             }
         }
 
@@ -2252,17 +2907,32 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             weaponExpBoostActive = true;
             weaponExpBoostProgress = 0;
             notifyRitualStart("武器覺醒", TextFormatting.LIGHT_PURPLE);
+
+            // 能量超载：记录仪式开始时的总能量
+            initialTotalEnergy = 0;
+            List<TileEntityPedestal> allPeds = findValidPedestals();
+            for (TileEntityPedestal ped : allPeds) {
+                initialTotalEnergy += ped.getEnergy().getEnergyStored();
+            }
         }
+
+        // 能量消耗检查（4个基座参与）
+        if (!checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.WEAPON_EXP_BOOST, 4, getWeaponExpBoostTime(), true)) {
+            // 能量不足，暂停进度
+            return true;
+        }
+        // 实际消耗能量
+        checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.WEAPON_EXP_BOOST, 4, getWeaponExpBoostTime(), false);
 
         weaponExpBoostProgress++;
 
         if (weaponExpBoostProgress % 20 == 0) {
-            int seconds = (WEAPON_EXP_BOOST_TIME - weaponExpBoostProgress) / 20;
+            int seconds = (getWeaponExpBoostTime() - weaponExpBoostProgress) / 20;
             notifyRitualProgress("武器覺醒", seconds, TextFormatting.LIGHT_PURPLE);
             spawnWeaponBoostParticles();
         }
 
-        if (weaponExpBoostProgress >= WEAPON_EXP_BOOST_TIME) {
+        if (weaponExpBoostProgress >= getWeaponExpBoostTime()) {
             performWeaponExpBoost(centerItem);
             resetWeaponExpBoost();
         }
@@ -2276,6 +2946,39 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     }
 
     private void performWeaponExpBoost(ItemStack weapon) {
+        // 检查CRT配置的失败率（默认0%）
+        float baseFailChance = LegacyRitualConfig.getFailChance(LegacyRitualConfig.WEAPON_EXP_BOOST);
+
+        // 如果有失败率，计算超载加成
+        if (baseFailChance > 0) {
+            int pedestalCount = collectPedestalItems().size();
+            float overloadBonus = LegacyRitualConfig.getOverloadBonus(
+                LegacyRitualConfig.WEAPON_EXP_BOOST, pedestalCount, initialTotalEnergy);
+            float finalFailChance = Math.max(0, baseFailChance - overloadBonus);
+
+            if (overloadBonus > 0) {
+                notifyOverloadBonus(overloadBonus);
+            }
+
+            // 随机失败判定
+            if (world.rand.nextFloat() < finalFailChance) {
+                TierRitualHandler.notifyPlayers(world, pos,
+                    "✗ 武器覺醒失敗！能量共鳴中斷...", TextFormatting.RED);
+                // 消耗材料
+                if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.WEAPON_EXP_BOOST)) {
+                    consumeCustomMaterials(LegacyRitualConfig.WEAPON_EXP_BOOST);
+                } else {
+                    consumeAllMatchingPedestalItems(stack ->
+                        stack.getItem() == Items.EXPERIENCE_BOTTLE ||
+                        stack.getItem() == Items.ENCHANTED_BOOK ||
+                        stack.getItem() == Items.EMERALD);
+                }
+                syncToClient();
+                markDirty();
+                return;
+            }
+        }
+
         boolean success = TierRitualHandler.applyExpBoost(weapon, currentTier, WEAPON_EXP_BOOST_DURATION);
 
         if (success) {
@@ -2290,10 +2993,15 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
                 "★ " + weapon.getDisplayName() + " 獲得經驗加速 x" + mult + " (10分鐘)",
                 TextFormatting.GOLD);
 
-            consumeOnePedestalItem(stack ->
-                stack.getItem() == Items.EXPERIENCE_BOTTLE ||
-                stack.getItem() == Items.ENCHANTED_BOOK ||
-                stack.getItem() == Items.EMERALD);
+            // 消耗材料（支持CRT自定义）
+            if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.WEAPON_EXP_BOOST)) {
+                consumeCustomMaterials(LegacyRitualConfig.WEAPON_EXP_BOOST);
+            } else {
+                consumeAllMatchingPedestalItems(stack ->
+                    stack.getItem() == Items.EXPERIENCE_BOTTLE ||
+                    stack.getItem() == Items.ENCHANTED_BOOK ||
+                    stack.getItem() == Items.EMERALD);
+            }
 
             world.playSound(null, pos, SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.BLOCKS, 1.0f, 1.0f);
         }
@@ -2318,6 +3026,12 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
      * 村正 + 凋零骷髏頭/烈焰粉
      */
     private boolean updateMuramasaBoostRitual() {
+        // 检查仪式是否启用
+        if (!LegacyRitualConfig.isEnabled(LegacyRitualConfig.MURAMASA_BOOST)) {
+            if (muramasaBoostActive) resetMuramasaBoost();
+            return false;
+        }
+
         ItemStack centerItem = inv.getStackInSlot(0);
         if (centerItem.isEmpty() || !TierRitualHandler.isMuramasa(centerItem)) {
             if (muramasaBoostActive) resetMuramasaBoost();
@@ -2326,14 +3040,21 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
 
         List<ItemStack> pedestalItems = collectPedestalItems();
 
-        // 需要攻擊材料
-        boolean hasBoostMaterial = false;
-        for (ItemStack stack : pedestalItems) {
-            if ((stack.getItem() == Items.SKULL && stack.getMetadata() == 1) || // 凋零骷髏頭
-                stack.getItem() == Items.BLAZE_POWDER ||
-                stack.getItem() == Items.NETHER_STAR) {
-                hasBoostMaterial = true;
-                break;
+        // 检查材料需求（支持CRT自定义）
+        boolean hasBoostMaterial;
+        if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.MURAMASA_BOOST)) {
+            // 使用自定义材料配置
+            hasBoostMaterial = LegacyRitualConfig.checkMaterialRequirements(LegacyRitualConfig.MURAMASA_BOOST, pedestalItems);
+        } else {
+            // 默认硬编码检查：需要攻擊材料
+            hasBoostMaterial = false;
+            for (ItemStack stack : pedestalItems) {
+                if ((stack.getItem() == Items.SKULL && stack.getMetadata() == 1) || // 凋零骷髏頭
+                    stack.getItem() == Items.BLAZE_POWDER ||
+                    stack.getItem() == Items.NETHER_STAR) {
+                    hasBoostMaterial = true;
+                    break;
+                }
             }
         }
 
@@ -2346,17 +3067,32 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             muramasaBoostActive = true;
             muramasaBoostProgress = 0;
             notifyRitualStart("妖刀覺醒", TextFormatting.RED);
+
+            // 能量超载：记录仪式开始时的总能量
+            initialTotalEnergy = 0;
+            List<TileEntityPedestal> allPeds = findValidPedestals();
+            for (TileEntityPedestal ped : allPeds) {
+                initialTotalEnergy += ped.getEnergy().getEnergyStored();
+            }
         }
+
+        // 能量消耗检查（4个基座参与）
+        if (!checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.MURAMASA_BOOST, 4, getMuramasaBoostTime(), true)) {
+            // 能量不足，暂停进度
+            return true;
+        }
+        // 实际消耗能量
+        checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.MURAMASA_BOOST, 4, getMuramasaBoostTime(), false);
 
         muramasaBoostProgress++;
 
         if (muramasaBoostProgress % 20 == 0) {
-            int seconds = (MURAMASA_BOOST_TIME - muramasaBoostProgress) / 20;
+            int seconds = (getMuramasaBoostTime() - muramasaBoostProgress) / 20;
             notifyRitualProgress("妖刀覺醒", seconds, TextFormatting.RED);
             spawnMuramasaParticles();
         }
 
-        if (muramasaBoostProgress >= MURAMASA_BOOST_TIME) {
+        if (muramasaBoostProgress >= getMuramasaBoostTime()) {
             performMuramasaBoost(centerItem);
             resetMuramasaBoost();
         }
@@ -2370,6 +3106,39 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     }
 
     private void performMuramasaBoost(ItemStack weapon) {
+        // 检查CRT配置的失败率（默认0%）
+        float baseFailChance = LegacyRitualConfig.getFailChance(LegacyRitualConfig.MURAMASA_BOOST);
+
+        // 如果有失败率，计算超载加成
+        if (baseFailChance > 0) {
+            int pedestalCount = collectPedestalItems().size();
+            float overloadBonus = LegacyRitualConfig.getOverloadBonus(
+                LegacyRitualConfig.MURAMASA_BOOST, pedestalCount, initialTotalEnergy);
+            float finalFailChance = Math.max(0, baseFailChance - overloadBonus);
+
+            if (overloadBonus > 0) {
+                notifyOverloadBonus(overloadBonus);
+            }
+
+            // 随机失败判定
+            if (world.rand.nextFloat() < finalFailChance) {
+                TierRitualHandler.notifyPlayers(world, pos,
+                    "✗ 妖刀覺醒失敗！邪氣反噬...", TextFormatting.RED);
+                // 消耗材料
+                if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.MURAMASA_BOOST)) {
+                    consumeCustomMaterials(LegacyRitualConfig.MURAMASA_BOOST);
+                } else {
+                    consumeAllMatchingPedestalItems(stack ->
+                        (stack.getItem() == Items.SKULL && stack.getMetadata() == 1) ||
+                        stack.getItem() == Items.BLAZE_POWDER ||
+                        stack.getItem() == Items.NETHER_STAR);
+                }
+                syncToClient();
+                markDirty();
+                return;
+            }
+        }
+
         boolean success = TierRitualHandler.applyMuramasaBoost(weapon, currentTier, MURAMASA_BOOST_DURATION);
 
         if (success) {
@@ -2384,10 +3153,15 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
                 "⚔ 村正獲得攻擊加成 +" + boost + " (10分鐘)",
                 TextFormatting.RED);
 
-            consumeOnePedestalItem(stack ->
-                (stack.getItem() == Items.SKULL && stack.getMetadata() == 1) ||
-                stack.getItem() == Items.BLAZE_POWDER ||
-                stack.getItem() == Items.NETHER_STAR);
+            // 消耗材料（支持CRT自定义）
+            if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.MURAMASA_BOOST)) {
+                consumeCustomMaterials(LegacyRitualConfig.MURAMASA_BOOST);
+            } else {
+                consumeAllMatchingPedestalItems(stack ->
+                    (stack.getItem() == Items.SKULL && stack.getMetadata() == 1) ||
+                    stack.getItem() == Items.BLAZE_POWDER ||
+                    stack.getItem() == Items.NETHER_STAR);
+            }
 
             world.playSound(null, pos, SoundEvents.ENTITY_WITHER_AMBIENT, SoundCategory.BLOCKS, 0.5f, 0.5f);
         }
@@ -2446,6 +3220,61 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     }
 
     /**
+     * 消耗所有符合條件的基座物品
+     * 用於特殊儀式需要消耗多個材料的情況
+     */
+    private void consumeAllMatchingPedestalItems(java.util.function.Predicate<ItemStack> predicate) {
+        for (BlockPos off : OFFS8) {
+            TileEntity te = world.getTileEntity(pos.add(off));
+            if (te instanceof TileEntityPedestal) {
+                TileEntityPedestal ped = (TileEntityPedestal) te;
+                ItemStack stack = ped.getInv().getStackInSlot(0);
+                if (!stack.isEmpty() && predicate.test(stack)) {
+                    ped.consumeOne();
+                }
+            }
+        }
+    }
+
+    /**
+     * 消耗CRT自定义材料配置中匹配的所有物品
+     * 根据材料需求的 count 正确消耗相应数量的物品
+     * @param ritualId 仪式ID
+     */
+    private void consumeCustomMaterials(String ritualId) {
+        List<LegacyRitualConfig.MaterialRequirement> requirements =
+            LegacyRitualConfig.getMaterialRequirements(ritualId);
+
+        if (requirements.isEmpty()) return;
+
+        // 为每个需求创建剩余消耗计数器
+        Map<LegacyRitualConfig.MaterialRequirement, Integer> remainingCounts = new HashMap<>();
+        for (LegacyRitualConfig.MaterialRequirement req : requirements) {
+            remainingCounts.put(req, req.getCount());
+        }
+
+        // 遍历所有基座，按需求数量消耗物品
+        for (BlockPos off : OFFS8) {
+            TileEntity te = world.getTileEntity(pos.add(off));
+            if (te instanceof TileEntityPedestal) {
+                TileEntityPedestal ped = (TileEntityPedestal) te;
+                ItemStack stack = ped.getInv().getStackInSlot(0);
+                if (!stack.isEmpty()) {
+                    // 检查是否匹配任何一个还需要消耗的材料需求
+                    for (LegacyRitualConfig.MaterialRequirement req : requirements) {
+                        int remaining = remainingCounts.getOrDefault(req, 0);
+                        if (remaining > 0 && req.matches(stack)) {
+                            ped.consumeOne();
+                            remainingCounts.put(req, remaining - 1);
+                            break; // 匹配到一个需求即可，继续下一个基座
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
      * 檢查是否為聖潔物品
      */
     private boolean isHolyItem(ItemStack stack) {
@@ -2454,6 +3283,20 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
                stack.getItem() == Items.DRAGON_BREATH ||
                stack.getItem() == Items.NETHER_STAR ||
                stack.getItem().getRegistryName().toString().contains("holy_water");
+    }
+
+    /**
+     * 检查物品是否有诅咒附魔
+     */
+    private boolean hasCurseEnchantment(ItemStack stack) {
+        if (stack.isEmpty()) return false;
+        Map<Enchantment, Integer> enchants = EnchantmentHelper.getEnchantments(stack);
+        for (Enchantment ench : enchants.keySet()) {
+            if (ench.isCurse()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -2495,6 +3338,12 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
      * 織印盔甲 + 強化材料（龍息/終界之眼/地獄之星）
      */
     private boolean updateFabricEnhanceRitual() {
+        // 检查仪式是否启用
+        if (!LegacyRitualConfig.isEnabled(LegacyRitualConfig.FABRIC_ENHANCE)) {
+            if (fabricEnhanceActive) resetFabricEnhance();
+            return false;
+        }
+
         ItemStack centerItem = inv.getStackInSlot(0);
         if (centerItem.isEmpty() || !TierRitualHandler.hasFabricWeave(centerItem)) {
             if (fabricEnhanceActive) resetFabricEnhance();
@@ -2503,7 +3352,17 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
 
         List<ItemStack> pedestalItems = collectPedestalItems();
 
-        if (!TierRitualHandler.canEnhanceFabric(centerItem, pedestalItems, currentTier)) {
+        // 检查材料需求（支持CRT自定义）
+        boolean materialsValid;
+        if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.FABRIC_ENHANCE)) {
+            // 使用自定义材料配置
+            materialsValid = LegacyRitualConfig.checkMaterialRequirements(LegacyRitualConfig.FABRIC_ENHANCE, pedestalItems);
+        } else {
+            // 默认使用TierRitualHandler检查
+            materialsValid = TierRitualHandler.canEnhanceFabric(centerItem, pedestalItems, currentTier);
+        }
+
+        if (!materialsValid) {
             if (fabricEnhanceActive) resetFabricEnhance();
             return false;
         }
@@ -2512,6 +3371,13 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             fabricEnhanceActive = true;
             fabricEnhanceProgress = 0;
             notifyRitualStart("織印強化", TextFormatting.LIGHT_PURPLE);
+
+            // 能量超载：记录仪式开始时的总能量
+            initialTotalEnergy = 0;
+            List<TileEntityPedestal> allPeds = findValidPedestals();
+            for (TileEntityPedestal ped : allPeds) {
+                initialTotalEnergy += ped.getEnergy().getEnergyStored();
+            }
 
             // 顯示當前階層加成預覽
             String bonusInfo = "";
@@ -2524,15 +3390,23 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
                 "預期加成: " + bonusInfo, TextFormatting.AQUA);
         }
 
+        // 能量消耗检查（4个基座参与）
+        if (!checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.FABRIC_ENHANCE, 4, getFabricEnhanceTime(), true)) {
+            // 能量不足，暂停进度
+            return true;
+        }
+        // 实际消耗能量
+        checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.FABRIC_ENHANCE, 4, getFabricEnhanceTime(), false);
+
         fabricEnhanceProgress++;
 
         if (fabricEnhanceProgress % 20 == 0) {
-            int seconds = (FABRIC_ENHANCE_TIME - fabricEnhanceProgress) / 20;
+            int seconds = (getFabricEnhanceTime() - fabricEnhanceProgress) / 20;
             notifyRitualProgress("織印強化", seconds, TextFormatting.LIGHT_PURPLE);
             spawnFabricEnhanceParticles();
         }
 
-        if (fabricEnhanceProgress >= FABRIC_ENHANCE_TIME) {
+        if (fabricEnhanceProgress >= getFabricEnhanceTime()) {
             performFabricEnhance(centerItem);
             resetFabricEnhance();
         }
@@ -2546,6 +3420,42 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
     }
 
     private void performFabricEnhance(ItemStack armor) {
+        // 检查CRT配置的失败率（默认0%）
+        float baseFailChance = LegacyRitualConfig.getFailChance(LegacyRitualConfig.FABRIC_ENHANCE);
+
+        // 如果有失败率，计算超载加成
+        if (baseFailChance > 0) {
+            int pedestalCount = collectPedestalItems().size();
+            float overloadBonus = LegacyRitualConfig.getOverloadBonus(
+                LegacyRitualConfig.FABRIC_ENHANCE, pedestalCount, initialTotalEnergy);
+            float finalFailChance = Math.max(0, baseFailChance - overloadBonus);
+
+            if (overloadBonus > 0) {
+                notifyOverloadBonus(overloadBonus);
+            }
+
+            // 随机失败判定
+            if (world.rand.nextFloat() < finalFailChance) {
+                TierRitualHandler.notifyPlayers(world, pos,
+                    "✗ 織印強化失敗！能量不穩定...", TextFormatting.RED);
+                // 消耗材料但不强化
+                if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.FABRIC_ENHANCE)) {
+                    consumeCustomMaterials(LegacyRitualConfig.FABRIC_ENHANCE);
+                } else {
+                    consumeAllMatchingPedestalItems(stack ->
+                        stack.getItem() == Items.DRAGON_BREATH ||
+                        stack.getItem() == Items.ENDER_EYE ||
+                        stack.getItem() == Items.NETHER_STAR ||
+                        stack.getItem() == Items.PRISMARINE_SHARD ||
+                        stack.getItem() == Items.BLAZE_POWDER);
+                }
+                world.playSound(null, pos, SoundEvents.ENTITY_GENERIC_EXPLODE, SoundCategory.BLOCKS, 0.5f, 1.0f);
+                syncToClient();
+                markDirty();
+                return;
+            }
+        }
+
         TierRitualHandler.FabricEnhanceResult result =
             TierRitualHandler.enhanceFabric(armor, currentTier, world, pos);
 
@@ -2556,13 +3466,17 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
                 "能量倍率: x" + result.energyMultiplier +
                 " / 能力倍率: x" + result.abilityMultiplier, TextFormatting.GREEN);
 
-            // 消耗強化材料
-            consumeOnePedestalItem(stack ->
-                stack.getItem() == Items.DRAGON_BREATH ||
-                stack.getItem() == Items.ENDER_EYE ||
-                stack.getItem() == Items.NETHER_STAR ||
-                stack.getItem() == Items.PRISMARINE_SHARD ||
-                stack.getItem() == Items.BLAZE_POWDER);
+            // 消耗強化材料（支持CRT自定义）
+            if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.FABRIC_ENHANCE)) {
+                consumeCustomMaterials(LegacyRitualConfig.FABRIC_ENHANCE);
+            } else {
+                consumeAllMatchingPedestalItems(stack ->
+                    stack.getItem() == Items.DRAGON_BREATH ||
+                    stack.getItem() == Items.ENDER_EYE ||
+                    stack.getItem() == Items.NETHER_STAR ||
+                    stack.getItem() == Items.PRISMARINE_SHARD ||
+                    stack.getItem() == Items.BLAZE_POWDER);
+            }
 
             world.playSound(null, pos, SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.BLOCKS, 1.0f, 1.0f);
         } else {
@@ -2594,4 +3508,701 @@ public class TileEntityRitualCore extends TileEntity implements ITickable {
             pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
             10, 0.5, 0.3, 0.5, 0.0);
     }
+
+    // ========== 不可破坏仪式系统 (Unbreakable Ritual) ==========
+
+    /**
+     * 更新不可破坏仪式
+     * 三阶祭坛 + 任意有耐久的物品 + 地狱之星×2 + 黑曜石×2 + 钻石×4 = 不可破坏物品
+     * @return true 如果正在进行不可破坏仪式
+     */
+    private boolean updateUnbreakableRitual() {
+        // 检查仪式是否启用
+        if (!LegacyRitualConfig.isEnabled(LegacyRitualConfig.UNBREAKABLE)) {
+            if (unbreakableRitualActive) {
+                resetUnbreakableRitual();
+            }
+            return false;
+        }
+
+        // 必须是三阶祭坛
+        if (currentTier != AltarTier.TIER_3) {
+            if (unbreakableRitualActive) {
+                resetUnbreakableRitual();
+            }
+            return false;
+        }
+
+        // 检查中心物品是否是有耐久的物品
+        ItemStack centerItem = inv.getStackInSlot(0);
+        if (centerItem.isEmpty() || !centerItem.isItemStackDamageable()) {
+            if (unbreakableRitualActive) {
+                resetUnbreakableRitual();
+            }
+            return false;
+        }
+
+        // 检查物品是否已经是不可破坏的
+        if (centerItem.hasTagCompound() && centerItem.getTagCompound().getBoolean("Unbreakable")) {
+            if (unbreakableRitualActive) {
+                resetUnbreakableRitual();
+            }
+            return false;
+        }
+
+        // 检查基座材料：地狱之星×2 + 黑曜石×2 + 钻石×4
+        if (!checkUnbreakableMaterials()) {
+            if (unbreakableRitualActive) {
+                resetUnbreakableRitual();
+            }
+            return false;
+        }
+
+        // 开始/继续不可破坏仪式
+        if (!unbreakableRitualActive) {
+            unbreakableRitualActive = true;
+            unbreakableProgress = 0;
+            notifyUnbreakableStart(centerItem);
+
+            // 能量超载：记录仪式开始时的总能量
+            initialTotalEnergy = 0;
+            List<TileEntityPedestal> allPeds = findValidPedestals();
+            for (TileEntityPedestal ped : allPeds) {
+                initialTotalEnergy += ped.getEnergy().getEnergyStored();
+            }
+        }
+
+        // 能量消耗检查（8个基座参与）
+        if (!checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.UNBREAKABLE, 8, getUnbreakableTime(), true)) {
+            // 能量不足，暂停进度
+            updateState(true, false);
+            return true;
+        }
+        // 实际消耗能量
+        checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.UNBREAKABLE, 8, getUnbreakableTime(), false);
+
+        unbreakableProgress++;
+        updateState(true, true);
+
+        // 进度效果
+        if (unbreakableProgress % 20 == 0) {
+            int seconds = (getUnbreakableTime() - unbreakableProgress) / 20;
+            notifyUnbreakableProgress(seconds);
+            spawnUnbreakableParticles();
+        }
+
+        // 完成不可破坏仪式
+        if (unbreakableProgress >= getUnbreakableTime()) {
+            performUnbreakableRitual(centerItem);
+            resetUnbreakableRitual();
+        }
+
+        return true;
+    }
+
+    private void resetUnbreakableRitual() {
+        unbreakableRitualActive = false;
+        unbreakableProgress = 0;
+    }
+
+    /**
+     * 检查不可破坏仪式所需材料
+     * 默认: 地狱之星×2 + 黑曜石×2 + 钻石×4
+     * 可通过 CraftTweaker 自定义
+     */
+    private boolean checkUnbreakableMaterials() {
+        List<ItemStack> pedestalItems = collectPedestalItems();
+
+        // 如果有自定义材料配置，使用配置系统检查
+        if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.UNBREAKABLE)) {
+            return LegacyRitualConfig.checkMaterialRequirements(LegacyRitualConfig.UNBREAKABLE, pedestalItems);
+        }
+
+        // 默认硬编码检查
+        int netherStarCount = 0;
+        int obsidianCount = 0;
+        int diamondCount = 0;
+
+        for (ItemStack stack : pedestalItems) {
+            if (stack.getItem() == Items.NETHER_STAR) {
+                netherStarCount++;
+            } else if (stack.getItem() == net.minecraft.item.Item.getItemFromBlock(net.minecraft.init.Blocks.OBSIDIAN)) {
+                obsidianCount++;
+            } else if (stack.getItem() == Items.DIAMOND) {
+                diamondCount++;
+            }
+        }
+
+        return netherStarCount >= 2 && obsidianCount >= 2 && diamondCount >= 4;
+    }
+
+    /**
+     * 执行不可破坏仪式
+     */
+    private void performUnbreakableRitual(ItemStack targetItem) {
+        int pedestalCount;
+
+        // 消耗材料（支持CRT自定义）
+        if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.UNBREAKABLE)) {
+            // 使用自定义材料配置消耗
+            consumeCustomMaterials(LegacyRitualConfig.UNBREAKABLE);
+            // 统计消耗的材料数量用于能量超载计算
+            pedestalCount = 0;
+            for (LegacyRitualConfig.MaterialRequirement req : LegacyRitualConfig.getMaterialRequirements(LegacyRitualConfig.UNBREAKABLE)) {
+                pedestalCount += req.getCount();
+            }
+        } else {
+            // 默认材料消耗：地狱之星×2 + 黑曜石×2 + 钻石×4
+            int starsConsumed = 0;
+            int obsidianConsumed = 0;
+            int diamondsConsumed = 0;
+
+            // 多轮遍历确保消耗足够数量
+            while (starsConsumed < 2 || obsidianConsumed < 2 || diamondsConsumed < 4) {
+                boolean consumedAny = false;
+
+                for (BlockPos off : OFFS8) {
+                    TileEntity te = world.getTileEntity(pos.add(off));
+                    if (te instanceof TileEntityPedestal) {
+                        TileEntityPedestal ped = (TileEntityPedestal) te;
+                        ItemStack stack = ped.getInv().getStackInSlot(0);
+                        if (!stack.isEmpty()) {
+                            if (stack.getItem() == Items.NETHER_STAR && starsConsumed < 2) {
+                                ped.consumeOne();
+                                starsConsumed++;
+                                consumedAny = true;
+                            } else if (stack.getItem() == net.minecraft.item.Item.getItemFromBlock(net.minecraft.init.Blocks.OBSIDIAN) && obsidianConsumed < 2) {
+                                ped.consumeOne();
+                                obsidianConsumed++;
+                                consumedAny = true;
+                            } else if (stack.getItem() == Items.DIAMOND && diamondsConsumed < 4) {
+                                ped.consumeOne();
+                                diamondsConsumed++;
+                                consumedAny = true;
+                            }
+                        }
+                    }
+                }
+
+                // 防止无限循环（如果没有消耗任何物品则退出）
+                if (!consumedAny) break;
+            }
+
+            pedestalCount = starsConsumed + obsidianConsumed + diamondsConsumed;
+        }
+
+        // 计算能量超载加成
+        float overloadBonus = LegacyRitualConfig.getOverloadBonus(
+            LegacyRitualConfig.UNBREAKABLE, pedestalCount, initialTotalEnergy);
+        float finalSuccessRate = getUnbreakableSuccessRate() + overloadBonus;
+
+        System.out.println("[Unbreakable] Base success: " + (getUnbreakableSuccessRate() * 100) + "%" +
+                         ", Overload bonus: " + (int)(overloadBonus * 100) + "%" +
+                         ", Final success: " + (int)(finalSuccessRate * 100) + "%" +
+                         ", Initial energy: " + initialTotalEnergy);
+
+        // 通知玩家超载信息
+        if (overloadBonus > 0) {
+            notifyOverloadBonus(overloadBonus);
+        }
+
+        // 判定成功/失败
+        boolean success = world.rand.nextFloat() < finalSuccessRate;
+
+        if (success) {
+            // 成功：保留所有NBT，添加Unbreakable标签
+            NBTTagCompound nbt = targetItem.hasTagCompound() ? targetItem.getTagCompound() : new NBTTagCompound();
+            nbt.setBoolean("Unbreakable", true);
+            targetItem.setTagCompound(nbt);
+
+            // 修复耐久（可选）
+            targetItem.setItemDamage(0);
+
+            notifyUnbreakableSuccess(targetItem);
+            spawnUnbreakableSuccessEffects();
+        } else {
+            // 失败：物品损坏一半耐久
+            int maxDamage = targetItem.getMaxDamage();
+            int newDamage = Math.min(targetItem.getItemDamage() + maxDamage / 2, maxDamage - 1);
+            targetItem.setItemDamage(newDamage);
+
+            notifyUnbreakableFail(targetItem);
+            spawnUnbreakableFailEffects();
+        }
+
+        syncToClient();
+        markDirty();
+    }
+
+    /**
+     * 通知不可破坏仪式开始
+     */
+    private void notifyUnbreakableStart(ItemStack item) {
+        AxisAlignedBB area = new AxisAlignedBB(pos).grow(10);
+        List<EntityPlayer> players = world.getEntitiesWithinAABB(EntityPlayer.class, area);
+        for (EntityPlayer player : players) {
+            player.sendMessage(new TextComponentString(
+                TextFormatting.DARK_PURPLE + "════════════════════════════════"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.GOLD + "⚒ 不可破坏仪式开始 ⚒"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.GRAY + "目标: " + TextFormatting.WHITE + item.getDisplayName()
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.GREEN + "✓ 成功率: " + TextFormatting.YELLOW + "80%"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.GRAY + "物品NBT将完整保留"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.DARK_PURPLE + "════════════════════════════════"
+            ));
+        }
+
+        world.playSound(null, pos, SoundEvents.BLOCK_ANVIL_USE,
+            SoundCategory.BLOCKS, 1.0f, 0.5f);
+    }
+
+    /**
+     * 通知不可破坏仪式进度
+     */
+    private void notifyUnbreakableProgress(int secondsLeft) {
+        AxisAlignedBB area = new AxisAlignedBB(pos).grow(10);
+        List<EntityPlayer> players = world.getEntitiesWithinAABB(EntityPlayer.class, area);
+        for (EntityPlayer player : players) {
+            player.sendStatusMessage(new TextComponentString(
+                TextFormatting.GOLD + "不可破坏仪式进行中... " +
+                TextFormatting.WHITE + secondsLeft + "秒"
+            ), true);
+        }
+
+        // 播放音效
+        if (unbreakableProgress % 40 == 0) {
+            world.playSound(null, pos, SoundEvents.BLOCK_ANVIL_LAND,
+                SoundCategory.BLOCKS, 0.5f, 1.5f);
+        }
+    }
+
+    /**
+     * 通知不可破坏仪式成功
+     */
+    private void notifyUnbreakableSuccess(ItemStack item) {
+        AxisAlignedBB area = new AxisAlignedBB(pos).grow(10);
+        List<EntityPlayer> players = world.getEntitiesWithinAABB(EntityPlayer.class, area);
+        for (EntityPlayer player : players) {
+            player.sendMessage(new TextComponentString(
+                TextFormatting.GOLD + "═══════════════════════════════"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.GOLD + "★★★ 仪式成功！★★★"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.WHITE + item.getDisplayName() +
+                TextFormatting.GREEN + " 已变得不可破坏！"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.AQUA + "所有NBT数据已完整保留"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.GOLD + "═══════════════════════════════"
+            ));
+        }
+    }
+
+    /**
+     * 通知不可破坏仪式失败
+     */
+    private void notifyUnbreakableFail(ItemStack item) {
+        AxisAlignedBB area = new AxisAlignedBB(pos).grow(10);
+        List<EntityPlayer> players = world.getEntitiesWithinAABB(EntityPlayer.class, area);
+        for (EntityPlayer player : players) {
+            player.sendMessage(new TextComponentString(
+                TextFormatting.RED + "✗ 仪式失败！物品受损！"
+            ));
+            player.sendMessage(new TextComponentString(
+                TextFormatting.GRAY + item.getDisplayName() + " 的耐久降低了..."
+            ));
+        }
+    }
+
+    /**
+     * 不可破坏仪式粒子效果
+     */
+    private void spawnUnbreakableParticles() {
+        if (!(world instanceof WorldServer)) return;
+        WorldServer ws = (WorldServer) world;
+
+        // 金色粒子环绕
+        for (int i = 0; i < 8; i++) {
+            double angle = i * Math.PI / 4 + (unbreakableProgress * 0.08);
+            double radius = 2.0;
+            double x = pos.getX() + 0.5 + Math.cos(angle) * radius;
+            double z = pos.getZ() + 0.5 + Math.sin(angle) * radius;
+
+            ws.spawnParticle(EnumParticleTypes.CRIT_MAGIC,
+                x, pos.getY() + 1.0, z,
+                3, 0.1, 0.2, 0.1, 0.0);
+        }
+
+        // 中心上升粒子
+        ws.spawnParticle(EnumParticleTypes.VILLAGER_HAPPY,
+            pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
+            5, 0.2, 0.3, 0.2, 0.0);
+    }
+
+    /**
+     * 不可破坏仪式成功特效
+     */
+    private void spawnUnbreakableSuccessEffects() {
+        if (!(world instanceof WorldServer)) return;
+        WorldServer ws = (WorldServer) world;
+
+        // 金色爆发
+        ws.spawnParticle(EnumParticleTypes.TOTEM,
+            pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
+            150, 0.8, 1.0, 0.8, 0.8);
+
+        // 音效
+        world.playSound(null, pos, SoundEvents.BLOCK_ANVIL_USE,
+            SoundCategory.BLOCKS, 1.0f, 1.2f);
+        world.playSound(null, pos, SoundEvents.ENTITY_PLAYER_LEVELUP,
+            SoundCategory.BLOCKS, 1.0f, 1.0f);
+    }
+
+    /**
+     * 不可破坏仪式失败特效
+     */
+    private void spawnUnbreakableFailEffects() {
+        if (!(world instanceof WorldServer)) return;
+        WorldServer ws = (WorldServer) world;
+
+        // 烟雾效果
+        ws.spawnParticle(EnumParticleTypes.SMOKE_LARGE,
+            pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
+            50, 0.5, 0.5, 0.5, 0.1);
+
+        // 失败音效
+        world.playSound(null, pos, SoundEvents.ENTITY_ITEM_BREAK,
+            SoundCategory.BLOCKS, 1.0f, 0.8f);
+    }
+
+    // Getter for unbreakable ritual
+    public boolean isUnbreakableRitualActive() { return unbreakableRitualActive; }
+    public int getUnbreakableProgress() { return unbreakableProgress; }
+
+    // ========== 灵魂束缚仪式系统 (Soulbound Ritual) - 死亡不掉落 ==========
+
+    /**
+     * 更新灵魂束缚仪式
+     * 三阶祭坛 + 任意物品 + 末影珍珠×4 + 恶魂之泪×2 + 金块×2 = 死亡不掉落物品
+     * @return true 如果正在进行灵魂束缚仪式
+     */
+    private boolean updateSoulboundRitual() {
+        // 检查仪式是否启用
+        if (!LegacyRitualConfig.isEnabled(LegacyRitualConfig.SOULBOUND)) {
+            if (soulboundRitualActive) {
+                resetSoulboundRitual();
+            }
+            return false;
+        }
+
+        // 必须是三阶祭坛
+        if (currentTier != AltarTier.TIER_3) {
+            if (soulboundRitualActive) {
+                resetSoulboundRitual();
+            }
+            return false;
+        }
+
+        // 检查中心物品
+        ItemStack centerItem = inv.getStackInSlot(0);
+        if (centerItem.isEmpty()) {
+            if (soulboundRitualActive) {
+                resetSoulboundRitual();
+            }
+            return false;
+        }
+
+        // 检查物品是否已经有灵魂束缚
+        if (centerItem.hasTagCompound() && centerItem.getTagCompound().getBoolean("Soulbound")) {
+            if (soulboundRitualActive) {
+                resetSoulboundRitual();
+            }
+            return false;
+        }
+
+        // 检查基座材料：末影珍珠×4 + 恶魂之泪×2 + 金块×2
+        if (!checkSoulboundMaterials()) {
+            if (soulboundRitualActive) {
+                resetSoulboundRitual();
+            }
+            return false;
+        }
+
+        // 开始/继续灵魂束缚仪式
+        if (!soulboundRitualActive) {
+            soulboundRitualActive = true;
+            soulboundProgress = 0;
+            notifySoulboundStart(centerItem);
+
+            // 能量超载：记录仪式开始时的总能量
+            initialTotalEnergy = 0;
+            List<TileEntityPedestal> allPeds = findValidPedestals();
+            for (TileEntityPedestal ped : allPeds) {
+                initialTotalEnergy += ped.getEnergy().getEnergyStored();
+            }
+        }
+
+        // 能量消耗检查（8个基座参与）
+        if (!checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.SOULBOUND, 8, getSoulboundTime(), true)) {
+            updateState(true, false);
+            return true;
+        }
+        checkAndConsumeEnergyForLegacyRitual(LegacyRitualConfig.SOULBOUND, 8, getSoulboundTime(), false);
+
+        soulboundProgress++;
+        updateState(true, true);
+
+        // 进度效果
+        if (soulboundProgress % 20 == 0) {
+            int seconds = (getSoulboundTime() - soulboundProgress) / 20;
+            notifySoulboundProgress(seconds);
+            spawnSoulboundParticles();
+        }
+
+        // 完成灵魂束缚仪式
+        if (soulboundProgress >= getSoulboundTime()) {
+            performSoulboundRitual(centerItem);
+            resetSoulboundRitual();
+        }
+
+        return true;
+    }
+
+    private void resetSoulboundRitual() {
+        soulboundRitualActive = false;
+        soulboundProgress = 0;
+    }
+
+    /**
+     * 检查灵魂束缚仪式所需材料
+     * 默认: 末影珍珠×4 + 恶魂之泪×2 + 金块×2
+     * 可通过 CraftTweaker 自定义
+     */
+    private boolean checkSoulboundMaterials() {
+        List<ItemStack> pedestalItems = collectPedestalItems();
+
+        // 如果有自定义材料配置，使用配置系统检查
+        if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.SOULBOUND)) {
+            return LegacyRitualConfig.checkMaterialRequirements(LegacyRitualConfig.SOULBOUND, pedestalItems);
+        }
+
+        // 默认硬编码检查
+        int enderPearlCount = 0;
+        int ghastTearCount = 0;
+        int goldBlockCount = 0;
+
+        for (ItemStack stack : pedestalItems) {
+            if (stack.getItem() == Items.ENDER_PEARL) {
+                enderPearlCount++;
+            } else if (stack.getItem() == Items.GHAST_TEAR) {
+                ghastTearCount++;
+            } else if (stack.getItem() == net.minecraft.item.Item.getItemFromBlock(net.minecraft.init.Blocks.GOLD_BLOCK)) {
+                goldBlockCount++;
+            }
+        }
+
+        return enderPearlCount >= 4 && ghastTearCount >= 2 && goldBlockCount >= 2;
+    }
+
+    /**
+     * 执行灵魂束缚仪式
+     */
+    private void performSoulboundRitual(ItemStack targetItem) {
+        int pedestalCount;
+
+        // 消耗材料（支持CRT自定义）
+        if (LegacyRitualConfig.hasCustomMaterials(LegacyRitualConfig.SOULBOUND)) {
+            // 使用自定义材料配置消耗
+            consumeCustomMaterials(LegacyRitualConfig.SOULBOUND);
+            // 统计消耗的材料数量用于能量超载计算
+            pedestalCount = 0;
+            for (LegacyRitualConfig.MaterialRequirement req : LegacyRitualConfig.getMaterialRequirements(LegacyRitualConfig.SOULBOUND)) {
+                pedestalCount += req.getCount();
+            }
+        } else {
+            // 默认材料消耗：末影珍珠×4 + 恶魂之泪×2 + 金块×2
+            int pearlsConsumed = 0;
+            int tearsConsumed = 0;
+            int goldConsumed = 0;
+
+            // 多轮遍历确保消耗足够数量
+            while (pearlsConsumed < 4 || tearsConsumed < 2 || goldConsumed < 2) {
+                boolean consumedAny = false;
+
+                for (BlockPos off : OFFS8) {
+                    TileEntity te = world.getTileEntity(pos.add(off));
+                    if (te instanceof TileEntityPedestal) {
+                        TileEntityPedestal ped = (TileEntityPedestal) te;
+                        ItemStack stack = ped.getInv().getStackInSlot(0);
+                        if (!stack.isEmpty()) {
+                            if (stack.getItem() == Items.ENDER_PEARL && pearlsConsumed < 4) {
+                                ped.consumeOne();
+                                pearlsConsumed++;
+                                consumedAny = true;
+                            } else if (stack.getItem() == Items.GHAST_TEAR && tearsConsumed < 2) {
+                                ped.consumeOne();
+                                tearsConsumed++;
+                                consumedAny = true;
+                            } else if (stack.getItem() == net.minecraft.item.Item.getItemFromBlock(net.minecraft.init.Blocks.GOLD_BLOCK) && goldConsumed < 2) {
+                                ped.consumeOne();
+                                goldConsumed++;
+                                consumedAny = true;
+                            }
+                        }
+                    }
+                }
+
+                // 防止无限循环
+                if (!consumedAny) break;
+            }
+
+            pedestalCount = pearlsConsumed + tearsConsumed + goldConsumed;
+        }
+
+        // 计算能量超载加成
+        float overloadBonus = LegacyRitualConfig.getOverloadBonus(
+            LegacyRitualConfig.SOULBOUND, pedestalCount, initialTotalEnergy);
+        float finalSuccessRate = getSoulboundSuccessRate() + overloadBonus;
+
+        System.out.println("[Soulbound] Base success: " + (getSoulboundSuccessRate() * 100) + "%" +
+                         ", Overload bonus: " + (int)(overloadBonus * 100) + "%" +
+                         ", Final success: " + (int)(finalSuccessRate * 100) + "%" +
+                         ", Initial energy: " + initialTotalEnergy);
+
+        // 通知玩家超载信息
+        if (overloadBonus > 0) {
+            notifyOverloadBonus(overloadBonus);
+        }
+
+        // 判定成功/失败
+        boolean success = world.rand.nextFloat() < finalSuccessRate;
+
+        if (success) {
+            // 成功：添加Soulbound标签
+            NBTTagCompound nbt = targetItem.hasTagCompound() ? targetItem.getTagCompound() : new NBTTagCompound();
+            nbt.setBoolean("Soulbound", true);
+            targetItem.setTagCompound(nbt);
+
+            notifySoulboundSuccess(targetItem);
+            spawnSoulboundSuccessEffects();
+        } else {
+            // 失败：物品消失
+            inv.setStackInSlot(0, ItemStack.EMPTY);
+            notifySoulboundFail(targetItem);
+            spawnSoulboundFailEffects();
+        }
+
+        syncToClient();
+        markDirty();
+    }
+
+    // ========== 灵魂束缚仪式通知方法 ==========
+
+    private void notifySoulboundStart(ItemStack item) {
+        TierRitualHandler.notifyPlayers(world, pos,
+            "✦ 灵魂束缚仪式开始... [" + item.getDisplayName() + "]",
+            TextFormatting.DARK_PURPLE);
+        world.playSound(null, pos, SoundEvents.ENTITY_ENDERMEN_TELEPORT,
+            SoundCategory.BLOCKS, 0.8f, 0.5f);
+    }
+
+    private void notifySoulboundProgress(int secondsLeft) {
+        if (secondsLeft > 0 && secondsLeft <= 5) {
+            TierRitualHandler.notifyPlayers(world, pos,
+                "✦ 灵魂融合中... " + secondsLeft + "秒",
+                TextFormatting.LIGHT_PURPLE);
+        }
+    }
+
+    private void notifySoulboundSuccess(ItemStack item) {
+        TierRitualHandler.notifyPlayers(world, pos,
+            "✦ 灵魂束缚成功！[" + item.getDisplayName() + "] 已获得死亡保护",
+            TextFormatting.DARK_PURPLE);
+    }
+
+    private void notifySoulboundFail(ItemStack item) {
+        TierRitualHandler.notifyPlayers(world, pos,
+            "✦ 灵魂束缚失败... [" + item.getDisplayName() + "] 被虚空吞噬",
+            TextFormatting.RED);
+    }
+
+    // ========== 灵魂束缚仪式粒子效果 ==========
+
+    private void spawnSoulboundParticles() {
+        if (!(world instanceof WorldServer)) return;
+        WorldServer ws = (WorldServer) world;
+
+        // 紫色末影粒子环绕
+        for (int i = 0; i < 8; i++) {
+            double angle = i * Math.PI / 4 + (soulboundProgress * 0.1);
+            double radius = 1.5;
+            double x = pos.getX() + 0.5 + Math.cos(angle) * radius;
+            double z = pos.getZ() + 0.5 + Math.sin(angle) * radius;
+            double y = pos.getY() + 1.0 + Math.sin(soulboundProgress * 0.15) * 0.5;
+
+            ws.spawnParticle(EnumParticleTypes.PORTAL,
+                x, y, z, 3, 0.1, 0.1, 0.1, 0.0);
+        }
+
+        // 中心末影粒子
+        ws.spawnParticle(EnumParticleTypes.PORTAL,
+            pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
+            10, 0.3, 0.3, 0.3, 0.0);
+    }
+
+    private void spawnSoulboundSuccessEffects() {
+        if (!(world instanceof WorldServer)) return;
+        WorldServer ws = (WorldServer) world;
+
+        // 大量末影粒子爆发
+        ws.spawnParticle(EnumParticleTypes.PORTAL,
+            pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
+            100, 1.0, 1.0, 1.0, 0.5);
+
+        // 紫色烟雾
+        ws.spawnParticle(EnumParticleTypes.SPELL_WITCH,
+            pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
+            50, 0.5, 0.5, 0.5, 0.0);
+
+        // 成功音效
+        world.playSound(null, pos, SoundEvents.ENTITY_ENDERMEN_TELEPORT,
+            SoundCategory.BLOCKS, 1.0f, 1.2f);
+        world.playSound(null, pos, SoundEvents.ENTITY_PLAYER_LEVELUP,
+            SoundCategory.BLOCKS, 0.8f, 0.8f);
+    }
+
+    private void spawnSoulboundFailEffects() {
+        if (!(world instanceof WorldServer)) return;
+        WorldServer ws = (WorldServer) world;
+
+        // 紫黑色烟雾
+        ws.spawnParticle(EnumParticleTypes.SMOKE_LARGE,
+            pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
+            50, 0.5, 0.5, 0.5, 0.1);
+
+        ws.spawnParticle(EnumParticleTypes.PORTAL,
+            pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5,
+            30, 0.5, 0.5, 0.5, 0.0);
+
+        // 失败音效
+        world.playSound(null, pos, SoundEvents.ENTITY_ENDERMEN_DEATH,
+            SoundCategory.BLOCKS, 1.0f, 0.5f);
+    }
+
+    // Getter for soulbound ritual
+    public boolean isSoulboundRitualActive() { return soulboundRitualActive; }
+    public int getSoulboundProgress() { return soulboundProgress; }
 }

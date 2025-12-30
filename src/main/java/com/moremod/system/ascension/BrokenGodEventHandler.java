@@ -26,6 +26,7 @@ import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
+import net.minecraftforge.event.entity.living.LivingDamageEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.living.LivingSetAttackTargetEvent;
@@ -214,6 +215,30 @@ public class BrokenGodEventHandler {
                     BrokenGodHandler.enterShutdown(player);
                 }
             }
+        }
+    }
+
+    // ========== 伤害最终阶段拦截（防止其他模组绕过 HurtEvent）==========
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onLivingDamage(LivingDamageEvent event) {
+        if (!(event.getEntityLiving() instanceof EntityPlayer)) return;
+
+        EntityPlayer player = (EntityPlayer) event.getEntityLiving();
+        if (!BrokenGodHandler.isBrokenGod(player)) return;
+
+        // 停机期间完全免疫伤害
+        if (BrokenGodHandler.isInShutdown(player)) {
+            event.setCanceled(true);
+            return;
+        }
+
+        // 检查这次伤害是否会致命
+        float healthAfterDamage = player.getHealth() - event.getAmount();
+        if (healthAfterDamage <= 0) {
+            // 拦截致命伤害，进入停机模式
+            event.setCanceled(true);
+            BrokenGodHandler.enterShutdown(player);
         }
     }
 

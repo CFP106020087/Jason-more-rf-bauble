@@ -48,10 +48,10 @@ import java.util.concurrent.ConcurrentHashMap;
 public class TileEntityProtectionField extends TileEntity implements ITickable, IEnergyStorage {
 
     // ===== 能量参数 =====
-    private static final int MAX_ENERGY         = 1_000_000;
-    private static final int MAX_RECEIVE        =   10_000;
-    private static final int ENERGY_PER_TICK    =      100;
-    private static final int MIN_ENERGY_TO_WORK =    1_000;
+    private static final int MAX_ENERGY         = 5_000_000;  // 5M RF
+    private static final int MAX_RECEIVE        =   200_000;  // 200k RF/tick
+    private static final int ENERGY_PER_TICK    =     5_000;  // 5000 RF/tick 消耗
+    private static final int MIN_ENERGY_TO_WORK =    50_000;  // 50k RF 最低工作能量
 
     // ===== 冷却时间 =====
     private static final long COOLDOWN_TIME = 10000; // 10秒 (毫秒)
@@ -69,6 +69,13 @@ public class TileEntityProtectionField extends TileEntity implements ITickable, 
 
     // 玩家违规时间戳记录（全局静态，跨所有保护领域共享）
     private static final Map<UUID, Long> playerViolationTimestamps = new ConcurrentHashMap<>();
+
+    // 优化：按维度索引所有激活的保护领域，避免遍历 loadedTileEntityList
+    private static final Map<Integer, Set<TileEntityProtectionField>> ACTIVE_FIELDS_BY_DIM = new ConcurrentHashMap<>();
+
+    private static Set<TileEntityProtectionField> getActiveFieldsForDim(int dimId) {
+        return ACTIVE_FIELDS_BY_DIM.computeIfAbsent(dimId, k -> ConcurrentHashMap.newKeySet());
+    }
 
     // ============== Tick ==============
     @Override
@@ -289,7 +296,32 @@ public class TileEntityProtectionField extends TileEntity implements ITickable, 
             markDirty();
             if (!world.isRemote) {
                 syncBlock();
+                // 更新全局索引
+                int dimId = world.provider.getDimension();
+                if (v) {
+                    getActiveFieldsForDim(dimId).add(this);
+                } else {
+                    getActiveFieldsForDim(dimId).remove(this);
+                }
             }
+        }
+    }
+
+    @Override
+    public void invalidate() {
+        super.invalidate();
+        if (world != null && !world.isRemote) {
+            int dimId = world.provider.getDimension();
+            getActiveFieldsForDim(dimId).remove(this);
+        }
+    }
+
+    @Override
+    public void onChunkUnload() {
+        super.onChunkUnload();
+        if (world != null && !world.isRemote) {
+            int dimId = world.provider.getDimension();
+            getActiveFieldsForDim(dimId).remove(this);
         }
     }
 
@@ -424,12 +456,11 @@ public class TileEntityProtectionField extends TileEntity implements ITickable, 
         // 首先检查是否在冷却中
         if (isPlayerOnCooldown(p)) return false;
 
-        for (TileEntity te : p.world.loadedTileEntityList) {
-            if (te instanceof TileEntityProtectionField) {
-                TileEntityProtectionField f = (TileEntityProtectionField) te;
-                if (f.active && f.isPlayerInRange(p)) {
-                    return true;
-                }
+        // 优化：只遍历当前维度激活的保护领域
+        int dimId = p.world.provider.getDimension();
+        for (TileEntityProtectionField f : getActiveFieldsForDim(dimId)) {
+            if (f.active && !f.isInvalid() && f.isPlayerInRange(p)) {
+                return true;
             }
         }
         return false;
@@ -454,15 +485,13 @@ public class TileEntityProtectionField extends TileEntity implements ITickable, 
             EntityPlayer player = e.getEntityPlayer();
             if (player.world.isRemote) return;
 
-            // 检查玩家是否在任意保护领域内
-            for (TileEntity te : player.world.loadedTileEntityList) {
-                if (te instanceof TileEntityProtectionField) {
-                    TileEntityProtectionField field = (TileEntityProtectionField) te;
-                    if (field.active && field.isPlayerInRange(player)) {
-                        // 记录违规
-                        recordPlayerViolation(player);
-                        break; // 只需记录一次
-                    }
+            // 优化：只遍历当前维度激活的保护领域
+            int dimId = player.world.provider.getDimension();
+            for (TileEntityProtectionField field : getActiveFieldsForDim(dimId)) {
+                if (field.active && !field.isInvalid() && field.isPlayerInRange(player)) {
+                    // 记录违规
+                    recordPlayerViolation(player);
+                    break; // 只需记录一次
                 }
             }
         }
@@ -478,15 +507,13 @@ public class TileEntityProtectionField extends TileEntity implements ITickable, 
 
             // 检查是否是容器（箱子、熔炉等）
             if (te instanceof IInventory) {
-                // 检查玩家是否在任意保护领域内
-                for (TileEntity protectionTE : player.world.loadedTileEntityList) {
-                    if (protectionTE instanceof TileEntityProtectionField) {
-                        TileEntityProtectionField field = (TileEntityProtectionField) protectionTE;
-                        if (field.active && field.isPlayerInRange(player)) {
-                            // 记录违规
-                            recordPlayerViolation(player);
-                            break;
-                        }
+                // 优化：只遍历当前维度激活的保护领域
+                int dimId = player.world.provider.getDimension();
+                for (TileEntityProtectionField field : getActiveFieldsForDim(dimId)) {
+                    if (field.active && !field.isInvalid() && field.isPlayerInRange(player)) {
+                        // 记录违规
+                        recordPlayerViolation(player);
+                        break;
                     }
                 }
             }

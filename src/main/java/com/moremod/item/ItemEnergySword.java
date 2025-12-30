@@ -43,7 +43,13 @@ public class ItemEnergySword extends ItemSword {
     public static final int MAX_HITS = 200;
     public static final int NO_IMMUNITY_DURATION = 100;
 
-    private static final Map<UUID, Integer> noImmunityTargets = new HashMap<>();
+    // 优化：使用 (dimensionId, entityId) 替代 UUID，支持 O(1) 查找
+    private static final Map<Long, Integer> noImmunityTargets = new HashMap<>();
+
+    // 生成唯一键：高32位=dimensionId，低32位=entityId
+    private static long makeKey(int dimId, int entityId) {
+        return ((long) dimId << 32) | (entityId & 0xFFFFFFFFL);
+    }
 
     public static final ToolMaterial ENERGY_MATERIAL = net.minecraftforge.common.util.EnumHelper.addToolMaterial(
             "ENERGY_SWORD", 6, 2048, 5.0F, 15.0F, 22
@@ -53,10 +59,12 @@ public class ItemEnergySword extends ItemSword {
     public static final UUID ATTACK_SPEED_UUID = UUID.nameUUIDFromBytes("ENERGY_SWORD_SPEED".getBytes());
 
     // 自动攻击攻速补正
-    // 攻击间隔3tick = 每秒6.67次攻击，需要攻速 20/3 ≈ 6.67，加成 = 6.67 - 4.0 = 2.67
+    // MC冷却公式：冷却tick = 40 / 攻速
+    // 3tick冷却需要：攻速 = 40/3 ≈ 13.33 → 加成 = 13.33 - 4.0 = 9.33
+    // 使用 10.0 确保 3tick 攻击能满伤
     private static final UUID AUTO_ATTACK_SPEED_UUID = UUID.fromString("d8f3a1b2-c4e5-6f78-9a0b-1c2d3e4f5a6b");
     private static final String AUTO_ATTACK_SPEED_NAME = "Energy Sword Auto Attack Speed";
-    private static final float AUTO_ATTACK_SPEED_BONUS = 2.67f;
+    private static final float AUTO_ATTACK_SPEED_BONUS = 10.0f;
 
     private static final String NBT_CAN_UNSHEATHE = "CanUnsheathe";
     private static final String UPGRADE_PREFIX = "upgrade_";
@@ -88,12 +96,19 @@ public class ItemEnergySword extends ItemSword {
             boolean powered = storage != null && storage.getEnergyStored() > 0;
             boolean canUnsheathe = powered && (attacker instanceof EntityPlayer) && canUnsheathe((EntityPlayer) attacker, stack);
 
+            // ⭐ 修复：只要有能量就启用i-frame无视（自动攻击模式）
+            // canUnsheathe 仅用于额外的穿甲伤害
+            if (powered) {
+                // 无敌帧无视：允许快速连击
+                target.hurtResistantTime = 0;
+                long key = makeKey(target.world.provider.getDimension(), target.getEntityId());
+                noImmunityTargets.put(key, NO_IMMUNITY_DURATION);
+            }
+
+            // 出鞘状态：额外穿甲伤害
             if (canUnsheathe) {
                 CapBypassFlag.ASMODEUS_BYPASS.set(true);
                 try {
-                    target.hurtResistantTime = 0;
-                    noImmunityTargets.put(target.getUniqueID(), NO_IMMUNITY_DURATION);
-
                     float extraDamage = 20.0F;
                     int sharp = EnchantmentHelper.getEnchantmentLevel(Enchantments.SHARPNESS, stack);
                     if (sharp > 0) extraDamage += sharp * 1.25F;
@@ -119,18 +134,28 @@ public class ItemEnergySword extends ItemSword {
     // =========================
     @SubscribeEvent
     public static void onWorldTick(TickEvent.WorldTickEvent event) {
-        if (event.phase != TickEvent.Phase.END || event.world.isRemote) return;
-        Iterator<Map.Entry<UUID, Integer>> it = noImmunityTargets.entrySet().iterator();
+        // ⭐ 关键修复：使用 START 阶段，确保在数据包处理之前清除i-frame
+        // 这样当客户端的自动攻击包到达时，目标的hurtResistantTime已经被清零
+        if (event.phase != TickEvent.Phase.START || event.world.isRemote) return;
+        if (noImmunityTargets.isEmpty()) return; // 快速退出
+
+        int dimId = event.world.provider.getDimension();
+        Iterator<Map.Entry<Long, Integer>> it = noImmunityTargets.entrySet().iterator();
         while (it.hasNext()) {
-            Map.Entry<UUID, Integer> e = it.next();
-            UUID id = e.getKey();
-            int remain = e.getValue();
-            for (Entity en : event.world.loadedEntityList) {
-                if (en instanceof EntityLivingBase && en.getUniqueID().equals(id)) {
+            Map.Entry<Long, Integer> e = it.next();
+            long key = e.getKey();
+            int keyDimId = (int) (key >> 32);
+
+            // 只处理当前维度的实体
+            if (keyDimId == dimId) {
+                int entityId = (int) key;
+                Entity en = event.world.getEntityByID(entityId); // O(1) 查找
+                if (en instanceof EntityLivingBase) {
                     ((EntityLivingBase) en).hurtResistantTime = 0;
-                    break;
                 }
             }
+
+            int remain = e.getValue();
             if (remain <= 1) it.remove();
             else e.setValue(remain - 1);
         }
@@ -170,8 +195,8 @@ public class ItemEnergySword extends ItemSword {
         IEnergyStorage st = mh.getCapability(CapabilityEnergy.ENERGY, null);
         boolean powered = st != null && st.getEnergyStored() > 0;
 
-        // 满足出鞘条件时添加攻速加成
-        if (powered && allow) {
+        // 有能量时就添加攻速加成（自动攻击不依赖出鞘条件）
+        if (powered) {
             applyAutoAttackSpeedModifier(attackSpeedAttr);
         } else {
             removeAutoAttackSpeedModifier(attackSpeedAttr);

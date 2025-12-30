@@ -27,6 +27,8 @@ public class FabricRemoverDropHandler {
 
     private static final double INTERACTION_RADIUS = 1.5; // 交互半径
 
+    private static final double PLAYER_SEARCH_RADIUS = 16.0; // 只在玩家附近搜索
+
     @SubscribeEvent
     public static void onWorldTick(TickEvent.WorldTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
@@ -37,69 +39,77 @@ public class FabricRemoverDropHandler {
         // 每10tick检查一次（0.5秒）
         if (world.getTotalWorldTime() % 10 != 0) return;
 
-        // 获取所有织布拆解器掉落物
-        List<EntityItem> allItems = world.getEntities(EntityItem.class, e -> !e.isDead);
+        // 优化：无玩家时直接返回
+        if (world.playerEntities.isEmpty()) return;
 
-        for (EntityItem removerEntity : allItems) {
-            ItemStack removerStack = removerEntity.getItem();
-
-            // 检查是否是织布拆解器
-            if (removerStack.getItem() != ModItems.FABRIC_REMOVER) continue;
-
-            // 检查耐久
-            if (removerStack.getItemDamage() >= removerStack.getMaxDamage()) continue;
-
-            // 搜索附近的盔甲掉落物
-            AxisAlignedBB searchArea = new AxisAlignedBB(
-                removerEntity.posX - INTERACTION_RADIUS,
-                removerEntity.posY - INTERACTION_RADIUS,
-                removerEntity.posZ - INTERACTION_RADIUS,
-                removerEntity.posX + INTERACTION_RADIUS,
-                removerEntity.posY + INTERACTION_RADIUS,
-                removerEntity.posZ + INTERACTION_RADIUS
+        // 优化：只在玩家附近搜索织布拆解器，而不是遍历全世界
+        for (net.minecraft.entity.player.EntityPlayer player : world.playerEntities) {
+            AxisAlignedBB playerArea = new AxisAlignedBB(
+                player.posX - PLAYER_SEARCH_RADIUS, player.posY - PLAYER_SEARCH_RADIUS, player.posZ - PLAYER_SEARCH_RADIUS,
+                player.posX + PLAYER_SEARCH_RADIUS, player.posY + PLAYER_SEARCH_RADIUS, player.posZ + PLAYER_SEARCH_RADIUS
             );
 
-            List<EntityItem> nearbyItems = world.getEntitiesWithinAABB(EntityItem.class, searchArea,
-                e -> e != removerEntity && !e.isDead);
+            List<EntityItem> nearbyRemovers = world.getEntitiesWithinAABB(EntityItem.class, playerArea,
+                e -> !e.isDead && e.getItem().getItem() == ModItems.FABRIC_REMOVER);
 
-            for (EntityItem armorEntity : nearbyItems) {
-                ItemStack armorStack = armorEntity.getItem();
+            for (EntityItem removerEntity : nearbyRemovers) {
+                ItemStack removerStack = removerEntity.getItem();
 
-                // 检查是否是盔甲
-                if (!(armorStack.getItem() instanceof ItemArmor)) continue;
+                // 检查耐久
+                if (removerStack.getItemDamage() >= removerStack.getMaxDamage()) continue;
 
-                // 检查是否有织布
-                if (!FabricWeavingSystem.hasFabric(armorStack)) continue;
+                // 搜索附近的盔甲掉落物
+                AxisAlignedBB searchArea = new AxisAlignedBB(
+                    removerEntity.posX - INTERACTION_RADIUS,
+                    removerEntity.posY - INTERACTION_RADIUS,
+                    removerEntity.posZ - INTERACTION_RADIUS,
+                    removerEntity.posX + INTERACTION_RADIUS,
+                    removerEntity.posY + INTERACTION_RADIUS,
+                    removerEntity.posZ + INTERACTION_RADIUS
+                );
 
-                // 获取织布类型
-                FabricType fabricType = FabricWeavingSystem.getFabricType(armorStack);
-                if (fabricType == null) continue;
+                List<EntityItem> nearbyItems = world.getEntitiesWithinAABB(EntityItem.class, searchArea,
+                    e -> e != removerEntity && !e.isDead);
 
-                // 移除织布
-                if (FabricWeavingSystem.removeFabric(armorStack)) {
-                    // 返还织布材料
-                    ItemStack fabricItem = getFabricItem(fabricType);
-                    if (!fabricItem.isEmpty()) {
-                        EntityItem fabricEntity = new EntityItem(world,
-                            removerEntity.posX, removerEntity.posY + 0.5, removerEntity.posZ,
-                            fabricItem);
-                        fabricEntity.setPickupDelay(20);
-                        world.spawnEntity(fabricEntity);
+                for (EntityItem armorEntity : nearbyItems) {
+                    ItemStack armorStack = armorEntity.getItem();
+
+                    // 检查是否是盔甲
+                    if (!(armorStack.getItem() instanceof ItemArmor)) continue;
+
+                    // 检查是否有织布
+                    if (!FabricWeavingSystem.hasFabric(armorStack)) continue;
+
+                    // 获取织布类型
+                    FabricType fabricType = FabricWeavingSystem.getFabricType(armorStack);
+                    if (fabricType == null) continue;
+
+                    // 移除织布
+                    if (FabricWeavingSystem.removeFabric(armorStack)) {
+                        // 返还织布材料
+                        ItemStack fabricItem = getFabricItem(fabricType);
+                        if (!fabricItem.isEmpty()) {
+                            EntityItem fabricEntity = new EntityItem(world,
+                                removerEntity.posX, removerEntity.posY + 0.5, removerEntity.posZ,
+                                fabricItem);
+                            fabricEntity.setPickupDelay(20);
+                            world.spawnEntity(fabricEntity);
+                        }
+
+                        // 扣除拆解器耐久
+                        removerStack.setItemDamage(removerStack.getItemDamage() + 1);
+
+                        // 如果耐久用尽，移除拆解器
+                        if (removerStack.getItemDamage() >= removerStack.getMaxDamage()) {
+                            removerEntity.setDead();
+                        }
+
+                        // 播放效果
+                        playRemovalEffect(world, removerEntity.posX, removerEntity.posY, removerEntity.posZ);
+
+                        // 每次只处理一件盔甲
+                        break;
                     }
-
-                    // 扣除拆解器耐久
-                    removerStack.setItemDamage(removerStack.getItemDamage() + 1);
-
-                    // 如果耐久用尽，移除拆解器
-                    if (removerStack.getItemDamage() >= removerStack.getMaxDamage()) {
-                        removerEntity.setDead();
-                    }
-
-                    // 播放效果
-                    playRemovalEffect(world, removerEntity.posX, removerEntity.posY, removerEntity.posZ);
-
-                    // 每次只处理一件盔甲
-                    break;
                 }
             }
         }

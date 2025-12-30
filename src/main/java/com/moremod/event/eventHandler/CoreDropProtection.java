@@ -4,14 +4,12 @@ import com.moremod.item.ItemMechanicalCore;
 import com.moremod.config.FleshRejectionConfig;
 import baubles.api.BaublesApi;
 import baubles.api.cap.IBaublesItemHandler;
-import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
-import net.minecraftforge.event.entity.item.ItemTossEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingDropsEvent;
 import net.minecraftforge.event.entity.player.PlayerDropsEvent;
@@ -180,34 +178,8 @@ public class CoreDropProtection {
         }
     }
 
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public void onItemToss(ItemTossEvent event) {
-        ItemStack tossed = event.getEntityItem().getItem();
-        if (ItemMechanicalCore.isMechanicalCore(tossed)) {
-            event.setCanceled(true);
-            if (event.getPlayer() != null && !event.getPlayer().world.isRemote) {
-                event.getPlayer().sendMessage(new TextComponentString(
-                        TextFormatting.DARK_RED + "⚠ 机械核心与你的灵魂绑定，无法丢弃。"
-                ));
-            }
-        }
-    }
-
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public void onItemSpawn(net.minecraftforge.event.entity.EntityJoinWorldEvent event) {
-        if (event.getEntity() instanceof EntityItem) {
-            EntityItem item = (EntityItem) event.getEntity();
-            ItemStack stack = item.getItem();
-            if (ItemMechanicalCore.isMechanicalCore(stack)) {
-                // 机械核心永远不应该作为掉落物生成
-                // 移除 isAnyoneRestoring 检查，防止网络抖动（内网穿透）导致的掉落
-                event.setCanceled(true);
-
-                // 记录日志以便调试
-                System.out.println("[CoreDropProtection] 阻止机械核心作为EntityItem生成");
-            }
-        }
-    }
+    // 已移除 ItemTossEvent 拦截 - 允许玩家丢弃机械核心
+    // 已移除 EntityJoinWorldEvent 拦截 - 允许机械核心作为掉落物生成
 
     private boolean isAnyoneRestoring(MinecraftServer server) {
         if (server == null) return false;

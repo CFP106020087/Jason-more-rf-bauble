@@ -24,7 +24,12 @@ import java.util.List;
 /**
  * 结构胶囊物品
  * 空状态扔出捕获结构，存储状态扔出释放结构
- * 附带物品存储功能：小型32格，中/大型64格
+ * 附带物品存储功能：
+ * - 小型(3×3×3)=32格
+ * - 中型(7×7×7)=64格
+ * - 大型(15×15×15)=64格
+ * - 巨型(31×31×31)=128格
+ * - 超巨型(63×63×63)=256格
  */
 public class ItemStructureCapsule extends Item {
 
@@ -44,8 +49,18 @@ public class ItemStructureCapsule extends Item {
         this.setMaxDamage(0);
         // 确保 size 是奇数
         this.captureSize = (size % 2 == 0) ? size + 1 : size;
+        // 根据尺寸设置物品存储槽位数
         // 小型(3x3)=32格，中型(7x7)和大型(15x15)=64格
-        this.inventorySize = (size <= 3) ? 32 : 64;
+        // 巨型(31x31)=128格，超巨型(63x63)=256格
+        if (size <= 3) {
+            this.inventorySize = 32;
+        } else if (size <= 15) {
+            this.inventorySize = 64;
+        } else if (size <= 31) {
+            this.inventorySize = 128;
+        } else {
+            this.inventorySize = 256;
+        }
     }
 
     @Override
@@ -260,8 +275,12 @@ public class ItemStructureCapsule extends Item {
         }
 
         tooltip.add("");
+        if (com.moremod.config.CapsuleConfig.singleUse) {
+            tooltip.add(TextFormatting.RED + "⚠ 一次性：释放后胶囊消耗");
+        }
         tooltip.add(TextFormatting.DARK_GRAY + "右键投掷");
         tooltip.add(TextFormatting.DARK_GRAY + "无法捕获/覆盖基岩等不可破坏方块");
+        tooltip.add(TextFormatting.DARK_GRAY + "方块上限: " + com.moremod.config.CapsuleConfig.maxBlockCount);
     }
 
     @Override

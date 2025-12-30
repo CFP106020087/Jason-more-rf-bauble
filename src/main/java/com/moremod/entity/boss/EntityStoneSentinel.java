@@ -39,7 +39,6 @@ import software.bernie.geckolib3.core.manager.AnimationData;
 import software.bernie.geckolib3.core.manager.AnimationFactory;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static com.moremod.moremod.MODID;
 
@@ -163,11 +162,16 @@ public class EntityStoneSentinel extends EntityMob implements IAnimatable {
 
         // 负面效果免疫（清除已上的坏效果，双保险）
         if (!this.world.isRemote && !this.getActivePotionEffects().isEmpty()) {
-            this.getActivePotionEffects().stream()
-                    .filter(pe -> pe.getPotion().isBadEffect())
-                    .map(PotionEffect::getPotion)
-                    .collect(Collectors.toSet())
-                    .forEach(this::removeActivePotionEffect);
+            // 先收集需要移除的药水，避免ConcurrentModificationException
+            List<Potion> toRemove = new ArrayList<>();
+            for (PotionEffect pe : this.getActivePotionEffects()) {
+                if (pe.getPotion().isBadEffect()) {
+                    toRemove.add(pe.getPotion());
+                }
+            }
+            for (Potion p : toRemove) {
+                this.removePotionEffect(p);
+            }
         }
 
         // 朝向最近玩家
@@ -342,8 +346,10 @@ public class EntityStoneSentinel extends EntityMob implements IAnimatable {
     // —— 恢复：垂直光柱（每4点一柱）—— //
     private void spawnCircleParticles(AttackCircle circle) {
         if (!(world instanceof WorldServer)) return;
+        if (circle.target == null || !circle.target.isEntityAlive()) return; // 空检查
         WorldServer ws = (WorldServer) world;
         int particles = 48; // 稍高密度
+        double targetY = circle.target.posY; // 缓存避免重复访问
         for (int i = 0; i < particles; i++) {
             double angle = (Math.PI * 2) * i / particles;
             double px = circle.x + Math.cos(angle) * circle.radius;
@@ -351,14 +357,14 @@ public class EntityStoneSentinel extends EntityMob implements IAnimatable {
 
             // 地面轮廓
             ws.spawnParticle(EnumParticleTypes.REDSTONE,
-                    px, circle.target.posY + 0.1, pz,
+                    px, targetY + 0.1, pz,
                     1, 1.0, 0, 0.0, 0);
 
             // 垂直光柱（5层）
             if (i % 4 == 0) {
                 for (int h = 0; h < 5; h++) {
                     ws.spawnParticle(EnumParticleTypes.SPELL_WITCH,
-                            px, circle.target.posY + h * 0.5, pz,
+                            px, targetY + h * 0.5, pz,
                             1, 0, 0.1, 0.0, 0);
                 }
             }
@@ -366,9 +372,12 @@ public class EntityStoneSentinel extends EntityMob implements IAnimatable {
     }
 
     private void executeCircleAttack(AttackCircle circle) {
+        // 空检查：目标可能已死亡或为null
+        double baseY = (circle.target != null && circle.target.isEntityAlive()) ? circle.target.posY : this.posY;
+
         List<EntityLivingBase> targets = world.getEntitiesWithinAABB(EntityLivingBase.class,
-                new AxisAlignedBB(circle.x - circle.radius, circle.target.posY - 1, circle.z - circle.radius,
-                        circle.x + circle.radius, circle.target.posY + 3, circle.z + circle.radius));
+                new AxisAlignedBB(circle.x - circle.radius, baseY - 1, circle.z - circle.radius,
+                        circle.x + circle.radius, baseY + 3, circle.z + circle.radius));
 
         for (EntityLivingBase target : targets) {
             if (target != this) {
@@ -385,7 +394,7 @@ public class EntityStoneSentinel extends EntityMob implements IAnimatable {
                 double r = rand.nextDouble() * circle.radius;
                 ws.spawnParticle(EnumParticleTypes.EXPLOSION_NORMAL,
                         circle.x + Math.cos(ang) * r,
-                        circle.target.posY + rand.nextDouble() * 2,
+                        baseY + rand.nextDouble() * 2,
                         circle.z + Math.sin(ang) * r,
                         1, 0, 0.1, 0.0, 0);
             }

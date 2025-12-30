@@ -5,6 +5,7 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.DamageSource;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
@@ -12,13 +13,15 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 /**
  * 1.12.2：阿斯摩德专用。只有能量剑才能关掉"第二阶段小弟护盾"的前置挡伤。
  */
+@Pseudo
 @Mixin(targets = "com.lycanitesmobs.core.entity.creature.EntityAsmodeus", remap = false)
 public class MixinEntityAsmodeus_BypassShield {
 
     @Inject(
             method = "isInvulnerableTo(Lnet/minecraft/util/DamageSource;)Z",
             at = @At("HEAD"),
-            cancellable = true
+            cancellable = true,
+            require = 0
     )
     private void moremod$playerPenetrates(DamageSource source, CallbackInfoReturnable<Boolean> cir) {
         if (EnergySwordAttackHandler.isEnergySwordAttackActive()) {

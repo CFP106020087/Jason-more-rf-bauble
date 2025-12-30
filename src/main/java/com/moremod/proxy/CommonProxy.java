@@ -1,5 +1,7 @@
 package com.moremod.proxy;
 
+import com.moremod.printer.PrinterRecipeRegistry;
+import com.moremod.sponsor.network.SponsorNetworkHandler;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPostInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
@@ -8,8 +10,13 @@ public class CommonProxy {
 
     public void preInit(FMLPreInitializationEvent event) {
         // 通用的预初始化代码
+        // 注册打印机默认配方（在CraftTweaker之前）
+        PrinterRecipeRegistry.registerDefaultRecipes();
 
- }
+        // 初始化赞助者物品网络
+        SponsorNetworkHandler.init();
+    }
+
     public void registerNetworkMessages() {
         // only server messages here
         com.moremod.network.PacketHandler.registerMessages();

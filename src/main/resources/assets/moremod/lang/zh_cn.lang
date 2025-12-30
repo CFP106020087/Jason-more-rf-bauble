@@ -11,6 +11,7 @@ item.bio_stabilizer.desc=抑制血肉对机械核心的排异反应
 item.towel.name=毛巾
 item.neural_synchronizer.name=神经同步模块
 item.curse_spread.name=扩散诅咒的烙印
+item.alchemist_stone.name=炼药师的术石
 item.thorn_shard.name=荆棘王冠之碎片
 item.void_gaze.name=虚无之眸
 item.noose_of_hanged_king.name=缢王之索
@@ -513,6 +514,7 @@ tile.oil_extractor_core.name=抽油機核心
 tile.plant_oil_press.name=植物油壓榨機
 tile.oil_generator.name=石油發電機
 tile.charging_station.name=充能站
+tile.energy_link.name=能量鏈接器
 
 # 物品
 item.oil_prospector.name=石油探測器
@@ -545,6 +547,16 @@ gui.moremod.printer.multiblock_required=多方块结构未形成！需要3x3铁�
 # 打印模版（通用CRT模板）
 item.moremod.print_template.name=打印模板
 
+# 空白打印模版（需CRT定义）
+item.moremod.blank_print_template.name=空白打印模版
+tooltip.moremod.blank_template.desc1=一张未定义的模版
+tooltip.moremod.blank_template.desc2=需要通过CraftTweaker脚本定义其用途
+tooltip.moremod.blank_template.hint=Shift+右键查看可用配方
+tooltip.moremod.blank_template.available=可用配方: %d 个
+tooltip.moremod.blank_template.no_recipes=暂无可用配方 (需CRT配置)
+message.moremod.no_printer_recipes=暂无打印机配方，请使用CraftTweaker添加
+message.moremod.available_recipes=可用的打印机配方
+
 # 打印机GUI文字
 gui.moremod.printer.recipe_cost=配方消耗: %s RF
 gui.moremod.printer.build_guide=搭建指南: 3x3铁块底座 + 4红石块
@@ -557,3 +569,43 @@ tooltip.moremod.processing_time=处理时间
 tooltip.moremod.unknown_recipe=未知配方
 tooltip.moremod.no_template_id=未设置模板ID
 tooltip.moremod.template_desc=用于打印机的通用模板，通过CraftTweaker配置配方
+
+# ===== 结构胶囊 (Structure Capsules) =====
+item.structure_capsule_small.name=小型结构胶囊
+item.structure_capsule_medium.name=中型结构胶囊
+item.structure_capsule_large.name=大型结构胶囊
+item.structure_capsule_huge.name=巨型结构胶囊
+item.structure_capsule_mega.name=超巨型结构胶囊
+
+# ===== 赞助者物品 (Sponsor Items) =====
+
+# 诛仙四剑
+item.moremod.zhuxian_sword.name=诛仙剑
+
+# 快捷键分类
+key.categories.moremod.sponsor=MoreMod 赞助者物品
+
+# 横渠四句技能快捷键
+key.moremod.zhuxian.tianxin=为天地立心
+key.moremod.zhuxian.liming=为生民立命
+key.moremod.zhuxian.juexue=为往圣继绝学
+key.moremod.zhuxian.taiping=为万世开太平
+key.moremod.zhuxian.formation=诛仙剑阵
+
+# 配置
+config.moremod.sponsor.title=赞助者物品
+config.moremod.sponsor.items=物品设置
+config.moremod.sponsor.weapons=武器设置
+config.moremod.sponsor.armor=盔甲设置
+config.moremod.sponsor.baubles=饰品设置
+
+# ===== 星芒镐 (Astral Sorcery 兼容) =====
+item.moremod.astral_pickaxe.name=星芒镐
+item.moremod.astral_pickaxe.desc1=蕴含星辰之力的镐子
+item.moremod.astral_pickaxe.desc2=可以挖掘星辉水晶
+item.moremod.astral_pickaxe.desc3=挖石头概率掉落大理石
+item.moremod.astral_pickaxe.desc4=挖铁矿概率掉落星辉锭
+
+# ===== 真伤附魔 =====
+enchantment.moremod.true_damage=真实伤害
+enchantment.moremod.true_damage.desc=将部分武器伤害转换为无视护甲的真实伤害

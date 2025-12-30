@@ -1,7 +1,6 @@
 package com.moremod.client.render;
 
 import com.moremod.client.model.SwordChengYueModel;
-import com.moremod.client.render.GeckoDisplayConfig;
 import com.moremod.item.ItemSwordChengYue;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.EntityPlayerSP;
@@ -13,7 +12,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import software.bernie.geckolib3.renderers.geo.GeoItemRenderer;
 
 /**
- * 澄月剑渲染器（简化版 - 无调试功能）
+ * 澄月剑渲染器（简化版）
  */
 @SideOnly(Side.CLIENT)
 public class SwordChengYueRenderer extends GeoItemRenderer<ItemSwordChengYue> {
@@ -29,20 +28,16 @@ public class SwordChengYueRenderer extends GeoItemRenderer<ItemSwordChengYue> {
             return;
         }
 
-        // 获取当前的变换类型
         ItemCameraTransforms.TransformType transformType = getCurrentTransformType(stack);
-
-        // 设置模型的显示模式（刀鞘显示逻辑）
         SwordChengYueModel model = (SwordChengYueModel) this.getGeoModelProvider();
-        
-        // 只有 GUI/物品栏 显示刀鞘，其他全部隐藏
+
+        // GUI显示刀鞘，其他隐藏
         if (transformType == ItemCameraTransforms.TransformType.GUI) {
             model.setMode(SwordChengYueModel.VisibilityMode.NORMAL);
         } else {
             model.setMode(SwordChengYueModel.VisibilityMode.HIDE_SCABBARD);
         }
 
-        // 开始渲染
         GlStateManager.pushMatrix();
 
         // 基础变换
@@ -50,14 +45,13 @@ public class SwordChengYueRenderer extends GeoItemRenderer<ItemSwordChengYue> {
         GlStateManager.rotate(-77.5f, 1.0f, 0.0f, 0.0f);
         GlStateManager.translate(0, -3.7, -0.93);
 
-        // 根据不同情况进行变换
         if (transformType != null) {
             switch (transformType) {
                 case FIRST_PERSON_RIGHT_HAND:
                     GlStateManager.scale(0.7f, 0.7f, 0.7f);
                     GeckoDisplayConfig.applyTransform("firstperson_right");
                     break;
-                    
+
                 case FIRST_PERSON_LEFT_HAND:
                     GlStateManager.scale(0.7f, 0.7f, 0.7f);
                     GeckoDisplayConfig.applyTransform("firstperson_left");
@@ -68,7 +62,7 @@ public class SwordChengYueRenderer extends GeoItemRenderer<ItemSwordChengYue> {
                     GlStateManager.scale(0.8f, 0.8f, 0.8f);
                     GeckoDisplayConfig.applyTransform("thirdperson_right");
                     break;
-                    
+
                 case THIRD_PERSON_LEFT_HAND:
                     GlStateManager.rotate(180f, 0.0f, 1.0f, 0.0f);
                     GlStateManager.scale(0.8f, 0.8f, 0.8f);
@@ -95,7 +89,7 @@ public class SwordChengYueRenderer extends GeoItemRenderer<ItemSwordChengYue> {
                     GlStateManager.scale(0.6f, 0.6f, 0.6f);
                     GeckoDisplayConfig.applyTransform("fixed");
                     break;
-                    
+
                 default:
                     GlStateManager.scale(0.8f, 0.8f, 0.8f);
                     GeckoDisplayConfig.applyTransform("gui");
@@ -103,55 +97,41 @@ public class SwordChengYueRenderer extends GeoItemRenderer<ItemSwordChengYue> {
             }
         }
 
-        // 调用父类渲染
         super.renderByItem(stack);
-
         GlStateManager.popMatrix();
     }
 
-    /**
-     * 获取当前的变换类型（支持副手检测）
-     */
     private ItemCameraTransforms.TransformType getCurrentTransformType(ItemStack stack) {
         try {
             Minecraft mc = Minecraft.getMinecraft();
             EntityPlayerSP player = mc.player;
-            
-            // GUI 检测
+
             if (mc.currentScreen != null) {
                 return ItemCameraTransforms.TransformType.GUI;
             }
-            
-            // 玩家检测
+
             if (player == null) {
                 return ItemCameraTransforms.TransformType.FIRST_PERSON_RIGHT_HAND;
             }
-            
-            // 检测主手和副手
+
             ItemStack mainHand = player.getHeldItemMainhand();
             ItemStack offHand = player.getHeldItemOffhand();
-            
+
             boolean mainHasSword = mainHand.getItem() instanceof ItemSwordChengYue;
             boolean offHasSword = offHand.getItem() instanceof ItemSwordChengYue;
-            
-            // 判断是副手还是主手
             boolean isOffHand = offHasSword && !mainHasSword;
-            
-            // 根据视角返回正确的 TransformType
+
             if (mc.gameSettings.thirdPersonView == 0) {
-                // 第一人称
-                return isOffHand ? 
-                    ItemCameraTransforms.TransformType.FIRST_PERSON_LEFT_HAND : 
+                return isOffHand ?
+                    ItemCameraTransforms.TransformType.FIRST_PERSON_LEFT_HAND :
                     ItemCameraTransforms.TransformType.FIRST_PERSON_RIGHT_HAND;
             } else {
-                // 第三人称
-                return isOffHand ? 
-                    ItemCameraTransforms.TransformType.THIRD_PERSON_LEFT_HAND : 
+                return isOffHand ?
+                    ItemCameraTransforms.TransformType.THIRD_PERSON_LEFT_HAND :
                     ItemCameraTransforms.TransformType.THIRD_PERSON_RIGHT_HAND;
             }
-            
+
         } catch (Exception e) {
-            e.printStackTrace();
             return ItemCameraTransforms.TransformType.FIRST_PERSON_RIGHT_HAND;
         }
     }

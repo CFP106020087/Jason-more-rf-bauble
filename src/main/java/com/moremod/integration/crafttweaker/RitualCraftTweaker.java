@@ -74,6 +74,48 @@ public class RitualCraftTweaker {
         addRecipe(output, core, time, energy, failChance, tier, pedestals);
     }
 
+    // ========== 二阶祭坛配方快捷方法 ==========
+
+    /**
+     * 添加二阶进阶祭坛配方（完整参数）
+     * 需要进阶祭坛（8个基座+4根柱子）
+     */
+    @ZenMethod
+    public static void addTier2Recipe(IItemStack output, IIngredient core, int time, int energy,
+                                      float failChance, IIngredient[] pedestals) {
+        addRecipe(output, core, time, energy, failChance, 2, pedestals);
+    }
+
+    /**
+     * 添加二阶进阶祭坛配方（无失败率）
+     */
+    @ZenMethod
+    public static void addTier2Recipe(IItemStack output, IIngredient core, int time, int energy,
+                                      IIngredient[] pedestals) {
+        addRecipe(output, core, time, energy, 0.0f, 2, pedestals);
+    }
+
+    // ========== 三阶祭坛配方快捷方法 ==========
+
+    /**
+     * 添加三阶大师祭坛配方（完整参数）
+     * 需要大师祭坛（8个基座+4根柱子+4个灯座）
+     */
+    @ZenMethod
+    public static void addTier3Recipe(IItemStack output, IIngredient core, int time, int energy,
+                                      float failChance, IIngredient[] pedestals) {
+        addRecipe(output, core, time, energy, failChance, 3, pedestals);
+    }
+
+    /**
+     * 添加三阶大师祭坛配方（无失败率）
+     */
+    @ZenMethod
+    public static void addTier3Recipe(IItemStack output, IIngredient core, int time, int energy,
+                                      IIngredient[] pedestals) {
+        addRecipe(output, core, time, energy, 0.0f, 3, pedestals);
+    }
+
     @ZenMethod
     public static void removeRecipe(IItemStack output) {
         CraftTweakerAPI.apply(new RemoveRitualAction(output));
@@ -107,8 +149,20 @@ public class RitualCraftTweaker {
             this.failChance = failChance;
             this.requiredTier = requiredTier;
             this.pedestalItems = new ArrayList<>();
+
+            // ★ 修复：展开堆叠数量，确保每个物品都被正确消耗
+            // 例如 [<item:A> * 2, <item:B> * 4] 会展开为6个 Ingredient
             for (IIngredient pedestal : pedestals) {
-                this.pedestalItems.add(CraftTweakerMC.getIngredient(pedestal));
+                if (pedestal == null) continue;
+
+                // 获取数量（IIngredient 的 getAmount 返回堆叠数量）
+                int amount = pedestal.getAmount();
+
+                // 为每个数量创建一个 Ingredient
+                Ingredient ingredient = CraftTweakerMC.getIngredient(pedestal);
+                for (int i = 0; i < amount; i++) {
+                    this.pedestalItems.add(ingredient);
+                }
             }
         }
 

@@ -45,14 +45,13 @@ public class EnergySwordClientHandler {
         ItemStack held = mc.player.getHeldItemMainhand();
         if (!(held.getItem() instanceof ItemEnergySword)) return;
 
-        // 检查能量和出鞘条件
+        // 检查能量（自动攻击只需要能量，不需要出鞘条件）
         IEnergyStorage st = held.getCapability(CapabilityEnergy.ENERGY, null);
         boolean powered = st != null && st.getEnergyStored() > 0;
-        boolean allow = powered && ItemEnergySword.canUnsheathe(mc.player, held);
 
         mouseHeld = event.isButtonstate();
 
-        if (mouseHeld && allow) {
+        if (mouseHeld && powered) {
             // 拦截默认攻击，启动自动攻击
             event.setCanceled(true);
             performAttack(mc);
@@ -83,12 +82,11 @@ public class EnergySwordClientHandler {
             return;
         }
 
-        // 检查条件
+        // 检查能量（自动攻击只需要能量）
         IEnergyStorage st = stack.getCapability(CapabilityEnergy.ENERGY, null);
         boolean powered = st != null && st.getEnergyStored() > 0;
-        boolean allow = powered && ItemEnergySword.canUnsheathe(mc.player, stack);
 
-        if (!allow || !mouseHeld) {
+        if (!powered || !mouseHeld) {
             isAutoAttacking = false;
             return;
         }

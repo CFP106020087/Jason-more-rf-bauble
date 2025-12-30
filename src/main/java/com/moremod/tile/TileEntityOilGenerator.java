@@ -42,12 +42,12 @@ public class TileEntityOilGenerator extends TileEntity implements ITickable {
 
     // 配置
     private static final int ENERGY_CAPACITY = 1000000;    // 1M RF
-    private static final int BASE_RF_PER_TICK = 600;       // 基礎每tick產生 600 RF (3倍加速)
+    private static final int BASE_RF_PER_TICK = 3000;      // 基礎每tick產生 3000 RF
     private static final int UPGRADE_SLOTS = 4;            // 增速插件槽數量
     private static final float SPEED_PER_UPGRADE = 0.5f;   // 每個插件增加50%速度
 
-    // 自訂能量存儲（對外只輸出，對內可添加）
-    private final GeneratorEnergyStorage energy = new GeneratorEnergyStorage(ENERGY_CAPACITY, 10000);
+    // 自訂能量存儲（對外只輸出，對內可添加）- 傳輸無限快
+    private final GeneratorEnergyStorage energy = new GeneratorEnergyStorage(ENERGY_CAPACITY, Integer.MAX_VALUE);
 
     /**
      * 發電機專用能量存儲 - 對外只允許輸出，內部可添加能量
@@ -151,7 +151,7 @@ public class TileEntityOilGenerator extends TileEntity implements ITickable {
     }
 
     // 液體燃料槽（支持管道輸入）
-    private static final int FLUID_CAPACITY = 16000; // 16桶
+    private static final int FLUID_CAPACITY = 64000; // 64桶
     private final FluidTank fluidTank = new FluidTank(FLUID_CAPACITY) {
         @Override
         public int fill(FluidStack resource, boolean doFill) {
@@ -241,22 +241,24 @@ public class TileEntityOilGenerator extends TileEntity implements ITickable {
 
         // 如果正在燃燒
         if (burnTime > 0) {
-            burnTime--;
-
-            // 產生能量（使用內部添加方法，考慮速度倍率）
+            // 只有當能量未滿時才消耗燃料並產生能量（防止燃料浪費）
             if (energy.getEnergyStored() < energy.getMaxEnergyStored()) {
+                burnTime--;
+
+                // 產生能量（使用內部添加方法，考慮速度倍率）
                 float speedMultiplier = getSpeedMultiplier();
                 int actualRFPerTick = (int)(currentRFPerTick * speedMultiplier);
                 int toAdd = Math.min(actualRFPerTick, energy.getMaxEnergyStored() - energy.getEnergyStored());
                 energy.addEnergyInternal(toAdd);
                 markDirty();
-            }
 
-            // 粒子效果（更多插件=更多粒子）
-            int particleInterval = Math.max(3, 10 - (int)(getSpeedMultiplier() * 2));
-            if (tickCounter % particleInterval == 0) {
-                spawnBurningParticles();
+                // 粒子效果（更多插件=更多粒子）
+                int particleInterval = Math.max(3, 10 - (int)(getSpeedMultiplier() * 2));
+                if (tickCounter % particleInterval == 0) {
+                    spawnBurningParticles();
+                }
             }
+            // 能量滿時暫停燃燒，保持燃料不浪費
         }
 
         // 嘗試消耗新燃料
@@ -307,7 +309,7 @@ public class TileEntityOilGenerator extends TileEntity implements ITickable {
             if (neighbor != null && neighbor.hasCapability(CapabilityEnergy.ENERGY, facing.getOpposite())) {
                 IEnergyStorage neighborEnergy = neighbor.getCapability(CapabilityEnergy.ENERGY, facing.getOpposite());
                 if (neighborEnergy != null && neighborEnergy.canReceive()) {
-                    int toTransfer = Math.min(energy.getEnergyStored(), 10000); // 每次最多傳輸 10k
+                    int toTransfer = energy.getEnergyStored(); // 無限快傳輸
                     int accepted = neighborEnergy.receiveEnergy(toTransfer, false);
                     if (accepted > 0) {
                         energy.extractEnergy(accepted, false);
@@ -441,6 +443,31 @@ public class TileEntityOilGenerator extends TileEntity implements ITickable {
 
     public FluidTank getFluidTank() {
         return fluidTank;
+    }
+
+    // ===== Client Setters (for GUI sync) =====
+
+    public void setClientEnergy(int value) {
+        energy.setEnergy(value);
+    }
+
+    public void setClientFluidAmount(int amount) {
+        FluidStack current = fluidTank.getFluid();
+        if (current != null) {
+            current.amount = amount;
+        }
+    }
+
+    public void setClientBurnTime(int value) {
+        this.burnTime = value;
+    }
+
+    public void setClientMaxBurnTime(int value) {
+        this.maxBurnTime = value;
+    }
+
+    public void setClientRFPerTick(int value) {
+        this.currentRFPerTick = value;
     }
 
     // ===== 液體處理器包裝（確保所有面都能輸入）=====

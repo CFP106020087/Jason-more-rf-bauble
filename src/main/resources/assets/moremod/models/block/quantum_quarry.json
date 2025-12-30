@@ -1,6 +1,12 @@
 {
-  "parent": "block/cube_all",
+  "parent": "block/cube",
   "textures": {
-    "all": "moremod:blocks/quantum_quarry"
+    "particle": "moremod:blocks/quantum_quarry_side",
+    "up": "moremod:blocks/quantum_quarry_top",
+    "down": "moremod:blocks/quantum_quarry_bottom",
+    "north": "moremod:blocks/quantum_quarry_side",
+    "south": "moremod:blocks/quantum_quarry_side",
+    "east": "moremod:blocks/quantum_quarry_side",
+    "west": "moremod:blocks/quantum_quarry_side"
   }
 }

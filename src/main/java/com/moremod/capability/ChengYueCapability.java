@@ -25,6 +25,12 @@ public class ChengYueCapability implements INBTSerializable<NBTTagCompound> {
     // 形态系统
     private int currentForm = 0;
     private long formSwitchTime = 0;
+
+    // 技能/拔刀动画系统
+    private boolean skillActive = false;
+    private long skillStartTime = 0;
+    private int skillType = 0;  // 0=无, 1=attack1, 2=attack2
+    private static final long SKILL_DURATION = 2000; // 技能动画持续时间(ms) - 增加到2秒便于测试
     
     // ==================== Getter/Setter ====================
     
@@ -58,12 +64,43 @@ public class ChengYueCapability implements INBTSerializable<NBTTagCompound> {
     public void setMaxLunarPower(int max) { this.maxLunarPower = max; }
     
     public int getCurrentForm() { return currentForm; }
-    public void setCurrentForm(int form) { 
+    public void setCurrentForm(int form) {
         this.currentForm = form % 8;
         this.formSwitchTime = System.currentTimeMillis();
     }
     public long getFormSwitchTime() { return formSwitchTime; }
-    
+
+    // 技能/拔刀动画
+    public boolean isSkillActive() {
+        // 自动检查是否超时
+        if (skillActive && System.currentTimeMillis() - skillStartTime > SKILL_DURATION) {
+            skillActive = false;
+        }
+        return skillActive;
+    }
+
+    public void activateSkill(int type) {
+        this.skillActive = true;
+        this.skillStartTime = System.currentTimeMillis();
+        this.skillType = type;
+    }
+
+    public void deactivateSkill() {
+        this.skillActive = false;
+    }
+
+    public int getSkillType() { return skillType; }
+    public long getSkillStartTime() { return skillStartTime; }
+
+    /**
+     * 获取技能动画进度 (0.0 ~ 1.0)
+     */
+    public float getSkillProgress() {
+        if (!skillActive) return 0f;
+        long elapsed = System.currentTimeMillis() - skillStartTime;
+        return Math.min(1.0f, (float) elapsed / SKILL_DURATION);
+    }
+
     // ==================== NBT序列化 ====================
     
     @Override

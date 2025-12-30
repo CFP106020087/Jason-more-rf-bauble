@@ -1,80 +1,248 @@
 package com.moremod.mixin.enigmaticlegacy;
 
+import baubles.api.BaublesApi;
 import com.moremod.entity.curse.EmbeddedCurseManager;
 import com.moremod.entity.curse.EmbeddedCurseManager.EmbeddedRelicType;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityCreature;
+import net.minecraft.entity.EntityLiving;
+import net.minecraft.entity.monster.EntityMob;
+import net.minecraft.entity.monster.EntityPolarBear;
+import net.minecraft.entity.passive.EntityWolf;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.init.MobEffects;
+import net.minecraft.item.Item;
+import net.minecraft.potion.PotionEffect;
+import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.minecraftforge.event.entity.living.LivingSetAttackTargetEvent;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Mixin 拦截 EnigmaticEvents 中的各种诅咒效果
+ * Mixin 拦截 EnigmaticEvents 中的诅咒效果，并转化为祝福
  *
  * 目标类: keletu.enigmaticlegacy.event.EnigmaticEvents
+ *
+ * 祝福效果：
+ * 1. 霜华之露 (FROST_DEW) - 火焰抗性：立即灭火 + 短暂火焰抗性
+ * 2. 安眠香囊 (SLUMBER_SACHET) - 安眠祝福：允许睡觉 + 睡眠时生命恢复
+ * 3. 守护鳞片 (GUARDIAN_SCALE) - 护甲强化：减伤30%而非增伤
+ * 4. 和平徽章 (PEACE_EMBLEM) - 和平光环：取消所有仇恨锁定
  */
+@Pseudo
 @Mixin(targets = "keletu.enigmaticlegacy.event.EnigmaticEvents", remap = false)
 public class MixinEnigmaticEvents {
 
-    /**
-     * 拦截失眠症检查
-     * 当玩家嵌入了安眠香囊时，返回 false 允许睡觉
-     *
-     * 注意：这个注入点需要根据实际的 EnigmaticEvents 代码调整
-     */
-    @Inject(method = "shouldPreventSleep", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
-    private static void onShouldPreventSleep(EntityPlayer player, CallbackInfoReturnable<Boolean> cir) {
-        if (player == null || player.world.isRemote) return;
-
-        // 检查是否嵌入了安眠香囊
-        if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SLUMBER_SACHET)) {
-            System.out.println("[SacredRelic] 安眠香囊抵消了失眠症: " + player.getName());
-            cir.setReturnValue(false);
-        }
-    }
+    // ═══════════════════════════════════════════════════════════════
+    // 霜华之露 - 火焰抗性祝福
+    // 原诅咒：着火永燃（永远在燃烧）
+    // 祝福：立即灭火 + 给予火焰抗性 buff
+    // ═══════════════════════════════════════════════════════════════
 
     /**
-     * 拦截永燃效果检查
-     * 当玩家嵌入了霜华之露时，返回 false 允许火焰熄灭
+     * 拦截 setFire 调用，当有霜华之露时立即灭火
      */
-    @Inject(method = "shouldPreventFireExtinguish", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
-    private static void onShouldPreventFireExtinguish(EntityPlayer player, CallbackInfoReturnable<Boolean> cir) {
-        if (player == null || player.world.isRemote) return;
-
+    @Redirect(
+            method = "tickHandler(Lnet/minecraftforge/fml/common/gameevent/TickEvent$PlayerTickEvent;)V",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/entity/player/EntityPlayer;setFire(I)V"
+            ),
+            require = 0
+    )
+    private static void moremod$redirect_setFire(EntityPlayer player, int seconds) {
         // 检查是否嵌入了霜华之露
         if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.FROST_DEW)) {
-            System.out.println("[SacredRelic] 霜华之露抵消了永燃效果: " + player.getName());
-            cir.setReturnValue(false);
+            // 祝福效果：立即灭火
+            player.extinguish();
+            // 给予 5 秒火焰抗性
+            if (!player.isPotionActive(MobEffects.FIRE_RESISTANCE)) {
+                player.addPotionEffect(new PotionEffect(MobEffects.FIRE_RESISTANCE, 100, 0, false, true));
+            }
+            return;
         }
+        // 正常执行诅咒 setFire
+        player.setFire(seconds);
     }
 
     /**
-     * 拦截护甲降低效果检查
-     * 当玩家嵌入了守护鳞片时，返回 false 不降低护甲
+     * 拦截 isBurning 检查，当有霜华之露时假装不在燃烧
+     * 这可以防止永燃诅咒的持续检查
      */
-    @Inject(method = "shouldReduceArmor", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
-    private static void onShouldReduceArmor(EntityPlayer player, CallbackInfoReturnable<Boolean> cir) {
-        if (player == null || player.world.isRemote) return;
-
-        // 检查是否嵌入了守护鳞片
-        if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.GUARDIAN_SCALE)) {
-            System.out.println("[SacredRelic] 守护鳞片抵消了护甲降低效果: " + player.getName());
-            cir.setReturnValue(false);
+    @Redirect(
+            method = "tickHandler(Lnet/minecraftforge/fml/common/gameevent/TickEvent$PlayerTickEvent;)V",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/entity/player/EntityPlayer;isBurning()Z"
+            ),
+            require = 0
+    )
+    private static boolean moremod$redirect_isBurning(EntityPlayer player) {
+        // 检查是否嵌入了霜华之露
+        if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.FROST_DEW)) {
+            // 如果正在燃烧，立即灭火并给予抗性
+            if (player.isBurning()) {
+                player.extinguish();
+                if (!player.isPotionActive(MobEffects.FIRE_RESISTANCE)) {
+                    player.addPotionEffect(new PotionEffect(MobEffects.FIRE_RESISTANCE, 100, 0, false, true));
+                }
+            }
+            // 返回 false 跳过诅咒的永燃检查
+            return false;
         }
+        return player.isBurning();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 安眠香囊 - 安眠祝福
+    // 原诅咒：失眠症（无法睡觉）
+    // 祝福：允许睡觉 + 睡眠时获得生命恢复
+    //
+    // EnigmaticLegacy 的失眠诅咒逻辑：
+    // if (player.isPlayerSleeping() && player.sleepTimer > 90 && hasCursed(player)
+    //     && BaublesApi.isBaubleEquipped(player, teddyBear) == -1) {
+    //     player.sleepTimer = 90;
+    // }
+    //
+    // 我们只需让 "isBaubleEquipped == -1" 变成 false，
+    // 即伪装成"玩家有泰迪熊"，就可以完全解除失眠诅咒。
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * 拦截 BaublesApi.isBaubleEquipped 调用
+     * 当玩家有安眠香囊且正在睡觉时，返回非 -1（伪装有泰迪熊）
+     */
+    @Redirect(
+            method = "onPlayerTick(Lnet/minecraftforge/event/entity/living/LivingEvent$LivingUpdateEvent;)V",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lbaubles/api/BaublesApi;isBaubleEquipped(Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/item/Item;)I"
+            ),
+            require = 0
+    )
+    private static int moremod$redirect_isBaubleEquipped(EntityPlayer player, Item item) {
+        // 只有在玩家拥有安眠香囊 + 正在躺床时才伪装
+        boolean hasSlumber = EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.SLUMBER_SACHET);
+        boolean isOnBed = player.isPlayerSleeping();
+
+        if (hasSlumber && isOnBed) {
+            // 返回非 -1，代表"玩家装备着泰迪熊"
+            return 0;
+        }
+
+        // 其他情况下维持原本判定逻辑
+        return BaublesApi.isBaubleEquipped(player, item);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 守护鳞片 - 护甲强化祝福
+    // 原诅咒：护甲效力降低30%（受伤+30%）
+    // 祝福：护甲效力提升（减伤30%）
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * 拦截伤害事件中的 setAmount 调用
+     * 诅咒会调用 setAmount(damage * 1.3) 增加伤害
+     * 守护鳞片祝福将其改为 setAmount(damage * 0.7) 减少伤害
+     */
+    @Redirect(
+            method = "onEntityHurt(Lnet/minecraftforge/event/entity/living/LivingHurtEvent;)V",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraftforge/event/entity/living/LivingHurtEvent;setAmount(F)V"
+            ),
+            require = 0
+    )
+    private static void moremod$redirect_setAmount(LivingHurtEvent event, float amount) {
+        Entity entity = event.getEntity();
+        if (entity instanceof EntityPlayer) {
+            EntityPlayer player = (EntityPlayer) entity;
+
+            // 检查是否嵌入了守护鳞片
+            if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.GUARDIAN_SCALE)) {
+                // 诅咒会设置 amount = originalDamage * 1.3
+                // 我们需要还原 originalDamage = amount / 1.3
+                // 然后应用祝福 blessedAmount = originalDamage * 0.7
+                // 最终效果：amount / 1.3 * 0.7 ≈ amount * 0.538
+                // 相对于诅咒伤害减少约 46%
+                float blessedAmount = amount * 0.538f;
+                event.setAmount(blessedAmount);
+                return;
+            }
+        }
+        // 正常执行诅咒 setAmount（增伤）
+        event.setAmount(amount);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 和平徽章 - 和平光环祝福
+    // 原诅咒：中立生物主动攻击
+    // 祝福：取消所有诅咒引起的仇恨锁定
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * 检查生物是否是条件攻击型（中立/被动攻击）
+     * 这些生物正常情况下不会主动攻击，但七咒会让它们主动攻击
+     */
+    private static boolean isConditionallyHostile(EntityLivingBase entity) {
+        String className = entity.getClass().getSimpleName();
+
+        // 末影人 - 只有被看时才攻击
+        if (className.contains("Enderman")) return true;
+        // 僵尸猪人 - 只有被攻击时才攻击
+        if (className.contains("PigZombie") || className.contains("ZombiePigman")) return true;
+        // 狼（未驯服）- 只有被攻击时才攻击
+        if (entity instanceof EntityWolf) return true;
+        // 北极熊 - 只有有幼崽或被攻击时才攻击
+        if (entity instanceof EntityPolarBear) return true;
+        // 铁傀儡 - 正常不攻击玩家（除非玩家攻击村民）
+        if (className.contains("IronGolem")) return true;
+        // 雪傀儡 - 正常不攻击玩家
+        if (className.contains("SnowMan") || className.contains("Snowman")) return true;
+        // 蜘蛛 - 只在黑暗中攻击
+        if (className.contains("Spider") && !className.contains("CaveSpider")) return true;
+        // 所有非EntityMob的生物（如动物）
+        if (!(entity instanceof EntityMob)) return true;
+
+        return false;
     }
 
     /**
-     * 拦截中立生物攻击检查
-     * 当玩家嵌入了和平徽章时，返回 false 不让中立生物攻击
+     * 拦截 onLivingChangeTarget 事件处理
+     * 当有和平徽章时，取消中立生物的攻击目标设置
+     * 注意：EnigmaticLegacy 的方法名是 onLivingChangeTarget，不是 onEntityTarget
      */
-    @Inject(method = "shouldNeutralMobsAttack", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
-    private static void onShouldNeutralMobsAttack(EntityPlayer player, CallbackInfoReturnable<Boolean> cir) {
-        if (player == null || player.world.isRemote) return;
+    @Inject(
+            method = "onLivingChangeTarget(Lnet/minecraftforge/event/entity/living/LivingSetAttackTargetEvent;)V",
+            at = @At("HEAD"),
+            cancellable = true,
+            require = 0
+    )
+    private static void moremod$onLivingChangeTarget_head(LivingSetAttackTargetEvent event, CallbackInfo ci) {
+        if (!(event.getTarget() instanceof EntityPlayer)) return;
+        if (event.getEntityLiving().world.isRemote) return;
+
+        EntityPlayer player = (EntityPlayer) event.getTarget();
 
         // 检查是否嵌入了和平徽章
         if (EmbeddedCurseManager.hasEmbeddedRelic(player, EmbeddedRelicType.PEACE_EMBLEM)) {
-            System.out.println("[SacredRelic] 和平徽章抵消了中立生物攻击: " + player.getName());
-            cir.setReturnValue(false);
+            // 检查是否是条件攻击型生物（中立/被动）
+            if (isConditionallyHostile(event.getEntityLiving())) {
+                // 祝福效果：取消诅咒引起的仇恨
+                ci.cancel();
+
+                // 清除攻击者的目标
+                if (event.getEntityLiving() instanceof EntityCreature) {
+                    ((EntityCreature) event.getEntityLiving()).setAttackTarget(null);
+                } else if (event.getEntityLiving() instanceof EntityLiving) {
+                    ((EntityLiving) event.getEntityLiving()).setAttackTarget(null);
+                }
+            }
         }
     }
 }

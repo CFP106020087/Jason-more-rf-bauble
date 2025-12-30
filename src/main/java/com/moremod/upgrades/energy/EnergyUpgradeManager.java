@@ -240,6 +240,10 @@ public class EnergyUpgradeManager {
 
     /**
      * 虚空能量系统（末地/低 Y）
+     * 越接近地底能量越高：
+     * - Y >= deepYLevel: 不发电
+     * - Y < deepYLevel: 开始发电，越深倍率越高
+     * - Y <= voidYLevel: 最大倍率
      */
     public static class VoidEnergySystem {
 
@@ -250,18 +254,29 @@ public class EnergyUpgradeManager {
             boolean inVoidZone = false;
             float zoneMult = 1;
 
-            // 末地
+            int deepY = EnergyBalanceConfig.VoidEnergy.DEEP_Y_LEVEL;  // 开始发电高度 (64)
+            int voidY = EnergyBalanceConfig.VoidEnergy.VOID_Y_LEVEL;  // 最大发电高度 (16)
+            float maxMult = 5.0f;  // 最大深度倍率
+
+            // 末地：直接获得末地倍率
             if (player.dimension == 1) {
                 inVoidZone = true;
                 zoneMult = EnergyBalanceConfig.VoidEnergy.END_MULTIPLIER;
             }
 
-            // 深层/虚空
-            if (player.posY < EnergyBalanceConfig.VoidEnergy.DEEP_Y_LEVEL) {
+            // 深度发电：越深能量越高
+            double playerY = player.posY;
+            if (playerY < deepY) {
                 inVoidZone = true;
-                if (player.posY < EnergyBalanceConfig.VoidEnergy.VOID_Y_LEVEL) {
-                    // 更深处额外加成
-                    zoneMult = Math.max(zoneMult, 3);
+
+                if (playerY <= voidY) {
+                    // 最深处：最大倍率
+                    zoneMult = Math.max(zoneMult, maxMult);
+                } else {
+                    // 线性插值：deepY -> voidY 对应 1.0 -> maxMult
+                    float depthRatio = (float)(deepY - playerY) / (float)(deepY - voidY);
+                    float depthMult = 1.0f + (maxMult - 1.0f) * depthRatio;
+                    zoneMult = Math.max(zoneMult, depthMult);
                 }
             }
 

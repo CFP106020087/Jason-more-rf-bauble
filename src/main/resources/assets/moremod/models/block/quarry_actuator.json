@@ -1,6 +1,12 @@
 {
-  "parent": "block/cube_all",
+  "parent": "block/cube",
   "textures": {
-    "all": "moremod:blocks/quarry_actuator"
+    "particle": "moremod:blocks/quarry_actuator_side",
+    "up": "moremod:blocks/quarry_actuator_top",
+    "down": "moremod:blocks/quarry_actuator_bottom",
+    "north": "moremod:blocks/quarry_actuator_side",
+    "south": "moremod:blocks/quarry_actuator_side",
+    "east": "moremod:blocks/quarry_actuator_side",
+    "west": "moremod:blocks/quarry_actuator_side"
   }
 }

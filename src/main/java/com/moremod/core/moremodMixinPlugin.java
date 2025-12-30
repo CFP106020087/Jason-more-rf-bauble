@@ -22,15 +22,21 @@ public class moremodMixinPlugin implements IFMLLoadingPlugin {
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.lycanites.json");
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.parasites.json");
            FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.champion.json");
+            FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.infernal.json");
+            FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.rs.json");
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.silent.json");
             FermiumRegistryAPI.enqueueMixin(false, "mixins.moremod.element.json");
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.dummy.json");
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.bauble.json");
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.potioncore.json");
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.ev.json");
+            FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.as.json");
 
             // Enigmatic Legacy 七圣遗物效果拦截
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.enigmaticlegacy.json");
+
+            // 炼药增强 - 炼药师的术石
+            FermiumRegistryAPI.enqueueMixin(false, "mixins.moremod.brewing.json");
 
             // FermiumMixins 兼容 - 绕过假玩家检测
             FermiumRegistryAPI.enqueueMixin(true, "mixins.moremod.fermiummixins.json");

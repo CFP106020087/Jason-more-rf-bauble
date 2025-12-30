@@ -19,6 +19,7 @@ item.intel_statistics_book.name=Intel Statistics Book
 # Cursed Ring Synergy Accessories
 item.gluttonous_phalanx.name=Gluttonous Phalanx
 item.crystallized_resentment.name=Crystallized Resentment
+item.alchemist_stone.name=Alchemist's Stone
 
 # Basic Fabrics
 item.moremod.resilient_fiber.name=Resilient Fiber
@@ -95,6 +96,7 @@ tile.oil_extractor_core.name=Oil Extractor Core
 tile.plant_oil_press.name=Plant Oil Press
 tile.oil_generator.name=Oil Generator
 tile.charging_station.name=Charging Station
+tile.energy_link.name=Energy Link
 
 # Items
 item.oil_prospector.name=Oil Prospector
@@ -129,6 +131,16 @@ gui.moremod.printer.multiblock_required=Multiblock structure not formed! Require
 # Print Template (Generic CRT Template)
 item.moremod.print_template.name=Print Template
 
+# Blank Print Template (Requires CRT Definition)
+item.moremod.blank_print_template.name=Blank Print Template
+tooltip.moremod.blank_template.desc1=An undefined template
+tooltip.moremod.blank_template.desc2=Must be defined via CraftTweaker scripts
+tooltip.moremod.blank_template.hint=Shift+Right-click to view available recipes
+tooltip.moremod.blank_template.available=Available Recipes: %d
+tooltip.moremod.blank_template.no_recipes=No recipes available (requires CRT config)
+message.moremod.no_printer_recipes=No printer recipes available, add via CraftTweaker
+message.moremod.available_recipes=Available Printer Recipes
+
 # Printer GUI Text
 gui.moremod.printer.recipe_cost=Recipe Cost: %s RF
 gui.moremod.printer.build_guide=Build Guide: 3x3 Iron Block Base + 4 Redstone Blocks
@@ -141,3 +153,21 @@ tooltip.moremod.processing_time=Processing Time
 tooltip.moremod.unknown_recipe=Unknown Recipe
 tooltip.moremod.no_template_id=No Template ID Set
 tooltip.moremod.template_desc=A generic template for the printer, configure recipes via CraftTweaker
+
+# ===== Structure Capsules =====
+item.structure_capsule_small.name=Small Structure Capsule
+item.structure_capsule_medium.name=Medium Structure Capsule
+item.structure_capsule_large.name=Large Structure Capsule
+item.structure_capsule_huge.name=Huge Structure Capsule
+item.structure_capsule_mega.name=Mega Structure Capsule
+
+# ===== Astral Pickaxe (AS Compatibility) =====
+item.moremod.astral_pickaxe.name=Astral Pickaxe
+item.moremod.astral_pickaxe.desc1=A pickaxe imbued with starlight
+item.moremod.astral_pickaxe.desc2=Can mine Astral Crystals
+item.moremod.astral_pickaxe.desc3=Mining stone may drop Marble
+item.moremod.astral_pickaxe.desc4=Mining iron ore may drop Starmetal Ingot
+
+# ===== True Damage Enchantment =====
+enchantment.moremod.true_damage=True Damage
+enchantment.moremod.true_damage.desc=Converts part of weapon damage to armor-piercing true damage

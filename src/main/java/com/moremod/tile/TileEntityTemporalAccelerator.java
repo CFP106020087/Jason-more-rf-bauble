@@ -35,10 +35,10 @@ public class TileEntityTemporalAccelerator extends TileEntity implements ITickab
     private static final double TRIPLE_OUTPUT_CHANCE = 0.05; // 5%三倍产出概率（矿物）
 
     // 能量配置
-    private static final int MAX_ENERGY = 100000; // 最大存储100k FE
-    private static final int MAX_RECEIVE = 1000; // 最大输入1000 FE/t
-    private static final int ENERGY_PER_OPERATION = 5; // 每次加速操作消耗5 FE
-    private static final int BASE_CONSUMPTION = 20; // 基础消耗20 FE/t (激活时)
+    private static final int MAX_ENERGY = 2000000;       // 最大存储2M FE
+    private static final int MAX_RECEIVE = 100000;       // 最大输入100k FE/t
+    private static final int ENERGY_PER_OPERATION = 100; // 每次加速操作消耗100 FE
+    private static final int BASE_CONSUMPTION = 2000;    // 基础消耗2000 FE/t (激活时)
 
     // 状态变量
     private int energy = 0;

@@ -1,21 +1,13 @@
 package com.moremod.init;
 
-import com.moremod.item.ItemMaterial;
-import com.moremod.item.ItemBasicFabric;
+import com.moremod.item.*;
 // 🏪 添加村民胶囊导入
-import com.moremod.item.ItemVillagerCapsule;
 // 🌌 添加虚空背包链接导入
-import com.moremod.item.ItemVoidBackpackLink;
 // ⚡ 添加资源磁化戒指导入
-import com.moremod.item.ItemResourceMagnetRing;
 // 🧭 添加探险者罗盘导入
-import com.moremod.item.ItemExplorerCompass;
 // ⭕ 因果闕帶（智能沉默）
-import com.moremod.item.ItemCausalGateband;
 // 🧠 添加行為分析晶片導入
-import com.moremod.item.ItemBehaviorAnalysisChip;
 // 👻 添加诅咒蔓延导入
-import com.moremod.item.ItemCurseSpread;
 // 🌹 荆棘王冠之碎片（七咒联动）
 import com.moremod.item.curse.ItemThornShard;
 // 👁 虚无之眸（七咒联动）
@@ -25,24 +17,14 @@ import com.moremod.item.curse.ItemGluttonousPhalanx;
 // 💎 怨念结晶（七咒联动）
 import com.moremod.item.curse.ItemCrystallizedResentment;
 // 🗡️ 添加澄月剑导入
-import com.moremod.item.ItemSwordChengYue;
 // 🌟 添加剑气测试器导入
-import com.moremod.item.ItemSwordBeamTester;
 // ⚔️ 添加锯刃剑导入
-import com.moremod.item.ItemSawBladeSword;
 // 🛡️ 添加勇者之剑导入
-import com.moremod.item.ItemHeroSword;
 // 💎 添加宝石系统导入
-import com.moremod.item.ItemGem;
-import com.moremod.item.ItemIdentifyScroll;
 // 🧬 添加机械核心升级系统导入
 import com.moremod.item.upgrades.ItemNeuralSynchronizer;
-import com.moremod.item.ItemBioStabilizer;
-import com.moremod.item.ItemTowel;
 // 🧵 添加织布拆解器导入
-import com.moremod.item.ItemFabricRemover;
 // 📦 添加结构胶囊导入
-import com.moremod.item.ItemStructureCapsule;
 // ✨ 七圣遗物
 import com.moremod.item.curse.ItemSacredRelic;
 // 🎲 仪式道具
@@ -59,10 +41,10 @@ import com.moremod.item.energy.ItemPlantOilBucket;
 import com.moremod.item.energy.ItemSpeedUpgrade;
 
 // 📖 綜合指南書
-import com.moremod.item.ItemModGuide;
 
 // 🖨️ 打印系統
 import com.moremod.printer.ItemPrintTemplate;
+import com.moremod.printer.ItemBlankPrintTemplate;
 
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.item.Item.ToolMaterial;
@@ -128,6 +110,7 @@ public final class ModItems {
     public static Item CAUSAL_GATEBAND;         // ⭕ 因果闕帶（智能沉默）
     public static Item BEHAVIOR_ANALYSIS_CHIP;  // 🧠 行為分析晶片
     public static Item CURSE_SPREAD;            // 👻 诅咒蔓延
+    public static Item ALCHEMIST_STONE;         // 🧪 炼药师的术石（七咒联动）
     public static Item THORN_SHARD;             // 🌹 荆棘王冠之碎片（七咒联动）
     public static Item VOID_GAZE;               // 👁 虚无之眸（七咒联动）
     public static Item GLUTTONOUS_PHALANX;      // 🦴 饕餮指骨（七咒联动）
@@ -170,6 +153,8 @@ public final class ModItems {
     public static ItemStructureCapsule STRUCTURE_CAPSULE_SMALL;   // 小型结构胶囊 3×3×3
     public static ItemStructureCapsule STRUCTURE_CAPSULE_MEDIUM;  // 中型结构胶囊 7×7×7
     public static ItemStructureCapsule STRUCTURE_CAPSULE_LARGE;   // 大型结构胶囊 15×15×15
+    public static ItemStructureCapsule STRUCTURE_CAPSULE_HUGE;    // 巨型结构胶囊 31×31×31
+    public static ItemStructureCapsule STRUCTURE_CAPSULE_MEGA;    // 超巨型结构胶囊 63×63×63
 
     // ⛽ 能源系統物品
     public static Item OIL_PROSPECTOR;       // 石油探測器
@@ -181,15 +166,25 @@ public final class ModItems {
     public static Item MOREMOD_GUIDE;        // MoreMod 綜合指南
 
     // 🖨️ 打印系統物品
-    public static Item PRINT_TEMPLATE;       // 打印模版
+    public static Item PRINT_TEMPLATE;       // 打印模版 (已定义)
+    public static Item BLANK_PRINT_TEMPLATE; // 空白打印模版 (未定义，需CRT配置)
 
-    //新模块(屎山包装)
+    // ===== 字段声明 =====
+// ⭐ 星芒镐（AS 兼容）
+    public static Item ASTRAL_PICKAXE;
 
+// ===== 在 onRegisterItems 方法中添加 =====
+// ⭐ 注册星芒镐
+
+    // ===== 在 onModelRegister 方法中添加 =====
+// ⭐ 绑定星芒镐模型
 
 
     @SubscribeEvent
     public static void onRegisterItems(RegistryEvent.Register<Item> e) {
         // 稀有度：COMMON/UNCOMMON/RARE；glows=true 表示自发光描边
+        ASTRAL_PICKAXE = reg(e, new ItemAstralPickaxe());
+
         FRGUARDIAN_STONE      = reg(e, new ItemMaterial("frguardian_stone",      EnumRarity.UNCOMMON, false, "item.moremod.frguardian_stone.desc"));
         ANCIENT_CORE_FRAGMENT = reg(e, new ItemMaterial("ancient_core_fragment", EnumRarity.UNCOMMON, false, "item.moremod.ancient_core_fragment.desc"));
         RUNED_VOID_STONE      = reg(e, new ItemMaterial("runed_void_stone",      EnumRarity.RARE,     true,  "item.moremod.runed_void_stone.desc"));
@@ -257,6 +252,10 @@ public final class ModItems {
         // 👻 注册诅咒蔓延
         CURSE_SPREAD = reg(e, new ItemCurseSpread());
         System.out.println("[MoreMod] 👻 诅咒蔓延已注册");
+
+        // 🧪 注册炼药师的术石
+        ALCHEMIST_STONE = reg(e, new ItemAlchemistStone());
+        System.out.println("[MoreMod] 🧪 炼药师的术石已注册");
 
         // 🌹 注册荆棘王冠之碎片
         THORN_SHARD = reg(e, new ItemThornShard());
@@ -337,7 +336,9 @@ public final class ModItems {
         STRUCTURE_CAPSULE_SMALL = (ItemStructureCapsule) reg(e, new ItemStructureCapsule("structure_capsule_small", 3));
         STRUCTURE_CAPSULE_MEDIUM = (ItemStructureCapsule) reg(e, new ItemStructureCapsule("structure_capsule_medium", 7));
         STRUCTURE_CAPSULE_LARGE = (ItemStructureCapsule) reg(e, new ItemStructureCapsule("structure_capsule_large", 15));
-        System.out.println("[MoreMod] 📦 结构胶囊已注册 (3种尺寸)");
+        STRUCTURE_CAPSULE_HUGE = (ItemStructureCapsule) reg(e, new ItemStructureCapsule("structure_capsule_huge", 31));
+        STRUCTURE_CAPSULE_MEGA = (ItemStructureCapsule) reg(e, new ItemStructureCapsule("structure_capsule_mega", 63));
+        System.out.println("[MoreMod] 📦 结构胶囊已注册 (5种尺寸)");
 
         // ⛽ 注册能源系統物品
         OIL_PROSPECTOR = reg(e, new ItemOilProspector());
@@ -360,6 +361,10 @@ public final class ModItems {
         PRINT_TEMPLATE = reg(e, new ItemPrintTemplate());
         System.out.println("[MoreMod] 🖨️ 打印模版已註冊");
 
+        // 🖨️ 註冊空白打印模版
+        BLANK_PRINT_TEMPLATE = reg(e, new ItemBlankPrintTemplate());
+        System.out.println("[MoreMod] 🖨️ 空白打印模版已註冊 (需CRT定義配方)");
+
         //新模块系统
     }
 
@@ -372,6 +377,8 @@ public final class ModItems {
     @SideOnly(Side.CLIENT)
     public static void onModelRegister(ModelRegistryEvent e) {
         // 统一使用 item/generated
+        bindModel(ASTRAL_PICKAXE, "astral_pickaxe");
+
         bindModel(UNFORMED_FIBER, "unformed_fiber");
         bindModel(UNFORMED_FABRIC, "unformed_fabric");
         bindModel(FRGUARDIAN_STONE,      "frguardian_stone");
@@ -437,6 +444,10 @@ public final class ModItems {
         // 👻 绑定诅咒蔓延模型
         bindModel(CURSE_SPREAD, "curse_spread");
         System.out.println("[MoreMod] 👻 诅咒蔓延模型已注册");
+
+        // 🧪 绑定炼药师的术石模型
+        bindModel(ALCHEMIST_STONE, "alchemist_stone");
+        System.out.println("[MoreMod] 🧪 炼药师的术石模型已注册");
 
         // 🌹 绑定荆棘王冠之碎片模型
         bindModel(THORN_SHARD, "thorn_shard");
@@ -515,7 +526,9 @@ public final class ModItems {
         bindCapsuleModels(STRUCTURE_CAPSULE_SMALL, "structure_capsule_small");
         bindCapsuleModels(STRUCTURE_CAPSULE_MEDIUM, "structure_capsule_medium");
         bindCapsuleModels(STRUCTURE_CAPSULE_LARGE, "structure_capsule_large");
-        System.out.println("[MoreMod] 📦 结构胶囊模型已注册 (含空/存储状态)");
+        bindCapsuleModels(STRUCTURE_CAPSULE_HUGE, "structure_capsule_huge");
+        bindCapsuleModels(STRUCTURE_CAPSULE_MEGA, "structure_capsule_mega");
+        System.out.println("[MoreMod] 📦 结构胶囊模型已注册 (5种尺寸，含空/存储状态)");
 
         // ⛽ 綁定能源系統物品模型
         bindModel(OIL_PROSPECTOR, "oil_prospector");
@@ -531,6 +544,10 @@ public final class ModItems {
         // 🖨️ 綁定打印模版模型
         bindModel(PRINT_TEMPLATE, "print_template");
         System.out.println("[MoreMod] 🖨️ 打印模版模型已註冊");
+
+        // 🖨️ 綁定空白打印模版模型
+        bindModel(BLANK_PRINT_TEMPLATE, "blank_print_template");
+        System.out.println("[MoreMod] 🖨️ 空白打印模版模型已註冊");
     }
 
     @SideOnly(Side.CLIENT)

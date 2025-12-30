@@ -373,7 +373,8 @@ public class GuiSwordUpgradeStationMaterial extends GuiContainer {
 
         if (base.isEmpty() || mat.isEmpty()) return;
 
-        SwordUpgradeRegistry.Recipe recipe = SwordUpgradeRegistry.getRecipe(base, mat.getItem());
+        // v2.0: 使用完整ItemStack查找配方（支持材料NBT匹配）
+        SwordUpgradeRegistry.Recipe recipe = SwordUpgradeRegistry.getRecipe(base, mat);
         if (recipe == null) return;
 
         int xpCost = recipe.xpCost;
@@ -431,7 +432,8 @@ public class GuiSwordUpgradeStationMaterial extends GuiContainer {
             ItemStack mat = tile.getStackInSlot(TileEntitySwordUpgradeStationMaterial.SLOT_MAT);
 
             if (!out.isEmpty() && !base.isEmpty() && !mat.isEmpty()) {
-                SwordUpgradeRegistry.Recipe recipe = SwordUpgradeRegistry.getRecipe(base, mat.getItem());
+                // v2.0: 使用完整ItemStack查找配方（支持材料NBT匹配）
+                SwordUpgradeRegistry.Recipe recipe = SwordUpgradeRegistry.getRecipe(base, mat);
                 if (recipe != null) {
                     int playerXp = getPlayerTotalXp(this.mc.player);
                     

@@ -282,12 +282,26 @@ public class HumanityEventHandler {
 
     // ========== 治疗效果 ==========
 
-    @SubscribeEvent
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onLivingHeal(LivingHealEvent event) {
         if (!(event.getEntityLiving() instanceof EntityPlayer)) return;
 
         EntityPlayer player = (EntityPlayer) event.getEntityLiving();
         if (!HumanitySpectrumSystem.isSystemActive(player)) return;
+
+        // ========== 破碎之神治疗限制 ==========
+        // 破碎之神状态下，只有在停机模式时才能被治疗
+        IHumanityData data = HumanityCapabilityHandler.getData(player);
+        if (data != null && data.getAscensionRoute() == AscensionRoute.BROKEN_GOD) {
+            // 检查是否在停机状态
+            if (!com.moremod.system.ascension.BrokenGodHandler.isInShutdown(player)) {
+                // 非停机状态：完全阻止治疗
+                event.setCanceled(true);
+                return;
+            }
+            // 停机状态：允许治疗，不做其他限制
+            return;
+        }
 
         float humanity = HumanitySpectrumSystem.getHumanity(player);
 

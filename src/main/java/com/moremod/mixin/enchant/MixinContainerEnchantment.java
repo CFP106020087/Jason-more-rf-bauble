@@ -1,156 +1,204 @@
 package com.moremod.mixin.enchant;
 
-import net.minecraft.enchantment.Enchantment;
+import com.moremod.item.EnchantmentBoostBauble;
+import net.minecraft.advancements.CriteriaTriggers;
 import net.minecraft.enchantment.EnchantmentData;
 import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.entity.player.InventoryPlayer;
+import net.minecraft.init.Items;
+import net.minecraft.init.SoundEvents;
+import net.minecraft.inventory.Container;
 import net.minecraft.inventory.ContainerEnchantment;
-import net.minecraft.inventory.IInventory;
+import net.minecraft.inventory.Slot;
+import net.minecraft.item.ItemEnchantedBook;
 import net.minecraft.item.ItemStack;
+import net.minecraft.stats.StatList;
+import net.minecraft.util.SoundCategory;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
-import net.minecraftforge.common.ForgeHooks;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
- * MoreMod - 附魔台强化 Mixin
- * 支援无限等级附魔、高级附魔池
+ * MoreMod - 附魔增强 Mixin
+ * 参考 EnigmaticLegacy 实现
+ *
+ * 当玩家佩戴 EnchantmentBoostBauble 时：
+ * - 附魔时获得双重附魔效果（原始 + 额外高等级roll合并）
+ * - 青金石消耗显示为无限
  */
 @Mixin(ContainerEnchantment.class)
-public abstract class MixinContainerEnchantment {
+public abstract class MixinContainerEnchantment extends Container {
 
-    @Shadow private World world;
-    @Shadow private BlockPos position;
-    @Shadow public int[] enchantLevels;
-    @Shadow public IInventory tableInventory;
+    @Final
+    @Shadow
+    private World world;
 
-    @Unique private static final float VANILLA_MAX_POWER = 15.0f;
-    @Unique private int[] moremod$serverEnchantLevels = new int[3];
+    @Final
+    @Shadow
+    private BlockPos position;
 
-    /** 核心能量计算逻辑 */
-    @Unique
-    private float moremod$calculateTotalPower() {
-        if (world == null || position == null) return 0;
-        float power = 0;
+    @Shadow
+    protected abstract List<EnchantmentData> getEnchantmentList(ItemStack stack, int enchantSlot, int level);
 
-        for (int dz = -1; dz <= 1; dz++) {
-            for (int dx = -1; dx <= 1; dx++) {
-                if ((dz != 0 || dx != 0)
-                        && world.isAirBlock(position.add(dx,0,dz))
-                        && world.isAirBlock(position.add(dx,1,dz))) {
+    /**
+     * 附魔时注入 - 佩戴饰品时提供双重附魔效果
+     */
+    @Inject(at = @At(value = "HEAD"), method = "enchantItem", cancellable = true)
+    private void moremod$onEnchantedItem(EntityPlayer player, int clickedID, CallbackInfoReturnable<Boolean> info) {
+        ContainerEnchantment container = (ContainerEnchantment) (Object) this;
 
-                    power += ForgeHooks.getEnchantPower(world, position.add(dx * 2, 0, dz * 2));
-                    power += ForgeHooks.getEnchantPower(world, position.add(dx * 2, 1, dz * 2));
+        // 检查玩家是否佩戴附魔增强饰品
+        if (EnchantmentBoostBauble.hasBoostBauble(player)) {
+            ItemStack itemstack = container.tableInventory.getStackInSlot(0);
+            int levelsRequired = clickedID + 1;
 
-                    if (dx != 0 && dz != 0) {
-                        power += ForgeHooks.getEnchantPower(world, position.add(dx * 2, 0, dz));
-                        power += ForgeHooks.getEnchantPower(world, position.add(dx * 2, 1, dz));
-                        power += ForgeHooks.getEnchantPower(world, position.add(dx, 0, dz * 2));
-                        power += ForgeHooks.getEnchantPower(world, position.add(dx, 1, dz * 2));
+            if (container.enchantLevels[clickedID] > 0 && !itemstack.isEmpty() &&
+                (player.experienceLevel >= clickedID && player.experienceLevel >= container.enchantLevels[clickedID] || player.capabilities.isCreativeMode)) {
+
+                ItemStack enchantedItem = itemstack;
+
+                if (!this.world.isRemote) {
+                    List<EnchantmentData> list = getEnchantmentList(itemstack, clickedID, container.enchantLevels[clickedID]);
+
+                    if (!list.isEmpty()) {
+                        // 获取饰品增幅等级
+                        int boostAmount = EnchantmentBoostBauble.getBaubleBoostAmount(player);
+                        int bonusLevel = Math.min(container.enchantLevels[clickedID] + boostAmount, 50);
+
+                        // 双重roll - 额外生成一个更高等级的附魔结果
+                        ItemStack doubleRoll = EnchantmentHelper.addRandomEnchantment(
+                            player.getRNG(),
+                            enchantedItem.copy(),
+                            bonusLevel,
+                            true
+                        );
+
+                        player.onEnchant(itemstack, levelsRequired);
+                        boolean flag = itemstack.getItem() == Items.BOOK;
+
+                        if (flag) {
+                            enchantedItem = new ItemStack(Items.ENCHANTED_BOOK);
+                            container.tableInventory.setInventorySlotContents(0, enchantedItem);
+                        }
+
+                        // 应用原始附魔
+                        for (int j = 0; j < list.size(); ++j) {
+                            EnchantmentData enchantmentdata = list.get(j);
+
+                            if (flag) {
+                                ItemEnchantedBook.addEnchantment(enchantedItem, enchantmentdata);
+                            } else {
+                                enchantedItem.addEnchantment(enchantmentdata.enchantment, enchantmentdata.enchantmentLevel);
+                            }
+                        }
+
+                        // 合并双重roll的附魔
+                        enchantedItem = mergeEnchantments(enchantedItem, doubleRoll, false);
+                        container.tableInventory.setInventorySlotContents(0, enchantedItem);
+
+                        player.addStat(StatList.ITEM_ENCHANTED);
+
+                        if (player instanceof EntityPlayerMP) {
+                            CriteriaTriggers.ENCHANTED_ITEM.trigger((EntityPlayerMP) player, itemstack, levelsRequired);
+                        }
+
+                        container.tableInventory.markDirty();
+                        container.xpSeed = player.getXPSeed();
+                        this.onCraftMatrixChanged(container.tableInventory);
+                        this.world.playSound(null, this.position, SoundEvents.BLOCK_ENCHANTMENT_TABLE_USE, SoundCategory.BLOCKS, 1.0F, this.world.rand.nextFloat() * 0.1F + 0.9F);
                     }
                 }
-            }
-        }
-        return power;
-    }
 
-    @Unique
-    private float moremod$getExtraPower() {
-        return Math.max(0, moremod$calculateTotalPower() - VANILLA_MAX_POWER);
-    }
-
-    /** 修改附魔槽等级（突破30上限） */
-    @Inject(method = {"onCraftMatrixChanged","func_75130_a"}, at = @At("RETURN"))
-    private void moremod$boostLevels(IInventory inv, CallbackInfo ci) {
-        if (world == null || world.isRemote) return;
-
-        float extra = moremod$getExtraPower();
-        if (extra <= 0) {
-            System.arraycopy(enchantLevels, 0, moremod$serverEnchantLevels, 0, 3);
-            return;
-        }
-
-        int bonus = (int)(extra * 2); // 能量换等级
-
-        for (int i = 0; i < 3; i++) {
-            if (enchantLevels[i] > 0) {
-                float ratio = (i + 1) / 3.0f;
-                enchantLevels[i] += (int)(bonus * ratio);
-            }
-        }
-        System.arraycopy(enchantLevels, 0, moremod$serverEnchantLevels, 0, 3);
-    }
-
-    /** 修正点击时等级一致 */
-    @Inject(method = {"enchantItem","func_75140_a"}, at = @At("HEAD"))
-    private void moremod$syncLevel(EntityPlayer player, int id, CallbackInfoReturnable<Boolean> cir) {
-        if (world.isRemote) return;
-        if (id < 0 || id >= 3) return;
-        if (moremod$getExtraPower() <= 0) return;
-
-        enchantLevels[id] = moremod$serverEnchantLevels[id];
-    }
-
-    /** 🔥按钮可点击逻辑修补 */
-    @Inject(method = {"canEnchant","func_82869_a"}, at = @At("HEAD"), cancellable = true)
-    private void moremod$unlockButton(EntityPlayer player, int id, CallbackInfoReturnable<Boolean> cir) {
-        if (moremod$getExtraPower() > 0 && id >= 0 && id < 3) {
-            if (moremod$serverEnchantLevels[id] > 0) {
-                cir.setReturnValue(true);
-                cir.cancel();
+                info.setReturnValue(true);
+            } else {
+                info.setReturnValue(false);
             }
         }
     }
 
-    /** 🔥强制高等级附魔逻辑 */
-    @Inject(method = {"enchantItem","func_75140_a"}, at = @At("HEAD"), cancellable = true, require = 0)
-    private void moremod$forceEnchant(EntityPlayer player, int id, CallbackInfoReturnable<Boolean> cir) {
-        if (world.isRemote) return;
-        if (id < 0 || id >= 3) return;
+    /**
+     * 客户端青金石显示 - 佩戴饰品时显示为无限
+     */
+    @SideOnly(Side.CLIENT)
+    @Inject(at = @At("HEAD"), method = "getLapisAmount", cancellable = true)
+    public void moremod$onGetLapisAmount(CallbackInfoReturnable<Integer> info) {
+        Object forgottenObject = this;
+        ContainerEnchantment container = (ContainerEnchantment) forgottenObject;
+        EntityPlayer containerUser = null;
 
-        int level = moremod$serverEnchantLevels[id];
-        if (level <= 0) return;
-
-        ItemStack item = tableInventory.getStackInSlot(0);
-        if (item.isEmpty()) return;
-
-        if (player.experienceLevel < level) {
-            cir.setReturnValue(false);
-            cir.cancel();
-            return;
+        for (Slot slot : container.inventorySlots) {
+            if (slot.inventory instanceof InventoryPlayer) {
+                InventoryPlayer playerInv = (InventoryPlayer) slot.inventory;
+                containerUser = playerInv.player;
+                break;
+            }
         }
 
-        player.addExperienceLevel(-level);
+        if (containerUser != null) {
+            if (EnchantmentBoostBauble.hasBoostBauble(containerUser)) {
+                info.setReturnValue(64);
+            }
+        }
+    }
 
-        List<EnchantmentData> enchList =
-                EnchantmentHelper.buildEnchantmentList(player.getRNG(), item, level, false);
+    /**
+     * 合并两个物品的附魔
+     * @param target 目标物品
+     * @param source 来源物品（提取附魔）
+     * @param keepHigher 是否保留较高等级
+     * @return 合并后的物品
+     */
+    private static ItemStack mergeEnchantments(ItemStack target, ItemStack source, boolean keepHigher) {
+        if (source.isEmpty() || !source.isItemEnchanted()) {
+            return target;
+        }
 
-        if (enchList == null || enchList.isEmpty()) {
-            enchList = new ArrayList<>();
+        java.util.Map<net.minecraft.enchantment.Enchantment, Integer> targetEnch = EnchantmentHelper.getEnchantments(target);
+        java.util.Map<net.minecraft.enchantment.Enchantment, Integer> sourceEnch = EnchantmentHelper.getEnchantments(source);
 
-            for (Enchantment ench : Enchantment.REGISTRY) {
-                if (ench != null && ench.canApply(item)) {
-                    int newLvl = Math.max(1, Math.min(ench.getMaxLevel(), level / 30));
-                    enchList.add(new EnchantmentData(ench, newLvl));
+        for (java.util.Map.Entry<net.minecraft.enchantment.Enchantment, Integer> entry : sourceEnch.entrySet()) {
+            net.minecraft.enchantment.Enchantment ench = entry.getKey();
+            int sourceLevel = entry.getValue();
+
+            if (targetEnch.containsKey(ench)) {
+                int targetLevel = targetEnch.get(ench);
+                if (keepHigher) {
+                    targetEnch.put(ench, Math.max(targetLevel, sourceLevel));
+                } else {
+                    // 合并：如果等级相同则+1，否则取较高
+                    if (targetLevel == sourceLevel && targetLevel < ench.getMaxLevel() + 2) {
+                        targetEnch.put(ench, targetLevel + 1);
+                    } else {
+                        targetEnch.put(ench, Math.max(targetLevel, sourceLevel));
+                    }
+                }
+            } else {
+                // 检查兼容性
+                boolean compatible = true;
+                for (net.minecraft.enchantment.Enchantment existing : targetEnch.keySet()) {
+                    if (!ench.isCompatibleWith(existing)) {
+                        compatible = false;
+                        break;
+                    }
+                }
+                if (compatible) {
+                    targetEnch.put(ench, sourceLevel);
                 }
             }
         }
 
-        for (EnchantmentData data : enchList) {
-            item.addEnchantment(data.enchantment, data.enchantmentLevel);
-        }
-
-        world.playEvent(1030, position, 0);
-        cir.setReturnValue(true);
-        cir.cancel();
+        EnchantmentHelper.setEnchantments(targetEnch, target);
+        return target;
     }
 }

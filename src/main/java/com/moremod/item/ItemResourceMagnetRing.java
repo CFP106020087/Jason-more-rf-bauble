@@ -132,20 +132,22 @@ public class ItemResourceMagnetRing extends Item implements IBauble {
         EntityPlayer player = (EntityPlayer) wearer;
         if (player.world.isRemote) return;
 
-        // 每秒检查一次
-        if (player.world.getTotalWorldTime() % 20 != 0) return;
-
-        CoreInfo info = analyzeMechanicalCore(player);
-        updateCache(stack, info, player.world);
-
-        // 如果没有核心或模块不足，弹出
-        if (!info.hasCore || info.activeModules < REQUIRED_ACTIVE_MODULES) {
-            ejectItem(player, stack, info);
-            return;
-        }
+        // 每 2 tick 吸取一次（提高吸取频率）
+        if (player.world.getTotalWorldTime() % 2 != 0) return;
 
         // 吸取周围掉落物
         attractItems(player, stack);
+
+        // 每秒检查一次核心状态（不需要每2tick都检查）
+        if (player.world.getTotalWorldTime() % 20 == 0) {
+            CoreInfo info = analyzeMechanicalCore(player);
+            updateCache(stack, info, player.world);
+
+            // 如果没有核心或模块不足，弹出
+            if (!info.hasCore || info.activeModules < REQUIRED_ACTIVE_MODULES) {
+                ejectItem(player, stack, info);
+            }
+        }
     }
 
     @Override
@@ -184,10 +186,10 @@ public class ItemResourceMagnetRing extends Item implements IBauble {
                     processItemPickup(player, item, ring);
                 }
             } else {
-                // 远距离吸引
-                double speed = 0.1 + (1.0 / dist);
+                // 远距离吸引（加速吸取）
+                double speed = 0.3 + (2.0 / dist);  // 提高基础速度和距离系数
                 item.motionX = dx / dist * speed;
-                item.motionY = dy / dist * speed;
+                item.motionY = dy / dist * speed + 0.05;  // 稍微向上提升避免卡地形
                 item.motionZ = dz / dist * speed;
                 item.velocityChanged = true;
             }

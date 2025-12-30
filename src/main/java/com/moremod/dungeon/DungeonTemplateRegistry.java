@@ -18,8 +18,26 @@ public class DungeonTemplateRegistry {
     private final Map<DungeonTree.RoomType, List<Schematic>> templatesByType = new HashMap<>();
     private final Random random = new Random();
 
+    // 设为 true 启用从资源加载用户自定义 schematic 模板
+    private static final boolean LOAD_RESOURCE_TEMPLATES = true;
     // 设为 false 可彻底禁用磁盘上的旧 .schematic 模板
     private static final boolean LOAD_FILE_TEMPLATES = false;
+
+    // 用户自定义 schematic 房间类型映射
+    // 1=入口, 2=藏宝, 3=普通, 4=怪物, 5=出口, 6-9=陷阱, 10=枢纽
+    private static final Map<Integer, DungeonTree.RoomType> SCHEMATIC_ROOM_TYPE_MAP = new HashMap<>();
+    static {
+        SCHEMATIC_ROOM_TYPE_MAP.put(1, DungeonTree.RoomType.ENTRANCE);
+        SCHEMATIC_ROOM_TYPE_MAP.put(2, DungeonTree.RoomType.TREASURE);
+        SCHEMATIC_ROOM_TYPE_MAP.put(3, DungeonTree.RoomType.NORMAL);
+        SCHEMATIC_ROOM_TYPE_MAP.put(4, DungeonTree.RoomType.MONSTER);
+        SCHEMATIC_ROOM_TYPE_MAP.put(5, DungeonTree.RoomType.EXIT);
+        SCHEMATIC_ROOM_TYPE_MAP.put(6, DungeonTree.RoomType.TRAP);
+        SCHEMATIC_ROOM_TYPE_MAP.put(7, DungeonTree.RoomType.TRAP);
+        SCHEMATIC_ROOM_TYPE_MAP.put(8, DungeonTree.RoomType.TRAP);
+        SCHEMATIC_ROOM_TYPE_MAP.put(9, DungeonTree.RoomType.TRAP);
+        SCHEMATIC_ROOM_TYPE_MAP.put(10, DungeonTree.RoomType.HUB);
+    }
 
     private DungeonTemplateRegistry() {
         for (DungeonTree.RoomType type : DungeonTree.RoomType.values()) {
@@ -63,95 +81,33 @@ public class DungeonTemplateRegistry {
     }
 
     private void loadTemplates() {
+        if (LOAD_RESOURCE_TEMPLATES) loadFromResources();
         if (LOAD_FILE_TEMPLATES) loadFromFiles();
-        loadFromResources(); // 从 resources 加载 .schem 文件
         ensureAllBuiltins(); // 无论是否读磁盘，都保证箱内模板齐全
     }
 
     /**
-     * 从 mod resources 目录加载 .schem 文件
-     * 路径: assets/moremod/schematics/
-     *
-     * dungeon_room.schem 是一个包含多个房间的大型 schematic (186x16x71)
-     * 需要分割成 10 个独立的房间模板
+     * 从 mod 资源加载用户自定义 schematic 模板
+     * 路径: assets/moremod/schematics/dungeon/1.schematic ~ 10.schematic
      */
     private void loadFromResources() {
-        try {
-            String resourcePath = "/assets/moremod/schematics/dungeon_room.schem";
-            InputStream is = getClass().getResourceAsStream(resourcePath);
-            if (is != null) {
-                NBTTagCompound nbt = CompressedStreamTools.readCompressed(is);
-                Schematic fullSchematic = Schematic.loadFromNBT(nbt);
-                is.close();
+        for (Map.Entry<Integer, DungeonTree.RoomType> entry : SCHEMATIC_ROOM_TYPE_MAP.entrySet()) {
+            int num = entry.getKey();
+            DungeonTree.RoomType type = entry.getValue();
+            String resourcePath = "/assets/moremod/schematics/dungeon/" + num + ".schematic";
 
-                System.out.println("[DungeonTemplateRegistry] 加载大型 schematic: " + fullSchematic.width + "x" + fullSchematic.height + "x" + fullSchematic.length);
-
-                // 定义房间布局: {startX, startZ, width, length, roomType}
-                // 用户自定义房间: HUB, ENTRANCE, NORMAL, TREASURE, TRAP×4, MONSTER, EXIT
-                // 房间沿 X 轴排列，分两排
-                int[][] roomDefinitions = {
-                    // 上排房间 (Z = 0-30) - 从左到右: HUB, ENTRANCE, NORMAL, TREASURE, TRAP
-                    {0, 0, 30, 30, 0},      // HUB
-                    {30, 0, 30, 30, 1},     // ENTRANCE
-                    {60, 0, 30, 30, 2},     // NORMAL
-                    {90, 0, 30, 30, 3},     // TREASURE
-                    {120, 0, 30, 30, 4},    // TRAP #1
-                    // 下排房间 (Z = 35-65) - 从左到右: TRAP, TRAP, TRAP, MONSTER, EXIT
-                    {0, 35, 30, 30, 4},     // TRAP #2
-                    {30, 35, 30, 30, 4},    // TRAP #3
-                    {60, 35, 30, 30, 4},    // TRAP #4
-                    {90, 35, 30, 30, 5},    // MONSTER
-                    {120, 35, 30, 30, 6},   // EXIT
-                };
-
-                // 房间类型映射 (索引对应 roomDefinitions 中的 typeIdx)
-                // 0=HUB, 1=ENTRANCE, 2=NORMAL, 3=TREASURE, 4=TRAP, 5=MONSTER, 6=EXIT
-                DungeonTree.RoomType[] types = {
-                    DungeonTree.RoomType.HUB,        // 0
-                    DungeonTree.RoomType.ENTRANCE,   // 1
-                    DungeonTree.RoomType.NORMAL,     // 2
-                    DungeonTree.RoomType.TREASURE,   // 3
-                    DungeonTree.RoomType.TRAP,       // 4
-                    DungeonTree.RoomType.MONSTER,    // 5
-                    DungeonTree.RoomType.EXIT,       // 6
-                };
-
-                // 提取每个房间
-                for (int[] def : roomDefinitions) {
-                    int startX = def[0];
-                    int startZ = def[1];
-                    int roomWidth = def[2];
-                    int roomLength = def[3];
-                    int typeIdx = def[4];
-
-                    // 确保不越界
-                    if (startX + roomWidth > fullSchematic.width) {
-                        roomWidth = fullSchematic.width - startX;
-                    }
-                    if (startZ + roomLength > fullSchematic.length) {
-                        roomLength = fullSchematic.length - startZ;
-                    }
-
-                    if (roomWidth <= 0 || roomLength <= 0) continue;
-
-                    Schematic roomSchematic = fullSchematic.extractRegion(
-                        startX, 0, startZ,
-                        roomWidth, fullSchematic.height, roomLength
-                    );
-
-                    if (typeIdx < types.length) {
-                        DungeonTree.RoomType roomType = types[typeIdx];
-                        templatesByType.get(roomType).add(roomSchematic);
-                        System.out.println("[DungeonTemplateRegistry] 提取房间 [" + startX + "," + startZ + "] "
-                            + roomWidth + "x" + fullSchematic.height + "x" + roomLength + " -> " + roomType);
-                    }
+            try (InputStream is = getClass().getResourceAsStream(resourcePath)) {
+                if (is == null) {
+                    System.err.println("[DungeonTemplateRegistry] 未找到资源: " + resourcePath);
+                    continue;
                 }
-            } else {
-                System.out.println("[DungeonTemplateRegistry] 未找到 resources 模板: " + resourcePath);
+                NBTTagCompound nbt = CompressedStreamTools.readCompressed(is);
+                Schematic schematic = Schematic.loadFromNBT(nbt);
+                templatesByType.get(type).add(schematic);
+                System.out.println("[DungeonTemplateRegistry] 加载自定义模板: " + num + ".schematic -> " + type);
+            } catch (Exception e) {
+                System.err.println("[DungeonTemplateRegistry] 无法加载资源模板: " + resourcePath + " - " + e.getMessage());
             }
-        } catch (Exception e) {
-            System.err.println("[DungeonTemplateRegistry] 加载 resources 模板失败: " + e.getMessage());
-            e.printStackTrace();
         }
     }
 

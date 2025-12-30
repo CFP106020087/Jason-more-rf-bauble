@@ -39,7 +39,7 @@ public class IntelEventHandler {
     private static final float HIGH_HUMANITY_THRESHOLD = 50.0f;
 
     // 样本掉落基础概率
-    private static final float BASE_DROP_CHANCE = 0.15f; // 15%
+    private static final float BASE_DROP_CHANCE = 0.05f; // 5%
 
     // 人性值加成（每1点超过50的人性值增加的掉落率）
     private static final float HUMANITY_DROP_BONUS = 0.005f; // 每1点 +0.5%

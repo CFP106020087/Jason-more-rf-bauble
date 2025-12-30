@@ -78,16 +78,25 @@ public class ItemMechanicalCore extends Item implements IBauble {
     private static final ThreadLocal<Boolean> isCalculatingEnergy = ThreadLocal.withInitial(() -> false);
     private static final ThreadLocal<Boolean> isCheckingUpgrade  = ThreadLocal.withInitial(() -> false);
 
-    // ===== Enigmatic 冲突配置 =====
-    private static final boolean BLOCK_ALL_ENIGMATIC = true;
-    private static final boolean VERBOSE_ENIGMATIC_DETECTION = false;
+    // ===== Enigmatic 冲突配置 (从 ModConfig 读取) =====
+    private static boolean getBlockAllEnigmatic() {
+        return com.moremod.config.ModConfig.enigmatic.blockAllEnigmatic;
+    }
+    private static boolean getVerboseEnigmaticDetection() {
+        return com.moremod.config.ModConfig.enigmatic.verboseEnigmaticDetection;
+    }
 
     // ===== 电池缓存 =====
     private static class BatteryCache {
         boolean hasBattery;
         int batteryTier;
         long lastCheck;
-        boolean isValid(long currentTime) { return currentTime - lastCheck < 20; }
+        // ⭐ 修复：根据是否有电池使用不同的缓存时间
+        // 有电池时缓存20tick，无电池时仅缓存5tick（更快检测新充电的电池）
+        boolean isValid(long currentTime) {
+            int cacheTime = hasBattery ? 20 : 5;
+            return currentTime - lastCheck < cacheTime;
+        }
     }
     private static final Map<UUID, BatteryCache> batteryCache = new ConcurrentHashMap<>();
 
@@ -371,8 +380,8 @@ public class ItemMechanicalCore extends Item implements IBauble {
             for (int i = 0; i < baubles.getSlots(); i++) {
                 ItemStack bauble = baubles.getStackInSlot(i);
                 // 使用新的检测方法，排除 lost_engine
-                if (BLOCK_ALL_ENIGMATIC && isBlockedEnigmaticItem(bauble)) {
-                    if (VERBOSE_ENIGMATIC_DETECTION && !player.world.isRemote) {
+                if (getBlockAllEnigmatic() && isBlockedEnigmaticItem(bauble)) {
+                    if (getVerboseEnigmaticDetection() && !player.world.isRemote) {
                         System.out.println("[MechanicalCore] 检测到被阻止的 Enigmatic 物品: " + getItemDisplayName(bauble));
                     }
                     return true;
@@ -1264,7 +1273,7 @@ public class ItemMechanicalCore extends Item implements IBauble {
                 }
 
                 // ✨ 修改：检测并移除被阻止的 Enigmatic 物品（lost_engine 不会被移除）
-                if (!isUnequippingCore && (BLOCK_ALL_ENIGMATIC && isBlockedEnigmaticItem(bauble))) {
+                if (!isUnequippingCore && (getBlockAllEnigmatic() && isBlockedEnigmaticItem(bauble))) {
                     ItemStack removed = baubles.extractItem(i, 1, false);
                     if (!removed.isEmpty()) {
                         if (!player.inventory.addItemStackToInventory(removed)) {
@@ -2034,6 +2043,22 @@ public class ItemMechanicalCore extends Item implements IBauble {
     public static class ConflictChecker {
         private static final Map<UUID, Long> lastCheckTime = new WeakHashMap<>();
 
+        /**
+         * ⭐ 修复：玩家登录时清除电池缓存，防止缓存失效导致充电异常
+         */
+        @SubscribeEvent
+        public void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
+            clearPlayerCache(event.player);
+        }
+
+        /**
+         * ⭐ 修复：玩家切换维度时也清除缓存
+         */
+        @SubscribeEvent
+        public void onPlayerChangeDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
+            clearPlayerCache(event.player);
+        }
+
         @SubscribeEvent
         public void onPlayerTick(TickEvent.PlayerTickEvent event) {
             if (event.phase != TickEvent.Phase.END) return;
@@ -2064,7 +2089,7 @@ public class ItemMechanicalCore extends Item implements IBauble {
                     }
 
                     // ✨ 修改：只检测被阻止的 Enigmatic 物品（lost_engine 不会被移除）
-                    if (BLOCK_ALL_ENIGMATIC && isBlockedEnigmaticItem(bauble)) {
+                    if (getBlockAllEnigmatic() && isBlockedEnigmaticItem(bauble)) {
                         enigmaticSlots.add(i);
                         enigmaticNames.add(getItemDisplayName(bauble));
                     }

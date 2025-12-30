@@ -57,9 +57,8 @@ public class PersonalDimensionManager {
     private static final Map<Integer, UUID> spaceIndexToPlayer = new ConcurrentHashMap<>();
     private static final Map<BlockPos, WeakReference<UUID>> spaceOwners = new ConcurrentHashMap<>();
 
-    // 门洞 & 墙恢复
-    private static final Map<UUID, List<BlockPos>> doorHoles = new ConcurrentHashMap<>();
-    private static final Map<UUID, WallRestoreTask> wallRestoreTasks = new ConcurrentHashMap<>();
+    // 门洞 & 墙恢复 - 支持多门队列
+    private static final Map<UUID, List<DoorHoleEntry>> doorHoleQueue = new ConcurrentHashMap<>();
 
     // 待生成
     private static final Map<UUID, Long> pendingGenerations = new ConcurrentHashMap<>();
@@ -77,10 +76,17 @@ public class PersonalDimensionManager {
 
     // ---------------- 内部类 ----------------
 
-    public static class WallRestoreTask {
-        public final UUID playerId;
+    /**
+     * 门洞条目 - 记录一组门洞及其恢复时间
+     */
+    public static class DoorHoleEntry {
+        public final List<BlockPos> positions;
         public final long restoreTime;
-        public WallRestoreTask(UUID playerId, long restoreTime) { this.playerId = playerId; this.restoreTime = restoreTime; }
+
+        public DoorHoleEntry(List<BlockPos> positions, long restoreTime) {
+            this.positions = new ArrayList<>(positions);
+            this.restoreTime = restoreTime;
+        }
     }
 
     private static class BatchBlockUpdater {
@@ -205,7 +211,7 @@ public class PersonalDimensionManager {
     public static void reset(){
         batchUpdater.flush();
         playerSpaces.clear(); playerToSpaceIndex.clear(); spaceIndexToPlayer.clear(); spaceOwners.clear();
-        wallRestoreTasks.clear(); pendingGenerations.clear(); doorHoles.clear();
+        doorHoleQueue.clear(); pendingGenerations.clear();
         isDimensionInitialized=false; isDataLoaded=false; lastSaveTime=0; lastCleanupTime=0;
         shouldCheckUnload = false;
         lastPlayerLeftTime = 0;
@@ -447,20 +453,40 @@ public class PersonalDimensionManager {
             }
         }
 
-        // 墙恢复
-        if(!wallRestoreTasks.isEmpty()){
+        // 墙恢复 - 处理多门队列
+        if(!doorHoleQueue.isEmpty()){
             long now=System.currentTimeMillis();
-            Iterator<Map.Entry<UUID,WallRestoreTask>> it=wallRestoreTasks.entrySet().iterator();
-            while(it.hasNext()){
-                Map.Entry<UUID,WallRestoreTask> en=it.next();
-                if(now>=en.getValue().restoreTime){
-                    PersonalSpace s=playerSpaces.get(en.getKey());
-                    if(s!=null && s.isGenerated){
-                        WorldServer w=DimensionManager.getWorld(PERSONAL_DIM_ID);
-                        if(w!=null) restoreAnchorWalls(w,s);
+            WorldServer w=DimensionManager.getWorld(PERSONAL_DIM_ID);
+            if(w!=null){
+                // 使用快照避免并发修改
+                List<UUID> playerIds = new ArrayList<>(doorHoleQueue.keySet());
+                for(UUID playerId : playerIds){
+                    List<DoorHoleEntry> entries = doorHoleQueue.get(playerId);
+                    if(entries == null) continue;
+
+                    PersonalSpace s = playerSpaces.get(playerId);
+                    if(s==null || !s.isGenerated) continue;
+
+                    // 收集需要恢复的门洞
+                    List<DoorHoleEntry> toRestore = new ArrayList<>();
+                    synchronized(entries) {
+                        Iterator<DoorHoleEntry> it = entries.iterator();
+                        while(it.hasNext()){
+                            DoorHoleEntry entry = it.next();
+                            if(now >= entry.restoreTime && entry.restoreTime != Long.MAX_VALUE){
+                                toRestore.add(entry);
+                                it.remove();
+                            }
+                        }
                     }
-                    it.remove();
+
+                    // 在同步块外执行恢复
+                    for(DoorHoleEntry entry : toRestore){
+                        restoreDoorHoles(w, s, entry.positions);
+                    }
                 }
+                // 清理空列表
+                doorHoleQueue.entrySet().removeIf(en -> en.getValue().isEmpty());
             }
         }
 
@@ -595,11 +621,17 @@ public class PersonalDimensionManager {
         }
     }
 
-    private static void restoreAnchorWalls(World w, PersonalSpace s){
-        IBlockState wall=getAnchorWallBlockSafe();
-        List<BlockPos> holes=doorHoles.remove(s.playerId);
+    /**
+     * 恢复指定的门洞位置
+     */
+    private static void restoreDoorHoles(World w, PersonalSpace s, List<BlockPos> holes){
         if(holes==null || holes.isEmpty()) return;
-        for(BlockPos p:holes) if(s.isWall(p)) w.setBlockState(p, wall,2);
+        IBlockState wall=getAnchorWallBlockSafe();
+        for(BlockPos p:holes) {
+            if(s.isWall(p)) {
+                w.setBlockState(p, wall, 2);
+            }
+        }
     }
 
     private static IBlockState getAnchorWallBlockSafe(){
@@ -832,16 +864,57 @@ public class PersonalDimensionManager {
 
     // -------------- 钥匙/门洞 API --------------
 
-    public static void scheduleWallRestore(UUID playerId,int ticks){
-        if(ticks<=0) ticks=1;
-        wallRestoreTasks.put(playerId, new WallRestoreTask(playerId, System.currentTimeMillis()+ticks*50L));
-    }
+    /**
+     * 添加一组门洞到队列，并设置恢复时间
+     * 支持多门同时存在，每组门洞独立计时
+     */
     public static void setDoorHoles(UUID playerId, List<BlockPos> holes){
         if(holes==null || holes.isEmpty()) return;
-        doorHoles.put(playerId, new ArrayList<>(holes));
+        List<DoorHoleEntry> queue = doorHoleQueue.computeIfAbsent(playerId, k -> Collections.synchronizedList(new ArrayList<>()));
+        synchronized(queue) {
+            // 添加到队列 - 恢复时间由 scheduleWallRestore 设置
+            queue.add(new DoorHoleEntry(holes, Long.MAX_VALUE));
+        }
     }
+
+    /**
+     * 设置最近添加的门洞的恢复时间
+     */
+    public static void scheduleWallRestore(UUID playerId, int ticks){
+        if(ticks<=0) ticks=1;
+        long restoreTime = System.currentTimeMillis() + ticks * 50L;
+
+        List<DoorHoleEntry> queue = doorHoleQueue.get(playerId);
+        if(queue != null) {
+            synchronized(queue) {
+                // 找到最后一个未设置恢复时间的条目（restoreTime == Long.MAX_VALUE）
+                for(int i = queue.size() - 1; i >= 0; i--){
+                    DoorHoleEntry entry = queue.get(i);
+                    if(entry.restoreTime == Long.MAX_VALUE){
+                        // 替换为有正确恢复时间的新条目
+                        queue.set(i, new DoorHoleEntry(entry.positions, restoreTime));
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * 记录单个门洞位置（用于逐块添加）
+     */
     public static void recordDoorHole(UUID playerId, BlockPos pos){
-        doorHoles.computeIfAbsent(playerId, k->new ArrayList<>()).add(pos);
+        List<DoorHoleEntry> queue = doorHoleQueue.computeIfAbsent(playerId, k -> Collections.synchronizedList(new ArrayList<>()));
+        synchronized(queue) {
+            // 添加到最后一个条目，如果没有则创建新条目
+            if(queue.isEmpty() || queue.get(queue.size()-1).restoreTime != Long.MAX_VALUE){
+                List<BlockPos> newList = new ArrayList<>();
+                newList.add(pos);
+                queue.add(new DoorHoleEntry(newList, Long.MAX_VALUE));
+            } else {
+                queue.get(queue.size()-1).positions.add(pos);
+            }
+        }
     }
 
     // -------------- 玩家专属建筑 --------------

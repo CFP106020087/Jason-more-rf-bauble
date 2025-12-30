@@ -152,4 +152,45 @@ public class BrokenGodDeathHook {
     public static boolean onPreLivingDeath(EntityLivingBase entity, DamageSource source) {
         return shouldPreventDeath(entity, source);
     }
+
+    // ========== Hook 4: setDead（终极防线） ==========
+
+    /**
+     * 检查是否应该阻止 setDead() 调用
+     * Called by ASM at HEAD of Entity.setDead
+     *
+     * @param entity 将要被标记为死亡的实体
+     * @return true = 阻止 setDead
+     */
+    public static boolean shouldPreventSetDead(net.minecraft.entity.Entity entity) {
+        try {
+            if (!(entity instanceof EntityPlayer)) {
+                return false;
+            }
+
+            EntityPlayer player = (EntityPlayer) entity;
+
+            // 非破碎之神放行
+            if (!BrokenGodHandler.isBrokenGod(player)) {
+                return false;
+            }
+
+            // 停机期间：阻止 setDead
+            if (BrokenGodHandler.isInShutdown(player)) {
+                if (player.getHealth() < 0.5f) {
+                    player.setHealth(0.5f);
+                }
+                return true;
+            }
+
+            // 最终防线：进入停机模式
+            BrokenGodHandler.enterShutdown(player);
+            System.out.println("[BrokenGodDeathHook] setDead intercepted, entering shutdown: " + player.getName());
+            return true;
+
+        } catch (Throwable t) {
+            System.err.println("[BrokenGodDeathHook] Error in shouldPreventSetDead: " + t.getMessage());
+            return false;
+        }
+    }
 }
