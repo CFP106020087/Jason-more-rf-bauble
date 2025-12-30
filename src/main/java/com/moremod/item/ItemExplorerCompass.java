@@ -663,7 +663,7 @@ public class ItemExplorerCompass extends Item implements IBauble {
 
                     // 主體粒子：龍息 (紫色光輝) - 使用 WorldServer.spawnParticle 發送到客戶端
                     world.spawnParticle(EnumParticleTypes.DRAGON_BREATH, false,
-                            x + jx, y + jy, z + jz, 1, 0, 0, 0.0, 0);
+                            x + jx, y + jy, z + jz, 1, 0, 0, 0, 0);
 
                     // 核心粒子：紅石 (高亮核心) - 每2個點生成一次，保持性能
                     if (i % 2 == 0) {
