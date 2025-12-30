@@ -92,9 +92,9 @@ public class SwordUpgradeWrapper implements IRecipeWrapper {
 
     @Override
     public void drawInfo(Minecraft minecraft, int recipeWidth, int recipeHeight, int mouseX, int mouseY) {
-        // 顯示經驗消耗
+        // 顯示經驗消耗（經驗點數，不是等級）
         if (recipe.xpCost > 0) {
-            String xpText = "經驗: " + recipe.xpCost + " 級";
+            String xpText = "經驗: " + recipe.xpCost + " 點";
             minecraft.fontRenderer.drawString(xpText, 45, 45, 0x80FF00);
         }
 
