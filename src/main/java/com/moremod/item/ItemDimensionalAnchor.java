@@ -175,6 +175,11 @@ public class ItemDimensionalAnchor extends Item implements IBauble {
         if (!(wearer instanceof EntityPlayer)) return;
         EntityPlayer player = (EntityPlayer) wearer;
 
+        // 蜘蛛网免疫 - 每tick直接清除，参考BountifulBaubles的简洁做法
+        if (isInWebField != null) {
+            try { isInWebField.setBoolean(player, false); } catch (Exception ignored) {}
+        }
+
         if (!player.world.isRemote) {
             UUID uuid = player.getUniqueID();
             handleStillnessBonus(player, uuid);
@@ -640,65 +645,6 @@ public class ItemDimensionalAnchor extends Item implements IBauble {
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public static void onWebCollision(net.minecraftforge.event.entity.living.LivingEvent.LivingUpdateEvent event) {
-        if (!(event.getEntityLiving() instanceof EntityPlayer)) return;
-        EntityPlayer player = (EntityPlayer) event.getEntityLiving();
-        if (!hasEquippedAnchor(player)) return;
-
-        if (isInWebField != null) {
-            try {
-                boolean inWeb = isInWebField.getBoolean(player);
-                if (inWeb) {
-                    // 客户端和服务端都需要清除isInWeb标志
-                    isInWebField.setBoolean(player, false);
-
-                    // 只在服务端恢复速度并同步
-                    if (!player.world.isRemote) {
-                        restoreWebMovementSpeed(player);
-                    }
-                }
-            } catch (Exception e) {
-                handleWebCollisionFallback(player);
-            }
-        } else {
-            handleWebCollisionFallback(player);
-        }
-    }
-
-    /**
-     * 恢复被蜘蛛网减速的速度
-     */
-    private static void restoreWebMovementSpeed(EntityPlayer player) {
-        // 如果玩家正在移动，恢复到正常移动速度
-        if (player.moveForward != 0 || player.moveStrafing != 0) {
-            float yaw = player.rotationYaw * 0.017453292F;
-            double speed = player.isSprinting() ? 0.26 : 0.13;
-
-            double newMotionX = 0;
-            double newMotionZ = 0;
-
-            if (player.moveForward != 0) {
-                newMotionX = -Math.sin(yaw) * speed * Math.signum(player.moveForward);
-                newMotionZ = Math.cos(yaw) * speed * Math.signum(player.moveForward);
-            }
-            if (player.moveStrafing != 0) {
-                newMotionX += Math.cos(yaw) * speed * Math.signum(player.moveStrafing);
-                newMotionZ += Math.sin(yaw) * speed * Math.signum(player.moveStrafing);
-            }
-
-            // 当前速度明显低于正常速度时恢复
-            double currentSpeed = Math.sqrt(player.motionX * player.motionX + player.motionZ * player.motionZ);
-            double targetSpeed = Math.sqrt(newMotionX * newMotionX + newMotionZ * newMotionZ);
-
-            if (currentSpeed < targetSpeed * 0.5) {
-                player.motionX = newMotionX;
-                player.motionZ = newMotionZ;
-                player.velocityChanged = true;
-            }
-        }
-    }
-
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onPlayerDeathEarly(LivingDeathEvent event) {
         if (!(event.getEntityLiving() instanceof EntityPlayer)) return;
         EntityPlayer player = (EntityPlayer) event.getEntityLiving();
@@ -768,32 +714,6 @@ public class ItemDimensionalAnchor extends Item implements IBauble {
             String message = TextFormatting.GREEN + "⚓ 维度锚定器已保护 " + saved + " 件物品";
             if (!cursedItems.isEmpty()) message += TextFormatting.GRAY + " (诅咒物品保留: " + cursedItems.size() + ")";
             player.sendMessage(new TextComponentString(message));
-        }
-    }
-
-    private static void restoreMovementSpeed(EntityPlayer player) {
-        if ((player.moveForward != 0 || player.moveStrafing != 0) &&
-                Math.abs(player.motionX) < 0.05 && Math.abs(player.motionZ) < 0.05) {
-
-            double speed = 0.1;
-            float yaw = player.rotationYaw * 0.017453292F;
-
-            if (player.moveForward != 0) {
-                player.motionX = -Math.sin(yaw) * speed * player.moveForward;
-                player.motionZ = Math.cos(yaw) * speed * player.moveForward;
-            }
-            if (player.moveStrafing != 0) {
-                player.motionX += Math.cos(yaw) * speed * player.moveStrafing;
-                player.motionZ += Math.sin(yaw) * speed * player.moveStrafing;
-            }
-        }
-    }
-
-    private static void handleWebCollisionFallback(EntityPlayer player) {
-        BlockPos pos = player.getPosition();
-        if (player.world.getBlockState(pos).getBlock() == net.minecraft.init.Blocks.WEB ||
-                player.world.getBlockState(pos.up()).getBlock() == net.minecraft.init.Blocks.WEB) {
-            restoreMovementSpeed(player);
         }
     }
 
