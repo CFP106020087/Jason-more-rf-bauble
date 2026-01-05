@@ -123,10 +123,29 @@ public final class BaublesSyncUtil {
             case FALLBACK:
                 ItemStack cur = h.getStackInSlot(slot);
                 if (!cur.isEmpty()) {
-                    h.setStackInSlot(slot, ItemStack.EMPTY);
-                    h.setStackInSlot(slot, cur.copy());
-                    if (debugMode) {
-                        System.out.println("[BaublesSyncUtil] 同步槽位 " + slot + ": " + cur.getDisplayName());
+                    // ✅ 安全修复：先创建副本，确保副本有效后再操作
+                    ItemStack backup = cur.copy();
+                    if (backup.isEmpty()) {
+                        System.err.println("[BaublesSyncUtil] 警告：无法创建槽位 " + slot + " 的物品副本，跳过同步");
+                        break;
+                    }
+                    try {
+                        h.setStackInSlot(slot, ItemStack.EMPTY);
+                        h.setStackInSlot(slot, backup);
+                        if (debugMode) {
+                            System.out.println("[BaublesSyncUtil] 同步槽位 " + slot + ": " + cur.getDisplayName());
+                        }
+                    } catch (Exception e) {
+                        // ✅ 关键修复：如果设置失败，尝试恢复原物品
+                        try {
+                            h.setStackInSlot(slot, backup);
+                        } catch (Exception restoreError) {
+                            System.err.println("[BaublesSyncUtil] 严重错误：无法恢复槽位 " + slot + " 的物品！");
+                            restoreError.printStackTrace();
+                        }
+                        if (debugMode) {
+                            e.printStackTrace();
+                        }
                     }
                 }
                 break;
@@ -180,19 +199,41 @@ public final class BaublesSyncUtil {
     
     /**
      * 使用兜底方案同步
+     * ⚠️ 修复：使用安全的同步方式，避免物品丢失
      */
     private static void syncUsingFallback(IBaublesItemHandler handler) {
         int syncedCount = 0;
-        
+
         for (int i = 0; i < handler.getSlots(); i++) {
             ItemStack cur = handler.getStackInSlot(i);
             if (!cur.isEmpty()) {
-                handler.setStackInSlot(i, ItemStack.EMPTY);
-                handler.setStackInSlot(i, cur.copy());
-                syncedCount++;
+                // ✅ 安全修复：先创建副本，确保副本有效后再操作
+                ItemStack backup = cur.copy();
+                if (backup.isEmpty()) {
+                    // 副本创建失败，跳过此槽位，避免数据丢失
+                    System.err.println("[BaublesSyncUtil] 警告：无法创建槽位 " + i + " 的物品副本，跳过同步");
+                    continue;
+                }
+
+                try {
+                    handler.setStackInSlot(i, ItemStack.EMPTY);
+                    handler.setStackInSlot(i, backup);
+                    syncedCount++;
+                } catch (Exception e) {
+                    // ✅ 关键修复：如果设置失败，尝试恢复原物品
+                    try {
+                        handler.setStackInSlot(i, backup);
+                    } catch (Exception restoreError) {
+                        System.err.println("[BaublesSyncUtil] 严重错误：无法恢复槽位 " + i + " 的物品！");
+                        restoreError.printStackTrace();
+                    }
+                    if (debugMode) {
+                        e.printStackTrace();
+                    }
+                }
             }
         }
-        
+
         if (debugMode && syncedCount > 0) {
             System.out.println("[BaublesSyncUtil] 使用兜底方案同步了 " + syncedCount + " 个槽位");
         }
