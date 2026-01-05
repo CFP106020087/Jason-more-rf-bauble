@@ -18,6 +18,7 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerLoggedInEvent;
+import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerChangedDimensionEvent;
 
 import java.util.*;
 
@@ -304,45 +305,93 @@ public class EmbeddedCurseManager {
         // 死亡/维度传送时保留嵌入数据
         EntityPlayer oldPlayer = event.getOriginal();
         EntityPlayer newPlayer = event.getEntityPlayer();
-
-        // 从旧玩家获取嵌入的遗物数据
-        Set<EmbeddedRelicType> oldEmbedded = new HashSet<>();
-        NBTTagCompound oldPersistent = getPlayerPersistentData(oldPlayer);
-        if (oldPersistent.hasKey(NBT_KEY)) {
-            NBTTagList list = oldPersistent.getTagList(NBT_KEY, Constants.NBT.TAG_STRING);
-            for (int i = 0; i < list.tagCount(); i++) {
-                EmbeddedRelicType type = EmbeddedRelicType.fromId(list.getStringTagAt(i));
-                if (type != null) {
-                    oldEmbedded.add(type);
-                }
-            }
-        }
-
-        // 也检查缓存（以防NBT尚未写入）
         UUID uuid = oldPlayer.getUniqueID();
+
+        // 从多个来源收集数据，确保不丢失
+        Set<EmbeddedRelicType> allEmbedded = new HashSet<>();
+
+        // 1. 从旧玩家NBT读取
+        allEmbedded.addAll(readRelicsFromNBT(oldPlayer));
+
+        // 2. 从新玩家NBT读取（Forge可能已经复制了PERSISTED_NBT_TAG）
+        allEmbedded.addAll(readRelicsFromNBT(newPlayer));
+
+        // 3. 从内存缓存读取（以防NBT尚未写入）
         if (PLAYER_EMBEDDED.containsKey(uuid)) {
-            oldEmbedded.addAll(PLAYER_EMBEDDED.get(uuid));
+            allEmbedded.addAll(PLAYER_EMBEDDED.get(uuid));
         }
 
         // 清除旧缓存
         PLAYER_EMBEDDED.remove(uuid);
 
-        // 如果有嵌入的遗物，复制到新玩家
-        if (!oldEmbedded.isEmpty()) {
+        // 无论是否有数据，都确保新玩家的NBT正确设置
+        NBTTagCompound newPersistent = getPlayerPersistentData(newPlayer);
+        if (!allEmbedded.isEmpty()) {
             // 保存到新玩家的NBT
-            NBTTagCompound newPersistent = getPlayerPersistentData(newPlayer);
             NBTTagList list = new NBTTagList();
-            for (EmbeddedRelicType type : oldEmbedded) {
+            for (EmbeddedRelicType type : allEmbedded) {
                 list.appendTag(new NBTTagString(type.getId()));
             }
             newPersistent.setTag(NBT_KEY, list);
 
-            // 立即更新缓存，确保其他处理器能正确读取
-            PLAYER_EMBEDDED.put(uuid, oldEmbedded);
+            // 立即更新缓存
+            PLAYER_EMBEDDED.put(uuid, allEmbedded);
 
             System.out.println("[EmbeddedCurseManager] 玩家 " + newPlayer.getName() +
-                " 死亡重生，保留了 " + oldEmbedded.size() + " 个嵌入圣物");
+                (event.isWasDeath() ? " 死亡重生" : " 维度切换") +
+                "，保留了 " + allEmbedded.size() + " 个嵌入圣物");
         }
+    }
+
+    /**
+     * 维度切换时刷新缓存，确保数据同步
+     */
+    @SubscribeEvent
+    public static void onPlayerChangedDimension(PlayerChangedDimensionEvent event) {
+        EntityPlayer player = event.player;
+        if (player.world.isRemote) return;
+
+        UUID uuid = player.getUniqueID();
+
+        // 强制从NBT重新加载，确保缓存与NBT同步
+        Set<EmbeddedRelicType> fromNBT = readRelicsFromNBT(player);
+        Set<EmbeddedRelicType> fromCache = PLAYER_EMBEDDED.getOrDefault(uuid, new HashSet<>());
+
+        // 合并两个来源的数据
+        Set<EmbeddedRelicType> merged = new HashSet<>();
+        merged.addAll(fromNBT);
+        merged.addAll(fromCache);
+
+        if (!merged.isEmpty()) {
+            // 更新缓存和NBT
+            PLAYER_EMBEDDED.put(uuid, merged);
+            saveEmbeddedRelics(player, merged);
+
+            System.out.println("[EmbeddedCurseManager] 玩家 " + player.getName() +
+                " 维度切换 (" + event.fromDim + " -> " + event.toDim + ")，圣物数据已同步: " + merged.size() + " 个");
+        }
+    }
+
+    /**
+     * 从玩家NBT读取嵌入的遗物
+     */
+    private static Set<EmbeddedRelicType> readRelicsFromNBT(EntityPlayer player) {
+        Set<EmbeddedRelicType> result = new HashSet<>();
+        try {
+            NBTTagCompound persistent = getPlayerPersistentData(player);
+            if (persistent.hasKey(NBT_KEY)) {
+                NBTTagList list = persistent.getTagList(NBT_KEY, Constants.NBT.TAG_STRING);
+                for (int i = 0; i < list.tagCount(); i++) {
+                    EmbeddedRelicType type = EmbeddedRelicType.fromId(list.getStringTagAt(i));
+                    if (type != null) {
+                        result.add(type);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[EmbeddedCurseManager] 读取玩家NBT失败: " + e.getMessage());
+        }
+        return result;
     }
 
     /**
