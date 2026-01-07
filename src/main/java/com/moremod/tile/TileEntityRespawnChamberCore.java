@@ -268,43 +268,71 @@ public class TileEntityRespawnChamberCore extends TileEntity implements ITickabl
 
     /**
      * 隨機傳送玩家到附近（無綁定時使用）
+     * ⚠️ 修復：增加維度檢查，避免在地獄/末地調用時卡死
      */
     public static void teleportPlayerRandomly(EntityPlayer player) {
-        double x = player.posX + (player.world.rand.nextDouble() - 0.5) * 20;
-        double z = player.posZ + (player.world.rand.nextDouble() - 0.5) * 20;
-
-        // 找到安全的Y坐標
-        BlockPos targetPos = new BlockPos(x, player.posY, z);
-        targetPos = player.world.getTopSolidOrLiquidBlock(targetPos);
-
-        if (player instanceof EntityPlayerMP) {
-            ((EntityPlayerMP) player).setPositionAndUpdate(
-                    targetPos.getX() + 0.5,
-                    targetPos.getY() + 1,
-                    targetPos.getZ() + 0.5
-            );
+        // ⚠️ 安全檢查：如果玩家在地獄(-1)或末地(1)，不執行傳送
+        // 因為 getTopSolidOrLiquidBlock 在這些維度可能導致卡死
+        int dimension = player.dimension;
+        if (dimension == -1 || dimension == 1) {
+            player.sendMessage(new TextComponentString(
+                    TextFormatting.YELLOW + "⚠ 檢測到異常維度，跳過隨機傳送"
+            ));
+            return;
         }
 
-        // 隨機傳送特效
-        if (player.world instanceof WorldServer) {
-            WorldServer ws = (WorldServer) player.world;
-            ws.spawnParticle(EnumParticleTypes.PORTAL,
-                    player.posX, player.posY + 1, player.posZ,
-                    50, 0.5, 1.0, 0.5, 0.1);
+        // ⚠️ 安全檢查：確保世界對象有效
+        if (player.world == null || !(player.world instanceof WorldServer)) {
+            return;
         }
 
-        // 音效
-        player.world.playSound(null, player.posX, player.posY, player.posZ,
-                net.minecraft.init.SoundEvents.ENTITY_ENDERMEN_TELEPORT,
-                net.minecraft.util.SoundCategory.PLAYERS, 1.0f, 0.5f);
+        try {
+            double x = player.posX + (player.world.rand.nextDouble() - 0.5) * 20;
+            double z = player.posZ + (player.world.rand.nextDouble() - 0.5) * 20;
 
-        player.sendMessage(new TextComponentString(
-                TextFormatting.YELLOW + "═══════════════════════════════\n" +
-                TextFormatting.YELLOW + "⚠ 未綁定重生倉！\n" +
-                TextFormatting.GRAY + "已隨機傳送至附近位置。\n" +
-                TextFormatting.DARK_GRAY + "建造重生倉並綁定以獲得穩定重生點。\n" +
-                TextFormatting.YELLOW + "═══════════════════════════════"
-        ));
+            // 找到安全的Y坐標（添加超時保護）
+            BlockPos targetPos = new BlockPos(x, player.posY, z);
+
+            // ⚠️ 安全檢查：確保區塊已加載，避免觸發區塊生成導致卡頓
+            if (!player.world.isBlockLoaded(targetPos)) {
+                // 如果區塊未加載，使用玩家當前位置
+                targetPos = player.getPosition();
+            } else {
+                targetPos = player.world.getTopSolidOrLiquidBlock(targetPos);
+            }
+
+            if (player instanceof EntityPlayerMP) {
+                ((EntityPlayerMP) player).setPositionAndUpdate(
+                        targetPos.getX() + 0.5,
+                        targetPos.getY() + 1,
+                        targetPos.getZ() + 0.5
+                );
+            }
+
+            // 隨機傳送特效
+            if (player.world instanceof WorldServer) {
+                WorldServer ws = (WorldServer) player.world;
+                ws.spawnParticle(EnumParticleTypes.PORTAL,
+                        player.posX, player.posY + 1, player.posZ,
+                        50, 0.5, 1.0, 0.5, 0.1);
+            }
+
+            // 音效
+            player.world.playSound(null, player.posX, player.posY, player.posZ,
+                    net.minecraft.init.SoundEvents.ENTITY_ENDERMEN_TELEPORT,
+                    net.minecraft.util.SoundCategory.PLAYERS, 1.0f, 0.5f);
+
+            player.sendMessage(new TextComponentString(
+                    TextFormatting.YELLOW + "═══════════════════════════════\n" +
+                    TextFormatting.YELLOW + "⚠ 未綁定重生倉！\n" +
+                    TextFormatting.GRAY + "已隨機傳送至附近位置。\n" +
+                    TextFormatting.DARK_GRAY + "建造重生倉並綁定以獲得穩定重生點。\n" +
+                    TextFormatting.YELLOW + "═══════════════════════════════"
+            ));
+        } catch (Exception e) {
+            // 捕獲任何異常，避免崩潰
+            System.err.println("[RespawnChamber] 隨機傳送失敗: " + e.getMessage());
+        }
     }
 
     /**

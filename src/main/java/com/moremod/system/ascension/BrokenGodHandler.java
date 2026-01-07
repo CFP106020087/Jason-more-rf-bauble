@@ -275,22 +275,53 @@ public class BrokenGodHandler {
             }
         }
 
-        // ========== 重生倉傳送邏輯 ==========
-        // 檢查是否有綁定的重生倉
-        boolean teleportedToChamber = false;
-        if (com.moremod.tile.TileEntityRespawnChamberCore.hasBoundChamber(playerId)) {
-            // 嘗試傳送到重生倉
-            teleportedToChamber = com.moremod.tile.TileEntityRespawnChamberCore.teleportPlayerToChamber(player);
-        }
+        // ========== 重生倉傳送邏輯（修復地獄/末地卡死問題） ==========
+        // ⚠️ 關鍵修復：檢查玩家當前維度，如果在地獄(-1)或末地(1)，跳過傳送
+        // 因為此時 player.world 可能是錯誤的維度，直接傳送會導致卡死
+        int currentDimension = player.dimension;
+        boolean isInDangerousDimension = (currentDimension == -1 || currentDimension == 1);
 
-        // 若無綁定或傳送失敗，則隨機傳送到附近
-        if (!teleportedToChamber) {
-            com.moremod.tile.TileEntityRespawnChamberCore.teleportPlayerRandomly(player);
+        boolean teleportedToChamber = false;
+
+        if (!isInDangerousDimension) {
+            // 只有在主世界才執行傳送邏輯
+            if (com.moremod.tile.TileEntityRespawnChamberCore.hasBoundChamber(playerId)) {
+                // 嘗試傳送到重生倉
+                teleportedToChamber = com.moremod.tile.TileEntityRespawnChamberCore.teleportPlayerToChamber(player);
+            }
+
+            // 若無綁定或傳送失敗，則隨機傳送到附近
+            if (!teleportedToChamber) {
+                com.moremod.tile.TileEntityRespawnChamberCore.teleportPlayerRandomly(player);
+            }
+        } else {
+            // 在地獄/末地時，延遲到下一tick執行傳送（等待維度切換完成）
+            if (player instanceof EntityPlayerMP) {
+                EntityPlayerMP playerMP = (EntityPlayerMP) player;
+                playerMP.getServerWorld().addScheduledTask(() -> {
+                    // 再次檢查玩家是否已經切換到主世界
+                    if (playerMP.dimension == 0) {
+                        boolean teleported = false;
+                        if (com.moremod.tile.TileEntityRespawnChamberCore.hasBoundChamber(playerId)) {
+                            teleported = com.moremod.tile.TileEntityRespawnChamberCore.teleportPlayerToChamber(playerMP);
+                        }
+                        if (!teleported) {
+                            com.moremod.tile.TileEntityRespawnChamberCore.teleportPlayerRandomly(playerMP);
+                        }
+                    }
+                    // 如果還不在主世界，不執行傳送，避免卡死
+                });
+            }
+
+            // 發送提示消息
+            player.sendMessage(new net.minecraft.util.text.TextComponentString(
+                    net.minecraft.util.text.TextFormatting.YELLOW + "⚠ 檢測到異常維度，重啟後將自動調整位置"
+            ));
         }
         // ========== 重生倉傳送邏輯結束 ==========
 
         // 只有在未傳送到重生倉時才發送通用重啟消息（重生倉會發送自己的消息）
-        if (!teleportedToChamber) {
+        if (!teleportedToChamber && !isInDangerousDimension) {
             // 重启音效 - 使用经验升级音效表示系统恢复
             player.world.playSound(null, player.posX, player.posY, player.posZ,
                     net.minecraft.init.SoundEvents.ENTITY_PLAYER_LEVELUP,
