@@ -18,7 +18,12 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerLoggedInEvent;
+import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerLoggedOutEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerChangedDimensionEvent;
+import net.minecraftforge.event.world.WorldEvent;
+import net.minecraft.entity.player.EntityPlayerMP;
+import com.moremod.network.PacketHandler;
+import com.moremod.network.PacketSyncEmbeddedRelics;
 
 import java.util.*;
 
@@ -191,6 +196,9 @@ public class EmbeddedCurseManager {
         embedded.add(type);
         saveEmbeddedRelics(player, embedded);
 
+        // 同步到客户端
+        syncToClient(player);
+
         // 通知玩家
         player.sendMessage(new TextComponentString(
             TextFormatting.DARK_PURPLE + "═══════════════════════════════════"
@@ -231,6 +239,9 @@ public class EmbeddedCurseManager {
 
         embedded.remove(type);
         saveEmbeddedRelics(player, embedded);
+
+        // 同步到客户端
+        syncToClient(player);
 
         return true;
     }
@@ -298,6 +309,11 @@ public class EmbeddedCurseManager {
                 TextFormatting.GOLD + embedded.size() + "/7"
             ));
         }
+
+        // 延迟同步到客户端，确保客户端已准备就绪
+        if (player instanceof EntityPlayerMP) {
+            player.getServer().addScheduledTask(() -> syncToClient(player));
+        }
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
@@ -362,14 +378,17 @@ public class EmbeddedCurseManager {
         merged.addAll(fromNBT);
         merged.addAll(fromCache);
 
+        // 更新缓存和NBT（即使为空也确保数据一致性）
+        PLAYER_EMBEDDED.put(uuid, merged);
         if (!merged.isEmpty()) {
-            // 更新缓存和NBT
-            PLAYER_EMBEDDED.put(uuid, merged);
             saveEmbeddedRelics(player, merged);
-
-            System.out.println("[EmbeddedCurseManager] 玩家 " + player.getName() +
-                " 维度切换 (" + event.fromDim + " -> " + event.toDim + ")，圣物数据已同步: " + merged.size() + " 个");
         }
+
+        // 同步到客户端
+        syncToClient(player);
+
+        System.out.println("[EmbeddedCurseManager] 玩家 " + player.getName() +
+            " 维度切换 (" + event.fromDim + " -> " + event.toDim + ")，圣物数据已同步: " + merged.size() + " 个");
     }
 
     /**
@@ -416,5 +435,67 @@ public class EmbeddedCurseManager {
     public static EmbeddedRelicType getTypeFromItem(ItemStack stack) {
         if (stack.isEmpty()) return null;
         return EmbeddedRelicType.fromItem(stack.getItem());
+    }
+
+    // ========== 客户端同步 ==========
+
+    /**
+     * 同步嵌入数据到客户端
+     */
+    public static void syncToClient(EntityPlayer player) {
+        if (player.world.isRemote) return;
+        if (!(player instanceof EntityPlayerMP)) return;
+
+        Set<EmbeddedRelicType> embedded = getEmbeddedRelics(player);
+        PacketSyncEmbeddedRelics packet = new PacketSyncEmbeddedRelics(embedded);
+        PacketHandler.INSTANCE.sendTo(packet, (EntityPlayerMP) player);
+
+        System.out.println("[EmbeddedCurseManager] 同步 " + embedded.size() + " 个圣物到客户端: " + player.getName());
+    }
+
+    /**
+     * 客户端缓存更新（由网络包调用）
+     */
+    public static void updateClientCache(EntityPlayer player, Set<String> relicIds) {
+        if (player == null) return;
+
+        UUID uuid = player.getUniqueID();
+        Set<EmbeddedRelicType> embedded = new HashSet<>();
+
+        for (String id : relicIds) {
+            EmbeddedRelicType type = EmbeddedRelicType.fromId(id);
+            if (type != null) {
+                embedded.add(type);
+            }
+        }
+
+        PLAYER_EMBEDDED.put(uuid, embedded);
+        System.out.println("[EmbeddedCurseManager] 客户端缓存已更新: " + embedded.size() + " 个圣物");
+    }
+
+    // ========== 世界/存档切换清理 ==========
+
+    /**
+     * 世界卸载时清理缓存，防止跨存档数据污染
+     */
+    @SubscribeEvent
+    public static void onWorldUnload(WorldEvent.Unload event) {
+        // 只在主世界（dimension 0）卸载时清理，避免维度切换时误清
+        if (event.getWorld().provider.getDimension() == 0) {
+            int clearedCount = PLAYER_EMBEDDED.size();
+            PLAYER_EMBEDDED.clear();
+            System.out.println("[EmbeddedCurseManager] 世界卸载，已清理 " + clearedCount + " 个玩家的圣物缓存");
+        }
+    }
+
+    /**
+     * 玩家登出时清理该玩家的缓存
+     */
+    @SubscribeEvent
+    public static void onPlayerLogout(PlayerLoggedOutEvent event) {
+        if (event.player == null) return;
+        UUID uuid = event.player.getUniqueID();
+        PLAYER_EMBEDDED.remove(uuid);
+        System.out.println("[EmbeddedCurseManager] 玩家 " + event.player.getName() + " 登出，已清理缓存");
     }
 }

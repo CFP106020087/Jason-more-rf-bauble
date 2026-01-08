@@ -225,6 +225,14 @@ public class PacketHandler {
                 Side.SERVER
         );
 
+        // === 七圣遗物嵌入数据同步 (S->C) ===
+        INSTANCE.registerMessage(
+                PacketSyncEmbeddedRelics.Handler.class,
+                PacketSyncEmbeddedRelics.class,
+                id++,
+                Side.CLIENT
+        );
+
         System.out.println("[MoreMod] 网络包注册完成，共 " + id + " 个消息类型");
     }
 }
