@@ -6,6 +6,7 @@ import com.adversity.affix.AffixRegistry;
 import com.adversity.affix.IAffix;
 import com.adversity.capability.CapabilityHandler;
 import com.adversity.capability.IAdversityCapability;
+import com.adversity.config.AdversityConfig;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.attributes.IAttributeInstance;
@@ -123,9 +124,9 @@ public class DifficultyManager {
      * 应用属性修正
      */
     private static void applyStatModifiers(EntityLiving entity, IAdversityCapability cap, float difficulty) {
-        // 计算倍率
-        float healthMult = 1.0f + difficulty * 0.15f;
-        float damageMult = 1.0f + difficulty * 0.08f;
+        // 从配置读取倍率参数
+        float healthMult = 1.0f + difficulty * (float) AdversityConfig.difficulty.healthMultiplierPerDifficulty;
+        float damageMult = 1.0f + difficulty * (float) AdversityConfig.difficulty.damageMultiplierPerDifficulty;
 
         cap.setHealthMultiplier(healthMult);
         cap.setDamageMultiplier(damageMult);

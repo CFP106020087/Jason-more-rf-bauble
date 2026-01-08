@@ -3,6 +3,7 @@ package com.adversity.event;
 import com.adversity.affix.AffixData;
 import com.adversity.capability.CapabilityHandler;
 import com.adversity.capability.IAdversityCapability;
+import com.adversity.config.AdversityConfig;
 import com.adversity.difficulty.DifficultyManager;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.EntityLivingBase;
@@ -33,6 +34,9 @@ public class MobEventHandler {
 
         // 排除玩家
         if (entity instanceof EntityPlayer) return;
+
+        // 检查配置 - 是否应该处理此实体
+        if (!AdversityConfig.shouldProcess(entity)) return;
 
         // 找最近的玩家
         EntityPlayer nearestPlayer = event.getWorld().getClosestPlayerToEntity(entity, 128);
