@@ -103,6 +103,11 @@ public class DifficultyManager {
         // 标记已处理
         cap.setProcessed(true);
 
+        // 如果有词条，设置快速检查标记（用于 tick 优化）
+        if (cap.getAffixCount() > 0) {
+            entity.getEntityData().setBoolean("adversity.hasAffixes", true);
+        }
+
         if (tier > 0) {
             Adversity.LOGGER.debug("Processed entity {} with difficulty {}, tier {}, {} affixes",
                 entity.getName(), difficulty, tier, cap.getAffixCount());

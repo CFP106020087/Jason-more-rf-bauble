@@ -47,6 +47,7 @@ public class MobEventHandler {
 
     /**
      * 实体更新时处理（tick 词条效果）
+     * 优化：只处理已标记为有词条的实体
      */
     @SubscribeEvent
     public void onLivingUpdate(LivingUpdateEvent event) {
@@ -54,9 +55,16 @@ public class MobEventHandler {
         if (!(event.getEntityLiving() instanceof EntityLiving)) return;
 
         EntityLiving entity = (EntityLiving) event.getEntityLiving();
-        IAdversityCapability cap = CapabilityHandler.getCapability(entity);
 
-        if (cap == null || cap.getAffixCount() == 0) return;
+        // 快速检查：利用实体的持久数据标记，避免每 tick 都获取 capability
+        if (!entity.getEntityData().getBoolean("adversity.hasAffixes")) return;
+
+        IAdversityCapability cap = CapabilityHandler.getCapability(entity);
+        if (cap == null || cap.getAffixCount() == 0) {
+            // 标记已失效，清除标记
+            entity.getEntityData().removeTag("adversity.hasAffixes");
+            return;
+        }
 
         // 处理每个词条的 tick
         for (AffixData data : cap.getAllAffixData()) {

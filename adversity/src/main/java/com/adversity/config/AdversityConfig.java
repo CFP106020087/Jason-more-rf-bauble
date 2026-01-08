@@ -12,7 +12,9 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
+import java.util.WeakHashMap;
 
 @Config(modid = Adversity.MODID, name = "adversity")
 public class AdversityConfig {
@@ -122,12 +124,17 @@ public class AdversityConfig {
     private static Set<ResourceLocation> blacklistCache = new HashSet<>();
     private static boolean cacheInitialized = false;
 
+    // 类级别缓存：避免重复查询相同类型的实体
+    // 使用 WeakHashMap 防止内存泄漏（类卸载时自动清理）
+    private static final Map<Class<?>, Boolean> entityClassCache = new WeakHashMap<>();
+
     /**
      * 刷新缓存
      */
     public static void refreshCache() {
         whitelistCache.clear();
         blacklistCache.clear();
+        entityClassCache.clear();  // 配置变更时清空类缓存
 
         for (String entry : entityFilter.whitelist) {
             if (entry != null && !entry.isEmpty()) {
@@ -148,12 +155,30 @@ public class AdversityConfig {
 
     /**
      * 检查实体是否应该被难度系统处理
+     * 优化：使用类级别缓存，相同类型的实体只查询一次
      */
     public static boolean shouldProcess(EntityLiving entity) {
         if (!cacheInitialized) {
             refreshCache();
         }
 
+        // 快速路径：检查类缓存
+        Class<?> entityClass = entity.getClass();
+        Boolean cached = entityClassCache.get(entityClass);
+        if (cached != null) {
+            return cached;
+        }
+
+        // 慢速路径：首次遇到此类型，进行完整检查
+        boolean result = shouldProcessInternal(entity);
+        entityClassCache.put(entityClass, result);
+        return result;
+    }
+
+    /**
+     * 内部检查逻辑
+     */
+    private static boolean shouldProcessInternal(EntityLiving entity) {
         ResourceLocation entityId = EntityList.getKey(entity);
         if (entityId == null) {
             return false;
