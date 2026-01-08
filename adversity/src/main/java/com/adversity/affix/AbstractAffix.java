@@ -1,10 +1,13 @@
 package com.adversity.affix;
 
+import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.ResourceLocation;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
 /**
  * 词条抽象基类 - 提供默认实现，方便创建具体词条
@@ -31,6 +34,15 @@ public abstract class AbstractAffix implements IAffix {
     @Override
     public String getTranslationKey() {
         return "adversity.affix." + id.getPath();
+    }
+
+    @Override
+    @SideOnly(Side.CLIENT)
+    public String getDisplayName() {
+        String key = getTranslationKey();
+        String translated = I18n.format(key);
+        // 如果没有翻译，返回词条ID的路径部分
+        return translated.equals(key) ? id.getPath() : translated;
     }
 
     @Override

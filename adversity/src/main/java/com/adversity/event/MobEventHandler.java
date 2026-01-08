@@ -5,17 +5,25 @@ import com.adversity.capability.CapabilityHandler;
 import com.adversity.capability.IAdversityCapability;
 import com.adversity.config.AdversityConfig;
 import com.adversity.difficulty.DifficultyManager;
+import com.adversity.network.PacketHandler;
+import com.adversity.network.PacketSyncAdversity;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.DamageSource;
+import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.event.entity.EntityJoinWorldEvent;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.living.LivingEvent.LivingUpdateEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 怪物事件处理器 - 处理生成、攻击、受伤、死亡等事件
@@ -143,5 +151,39 @@ public class MobEventHandler {
         for (AffixData data : cap.getAllAffixData()) {
             data.getAffix().onDeath(entity, event.getSource(), data);
         }
+    }
+
+    /**
+     * 玩家开始跟踪实体时同步数据
+     * 这确保了当玩家加入服务器或移动到已处理实体附近时能够收到数据
+     */
+    @SubscribeEvent
+    public void onStartTracking(PlayerEvent.StartTracking event) {
+        if (!(event.getTarget() instanceof EntityLiving)) return;
+        if (!(event.getEntityPlayer() instanceof EntityPlayerMP)) return;
+
+        EntityLiving entity = (EntityLiving) event.getTarget();
+        EntityPlayerMP player = (EntityPlayerMP) event.getEntityPlayer();
+
+        IAdversityCapability cap = CapabilityHandler.getCapability(entity);
+        if (cap == null || !cap.isProcessed() || cap.getTier() <= 0) return;
+
+        // 收集词条ID
+        List<ResourceLocation> affixIds = new ArrayList<>();
+        for (AffixData data : cap.getAllAffixData()) {
+            affixIds.add(data.getAffix().getId());
+        }
+
+        // 向该玩家发送同步包
+        PacketSyncAdversity packet = new PacketSyncAdversity(
+            entity.getEntityId(),
+            cap.getTier(),
+            cap.getDifficultyLevel(),
+            cap.getHealthMultiplier(),
+            cap.getDamageMultiplier(),
+            affixIds
+        );
+
+        PacketHandler.INSTANCE.sendTo(packet, player);
     }
 }

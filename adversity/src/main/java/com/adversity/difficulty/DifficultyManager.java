@@ -8,12 +8,16 @@ import com.adversity.capability.CapabilityHandler;
 import com.adversity.capability.IAdversityCapability;
 import com.adversity.capability.IPlayerDifficulty;
 import com.adversity.config.AdversityConfig;
+import com.adversity.network.PacketHandler;
+import com.adversity.network.PacketSyncAdversity;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.attributes.IAttributeInstance;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import net.minecraftforge.fml.common.network.NetworkRegistry;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -144,6 +148,42 @@ public class DifficultyManager {
             Adversity.LOGGER.debug("Processed entity {} with difficulty {}, tier {}, {} affixes",
                 entity.getName(), difficulty, tier, cap.getAffixCount());
         }
+
+        // 同步数据到客户端
+        syncToClients(entity, cap);
+    }
+
+    /**
+     * 同步实体数据到客户端
+     */
+    public static void syncToClients(EntityLiving entity, IAdversityCapability cap) {
+        if (entity.world.isRemote) {
+            return; // 只在服务端同步
+        }
+
+        // 只同步有等级的怪物
+        if (cap.getTier() <= 0) {
+            return;
+        }
+
+        // 收集词条ID
+        List<ResourceLocation> affixIds = new ArrayList<>();
+        for (AffixData data : cap.getAllAffixData()) {
+            affixIds.add(data.getAffix().getId());
+        }
+
+        // 创建同步包
+        PacketSyncAdversity packet = new PacketSyncAdversity(
+            entity.getEntityId(),
+            cap.getTier(),
+            cap.getDifficultyLevel(),
+            cap.getHealthMultiplier(),
+            cap.getDamageMultiplier(),
+            affixIds
+        );
+
+        // 发送给实体附近的所有玩家
+        PacketHandler.INSTANCE.sendToAllTracking(packet, entity);
     }
 
     /**

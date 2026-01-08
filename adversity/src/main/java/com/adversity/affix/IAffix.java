@@ -22,6 +22,11 @@ public interface IAffix {
     String getTranslationKey();
 
     /**
+     * 获取词条的显示名称（已翻译）
+     */
+    String getDisplayName();
+
+    /**
      * 获取词条类型
      */
     AffixType getType();

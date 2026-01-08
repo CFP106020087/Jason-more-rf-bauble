@@ -5,6 +5,7 @@ import com.adversity.affix.AffixRegistry;
 import com.adversity.capability.CapabilityHandler;
 import com.adversity.difficulty.DifficultyManager;
 import com.adversity.event.MobEventHandler;
+import com.adversity.network.PacketHandler;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPostInitializationEvent;
@@ -19,7 +20,10 @@ public class CommonProxy {
         // 初始化词条注册表
         AffixRegistry.init();
 
-        Adversity.LOGGER.info("Capability and Affix Registry initialized");
+        // 初始化网络包处理
+        PacketHandler.init();
+
+        Adversity.LOGGER.info("Capability, Affix Registry and Network initialized");
     }
 
     public void init(FMLInitializationEvent event) {
