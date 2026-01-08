@@ -1,0 +1,12 @@
+# Adversity Language File - Simplified Chinese
+
+# Affix Names (placeholders)
+adversity.affix.none=无
+
+# Difficulty
+adversity.difficulty.normal=普通
+adversity.difficulty.hard=困难
+adversity.difficulty.nightmare=噩梦
+
+# GUI
+adversity.gui.difficulty=难度等级

@@ -1,0 +1,14 @@
+[
+  {
+    "modid": "adversity",
+    "name": "Adversity",
+    "description": "A mob affix and dynamic difficulty system.",
+    "version": "${version}",
+    "mcversion": "${mcversion}",
+    "authorList": ["Jason"],
+    "credits": "",
+    "logoFile": "",
+    "screenshots": [],
+    "dependencies": []
+  }
+]
