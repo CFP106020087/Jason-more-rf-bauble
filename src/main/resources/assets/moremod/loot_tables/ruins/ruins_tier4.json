@@ -1,0 +1,120 @@
+{
+  "pools": [
+    {
+      "name": "materials",
+      "rolls": { "min": 5, "max": 8 },
+      "entries": [
+        { "type": "item", "name": "minecraft:iron_ingot", "weight": 30, "functions": [{ "function": "set_count", "count": { "min": 3, "max": 5 } }] },
+        { "type": "item", "name": "minecraft:gold_ingot", "weight": 30, "functions": [{ "function": "set_count", "count": { "min": 2, "max": 4 } }] },
+        { "type": "item", "name": "minecraft:redstone", "weight": 22, "functions": [{ "function": "set_count", "count": { "min": 4, "max": 8 } }] },
+        { "type": "item", "name": "minecraft:coal", "weight": 25, "functions": [{ "function": "set_count", "count": { "min": 4, "max": 8 } }] },
+        { "type": "item", "name": "minecraft:diamond", "weight": 18, "functions": [{ "function": "set_count", "count": { "min": 1, "max": 3 } }] },
+        { "type": "item", "name": "minecraft:emerald", "weight": 20, "functions": [{ "function": "set_count", "count": { "min": 1, "max": 3 } }] },
+        { "type": "item", "name": "minecraft:ender_pearl", "weight": 18, "functions": [{ "function": "set_count", "count": { "min": 2, "max": 4 } }] },
+        { "type": "item", "name": "minecraft:blaze_powder", "weight": 15, "functions": [{ "function": "set_count", "count": { "min": 2, "max": 4 } }] },
+        { "type": "item", "name": "minecraft:quartz", "weight": 15, "functions": [{ "function": "set_count", "count": { "min": 4, "max": 8 } }] }
+      ]
+    },
+    {
+      "name": "mod_materials",
+      "rolls": { "min": 1, "max": 2 },
+      "entries": [
+        { "type": "item", "name": "moremod:ancient_core_fragment", "weight": 25, "functions": [{ "function": "set_count", "count": { "min": 1, "max": 3 } }] },
+        { "type": "item", "name": "moremod:rift_crystal", "weight": 20, "functions": [{ "function": "set_count", "count": { "min": 1, "max": 2 } }] },
+        { "type": "item", "name": "moremod:void_ichor", "weight": 12 },
+        { "type": "item", "name": "moremod:dimensional_weaver_core", "weight": 8 },
+        { "type": "empty", "weight": 35 }
+      ]
+    },
+    {
+      "name": "print_template",
+      "rolls": 1,
+      "entries": [
+        { "type": "item", "name": "moremod:print_template", "weight": 50 },
+        { "type": "empty", "weight": 50 }
+      ]
+    },
+    {
+      "name": "faulty_gear",
+      "rolls": 1,
+      "entries": [
+        { "type": "item", "name": "minecraft:diamond_helmet", "weight": 10,
+          "functions": [
+            { "function": "set_damage", "damage": { "min": 0.2, "max": 0.5 } },
+            { "function": "enchant_with_levels", "levels": { "min": 20, "max": 35 }, "treasure": true },
+            { "function": "set_name", "name": "§c超频的钻石头盔" },
+            { "function": "set_lore", "lore": ["§7来自远古科技废墟的遗物", "§7状态: §c不稳定", "§e等级: 4"] }
+          ]
+        },
+        { "type": "item", "name": "minecraft:diamond_chestplate", "weight": 10,
+          "functions": [
+            { "function": "set_damage", "damage": { "min": 0.2, "max": 0.5 } },
+            { "function": "enchant_with_levels", "levels": { "min": 20, "max": 35 }, "treasure": true },
+            { "function": "set_name", "name": "§c超频的钻石胸甲" },
+            { "function": "set_lore", "lore": ["§7来自远古科技废墟的遗物", "§7状态: §c不稳定", "§e等级: 4"] }
+          ]
+        },
+        { "type": "item", "name": "minecraft:diamond_leggings", "weight": 10,
+          "functions": [
+            { "function": "set_damage", "damage": { "min": 0.2, "max": 0.5 } },
+            { "function": "enchant_with_levels", "levels": { "min": 20, "max": 35 }, "treasure": true },
+            { "function": "set_name", "name": "§c超频的钻石护腿" },
+            { "function": "set_lore", "lore": ["§7来自远古科技废墟的遗物", "§7状态: §c不稳定", "§e等级: 4"] }
+          ]
+        },
+        { "type": "item", "name": "minecraft:diamond_boots", "weight": 10,
+          "functions": [
+            { "function": "set_damage", "damage": { "min": 0.2, "max": 0.5 } },
+            { "function": "enchant_with_levels", "levels": { "min": 20, "max": 35 }, "treasure": true },
+            { "function": "set_name", "name": "§c超频的钻石靴子" },
+            { "function": "set_lore", "lore": ["§7来自远古科技废墟的遗物", "§7状态: §c不稳定", "§e等级: 4"] }
+          ]
+        },
+        { "type": "item", "name": "minecraft:diamond_sword", "weight": 10,
+          "functions": [
+            { "function": "set_damage", "damage": { "min": 0.2, "max": 0.5 } },
+            { "function": "enchant_with_levels", "levels": { "min": 20, "max": 35 }, "treasure": true },
+            { "function": "set_name", "name": "§c超频的钻石剑" },
+            { "function": "set_lore", "lore": ["§7来自远古科技废墟的遗物", "§7状态: §c不稳定", "§e等级: 4"] }
+          ]
+        },
+        { "type": "item", "name": "minecraft:diamond_pickaxe", "weight": 10,
+          "functions": [
+            { "function": "set_damage", "damage": { "min": 0.2, "max": 0.5 } },
+            { "function": "enchant_with_levels", "levels": { "min": 20, "max": 35 }, "treasure": true },
+            { "function": "set_name", "name": "§c超频的钻石镐" },
+            { "function": "set_lore", "lore": ["§7来自远古科技废墟的遗物", "§7状态: §c不稳定", "§e等级: 4"] }
+          ]
+        },
+        { "type": "item", "name": "minecraft:diamond_axe", "weight": 10,
+          "functions": [
+            { "function": "set_damage", "damage": { "min": 0.2, "max": 0.5 } },
+            { "function": "enchant_with_levels", "levels": { "min": 20, "max": 35 }, "treasure": true },
+            { "function": "set_name", "name": "§c超频的钻石斧" },
+            { "function": "set_lore", "lore": ["§7来自远古科技废墟的遗物", "§7状态: §c不稳定", "§e等级: 4"] }
+          ]
+        },
+        { "type": "empty", "weight": 30 }
+      ]
+    },
+    {
+      "name": "glitch_armor",
+      "rolls": 1,
+      "entries": [
+        { "type": "item", "name": "moremod:glitch_helmet", "weight": 4,
+          "functions": [{ "function": "set_lore", "lore": ["§7來自遠古科技廢墟的遺物", "§d§o數據異常..."] }]
+        },
+        { "type": "item", "name": "moremod:glitch_chestplate", "weight": 4,
+          "functions": [{ "function": "set_lore", "lore": ["§7來自遠古科技廢墟的遺物", "§d§o數據異常..."] }]
+        },
+        { "type": "item", "name": "moremod:glitch_leggings", "weight": 4,
+          "functions": [{ "function": "set_lore", "lore": ["§7來自遠古科技廢墟的遺物", "§d§o數據異常..."] }]
+        },
+        { "type": "item", "name": "moremod:glitch_boots", "weight": 4,
+          "functions": [{ "function": "set_lore", "lore": ["§7來自遠古科技廢墟的遺物", "§d§o數據異常..."] }]
+        },
+        { "type": "empty", "weight": 84 }
+      ]
+    }
+  ]
+}

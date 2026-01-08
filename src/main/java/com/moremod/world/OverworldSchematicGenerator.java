@@ -6,8 +6,6 @@ import com.moremod.util.ReflectionHelper;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
-import net.minecraft.init.Items;
-import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.CompressedStreamTools;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.MobSpawnerBaseLogic;
@@ -26,6 +24,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import static com.moremod.moremod.MODID;
+
 /**
  * 主世界自定义结构生成器
  * 从 resources/assets/moremod/schematics/overworld/ 加载 schematic 文件
@@ -37,6 +37,9 @@ public class OverworldSchematicGenerator implements IWorldGenerator {
     private static final int SPAWN_CHANCE = 3000;  // 1/3000 区块概率 (降低生成率)
     private static final int MIN_DISTANCE_FROM_SPAWN = 300;
     private static final int MIN_Y = 60;
+
+    // 战利品表资源位置
+    public static final ResourceLocation LOOT_TABLE_SCHEMATIC = new ResourceLocation(MODID, "ruins/overworld_schematic");
 
     // 特殊工作方块奖励列表
     private static final List<Block> WORKSTATION_REWARDS = new ArrayList<>();
@@ -216,7 +219,7 @@ public class OverworldSchematicGenerator implements IWorldGenerator {
     }
 
     /**
-     * 放置战利品箱
+     * 放置战利品箱 (使用 JSON Loot Table)
      */
     private void placeRewardChest(World world, BlockPos pos, Random random) {
         world.setBlockState(pos, Blocks.CHEST.getDefaultState(), 2);
@@ -224,35 +227,9 @@ public class OverworldSchematicGenerator implements IWorldGenerator {
         TileEntity te = world.getTileEntity(pos);
         if (te instanceof TileEntityChest) {
             TileEntityChest chest = (TileEntityChest) te;
-
-            // 添加随机战利品
-            int itemCount = 3 + random.nextInt(5);
-            for (int i = 0; i < itemCount; i++) {
-                ItemStack loot = getRandomLoot(random);
-                int slot = random.nextInt(27);
-                if (chest.getStackInSlot(slot).isEmpty()) {
-                    chest.setInventorySlotContents(slot, loot);
-                }
-            }
-        }
-    }
-
-    /**
-     * 获取随机战利品
-     */
-    private ItemStack getRandomLoot(Random random) {
-        int type = random.nextInt(10);
-        switch (type) {
-            case 0: return new ItemStack(Items.DIAMOND, 1 + random.nextInt(3));
-            case 1: return new ItemStack(Items.EMERALD, 1 + random.nextInt(4));
-            case 2: return new ItemStack(Items.GOLD_INGOT, 2 + random.nextInt(5));
-            case 3: return new ItemStack(Items.IRON_INGOT, 3 + random.nextInt(6));
-            case 4: return new ItemStack(Items.ENDER_PEARL, 1 + random.nextInt(3));
-            case 5: return new ItemStack(Items.BLAZE_ROD, 1 + random.nextInt(2));
-            case 6: return new ItemStack(Items.GOLDEN_APPLE, 1);
-            case 7: return new ItemStack(Items.EXPERIENCE_BOTTLE, 3 + random.nextInt(5));
-            case 8: return new ItemStack(Items.ENCHANTED_BOOK);
-            default: return new ItemStack(Items.REDSTONE, 5 + random.nextInt(10));
+            // 使用 loot table，战利品在玩家打开时生成
+            chest.setLootTable(LOOT_TABLE_SCHEMATIC, random.nextLong());
+            System.out.println("[OverworldSchematic] 设置战利品表: " + LOOT_TABLE_SCHEMATIC);
         }
     }
 
