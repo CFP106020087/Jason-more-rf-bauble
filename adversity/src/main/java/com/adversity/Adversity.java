@@ -1,11 +1,13 @@
 package com.adversity;
 
+import com.adversity.command.CommandAdversity;
 import com.adversity.proxy.CommonProxy;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.SidedProxy;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPostInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
+import net.minecraftforge.fml.common.event.FMLServerStartingEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -48,5 +50,12 @@ public class Adversity {
     public void postInit(FMLPostInitializationEvent event) {
         LOGGER.info("Adversity Post-Initialization");
         proxy.postInit(event);
+    }
+
+    @Mod.EventHandler
+    public void serverStarting(FMLServerStartingEvent event) {
+        // 注册指令
+        event.registerServerCommand(new CommandAdversity());
+        LOGGER.info("Adversity commands registered");
     }
 }

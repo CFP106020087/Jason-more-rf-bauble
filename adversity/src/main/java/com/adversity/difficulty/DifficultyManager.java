@@ -6,6 +6,7 @@ import com.adversity.affix.AffixRegistry;
 import com.adversity.affix.IAffix;
 import com.adversity.capability.CapabilityHandler;
 import com.adversity.capability.IAdversityCapability;
+import com.adversity.capability.IPlayerDifficulty;
 import com.adversity.config.AdversityConfig;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.SharedMonsterAttributes;
@@ -75,6 +76,22 @@ public class DifficultyManager {
     }
 
     /**
+     * 应用玩家的难度倍率
+     */
+    private static float applyPlayerMultiplier(float baseDifficulty, @Nullable EntityPlayer player) {
+        if (player == null) {
+            return baseDifficulty;
+        }
+
+        IPlayerDifficulty playerDiff = CapabilityHandler.getPlayerDifficulty(player);
+        if (playerDiff == null) {
+            return baseDifficulty;
+        }
+
+        return baseDifficulty * playerDiff.getDifficultyMultiplier();
+    }
+
+    /**
      * 处理生成的实体，应用难度和词条
      */
     public static void processSpawnedEntity(EntityLiving entity, @Nullable EntityPlayer nearestPlayer) {
@@ -83,11 +100,26 @@ public class DifficultyManager {
             return;
         }
 
+        // 检查玩家的个人难度设置
+        if (nearestPlayer != null) {
+            IPlayerDifficulty playerDiff = CapabilityHandler.getPlayerDifficulty(nearestPlayer);
+            if (playerDiff != null) {
+                // 玩家禁用了难度系统
+                if (playerDiff.isDifficultyDisabled()) {
+                    cap.setProcessed(true);
+                    return;
+                }
+            }
+        }
+
         World world = entity.world;
         BlockPos pos = entity.getPosition();
 
-        // 计算难度
-        float difficulty = calculateDifficulty(world, pos, nearestPlayer);
+        // 计算基础难度
+        float baseDifficulty = calculateDifficulty(world, pos, nearestPlayer);
+
+        // 应用玩家的难度倍率
+        float difficulty = applyPlayerMultiplier(baseDifficulty, nearestPlayer);
         cap.setDifficultyLevel(difficulty);
 
         // 计算等级（tier）
