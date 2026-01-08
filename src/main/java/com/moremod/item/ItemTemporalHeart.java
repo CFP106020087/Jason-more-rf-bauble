@@ -219,6 +219,9 @@ public class ItemTemporalHeart extends Item implements IBauble {
         double healthBonus = totalDays * 0.5;   // 再砍一半
         double damageBonus = totalDays * 0.2;   // 再砍一半
 
+        // 记录当前最大生命值，用于判断是否需要治疗
+        float oldMaxHealth = player.getMaxHealth();
+
         removePlayerAttributes(player);
 
         if (healthBonus > 0) {
@@ -235,8 +238,11 @@ public class ItemTemporalHeart extends Item implements IBauble {
                     .applyModifier(damageModifier);
         }
 
-        if (healthBonus > 0) {
-            player.heal((float) healthBonus);
+        // 只有当最大生命值增加时才治疗增加的部分，避免重复治疗
+        float newMaxHealth = player.getMaxHealth();
+        if (newMaxHealth > oldMaxHealth) {
+            float healthIncrease = newMaxHealth - oldMaxHealth;
+            player.heal(healthIncrease);
         }
     }
 
@@ -262,6 +268,9 @@ public class ItemTemporalHeart extends Item implements IBauble {
         double healthBonus = totalDays * 0.5;   // 再砍一半
         double damageBonus = totalDays * 0.2;   // 再砍一半
 
+        // 记录当前最大生命值，用于判断是否需要治疗
+        float oldMaxHealth = player.getMaxHealth();
+
         removePermanentAttributes(player);
 
         if (healthBonus > 0) {
@@ -278,8 +287,11 @@ public class ItemTemporalHeart extends Item implements IBauble {
                     .applyModifier(permanentDamageModifier);
         }
 
-        if (healthBonus > 0) {
-            player.heal((float) healthBonus);
+        // 只有当最大生命值增加时才治疗增加的部分，避免重复治疗
+        float newMaxHealth = player.getMaxHealth();
+        if (newMaxHealth > oldMaxHealth) {
+            float healthIncrease = newMaxHealth - oldMaxHealth;
+            player.heal(healthIncrease);
         }
     }
 

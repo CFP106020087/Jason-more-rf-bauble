@@ -114,10 +114,14 @@ public class PlayerTimeDataCapability {
         if (data != null) {
             data.setLastLoginTime(event.player.world.getTotalWorldTime());
 
-            // 如果玩家曾经装备过时光之心，自动应用永久属性
-            if (data.hasEquippedTemporalHeart()) {
+            // 如果玩家曾经装备过时光之心，且当前没有佩戴，才自动应用永久属性
+            // 如果当前正在佩戴，让 ItemTemporalHeart.onEquipped/onWornTick 处理
+            if (data.hasEquippedTemporalHeart() && !isWearingTemporalHeart(event.player)) {
                 event.player.world.getMinecraftServer().addScheduledTask(() -> {
-                    applyPermanentAttributes(event.player, data);
+                    // 再次检查，避免在调度期间玩家装备了饰品
+                    if (!isWearingTemporalHeart(event.player)) {
+                        applyPermanentAttributes(event.player, data);
+                    }
                 });
             }
 
