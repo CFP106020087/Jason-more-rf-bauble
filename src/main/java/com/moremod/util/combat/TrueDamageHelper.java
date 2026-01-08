@@ -1,5 +1,7 @@
 package com.moremod.util.combat;
 
+import com.moremod.item.ItemMechanicalCore;
+import com.moremod.util.BaublesCompatibility;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
@@ -99,6 +101,15 @@ public class TrueDamageHelper {
         if (trueDamage <= 0) return false;
         if (target.isDead) return false;
 
+        // ★ 机械核心佩戴者免疫真实伤害 ★
+        if (target instanceof EntityPlayer) {
+            EntityPlayer player = (EntityPlayer) target;
+            if (hasMechanicalCoreEquipped(player)) {
+                // 机械核心免疫真实伤害，不消耗能量，完全免疫
+                return false;
+            }
+        }
+
         UUID targetId = target.getUniqueID();
         if (processingEntities.contains(targetId)) return false;
 
@@ -112,6 +123,17 @@ public class TrueDamageHelper {
         } finally {
             processingEntities.remove(targetId);
             IN_TRUE_DAMAGE.set(false);
+        }
+    }
+
+    /**
+     * 检查玩家是否佩戴了机械核心
+     */
+    private static boolean hasMechanicalCoreEquipped(EntityPlayer player) {
+        try {
+            return BaublesCompatibility.hasEquippedBauble(player, ItemMechanicalCore.class);
+        } catch (Exception e) {
+            return false;
         }
     }
 
@@ -199,6 +221,15 @@ public class TrueDamageHelper {
      */
     public static void triggerVanillaDeathChain(EntityLivingBase victim, DamageSource source) {
         if (victim == null || victim.isDead || victim.world.isRemote) return;
+
+        // ★ 机械核心佩戴者免疫斩杀/处决 ★
+        if (victim instanceof EntityPlayer) {
+            EntityPlayer player = (EntityPlayer) victim;
+            if (hasMechanicalCoreEquipped(player)) {
+                // 机械核心免疫真实伤害的斩杀/处决
+                return;
+            }
+        }
 
         // 设置血量为0
         victim.setHealth(0F);
