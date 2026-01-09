@@ -56,14 +56,17 @@ public class UnlockableSlotInjector {
         // 各类型槽位布局(数组元素是 handler 的全局 slotId)
         SlotLayoutHelper.SlotAllocation alloc = SlotLayoutHelper.calculateSlotAllocation();
 
+        // ★ 使用共享的显示索引，实现槽位并拢
+        int[] displayIndex = {0}; // 使用数组以便在lambda/内部方法中修改
+
         int injectedCount = 0;
-        injectedCount += injectUnlockedSlotsForType(container, player, alloc.amuletSlots,  1, availableSlots, BaubleType.AMULET);
-        injectedCount += injectUnlockedSlotsForType(container, player, alloc.ringSlots,    2, availableSlots, BaubleType.RING);
-        injectedCount += injectUnlockedSlotsForType(container, player, alloc.beltSlots,    1, availableSlots, BaubleType.BELT);
-        injectedCount += injectUnlockedSlotsForType(container, player, alloc.headSlots,    1, availableSlots, BaubleType.HEAD);
-        injectedCount += injectUnlockedSlotsForType(container, player, alloc.bodySlots,    1, availableSlots, BaubleType.BODY);
-        injectedCount += injectUnlockedSlotsForType(container, player, alloc.charmSlots,   1, availableSlots, BaubleType.CHARM);
-        injectedCount += injectUnlockedSlotsForType(container, player, alloc.trinketSlots, 7, availableSlots, BaubleType.TRINKET);
+        injectedCount += injectUnlockedSlotsForTypeConsolidated(container, player, alloc.amuletSlots,  1, availableSlots, BaubleType.AMULET, displayIndex);
+        injectedCount += injectUnlockedSlotsForTypeConsolidated(container, player, alloc.ringSlots,    2, availableSlots, BaubleType.RING, displayIndex);
+        injectedCount += injectUnlockedSlotsForTypeConsolidated(container, player, alloc.beltSlots,    1, availableSlots, BaubleType.BELT, displayIndex);
+        injectedCount += injectUnlockedSlotsForTypeConsolidated(container, player, alloc.headSlots,    1, availableSlots, BaubleType.HEAD, displayIndex);
+        injectedCount += injectUnlockedSlotsForTypeConsolidated(container, player, alloc.bodySlots,    1, availableSlots, BaubleType.BODY, displayIndex);
+        injectedCount += injectUnlockedSlotsForTypeConsolidated(container, player, alloc.charmSlots,   1, availableSlots, BaubleType.CHARM, displayIndex);
+        injectedCount += injectUnlockedSlotsForTypeConsolidated(container, player, alloc.trinketSlots, 7, availableSlots, BaubleType.TRINKET, displayIndex);
 
         if (DEBUG_ENABLED) {
             System.out.println("[UnlockableSlots] ========== 注入完成 ==========");
@@ -73,12 +76,75 @@ public class UnlockableSlotInjector {
     }
 
     /**
-     * 为指定类型注入"已解锁"的额外槽位
+     * 为指定类型注入"已解锁"的额外槽位（使用并拢的显示索引）
      * @param allSlots     该类型的所有(基础+额外)全局 slotId 数组
      * @param vanillaCount 该类型基础槽位数量(用于跳过)
      * @param available    可用全局 slotId 集合
      * @param expectedType 强制的 BaubleType(解决类型不匹配导致的"戴不上去")
+     * @param displayIndex 共享的显示索引数组（用于槽位并拢）
      */
+    private static int injectUnlockedSlotsForTypeConsolidated(Container container,
+                                                              EntityPlayer player,
+                                                              int[] allSlots,
+                                                              int vanillaCount,
+                                                              Set<Integer> available,
+                                                              BaubleType expectedType,
+                                                              int[] displayIndex) {
+        if (allSlots == null || allSlots.length <= vanillaCount) return 0;
+
+        IBaublesItemHandler handler = BaublesApi.getBaublesHandler(player);
+        int injected = 0;
+
+        for (int i = vanillaCount; i < allSlots.length; i++) {
+            int baubleSlotId = allSlots[i];
+
+            // 只注入"当前玩家已解锁"的槽位
+            if (!available.contains(baubleSlotId)) continue;
+
+            // 防御:handler 的实际大小不足以容纳该索引时跳过(避免越界)
+            if (baubleSlotId < 0 || baubleSlotId >= handler.getSlots()) {
+                if (DEBUG_ENABLED) {
+                    System.err.println("[UnlockableSlots] 警告:handler.getSlots()=" + handler.getSlots()
+                            + ",无法容纳 slotId=" + baubleSlotId + "(跳过注入)");
+                }
+                continue;
+            }
+
+            // ★ 使用并拢后的显示索引计算坐标，而非原始 slotId
+            Point coord = DynamicGuiLayout.getConsolidatedExtraSlotPosition(displayIndex[0]);
+
+            if (DEBUG_ENABLED) {
+                System.out.println("[UnlockableSlots] 注入槽位 slotId=" + baubleSlotId +
+                        " -> displayIndex=" + displayIndex[0] +
+                        " 坐标=(" + coord.getX() + "," + coord.getY() + ")");
+            }
+
+            // ★ 使用"强制类型版槽位":不看 handler 的类型表,直接用期望类型校验
+            SlotBauble slot = new SlotBaubleTyped(
+                    player,
+                    handler,
+                    baubleSlotId,
+                    coord.getX(),
+                    coord.getY(),
+                    expectedType
+            );
+
+            // 设置 slotNumber 并加入容器
+            slot.slotNumber = container.inventorySlots.size();
+            container.inventorySlots.add(slot);
+            container.inventoryItemStacks.add(ItemStack.EMPTY);
+
+            injected++;
+            displayIndex[0]++; // ★ 递增显示索引，确保下一个槽位紧邻
+        }
+        return injected;
+    }
+
+    /**
+     * 为指定类型注入"已解锁"的额外槽位（旧版本，不并拢 - 保留供参考）
+     * @deprecated 使用 injectUnlockedSlotsForTypeConsolidated 代替
+     */
+    @Deprecated
     private static int injectUnlockedSlotsForType(Container container,
                                                   EntityPlayer player,
                                                   int[] allSlots,
