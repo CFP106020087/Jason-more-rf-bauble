@@ -20,23 +20,17 @@ import net.minecraft.nbt.NBTTagList;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.tileentity.TileEntityChest;
 import net.minecraft.tileentity.TileEntityMobSpawner;
-import net.minecraft.tileentity.TileEntityLockableLoot;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
-import net.minecraft.world.WorldServer;
 import net.minecraft.world.chunk.IChunkProvider;
 import net.minecraft.world.gen.IChunkGenerator;
-import net.minecraft.world.storage.loot.LootContext;
-import net.minecraft.world.storage.loot.LootTable;
 import net.minecraftforge.fml.common.IWorldGenerator;
 
 import java.util.Random;
 
-import static com.moremod.moremod.MODID;
-
 /**
- * 科技废墟世界生成器 v3.4
+ * 科技废墟世界生成器 v3.3
  *
  * 在主世界野外生成残破的科技感废墟建筑
  * 内含稀有机械方块、打印模版和故障装备
@@ -67,11 +61,6 @@ import static com.moremod.moremod.MODID;
  * - 进一步降低生成率 (1/8000 区块 ≈ 0.0125%)
  * - 修复幽灵方块问题：setBlockState 使用 flag 3 确保客户端同步
  * - 改进跨区块结构的放置逻辑
- *
- * v3.4 改进：
- * - 战利品从硬编码改为 JSON Loot Table
- * - 支持 5 个等级的战利品表 (ruins_tier2 ~ ruins_tier5)
- * - 便于数据包自定义战利品
  */
 public class RuinsWorldGenerator implements IWorldGenerator {
 
@@ -83,15 +72,12 @@ public class RuinsWorldGenerator implements IWorldGenerator {
     // 稀有方块概率系数 (提高为1.5倍 - 补偿降低的生成率)
     private static final float SPECIAL_BLOCK_CHANCE_MULTIPLIER = 1.5f;
 
+    // Glitch Armor 出现概率
+    private static final float GLITCH_ARMOR_CHANCE = 0.05f;
+
     // 刷怪笼数量 (每个结构)
     private static final int MIN_SPAWNERS = 2;
     private static final int MAX_SPAWNERS = 5;
-
-    // ============== 战利品表资源位置 ==============
-    public static final ResourceLocation LOOT_TABLE_TIER2 = new ResourceLocation(MODID, "ruins/ruins_tier2");
-    public static final ResourceLocation LOOT_TABLE_TIER3 = new ResourceLocation(MODID, "ruins/ruins_tier3");
-    public static final ResourceLocation LOOT_TABLE_TIER4 = new ResourceLocation(MODID, "ruins/ruins_tier4");
-    public static final ResourceLocation LOOT_TABLE_TIER5 = new ResourceLocation(MODID, "ruins/ruins_tier5");
 
     // ============== 结构类型枚举 ==============
     public enum RuinType {
@@ -1400,56 +1386,83 @@ public class RuinsWorldGenerator implements IWorldGenerator {
         }
     }
 
-    /**
-     * 根据等级获取对应的战利品表
-     */
-    private ResourceLocation getLootTableForTier(int tier) {
-        switch (tier) {
-            case 2: return LOOT_TABLE_TIER2;
-            case 3: return LOOT_TABLE_TIER3;
-            case 4: return LOOT_TABLE_TIER4;
-            case 5:
-            default: return LOOT_TABLE_TIER5;
-        }
-    }
-
-    /**
-     * 使用 Loot Table 填充箱子 (v3.4 改进: 使用 JSON Loot Table)
-     */
     private void fillChestWithLoot(TileEntityChest chest, Random random, int tier) {
-        // 设置 loot table，战利品在玩家打开时生成
-        ResourceLocation lootTable = getLootTableForTier(tier);
-        chest.setLootTable(lootTable, random.nextLong());
-        System.out.println("[Ruins] 设置战利品表: " + lootTable + " (Tier " + tier + ")");
-    }
-
-    /**
-     * 立即填充箱子战利品 (用于需要立即生成的场景)
-     */
-    private void fillChestImmediately(World world, TileEntityChest chest, Random random, int tier) {
-        if (world.isRemote || !(world instanceof WorldServer)) {
-            // 客户端或非服务器世界时回退到 setLootTable 模式
-            fillChestWithLoot(chest, random, tier);
-            return;
+        // ★ 增加材料数量 (补偿稀有生成率) ★
+        int materialCount = 4 + random.nextInt(4) + tier;
+        for (int i = 0; i < materialCount; i++) {
+            int slot = random.nextInt(27);
+            ItemStack material = getRandomMaterial(random, tier);
+            chest.setInventorySlotContents(slot, material);
         }
 
-        WorldServer ws = (WorldServer) world;
-        chest.clear();
-
-        ResourceLocation rl = getLootTableForTier(tier);
-        LootTable table = ws.getLootTableManager().getLootTableFromLocation(rl);
-
-        if (table != null && table != LootTable.EMPTY_LOOT_TABLE) {
-            LootContext ctx = new LootContext.Builder(ws).build();
-            table.fillInventory(chest, ws.rand, ctx);
-            chest.setLootTable(null, 0); // 清除表引用，避免重复生成
-        } else {
-            // 如果表不存在，回退到 setLootTable 模式 (让系统稍后尝试加载)
-            chest.setLootTable(rl, random.nextLong());
-            System.out.println("[Ruins] 战利品表 " + rl + " 尚未加载，使用延迟模式");
+        // ★ 打印模版概率提高 ★
+        if (random.nextFloat() < 0.25f * tier) {
+            int slot = random.nextInt(27);
+            ItemStack template = createRandomTemplate(random);
+            chest.setInventorySlotContents(slot, template);
         }
 
-        chest.markDirty();
+        // ★ Glitch Armor (提高概率) ★
+        if (random.nextFloat() < GLITCH_ARMOR_CHANCE) {
+            int slot = random.nextInt(27);
+            ItemStack glitchGear = createGlitchArmorPiece(random);
+            if (!glitchGear.isEmpty()) {
+                chest.setInventorySlotContents(slot, glitchGear);
+            }
+        }
+
+        // ★ 故障装备 (额外奖励) ★
+        if (random.nextFloat() < 0.3f * tier) {
+            int slot = random.nextInt(27);
+            ItemStack faultyGear = createFaultyGear(random, tier);
+            chest.setInventorySlotContents(slot, faultyGear);
+        }
+
+        // ★ 模组特殊物品 ★
+        if (random.nextFloat() < 0.2f * tier) {
+            try {
+                int slot = random.nextInt(27);
+                int modItemType = random.nextInt(5);
+                switch (modItemType) {
+                    case 0:
+                        if (ModItems.ANCIENT_CORE_FRAGMENT != null) {
+                            chest.setInventorySlotContents(slot, new ItemStack(ModItems.ANCIENT_CORE_FRAGMENT, 1 + random.nextInt(3)));
+                        }
+                        break;
+                    case 1:
+                        if (ModItems.RIFT_CRYSTAL != null) {
+                            chest.setInventorySlotContents(slot, new ItemStack(ModItems.RIFT_CRYSTAL, 1 + random.nextInt(2)));
+                        }
+                        break;
+                    case 2:
+                        if (ModItems.VOID_ICHOR != null) {
+                            chest.setInventorySlotContents(slot, new ItemStack(ModItems.VOID_ICHOR, 1));
+                        }
+                        break;
+                    case 3:
+                        if (ModItems.DIMENSIONAL_WEAVER_CORE != null) {
+                            chest.setInventorySlotContents(slot, new ItemStack(ModItems.DIMENSIONAL_WEAVER_CORE, 1));
+                        }
+                        break;
+                    default:
+                        if (ModItems.SPACETIME_FABRIC != null) {
+                            chest.setInventorySlotContents(slot, new ItemStack(ModItems.SPACETIME_FABRIC, 1 + random.nextInt(2)));
+                        }
+                }
+            } catch (Exception ignored) {}
+        }
+
+        // ★ 七圣遗物 (1% 概率，仅用于仪式) ★
+        // 注：不再掉落七咒联动饰品
+        if (random.nextFloat() < 0.01f) {
+            try {
+                int slot = random.nextInt(27);
+                ItemStack sacredRelic = getRandomSacredRelic(random);
+                if (sacredRelic != null && !sacredRelic.isEmpty()) {
+                    chest.setInventorySlotContents(slot, sacredRelic);
+                }
+            } catch (Exception ignored) {}
+        }
     }
 
     // ★★★ 获取随机七圣遗物（仪式用） ★★★

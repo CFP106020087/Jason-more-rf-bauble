@@ -66,28 +66,6 @@ public class DynamicGuiLayout {
     }
 
     /**
-     * 根据并拢后的显示索引计算额外槽位坐标
-     * 用于解锁系统启用时，将已解锁的槽位紧密排列，无视未解锁槽位的空隙
-     * @param displayIndex 显示索引（0 = 第一个额外槽位，1 = 第二个...）
-     * @return 槽位坐标（已应用全局偏移）
-     */
-    public static Point getConsolidatedExtraSlotPosition(int displayIndex) {
-        // EX 关闭时移到屏幕外
-        if (isClientSideHidden()) {
-            return HIDDEN_POSITION;
-        }
-
-        // 计算网格位置（横向排列，向上堆叠）
-        int row = displayIndex / MAX_PER_ROW;
-        int col = displayIndex % MAX_PER_ROW;
-
-        int x = EXTRA_START_X + col * (SLOT_SIZE + HORIZONTAL_SPACING);
-        int y = EXTRA_START_Y - row * SLOT_SIZE;
-
-        return new Point(x + SHIFT_X, y + SHIFT_Y);
-    }
-
-    /**
      * 检查客户端是否隐藏了额外槽位
      * 服务器端总是返回 false(不隐藏)
      */
