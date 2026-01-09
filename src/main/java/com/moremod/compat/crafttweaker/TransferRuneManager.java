@@ -18,11 +18,15 @@ public class TransferRuneManager {
     public static class RuneData {
         public float successRate;
         public int xpCost;
-        public int maxAffixes = 6;
-        
+        public int maxAffixes = -1;  // -1 表示使用全局配置
+
         public RuneData(float successRate, int xpCost) {
             this.successRate = Math.max(0, Math.min(1, successRate));
             this.xpCost = Math.max(0, xpCost);
+        }
+
+        public int getMaxAffixes() {
+            return maxAffixes > 0 ? maxAffixes : GemLootRuleManager.getMaxAffixes();
         }
     }
     
@@ -266,7 +270,7 @@ public class TransferRuneManager {
                 ItemStack stack = runeItems.get(entry.getKey());
                 String displayName = stack != null ? stack.getDisplayName() : entry.getKey();
                 System.out.println(String.format("[TransferRunes]   %s: 成功率=%.0f%%, 经验=%d, 词条上限=%d",
-                        displayName, data.successRate * 100, data.xpCost, data.maxAffixes));
+                        displayName, data.successRate * 100, data.xpCost, data.getMaxAffixes()));
             }
         }
         System.out.println("[TransferRunes] =============================");

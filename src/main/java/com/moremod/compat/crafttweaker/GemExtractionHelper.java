@@ -275,7 +275,7 @@ public class GemExtractionHelper {
         }
         
         // 检查词条数量限制
-        if (targetAffixes.size() >= 6) {  // 最多6个词条
+        if (targetAffixes.size() >= GemLootRuleManager.getMaxAffixes()) {
             return ItemStack.EMPTY;
         }
         

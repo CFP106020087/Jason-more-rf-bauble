@@ -25,6 +25,20 @@ public class GemLootRuleManager {
     private static final List<LootRule> RULES = new ArrayList<>();
     private static boolean debugMode = false;
 
+    // 宝石词条数量上限（默认6，可通过CRT配置）
+    public static final int MAX_AFFIXES = 6;
+    private static int customMaxAffixes = MAX_AFFIXES;
+
+    public static void setMaxAffixes(int max) {
+        if (max > 0 && max <= MAX_AFFIXES) {
+            customMaxAffixes = max;
+        }
+    }
+
+    public static int getMaxAffixes() {
+        return customMaxAffixes;
+    }
+
     // 缓存反射方法
     private static final Map<Class<?>, Method> DRAGON_STAGE_METHOD_CACHE = new HashMap<>();
 
@@ -862,11 +876,12 @@ public class GemLootRuleManager {
             adjusted.maxLevel += finalLevelBonus;
 
             // 限制最大值
+            int maxAffixLimit = getMaxAffixes();
             adjusted.dropChance = Math.min(adjusted.dropChance, 1.0f);
             adjusted.minLevel = Math.max(1, Math.min(adjusted.minLevel, 100));
             adjusted.maxLevel = Math.max(adjusted.minLevel, Math.min(adjusted.maxLevel, 100));
-            adjusted.minAffixes = Math.max(1, Math.min(adjusted.minAffixes, 10));
-            adjusted.maxAffixes = Math.max(adjusted.minAffixes, Math.min(adjusted.maxAffixes, 10));
+            adjusted.minAffixes = Math.max(1, Math.min(adjusted.minAffixes, maxAffixLimit));
+            adjusted.maxAffixes = Math.max(adjusted.minAffixes, Math.min(adjusted.maxAffixes, maxAffixLimit));
             adjusted.minQuality = Math.max(0.0f, Math.min(adjusted.minQuality, 1.0f));
 
             return adjusted;

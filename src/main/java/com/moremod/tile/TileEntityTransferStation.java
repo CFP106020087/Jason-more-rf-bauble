@@ -1,6 +1,7 @@
 package com.moremod.tile;
 
 import com.moremod.compat.crafttweaker.GemExtractionHelper;
+import com.moremod.compat.crafttweaker.GemLootRuleManager;
 import com.moremod.compat.crafttweaker.GemNBTHelper;
 import com.moremod.compat.crafttweaker.TransferRuneManager;
 import net.minecraft.entity.player.EntityPlayer;
@@ -244,7 +245,7 @@ public class TileEntityTransferStation extends TileEntity implements ITickable {
         if (material.isEmpty()) {
             currentSuccessRate = 1.0f;
             currentXpCost = TransferRuneManager.getBaseXpCost();
-            maxAffixLimit = 6;
+            maxAffixLimit = GemLootRuleManager.getMaxAffixes();
             return;
         }
 
@@ -252,7 +253,7 @@ public class TileEntityTransferStation extends TileEntity implements ITickable {
         if (data != null) {
             currentSuccessRate = data.successRate;
             currentXpCost = TransferRuneManager.getBaseXpCost() + data.xpCost;
-            maxAffixLimit = data.maxAffixes;
+            maxAffixLimit = data.getMaxAffixes();
         }
     }
 
