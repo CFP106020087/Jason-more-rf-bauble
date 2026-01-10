@@ -1,5 +1,6 @@
 package com.moremod.util.combat;
 
+import com.moremod.core.ScriptDeathHook;
 import com.moremod.item.ItemMechanicalCore;
 import com.moremod.item.curse.ItemScriptOfFifthAct;
 import com.moremod.util.BaublesCompatibility;
@@ -238,6 +239,16 @@ public class TrueDamageHelper {
 
         // 9. 应用伤害并处理死亡
         if (newHealth <= 0) {
+            // ★ 第五幕剧本：落幕机制（真伤绕过ASM，需要手动检查）
+            if (victim instanceof EntityPlayer) {
+                EntityPlayer player = (EntityPlayer) victim;
+                // 调用 ScriptDeathHook 检查是否应该拦截死亡
+                if (ScriptDeathHook.shouldPreventDeath(player, source)) {
+                    // 死亡被拦截，已进入落幕状态，不执行死亡链
+                    return true;
+                }
+            }
+
             // ★ 使用带攻击者信息的伤害源，确保掠夺/抢夺等附魔正常工作
             triggerVanillaDeathChain(victim, source);
         } else {
@@ -271,6 +282,12 @@ public class TrueDamageHelper {
             EntityPlayer player = (EntityPlayer) victim;
             if (hasMechanicalCoreEquipped(player)) {
                 // 机械核心免疫真实伤害的斩杀/处决
+                return;
+            }
+
+            // ★ 第五幕剧本：落幕机制 ★
+            if (ScriptDeathHook.shouldPreventDeath(player, source)) {
+                // 死亡被拦截，已进入落幕状态
                 return;
             }
         }
