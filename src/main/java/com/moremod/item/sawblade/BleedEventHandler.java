@@ -46,9 +46,9 @@ public class BleedEventHandler {
     private static final String KEY_LACERATION_TIME = "moremod_laceration_time";
     private static final String KEY_LACERATION_COUNT = "moremod_laceration_count";
 
-    // 防止重复处理死亡的实体（使用弱引用避免内存泄漏）
-    private static final Set<UUID> processedDeaths = new java.util.concurrent.ConcurrentHashMap.KeySet<>(new java.util.concurrent.ConcurrentHashMap<>());
-    private static final Set<UUID> processingEntities = new java.util.concurrent.ConcurrentHashMap.KeySet<>(new java.util.concurrent.ConcurrentHashMap<>());
+    // 防止重复处理死亡的实体（使用线程安全的Set避免内存泄漏）
+    private static final Set<UUID> processedDeaths = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private static final Set<UUID> processingEntities = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     /**
      * 检查实体是否正在死亡或已死亡
