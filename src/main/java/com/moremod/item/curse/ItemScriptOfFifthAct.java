@@ -760,86 +760,205 @@ public class ItemScriptOfFifthAct extends Item implements IBauble {
     public void addInformation(ItemStack stack, @Nullable World worldIn, List<String> list, ITooltipFlag flagIn) {
         EntityPlayer player = net.minecraft.client.Minecraft.getMinecraft().player;
 
+        // ═══════════════════════════════════════════════════════════════
+        // 标题与引言
+        // ═══════════════════════════════════════════════════════════════
         list.add("");
-        list.add(TextFormatting.DARK_GRAY + "\"结局早已写好，");
-        list.add(TextFormatting.DARK_GRAY + "  哪怕演员对此一无所知。\"");
+        list.add(TextFormatting.DARK_PURPLE + "═════════════════════════════════════");
+        list.add(TextFormatting.LIGHT_PURPLE + "        " + TextFormatting.BOLD + "「第五幕剧本」");
+        list.add(TextFormatting.DARK_PURPLE + "═════════════════════════════════════");
+        list.add("");
+        list.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "  \"结局早已写好，");
+        list.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "    哪怕演员对此一无所知。\"");
+        list.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "                    ——无名剧作家");
 
         // 装备限制
         if (player == null || !CurseDeathHook.hasCursedRing(player)) {
             list.add("");
-            list.add(TextFormatting.DARK_RED + "⚠ 需要佩戴七咒之戒才能装备");
+            list.add(TextFormatting.DARK_RED + "  ⚠ 需要佩戴" + TextFormatting.DARK_PURPLE + "七咒之戒" +
+                    TextFormatting.DARK_RED + "才能装备");
         }
 
+        // ═══════════════════════════════════════════════════════════════
+        // 契约警告 - 最醒目的部分
+        // ═══════════════════════════════════════════════════════════════
         list.add("");
-        list.add(TextFormatting.DARK_RED + "══════ 契约警告 ══════");
-        list.add(TextFormatting.RED + "⚠ 脱下此饰品将导致" + TextFormatting.DARK_RED + "立即死亡");
-        list.add("");
+        list.add(TextFormatting.DARK_RED + "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓");
+        list.add(TextFormatting.DARK_RED + "┃" + TextFormatting.RED + "          ☠ " +
+                TextFormatting.BOLD + "不可撤销的契约" + TextFormatting.RESET +
+                TextFormatting.RED + " ☠          " + TextFormatting.DARK_RED + "┃");
+        list.add(TextFormatting.DARK_RED + "┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫");
+        list.add(TextFormatting.DARK_RED + "┃" + TextFormatting.RED +
+                "  戴上此物，你的灵魂便与之绑定    " + TextFormatting.DARK_RED + "┃");
+        list.add(TextFormatting.DARK_RED + "┃" + TextFormatting.DARK_RED + "" + TextFormatting.BOLD +
+                "   脱下它？那便是你故事的终章     " + TextFormatting.RESET + TextFormatting.DARK_RED + "┃");
+        list.add(TextFormatting.DARK_RED + "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛");
 
+        // ═══════════════════════════════════════════════════════════════
         // 核心机制
-        list.add(TextFormatting.GOLD + "◆ 伤害缓存");
-        list.add(TextFormatting.GRAY + "  受到的伤害不扣血，记录在剧本上");
+        // ═══════════════════════════════════════════════════════════════
+        list.add("");
+        list.add(TextFormatting.GOLD + "━━━━━━━━━ " + TextFormatting.WHITE + "剧本之力" +
+                TextFormatting.GOLD + " ━━━━━━━━━");
         list.add("");
 
-        list.add(TextFormatting.RED + "◆ 戏剧张力 " + TextFormatting.GRAY + "(被动)");
-        list.add(TextFormatting.GRAY + "  缓存越高，伤害加成越高");
-        list.add(TextFormatting.DARK_GRAY + "  公式: (缓存/血量)² × 100%");
-        list.add(TextFormatting.GRAY + "  50%缓存=" + TextFormatting.YELLOW + "+25%" +
-                TextFormatting.GRAY + " | 100%=" + TextFormatting.GOLD + "+100%" +
-                TextFormatting.GRAY + " | 150%=" + TextFormatting.RED + "+225%");
+        // 伤害缓存
+        list.add(TextFormatting.AQUA + "  ◈ 命运延迟");
+        list.add(TextFormatting.GRAY + "    受到的伤害不会立即扣除");
+        list.add(TextFormatting.GRAY + "    而是被" + TextFormatting.LIGHT_PURPLE + "「记录」" +
+                TextFormatting.GRAY + "在剧本之上");
         list.add("");
 
-        list.add(TextFormatting.GREEN + "◆ 缓存管理");
-        list.add(TextFormatting.GRAY + "  击杀敌人: 清除 " + TextFormatting.GREEN + "25%" + TextFormatting.GRAY + " 缓存");
-        list.add(TextFormatting.GRAY + "  造成伤害: " + TextFormatting.GREEN + "10%" + TextFormatting.GRAY + " 抵消缓存");
-        list.add(TextFormatting.GRAY + "  消灭所有敌人: 缓存" + TextFormatting.GREEN + "清零");
+        // 戏剧张力
+        list.add(TextFormatting.RED + "  ◈ 戏剧张力 " + TextFormatting.DARK_GRAY + "(核心被动)");
+        list.add(TextFormatting.GRAY + "    承受的痛苦化为力量");
+        list.add(TextFormatting.GRAY + "    缓存越高，" + TextFormatting.GOLD + "伤害加成" +
+                TextFormatting.GRAY + "越高");
         list.add("");
+        list.add(TextFormatting.DARK_GRAY + "    公式: " + TextFormatting.WHITE + "(缓存/血量)²" +
+                TextFormatting.DARK_GRAY + " × 100%");
+        list.add(TextFormatting.GRAY + "    ├ 50%缓存  → " + TextFormatting.YELLOW + "+25%" +
+                TextFormatting.GRAY + " 伤害");
+        list.add(TextFormatting.GRAY + "    ├ 100%缓存 → " + TextFormatting.GOLD + "+100%" +
+                TextFormatting.GRAY + " 伤害");
+        list.add(TextFormatting.GRAY + "    └ 150%缓存 → " + TextFormatting.RED + "+225%" +
+                TextFormatting.GRAY + " 伤害");
 
-        list.add(TextFormatting.YELLOW + "◆ 结算条件");
-        list.add(TextFormatting.GRAY + "  • 脱战 5 秒（周围仍有敌人）");
-        list.add(TextFormatting.GRAY + "  • 缓存超过 " + TextFormatting.RED + "150%" + TextFormatting.GRAY + " 最大血量");
-        list.add(TextFormatting.GRAY + "  结算时承受 " + TextFormatting.YELLOW + "40%" + TextFormatting.GRAY + " 缓存伤害");
+        // ═══════════════════════════════════════════════════════════════
+        // 缓存管理
+        // ═══════════════════════════════════════════════════════════════
         list.add("");
+        list.add(TextFormatting.GREEN + "━━━━━━━━━ " + TextFormatting.WHITE + "剧本管理" +
+                TextFormatting.GREEN + " ━━━━━━━━━");
+        list.add("");
+        list.add(TextFormatting.GREEN + "  ◈ 净化之道");
+        list.add(TextFormatting.GRAY + "    ├ 击杀敌人    → 清除 " + TextFormatting.GREEN + "25%" +
+                TextFormatting.GRAY + " 缓存");
+        list.add(TextFormatting.GRAY + "    ├ 造成伤害    → " + TextFormatting.GREEN + "10%" +
+                TextFormatting.GRAY + " 抵消缓存");
+        list.add(TextFormatting.GRAY + "    └ 消灭所有敌人 → 缓存" + TextFormatting.GREEN + "完全清零");
+        list.add("");
+        list.add(TextFormatting.DARK_GRAY + "    " + TextFormatting.ITALIC +
+                "「只要表演不停，剧本就不会翻到最后一页」");
 
-        list.add(TextFormatting.LIGHT_PURPLE + "◆ 改写结局");
-        list.add(TextFormatting.GRAY + "  结算时若血量 < " + TextFormatting.RED + "30%");
-        list.add(TextFormatting.GRAY + "  → " + TextFormatting.GREEN + "0% 自伤" +
-                TextFormatting.GRAY + " + " + TextFormatting.GOLD + "200% 反弹");
+        // ═══════════════════════════════════════════════════════════════
+        // 结算规则
+        // ═══════════════════════════════════════════════════════════════
+        list.add("");
+        list.add(TextFormatting.YELLOW + "━━━━━━━━━ " + TextFormatting.WHITE + "谢幕条件" +
+                TextFormatting.YELLOW + " ━━━━━━━━━");
+        list.add("");
+        list.add(TextFormatting.YELLOW + "  ◈ 强制结算");
+        list.add(TextFormatting.GRAY + "    触发条件：");
+        list.add(TextFormatting.GRAY + "    • 脱战 " + TextFormatting.YELLOW + "5秒" +
+                TextFormatting.GRAY + "（周围仍有敌人）");
+        list.add(TextFormatting.GRAY + "    • 缓存超过 " + TextFormatting.RED + "150%" +
+                TextFormatting.GRAY + " 最大血量");
+        list.add("");
+        list.add(TextFormatting.GRAY + "    结算时承受 " + TextFormatting.YELLOW + "40%" +
+                TextFormatting.GRAY + " 缓存伤害");
 
+        // ═══════════════════════════════════════════════════════════════
+        // 改写结局
+        // ═══════════════════════════════════════════════════════════════
+        list.add("");
+        list.add(TextFormatting.LIGHT_PURPLE + "━━━━━━━━━ " + TextFormatting.WHITE + "改写结局" +
+                TextFormatting.LIGHT_PURPLE + " ━━━━━━━━━");
+        list.add("");
+        list.add(TextFormatting.LIGHT_PURPLE + "  ◈ 命运的反转");
+        list.add(TextFormatting.GRAY + "    结算时若血量 < " + TextFormatting.RED + "30%");
+        list.add(TextFormatting.GRAY + "    ├ " + TextFormatting.GREEN + "0%" +
+                TextFormatting.GRAY + " 自身伤害（完全免疫）");
+        list.add(TextFormatting.GRAY + "    └ " + TextFormatting.GOLD + "200%" +
+                TextFormatting.GRAY + " 伤害反弹给周围敌人");
+        list.add("");
+        list.add(TextFormatting.DARK_GRAY + "    " + TextFormatting.ITALIC +
+                "「在最危险的时刻，剧本将为你改写命运」");
+
+        // ═══════════════════════════════════════════════════════════════
+        // 落幕状态（Shift展开）
+        // ═══════════════════════════════════════════════════════════════
         if (GuiScreen.isShiftKeyDown()) {
             list.add("");
-            list.add(TextFormatting.DARK_RED + "══════ 落幕状态 ══════");
-            list.add(TextFormatting.GRAY + "本该死亡时，剧本会拦截死亡");
-            list.add(TextFormatting.GRAY + "留下 " + TextFormatting.RED + "1 血" +
-                    TextFormatting.GRAY + "，进入" + TextFormatting.DARK_RED + "「落幕」");
-            list.add(TextFormatting.RED + "• 持续 30 秒");
-            list.add(TextFormatting.RED + "• 受到伤害 ×2");
-            list.add(TextFormatting.RED + "• 禁止一切治疗");
-            list.add(TextFormatting.DARK_RED + "• 再次死亡无法阻止");
+            list.add(TextFormatting.DARK_RED + "━━━━━━━━━ " + TextFormatting.RED + "☠ 落幕 ☠" +
+                    TextFormatting.DARK_RED + " ━━━━━━━━━");
+            list.add("");
+            list.add(TextFormatting.GRAY + "  当你本该" + TextFormatting.RED + "死亡" +
+                    TextFormatting.GRAY + "时...");
+            list.add(TextFormatting.GRAY + "  剧本会拦截你的死亡");
+            list.add(TextFormatting.GRAY + "  留下 " + TextFormatting.RED + "1 血" +
+                    TextFormatting.GRAY + "，进入" + TextFormatting.DARK_RED + "「落幕」" +
+                    TextFormatting.GRAY + "状态");
+            list.add("");
+            list.add(TextFormatting.DARK_RED + "  ▼ 落幕惩罚（30秒）");
+            list.add(TextFormatting.RED + "    • 受到伤害 " + TextFormatting.DARK_RED + "×2");
+            list.add(TextFormatting.RED + "    • " + TextFormatting.DARK_RED + "禁止" +
+                    TextFormatting.RED + "一切治疗");
+            list.add(TextFormatting.DARK_RED + "    • 再次死亡" + TextFormatting.DARK_RED +
+                    "" + TextFormatting.BOLD + "无法阻止");
+            list.add("");
+            list.add(TextFormatting.DARK_GRAY + "    " + TextFormatting.ITALIC +
+                    "「这是命运给你的最后机会...」");
         } else {
             list.add("");
-            list.add(TextFormatting.DARK_GRAY + "按住 Shift 查看【落幕状态】");
+            list.add(TextFormatting.DARK_GRAY + "  按住 " + TextFormatting.GRAY + "Shift" +
+                    TextFormatting.DARK_GRAY + " 查看" + TextFormatting.DARK_RED + "【落幕状态】");
         }
 
+        // ═══════════════════════════════════════════════════════════════
         // 当前状态（佩戴时显示）
+        // ═══════════════════════════════════════════════════════════════
         if (player != null && hasScript(player)) {
             ScriptData data = getScriptData(player);
             if (data != null) {
                 list.add("");
-                list.add(TextFormatting.AQUA + "══════ 当前状态 ══════");
+                list.add(TextFormatting.AQUA + "━━━━━━━━━ " + TextFormatting.WHITE + "当前状态" +
+                        TextFormatting.AQUA + " ━━━━━━━━━");
+                list.add("");
+
                 float bufferRatio = data.bufferedDamage / player.getMaxHealth();
                 float bonus = getDamageBonus(bufferRatio);
-                list.add(TextFormatting.GRAY + "缓存: " +
-                        TextFormatting.RED + String.format("%.0f", data.bufferedDamage) +
-                        TextFormatting.GRAY + " / " +
-                        TextFormatting.WHITE + String.format("%.0f", player.getMaxHealth() * OVERLOAD_THRESHOLD));
-                list.add(TextFormatting.GRAY + "张力加成: " +
-                        TextFormatting.GOLD + "+" + String.format("%.0f%%", bonus * 100));
+                float overloadLimit = player.getMaxHealth() * OVERLOAD_THRESHOLD;
 
+                // 缓存条
+                TextFormatting bufferColor = bufferRatio >= 1.4f ? TextFormatting.DARK_RED :
+                        bufferRatio >= 1.0f ? TextFormatting.RED :
+                                bufferRatio >= 0.5f ? TextFormatting.YELLOW : TextFormatting.GREEN;
+
+                list.add(TextFormatting.GRAY + "  缓存: " + bufferColor +
+                        String.format("%.0f", data.bufferedDamage) +
+                        TextFormatting.GRAY + " / " + TextFormatting.WHITE +
+                        String.format("%.0f", overloadLimit));
+
+                list.add(TextFormatting.GRAY + "  张力加成: " + TextFormatting.GOLD + "+" +
+                        String.format("%.0f%%", bonus * 100));
+
+                // 警告信息
+                if (bufferRatio >= 1.4f) {
+                    list.add("");
+                    list.add(TextFormatting.DARK_RED + "  ⚠ " + TextFormatting.RED +
+                            TextFormatting.BOLD + "超载临界！即将强制结算！");
+                } else if (bufferRatio >= 1.0f) {
+                    list.add(TextFormatting.RED + "  ! 危险区域");
+                }
+
+                // 改写结局提示
+                float healthRatio = player.getHealth() / player.getMaxHealth();
+                if (healthRatio <= REWRITE_HEALTH_THRESHOLD) {
+                    list.add(TextFormatting.LIGHT_PURPLE + "  ✦ 改写结局就绪");
+                }
+
+                // 落幕状态
                 if (isInCurtainFall(player)) {
-                    list.add(TextFormatting.DARK_RED + "⚠ 落幕中: " +
-                            TextFormatting.RED + getCurtainFallRemaining(player) + " 秒");
+                    list.add("");
+                    list.add(TextFormatting.DARK_RED + "  ☠ 【落幕中】" +
+                            TextFormatting.RED + " 剩余 " + getCurtainFallRemaining(player) + " 秒");
+                    list.add(TextFormatting.RED + "    受伤×2 | 禁止治疗 | 可能真死");
                 }
             }
         }
+
+        list.add("");
+        list.add(TextFormatting.DARK_PURPLE + "═════════════════════════════════════");
     }
 }
