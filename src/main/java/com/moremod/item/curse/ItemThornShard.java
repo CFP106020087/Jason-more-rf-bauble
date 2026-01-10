@@ -597,8 +597,9 @@ public class ItemThornShard extends Item implements IBauble {
         // 代价
         list.add(TextFormatting.BLACK + "" + TextFormatting.BOLD + "  ✦ 篡位者的末路");
         list.add(TextFormatting.DARK_RED + "    当承受的苦难超越肉体所能承载...");
-        list.add(TextFormatting.DARK_RED + "    你将失去一切，");
-        list.add(TextFormatting.DARK_RED + "    唯余那枚诅咒的指环。");
+        list.add(TextFormatting.DARK_RED + "    你将失去除七咒之戒外的" + TextFormatting.RED +
+                 TextFormatting.BOLD + "一切" + TextFormatting.RESET + TextFormatting.DARK_RED + "。");
+        list.add(TextFormatting.DARK_GRAY + "    （背包、装备、饰品，尽数湮灭）");
         list.add("");
 
         // 当前状态
