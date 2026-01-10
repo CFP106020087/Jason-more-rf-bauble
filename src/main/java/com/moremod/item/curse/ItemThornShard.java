@@ -21,6 +21,9 @@ import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
+import ichttt.mods.firstaid.api.damagesystem.AbstractDamageablePart;
+import ichttt.mods.firstaid.api.damagesystem.AbstractPlayerDamageModel;
+import ichttt.mods.firstaid.api.event.FirstAidLivingDamageEvent;
 
 import javax.annotation.Nullable;
 import java.util.*;
@@ -234,6 +237,72 @@ public class ItemThornShard extends Item implements IBauble {
         UUID uuid = player.getUniqueID();
         BloodData data = BLOOD_DATA.computeIfAbsent(uuid, k -> new BloodData());
         data.addDamage(event.getAmount());
+    }
+
+    /**
+     * FirstAid兼容 - 所有伤害优先转移到四肢
+     */
+    @Optional.Method(modid = "firstaid")
+    @SubscribeEvent(priority = EventPriority.HIGH)
+    public static void onFirstAidDamage(FirstAidLivingDamageEvent event) {
+        if (!(event.getEntityLiving() instanceof EntityPlayer)) return;
+        if (event.getEntityLiving().world.isRemote) return;
+
+        EntityPlayer player = (EntityPlayer) event.getEntityLiving();
+        if (!hasThornShard(player)) return;
+
+        AbstractPlayerDamageModel before = event.getBeforeDamage();
+        AbstractPlayerDamageModel after = event.getAfterDamage();
+
+        // 计算要害受到的伤害
+        float headDamage = Math.max(0, before.HEAD.currentHealth - after.HEAD.currentHealth);
+        float bodyDamage = Math.max(0, before.BODY.currentHealth - after.BODY.currentHealth);
+        float vitalDamage = headDamage + bodyDamage;
+
+        if (vitalDamage <= 0) return;
+
+        // 计算四肢可承受的伤害
+        AbstractDamageablePart[] limbs = {
+            after.LEFT_ARM, after.RIGHT_ARM,
+            after.LEFT_LEG, after.RIGHT_LEG
+        };
+
+        float limbCapacity = 0;
+        for (AbstractDamageablePart limb : limbs) {
+            float canTake = limb.currentHealth - 1.0f; // 保留1血
+            if (canTake > 0) limbCapacity += canTake;
+        }
+
+        // 转移伤害
+        float shift = Math.min(vitalDamage, limbCapacity);
+        if (shift <= 0) return;
+
+        // 恢复要害血量
+        float headShare = headDamage / vitalDamage;
+        float bodyShare = bodyDamage / vitalDamage;
+
+        after.HEAD.currentHealth += shift * headShare;
+        after.BODY.currentHealth += shift * bodyShare;
+
+        // 限制不超过原血量
+        if (after.HEAD.currentHealth > before.HEAD.currentHealth) {
+            after.HEAD.currentHealth = before.HEAD.currentHealth;
+        }
+        if (after.BODY.currentHealth > before.BODY.currentHealth) {
+            after.BODY.currentHealth = before.BODY.currentHealth;
+        }
+
+        // 将伤害分配到四肢
+        float remaining = shift;
+        for (AbstractDamageablePart limb : limbs) {
+            if (remaining <= 0) break;
+            float canTake = limb.currentHealth - 1.0f;
+            if (canTake <= 0) continue;
+
+            float taken = Math.min(canTake, remaining);
+            limb.currentHealth -= taken;
+            remaining -= taken;
+        }
     }
 
     /**
