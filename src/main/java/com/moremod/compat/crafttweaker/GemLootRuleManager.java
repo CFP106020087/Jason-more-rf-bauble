@@ -795,10 +795,7 @@ public class GemLootRuleManager {
         // ==========================================
 
         public LootRule applyDynamicAdjustments(EntityLivingBase entity) {
-            if (!dynamicDropRate && !dynamicLevel && !growthFactorBonus) {
-                return this;
-            }
-
+            // 创建调整后的规则副本
             LootRule adjusted = new LootRule(
                     id + "_adjusted",
                     minLevel, maxLevel,
@@ -808,6 +805,14 @@ public class GemLootRuleManager {
             );
             adjusted.minDropCount = this.minDropCount;
             adjusted.maxDropCount = this.maxDropCount;
+
+            // 如果没有动态调整，直接应用全局限制后返回
+            if (!dynamicDropRate && !dynamicLevel && !growthFactorBonus) {
+                int maxAffixLimit = getMaxAffixes();
+                adjusted.minAffixes = Math.max(1, Math.min(adjusted.minAffixes, maxAffixLimit));
+                adjusted.maxAffixes = Math.max(adjusted.minAffixes, Math.min(adjusted.maxAffixes, maxAffixLimit));
+                return adjusted;
+            }
 
             // ❌ 血量加成已移除（避免破坏平衡）
             // 仅保留Champions和Infernal动态调整
