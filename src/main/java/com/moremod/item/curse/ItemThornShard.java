@@ -5,12 +5,13 @@ import baubles.api.BaublesApi;
 import baubles.api.IBauble;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.util.ITooltipFlag;
+import net.minecraft.enchantment.Enchantment;
+import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.DamageSource;
-import net.minecraft.util.FoodStats;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
@@ -18,7 +19,6 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.Optional;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
-import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
@@ -27,18 +27,17 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 荆棘王冠之碎片 - 重新设计
+ * 荆棘王冠之碎片
  *
  * "王冠上的每一根刺，都曾饮过君王的鲜血。如今它渴望更多。"
  *
  * 核心机制：
- * 1. 荆棘自噬：攻击时自伤1.5点（优先扣四肢）
- * 2. 血怒累积：5秒内受伤总量转化为攻击加成，与诅咒数联动
+ * 1. 荆棘自噬：攻击时自伤（优先扣四肢）
+ * 2. 王座之血：5秒内受伤总量转化为攻击加成，与诅咒数联动
  * 3. 荆棘再生：血量越低回血越快
  *
  * 代价：
- * - 血食（静默）：荆棘再生消耗饱食度
- * - 血债：累积伤害超过最大血量10倍时立即死亡
+ * - 累积伤害超过最大血量10倍时立即死亡（无任何提示）
  */
 @Mod.EventBusSubscriber(modid = "moremod")
 public class ItemThornShard extends Item implements IBauble {
@@ -48,50 +47,46 @@ public class ItemThornShard extends Item implements IBauble {
     // 自伤
     private static final float SELF_DAMAGE_AMOUNT = 1.5f;
 
-    // 血怒累积
-    private static final long RAGE_WINDOW_MS = 5000;           // 5秒窗口
-    private static final float RAGE_BASE_MULTIPLIER = 0.03f;   // 基础3%每点伤害
-    private static final float CURSE_BONUS_PER_CURSE = 0.5f;   // 每个诅咒+50%
+    // 王座之血
+    private static final long BLOOD_WINDOW_MS = 5000;           // 5秒窗口
+    private static final float BLOOD_BASE_MULTIPLIER = 0.03f;   // 基础3%每点伤害
+    private static final float CURSE_BONUS_PER_CURSE = 0.5f;    // 每个诅咒+50%
     private static final float DEATH_THRESHOLD_MULTIPLIER = 10.0f; // 累积超过10倍最大血量=死
 
     // 荆棘再生
-    private static final float BASE_REGEN_PER_SECOND = 0.5f;   // 基础0.5/秒
-    private static final float REGEN_LOW_HP_BONUS = 1.0f;      // 低血量最多+1倍
-
-    // 血食代价
-    private static final float HUNGER_COST_PER_HEAL = 1.0f;    // 每回复1血消耗1饱食度
+    private static final float BASE_REGEN_PER_SECOND = 0.5f;    // 基础0.5/秒
+    private static final float REGEN_LOW_HP_BONUS = 1.0f;       // 低血量最多+1倍
 
     // ========== 数据存储 ==========
 
-    // 玩家血怒数据
-    private static final Map<UUID, RageData> RAGE_DATA = new ConcurrentHashMap<>();
+    // 玩家王座之血数据
+    private static final Map<UUID, BloodData> BLOOD_DATA = new ConcurrentHashMap<>();
     // 上次再生tick时间
     private static final Map<UUID, Long> LAST_REGEN_TIME = new ConcurrentHashMap<>();
 
-    private static class RageData {
+    private static class BloodData {
         float totalDamage = 0;
         long lastDamageTime = 0;
 
         void addDamage(float damage) {
             long now = System.currentTimeMillis();
-            // 超过窗口则重置
-            if (now - lastDamageTime > RAGE_WINDOW_MS) {
+            if (now - lastDamageTime > BLOOD_WINDOW_MS) {
                 totalDamage = 0;
             }
             totalDamage += damage;
             lastDamageTime = now;
         }
 
-        float getCurrentRage() {
+        float getCurrentBlood() {
             long now = System.currentTimeMillis();
-            if (now - lastDamageTime > RAGE_WINDOW_MS) {
+            if (now - lastDamageTime > BLOOD_WINDOW_MS) {
                 return 0;
             }
             return totalDamage;
         }
 
         boolean isActive() {
-            return System.currentTimeMillis() - lastDamageTime <= RAGE_WINDOW_MS;
+            return System.currentTimeMillis() - lastDamageTime <= BLOOD_WINDOW_MS;
         }
     }
 
@@ -122,15 +117,15 @@ public class ItemThornShard extends Item implements IBauble {
         // 荆棘再生
         handleThornRegeneration(player, uuid);
 
-        // 检查血债死亡
-        checkRageOverload(player, uuid);
+        // 检查死亡阈值
+        checkBloodOverload(player, uuid);
     }
 
     @Override
     public void onUnequipped(ItemStack itemstack, EntityLivingBase player) {
         if (player instanceof EntityPlayer) {
             UUID uuid = player.getUniqueID();
-            RAGE_DATA.remove(uuid);
+            BLOOD_DATA.remove(uuid);
             LAST_REGEN_TIME.remove(uuid);
         }
     }
@@ -138,13 +133,11 @@ public class ItemThornShard extends Item implements IBauble {
     // ========== 荆棘再生 ==========
 
     private void handleThornRegeneration(EntityPlayer player, UUID uuid) {
-        // 每秒执行一次
         long now = System.currentTimeMillis();
         Long lastTime = LAST_REGEN_TIME.get(uuid);
         if (lastTime != null && now - lastTime < 1000) return;
         LAST_REGEN_TIME.put(uuid, now);
 
-        // 计算回血量
         float currentHealth = player.getHealth();
         float maxHealth = player.getMaxHealth();
         if (currentHealth >= maxHealth) return;
@@ -153,30 +146,17 @@ public class ItemThornShard extends Item implements IBauble {
         float healthRatio = currentHealth / maxHealth;
         float regenAmount = BASE_REGEN_PER_SECOND * (1 + REGEN_LOW_HP_BONUS * (1 - healthRatio));
 
-        // 检查饱食度（静默代价）
-        FoodStats food = player.getFoodStats();
-        float hungerCost = regenAmount * HUNGER_COST_PER_HEAL;
-
-        if (food.getFoodLevel() >= hungerCost) {
-            // 有足够饱食度，执行回血
-            // 消耗饱食度（静默，无提示）
-            food.setFoodLevel(Math.max(0, food.getFoodLevel() - (int) Math.ceil(hungerCost)));
-
-            // 执行回血 - FirstAid兼容
-            healPlayerFirstAidCompat(player, regenAmount);
-        }
-        // 饱食度不足时不回血，也不提示
+        // 执行回血 - FirstAid兼容
+        healPlayerFirstAidCompat(player, regenAmount);
     }
 
     /**
      * FirstAid兼容的治疗 - 优先治疗四肢
      */
     private void healPlayerFirstAidCompat(EntityPlayer player, float amount) {
-        // 尝试使用FirstAid API
         if (tryFirstAidHeal(player, amount)) {
             return;
         }
-        // 回退到普通治疗
         player.heal(amount);
     }
 
@@ -188,7 +168,6 @@ public class ItemThornShard extends Item implements IBauble {
 
             if (damageModel == null) return false;
 
-            // 优先治疗四肢
             ichttt.mods.firstaid.api.damagesystem.AbstractDamageablePart[] limbs = {
                 damageModel.LEFT_ARM, damageModel.RIGHT_ARM,
                 damageModel.LEFT_LEG, damageModel.RIGHT_LEG
@@ -205,7 +184,6 @@ public class ItemThornShard extends Item implements IBauble {
                 }
             }
 
-            // 剩余治疗头和身体
             if (remaining > 0) {
                 float headHeal = Math.min(damageModel.HEAD.getMaxHealth() - damageModel.HEAD.currentHealth, remaining / 2);
                 damageModel.HEAD.currentHealth += headHeal;
@@ -222,30 +200,27 @@ public class ItemThornShard extends Item implements IBauble {
         }
     }
 
-    // ========== 血债检查 ==========
+    // ========== 死亡检查 ==========
 
-    private void checkRageOverload(EntityPlayer player, UUID uuid) {
-        RageData data = RAGE_DATA.get(uuid);
+    private void checkBloodOverload(EntityPlayer player, UUID uuid) {
+        BloodData data = BLOOD_DATA.get(uuid);
         if (data == null || !data.isActive()) return;
 
         float threshold = player.getMaxHealth() * DEATH_THRESHOLD_MULTIPLIER;
         if (data.totalDamage >= threshold) {
-            // 血债已满，执行死亡
-            // 使用高额普通伤害，避免清空背包
+            // 使用高额普通伤害
             player.attackEntityFrom(
                 new DamageSource("thornOverload").setDamageBypassesArmor(),
-                Float.MAX_VALUE / 2  // 极高伤害但不是无限
+                Float.MAX_VALUE / 2
             );
-
-            // 清除数据
-            RAGE_DATA.remove(uuid);
+            BLOOD_DATA.remove(uuid);
         }
     }
 
     // ========== 事件处理 ==========
 
     /**
-     * 玩家受伤时累积血怒
+     * 玩家受伤时累积
      */
     @SubscribeEvent(priority = EventPriority.MONITOR)
     public static void onPlayerHurt(LivingHurtEvent event) {
@@ -256,14 +231,13 @@ public class ItemThornShard extends Item implements IBauble {
         EntityPlayer player = (EntityPlayer) event.getEntityLiving();
         if (!hasThornShard(player)) return;
 
-        // 累积伤害
         UUID uuid = player.getUniqueID();
-        RageData data = RAGE_DATA.computeIfAbsent(uuid, k -> new RageData());
+        BloodData data = BLOOD_DATA.computeIfAbsent(uuid, k -> new BloodData());
         data.addDamage(event.getAmount());
     }
 
     /**
-     * 玩家攻击时：自伤 + 应用血怒加成
+     * 玩家攻击时：自伤 + 应用伤害加成
      */
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onPlayerAttack(LivingHurtEvent event) {
@@ -276,15 +250,15 @@ public class ItemThornShard extends Item implements IBauble {
 
         UUID uuid = player.getUniqueID();
 
-        // 1. 执行自伤（延迟执行避免事件冲突）
+        // 执行自伤
         player.world.getMinecraftServer().addScheduledTask(() -> {
             applySelfDamage(player);
         });
 
-        // 2. 应用血怒伤害加成
-        RageData data = RAGE_DATA.get(uuid);
+        // 应用伤害加成
+        BloodData data = BLOOD_DATA.get(uuid);
         if (data != null && data.isActive()) {
-            float bonus = calculateDamageBonus(player, data.getCurrentRage());
+            float bonus = calculateDamageBonus(player, data.getCurrentBlood());
             if (bonus > 0) {
                 float newDamage = event.getAmount() * (1 + bonus);
                 event.setAmount(newDamage);
@@ -293,19 +267,16 @@ public class ItemThornShard extends Item implements IBauble {
     }
 
     /**
-     * 执行自伤 - FirstAid兼容，优先扣四肢
+     * 执行自伤 - FirstAid兼容
      */
     private static void applySelfDamage(EntityPlayer player) {
-        // 尝试FirstAid兼容自伤
         if (tryFirstAidSelfDamage(player, SELF_DAMAGE_AMOUNT)) {
-            // 自伤也计入血怒
             UUID uuid = player.getUniqueID();
-            RageData data = RAGE_DATA.computeIfAbsent(uuid, k -> new RageData());
+            BloodData data = BLOOD_DATA.computeIfAbsent(uuid, k -> new BloodData());
             data.addDamage(SELF_DAMAGE_AMOUNT);
             return;
         }
 
-        // 回退到普通自伤
         player.attackEntityFrom(
             new DamageSource("thornSelf").setDamageBypassesArmor(),
             SELF_DAMAGE_AMOUNT
@@ -320,7 +291,6 @@ public class ItemThornShard extends Item implements IBauble {
 
             if (damageModel == null) return false;
 
-            // 优先扣四肢
             ichttt.mods.firstaid.api.damagesystem.AbstractDamageablePart[] limbs = {
                 damageModel.LEFT_ARM, damageModel.RIGHT_ARM,
                 damageModel.LEFT_LEG, damageModel.RIGHT_LEG
@@ -329,7 +299,6 @@ public class ItemThornShard extends Item implements IBauble {
             float remaining = damage;
             for (ichttt.mods.firstaid.api.damagesystem.AbstractDamageablePart limb : limbs) {
                 if (remaining <= 0) break;
-                // 不让四肢低于1血
                 float canTake = limb.currentHealth - 1.0f;
                 if (canTake > 0) {
                     float taken = Math.min(canTake, remaining);
@@ -338,7 +307,6 @@ public class ItemThornShard extends Item implements IBauble {
                 }
             }
 
-            // 如果四肢扣不完，剩余扣身体（不扣头）
             if (remaining > 0 && damageModel.BODY.currentHealth > 2.0f) {
                 float bodyTake = Math.min(damageModel.BODY.currentHealth - 2.0f, remaining);
                 damageModel.BODY.currentHealth -= bodyTake;
@@ -353,43 +321,76 @@ public class ItemThornShard extends Item implements IBauble {
     /**
      * 计算伤害加成
      */
-    private static float calculateDamageBonus(EntityPlayer player, float rageAmount) {
-        if (rageAmount <= 0) return 0;
+    private static float calculateDamageBonus(EntityPlayer player, float bloodAmount) {
+        if (bloodAmount <= 0) return 0;
 
-        // 基础加成
-        float baseBonus = rageAmount * RAGE_BASE_MULTIPLIER;
-
-        // 诅咒联动
-        int curseCount = countCurses(player);
+        float baseBonus = bloodAmount * BLOOD_BASE_MULTIPLIER;
+        int curseCount = getCurseAmount(player);
         float curseMultiplier = 1 + curseCount * CURSE_BONUS_PER_CURSE;
 
         return baseBonus * curseMultiplier;
     }
 
     /**
-     * 计算玩家身上的诅咒数量
+     * 获取玩家的诅咒数量（参考诅咒蔓延的实现）
+     * - 七咒之戒算7个
+     * - 装备和饰品上的诅咒附魔各算1个
      */
-    private static int countCurses(EntityPlayer player) {
+    private static int getCurseAmount(EntityPlayer player) {
         int count = 0;
-        for (int i = 0; i < BaublesApi.getBaublesHandler(player).getSlots(); i++) {
-            ItemStack bauble = BaublesApi.getBaubles(player).getStackInSlot(i);
-            if (!bauble.isEmpty()) {
-                String name = bauble.getItem().getRegistryName() != null ?
-                    bauble.getItem().getRegistryName().getPath() : "";
-                // 计算诅咒类饰品
-                if (name.equals("cursed_ring") ||           // 七咒之戒
-                    name.equals("thorn_shard") ||           // 荆棘王冠之碎片
-                    name.equals("script_of_fifth_act") ||   // 第五幕剧本
-                    name.equals("noose_of_hanged_king") ||  // 缢王之索
-                    name.equals("eye_of_void") ||           // 虚无之眸
-                    name.equals("gluttony_finger_bone") ||  // 饕餮指骨
-                    name.equals("grudge_crystal") ||        // 怨念结晶
-                    name.equals("curse_spread")) {          // 诅咒蔓延
-                    count++;
-                }
+        boolean ringCounted = false;
+
+        for (ItemStack stack : getFullEquipment(player)) {
+            if (stack.isEmpty()) continue;
+
+            // 七咒之戒算7个诅咒（只算一次）
+            if (!ringCounted &&
+                    stack.getItem().getRegistryName() != null &&
+                    "cursed_ring".equals(stack.getItem().getRegistryName().getPath())) {
+                count += 7;
+                ringCounted = true;
+            }
+
+            // 计算诅咒附魔数量
+            count += getCurseEnchantmentCount(stack);
+        }
+
+        return count;
+    }
+
+    /**
+     * 获取物品上的诅咒附魔数量
+     */
+    private static int getCurseEnchantmentCount(ItemStack stack) {
+        if (stack.isEmpty()) return 0;
+
+        Map<Enchantment, Integer> enchants = EnchantmentHelper.getEnchantments(stack);
+        int count = 0;
+        for (Map.Entry<Enchantment, Integer> entry : enchants.entrySet()) {
+            Enchantment enchantment = entry.getKey();
+            int level = entry.getValue();
+            if (enchantment != null && enchantment.isCurse() && level > 0) {
+                count++;
             }
         }
         return count;
+    }
+
+    /**
+     * 获取玩家所有装备（包括饰品）
+     */
+    private static List<ItemStack> getFullEquipment(EntityPlayer player) {
+        List<ItemStack> equipmentStacks = new ArrayList<>();
+
+        equipmentStacks.add(player.getHeldItemMainhand());
+        equipmentStacks.add(player.getHeldItemOffhand());
+        equipmentStacks.addAll(player.inventory.armorInventory);
+
+        for (int i = 0; i < BaublesApi.getBaublesHandler(player).getSlots(); i++) {
+            equipmentStacks.add(BaublesApi.getBaubles(player).getStackInSlot(i));
+        }
+
+        return equipmentStacks;
     }
 
     // ========== 辅助方法 ==========
@@ -416,19 +417,13 @@ public class ItemThornShard extends Item implements IBauble {
         return false;
     }
 
-    /**
-     * 获取当前血怒值（供外部查询）
-     */
-    public static float getCurrentRage(EntityPlayer player) {
-        RageData data = RAGE_DATA.get(player.getUniqueID());
-        return data != null ? data.getCurrentRage() : 0;
+    public static float getCurrentBlood(EntityPlayer player) {
+        BloodData data = BLOOD_DATA.get(player.getUniqueID());
+        return data != null ? data.getCurrentBlood() : 0;
     }
 
-    /**
-     * 获取当前伤害加成（供外部查询）
-     */
     public static float getCurrentDamageBonus(EntityPlayer player) {
-        return calculateDamageBonus(player, getCurrentRage(player));
+        return calculateDamageBonus(player, getCurrentBlood(player));
     }
 
     // ========== Tooltip ==========
@@ -444,86 +439,79 @@ public class ItemThornShard extends Item implements IBauble {
                  TextFormatting.RESET + TextFormatting.DARK_RED + " ☬");
         list.add(TextFormatting.DARK_GRAY + "════════════════════════════════════");
         list.add("");
-        list.add(TextFormatting.GRAY + "  \"王冠上的每一根刺，都曾饮过");
-        list.add(TextFormatting.GRAY + "   君王的鲜血。如今它渴望更多。\"");
+        list.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC +
+                 "  \"王冠上的每一根刺，都曾饮过");
+        list.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC +
+                 "   君王的鲜血。如今它渴望更多。\"");
         list.add("");
 
-        // 装备条件
         if (player == null || !hasCursedRing(player)) {
-            list.add(TextFormatting.DARK_RED + "  ⚠ 需要佩戴七咒之戒才能装备");
+            list.add(TextFormatting.DARK_RED + "  ⚠ 唯有七咒之戒的承载者");
+            list.add(TextFormatting.DARK_RED + "    方可触碰这残破的王权");
             list.add("");
+            list.add(TextFormatting.DARK_GRAY + "════════════════════════════════════");
+            return;
         }
 
         list.add(TextFormatting.DARK_GRAY + "────────────────────────────────────");
         list.add("");
 
         // 荆棘自噬
-        list.add(TextFormatting.RED + "  ▣ 荆棘自噬");
-        list.add(TextFormatting.GRAY + "    攻击时，荆棘刺入己身");
-        list.add(TextFormatting.GRAY + "    自伤 " + TextFormatting.RED + "1.5" +
-                 TextFormatting.GRAY + " 点（优先四肢）");
+        list.add(TextFormatting.DARK_RED + "  ◈ 荆棘自噬");
+        list.add(TextFormatting.GRAY + "    每一次挥击，荆棘都会刺入持有者的血肉");
+        list.add(TextFormatting.DARK_GRAY + "    （造成 " + TextFormatting.RED + "1.5" +
+                 TextFormatting.DARK_GRAY + " 点自伤，优先侵蚀四肢）");
         list.add("");
 
-        // 血怒累积
-        list.add(TextFormatting.DARK_RED + "  ▣ 血怒累积");
-        list.add(TextFormatting.GRAY + "    5秒内受到的伤害转化为攻击力");
-        list.add(TextFormatting.GRAY + "    加成 = 累积伤害 × " + TextFormatting.GOLD + "3%" +
-                 TextFormatting.GRAY + " × 诅咒倍率");
+        // 王座之血
+        list.add(TextFormatting.DARK_RED + "  ◈ 王座之血");
+        list.add(TextFormatting.GRAY + "    鲜血浸透荆棘，痛苦化作力量");
+        list.add(TextFormatting.GRAY + "    五秒内承受的苦难，将铸成利刃");
         list.add("");
-        list.add(TextFormatting.DARK_PURPLE + "    ◆ 诅咒联动");
-        list.add(TextFormatting.LIGHT_PURPLE + "      每件诅咒饰品 +50% 倍率");
 
-        if (player != null) {
-            int curses = countCurses(player);
-            float multiplier = 1 + curses * CURSE_BONUS_PER_CURSE;
-            list.add(TextFormatting.GRAY + "      当前: " + TextFormatting.GOLD + curses +
-                     TextFormatting.GRAY + " 诅咒 → " + TextFormatting.RED +
-                     String.format("%.0f%%", multiplier * 100) + TextFormatting.GRAY + " 倍率");
-        }
+        // 诅咒烙印
+        int curses = getCurseAmount(player);
+        float multiplier = 1 + curses * CURSE_BONUS_PER_CURSE;
+
+        list.add(TextFormatting.DARK_PURPLE + "  ◈ 诅咒烙印");
+        list.add(TextFormatting.LIGHT_PURPLE + "    身负的诅咒越深，王冠便越锋利");
+        list.add(TextFormatting.DARK_GRAY + "    当前烙印: " + TextFormatting.DARK_PURPLE + curses +
+                 TextFormatting.DARK_GRAY + " → 伤害倍率 " + TextFormatting.RED +
+                 String.format("×%.1f", multiplier));
         list.add("");
 
         // 荆棘再生
-        list.add(TextFormatting.GREEN + "  ▣ 荆棘再生");
-        list.add(TextFormatting.GRAY + "    血量越低，回血越快");
-        list.add(TextFormatting.GRAY + "    基础 " + TextFormatting.GREEN + "0.5" +
-                 TextFormatting.GRAY + "/秒，低血量最高 " + TextFormatting.GREEN + "1.0" +
-                 TextFormatting.GRAY + "/秒");
+        list.add(TextFormatting.DARK_GREEN + "  ◈ 荆棘再生");
+        list.add(TextFormatting.GRAY + "    濒死之际，荆棘反哺其主");
+        list.add(TextFormatting.DARK_GRAY + "    （血量越低，回复越快）");
         list.add("");
 
         list.add(TextFormatting.DARK_GRAY + "────────────────────────────────────");
         list.add("");
 
         // 代价
-        list.add(TextFormatting.DARK_RED + "  ✦ 血债");
-        list.add(TextFormatting.RED + "    累积伤害超过最大血量" + TextFormatting.DARK_RED + "十倍");
-        list.add(TextFormatting.RED + "    时，" + TextFormatting.DARK_RED + "立即死亡");
+        list.add(TextFormatting.BLACK + "" + TextFormatting.BOLD + "  ✦ 篡位者的末路");
+        list.add(TextFormatting.DARK_RED + "    当承受的苦难超越肉体所能承载...");
+        list.add(TextFormatting.DARK_RED + "    王冠便会收回它的馈赠。");
         list.add("");
 
         // 当前状态
-        if (player != null && hasThornShard(player)) {
-            list.add(TextFormatting.DARK_GRAY + "────────────────────────────────────");
-            list.add("");
-
-            float rage = getCurrentRage(player);
+        if (hasThornShard(player)) {
+            float blood = getCurrentBlood(player);
             float bonus = getCurrentDamageBonus(player);
             float threshold = player.getMaxHealth() * DEATH_THRESHOLD_MULTIPLIER;
-            float ratio = rage / threshold;
 
-            list.add(TextFormatting.GOLD + "  ◈ 当前状态");
-
-            // 血怒条
-            String rageBar = buildProgressBar(ratio, 20);
-            TextFormatting rageColor = ratio > 0.7f ? TextFormatting.DARK_RED :
-                                       ratio > 0.4f ? TextFormatting.RED : TextFormatting.YELLOW;
-            list.add(TextFormatting.GRAY + "    血怒: " + rageColor + rageBar);
-            list.add(TextFormatting.GRAY + "          " + String.format("%.1f", rage) +
-                     " / " + String.format("%.0f", threshold));
-
-            if (bonus > 0) {
-                list.add(TextFormatting.GRAY + "    攻击加成: " + TextFormatting.RED + "+" +
-                         String.format("%.0f%%", bonus * 100));
+            if (blood > 0) {
+                list.add(TextFormatting.DARK_GRAY + "────────────────────────────────────");
+                list.add("");
+                list.add(TextFormatting.GRAY + "  王座之血: " + TextFormatting.DARK_RED +
+                         String.format("%.1f", blood) + TextFormatting.DARK_GRAY + " / " +
+                         String.format("%.0f", threshold));
+                if (bonus > 0) {
+                    list.add(TextFormatting.GRAY + "  力量增幅: " + TextFormatting.RED + "+" +
+                             String.format("%.0f%%", bonus * 100));
+                }
             }
-            // 不显示任何危险警告，保持静默
         }
 
         list.add("");
@@ -531,25 +519,14 @@ public class ItemThornShard extends Item implements IBauble {
 
         if (GuiScreen.isShiftKeyDown()) {
             list.add("");
-            list.add(TextFormatting.DARK_GRAY + "设计理念:");
-            list.add(TextFormatting.GRAY + "\"痛苦是力量的源泉，");
-            list.add(TextFormatting.GRAY + " 但贪婪会吞噬一切。\"");
+            list.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC +
+                     "  这碎片来自一位无名君王的王冠。");
+            list.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC +
+                     "  据说他在加冕之夜便被荆棘刺穿,");
+            list.add(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC +
+                     "  鲜血染红了整座王座。");
         } else {
-            list.add(TextFormatting.DARK_GRAY + "        按住 Shift 查看更多");
+            list.add(TextFormatting.DARK_GRAY + "        [ Shift - 残章 ]");
         }
-    }
-
-    /**
-     * 构建进度条
-     */
-    private static String buildProgressBar(float ratio, int length) {
-        ratio = Math.min(1.0f, Math.max(0, ratio));
-        int filled = (int) (ratio * length);
-        StringBuilder bar = new StringBuilder("[");
-        for (int i = 0; i < length; i++) {
-            bar.append(i < filled ? "█" : "░");
-        }
-        bar.append("]");
-        return bar.toString();
     }
 }
