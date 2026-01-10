@@ -22,11 +22,12 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
+import java.util.Set;
 import java.util.UUID;
 
 /**
  * 锯刃剑 - 核心出血系统事件处理器
- * 
+ *
  * 处理：
  * 1. 出血累积 + 爆裂
  * 2. 撕裂打击（多段伤害）
@@ -34,29 +35,64 @@ import java.util.UUID;
  * 4. 鲜血欢愉（buff触发）
  * 5. 生命偷取
  * 6. 成长系统
+ *
+ * v1.1: 修复多段判定导致的重复击杀问题
  */
 public class BleedEventHandler {
-    
+
     // NBT键名（存在实体上）
     private static final String KEY_BLEED = "moremod_bleed_buildup";
     private static final String KEY_DECAY_TIME = "moremod_bleed_decay";
     private static final String KEY_LACERATION_TIME = "moremod_laceration_time";
     private static final String KEY_LACERATION_COUNT = "moremod_laceration_count";
+
+    // 防止重复处理死亡的实体（使用弱引用避免内存泄漏）
+    private static final Set<UUID> processedDeaths = new java.util.concurrent.ConcurrentHashMap.KeySet<>(new java.util.concurrent.ConcurrentHashMap<>());
+    private static final Set<UUID> processingEntities = new java.util.concurrent.ConcurrentHashMap.KeySet<>(new java.util.concurrent.ConcurrentHashMap<>());
+
+    /**
+     * 检查实体是否正在死亡或已死亡
+     */
+    private static boolean isDeadOrDying(EntityLivingBase entity) {
+        return entity == null || entity.isDead || entity.getHealth() <= 0 || entity.deathTime > 0;
+    }
+
+    /**
+     * 清理实体上的所有锯刃剑相关数据
+     */
+    private static void cleanupEntityData(EntityLivingBase entity) {
+        if (entity == null) return;
+        NBTTagCompound data = entity.getEntityData();
+        data.removeTag(KEY_BLEED);
+        data.removeTag(KEY_DECAY_TIME);
+        data.removeTag(KEY_LACERATION_COUNT);
+        data.removeTag(KEY_LACERATION_TIME);
+        data.removeTag("moremod_laceration_damage");
+        data.removeTag("moremod_laceration_interval");
+        data.removeTag("moremod_laceration_attacker");
+    }
     
     // ==================== 攻击事件：出血累积 + 技能触发 ====================
     
     @SubscribeEvent(priority = EventPriority.HIGH)
-    public  void onLivingHurt(LivingHurtEvent event) {
+    public void onLivingHurt(LivingHurtEvent event) {
         EntityLivingBase target = event.getEntityLiving();
         DamageSource source = event.getSource();
-        
+
+        // 检查目标是否已死亡或正在死亡
+        if (isDeadOrDying(target)) return;
+
         if (!(source.getTrueSource() instanceof EntityPlayer)) return;
-        
+
         EntityPlayer player = (EntityPlayer) source.getTrueSource();
         ItemStack weapon = player.getHeldItemMainhand();
-        
+
         if (weapon.isEmpty() || !(weapon.getItem() instanceof ItemSawBladeSword)) return;
         if (!isHostile(target)) return;
+
+        // 防止重复处理同一实体
+        UUID targetId = target.getUniqueID();
+        if (processingEntities.contains(targetId)) return;
         
         // 标记战斗状态
         SawBladeNBT.markAttack(weapon, player.world.getTotalWorldTime());
@@ -128,45 +164,50 @@ public class BleedEventHandler {
     // ==================== 出血爆裂 ====================
     
     private void triggerBleedBurst(EntityLivingBase target, ItemStack weapon, EntityPlayer player) {
+        // ★ 检查目标是否已死亡
+        if (isDeadOrDying(target)) {
+            return;
+        }
+
         // 计算伤害
         float percent = SawBladeStats.getBleedBurstDamagePercent(weapon);
         float maxHP = target.getMaxHealth();
         float damage = maxHP * percent;
-        
-        // 保护：不致死
+
+        // ★ 保护：不致死（让最后一击由玩家完成，确保正确的击杀归属）
         float currentHP = target.getHealth();
         if (currentHP - damage < 1.0f) {
             damage = Math.max(0, currentHP - 1.0f);
         }
-        
+
         // 造成真实伤害（使用TrueDamageHelper，支持抢夺/掠夺附魔）
-        if (damage > 0) {
+        if (damage > 0 && !isDeadOrDying(target)) {
             TrueDamageHelper.applyWrappedTrueDamage(
-                target, player, damage,
-                TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE
+                    target, player, damage,
+                    TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE
             );
         }
-        
+
         // 重置出血
         target.getEntityData().setFloat(KEY_BLEED, 0.0f);
-        
+
         // 统计
         SawBladeNBT.addBleedProc(weapon);
-        
+
         // ===== 触发鲜血欢愉buff =====
         PotionBloodEuphoria.applyEffect(player, weapon);
-        
+
         // 视觉效果
         spawnBurstEffect(target);
-        
+
         // 音效
         target.world.playSound(null, target.posX, target.posY, target.posZ,
-            SoundEvents.ENTITY_PLAYER_HURT, SoundCategory.HOSTILE, 0.8f, 0.5f);
-        
+                SoundEvents.ENTITY_PLAYER_HURT, SoundCategory.HOSTILE, 0.8f, 0.5f);
+
         // 反馈
         if (player.isSneaking()) {
             player.sendStatusMessage(new TextComponentString(
-                TextFormatting.RED + "出血爆裂！" + TextFormatting.GRAY + " (" + (int)damage + " 真实伤害)"
+                    TextFormatting.RED + "出血爆裂！" + TextFormatting.GRAY + " (" + (int)damage + " 真实伤害)"
             ), true);
         }
     }
@@ -211,13 +252,25 @@ public class BleedEventHandler {
     }
     
     private void processLaceration(EntityLivingBase entity, NBTTagCompound data, long currentTime) {
+        // ★ 检查目标是否已死亡，如果是则清理数据并返回
+        if (isDeadOrDying(entity)) {
+            cleanupEntityData(entity);
+            return;
+        }
+
         long lastTime = data.getLong(KEY_LACERATION_TIME);
         int interval = data.getInteger("moremod_laceration_interval");
-        
+
         if (currentTime - lastTime >= interval) {
             int count = data.getInteger(KEY_LACERATION_COUNT);
-            
+
             if (count > 0) {
+                // ★ 再次检查目标状态
+                if (isDeadOrDying(entity)) {
+                    cleanupEntityData(entity);
+                    return;
+                }
+
                 // 造成撕裂伤害（使用TrueDamageHelper，支持抢夺/掠夺附魔）
                 float damage = data.getFloat("moremod_laceration_damage");
 
@@ -230,29 +283,39 @@ public class BleedEventHandler {
                     } catch (Exception ignored) {}
                 }
 
-                TrueDamageHelper.applyWrappedTrueDamage(
-                    entity, attacker, damage,
-                    TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE
-                );
-                
-                // 小幅出血累积
-                float bleed = data.getFloat(KEY_BLEED);
-                data.setFloat(KEY_BLEED, Math.min(100.0f, bleed + 2.0f));
-                
+                // ★ 检查伤害是否会致死，如果会则只造成剩余HP-1的伤害（让最后一击由玩家完成）
+                float currentHP = entity.getHealth();
+                if (damage >= currentHP) {
+                    damage = Math.max(0, currentHP - 1.0f);
+                }
+
+                if (damage > 0) {
+                    TrueDamageHelper.applyWrappedTrueDamage(
+                            entity, attacker, damage,
+                            TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE
+                    );
+                }
+
+                // 小幅出血累积（仅当目标还活着时）
+                if (!isDeadOrDying(entity)) {
+                    float bleed = data.getFloat(KEY_BLEED);
+                    data.setFloat(KEY_BLEED, Math.min(100.0f, bleed + 2.0f));
+                }
+
                 // 更新计数
                 data.setInteger(KEY_LACERATION_COUNT, count - 1);
                 data.setLong(KEY_LACERATION_TIME, currentTime);
-                
+
                 // 粒子效果
                 if (entity.world instanceof net.minecraft.world.WorldServer) {
                     ((net.minecraft.world.WorldServer)entity.world).spawnParticle(
-                        net.minecraft.util.EnumParticleTypes.DAMAGE_INDICATOR,
-                        entity.posX, entity.posY + entity.height * 0.5, entity.posZ,
-                        3, 0.2, 0.2, 0.2, 0.0
+                            net.minecraft.util.EnumParticleTypes.DAMAGE_INDICATOR,
+                            entity.posX, entity.posY + entity.height * 0.5, entity.posZ,
+                            3, 0.2, 0.2, 0.2, 0.0
                     );
                 }
             } else {
-                // 清理数据
+                // 清理撕裂数据
                 data.removeTag(KEY_LACERATION_COUNT);
                 data.removeTag("moremod_laceration_damage");
                 data.removeTag("moremod_laceration_interval");
@@ -262,24 +325,30 @@ public class BleedEventHandler {
     }
     
     private void processBleedDecay(EntityLivingBase entity, NBTTagCompound data, long currentTime) {
+        // ★ 检查目标是否已死亡
+        if (isDeadOrDying(entity)) {
+            cleanupEntityData(entity);
+            return;
+        }
+
         float bleed = data.getFloat(KEY_BLEED);
         if (bleed <= 0) {
             data.removeTag(KEY_BLEED);
             data.removeTag(KEY_DECAY_TIME);
             return;
         }
-        
+
         long lastDecay = data.getLong(KEY_DECAY_TIME);
-        
+
         // 每秒衰减检查
         if (currentTime - lastDecay >= 20) {
             // 获取衰减速率（需要找到对应的武器，这里使用默认值）
             float decayRate = 8.0f;  // 默认衰减速率
-            
+
             float newBleed = Math.max(0, bleed - decayRate);
             data.setFloat(KEY_BLEED, newBleed);
             data.setLong(KEY_DECAY_TIME, currentTime);
-            
+
             if (newBleed <= 0) {
                 data.removeTag(KEY_BLEED);
                 data.removeTag(KEY_DECAY_TIME);
@@ -288,42 +357,62 @@ public class BleedEventHandler {
     }
     
     // ==================== 击杀事件：成长系统 ====================
-    
+
     @SubscribeEvent(priority = EventPriority.NORMAL)
     public void onLivingDeath(LivingDeathEvent event) {
         DamageSource source = event.getSource();
         if (!(source.getTrueSource() instanceof EntityPlayer)) return;
-        
+
         EntityPlayer player = (EntityPlayer) source.getTrueSource();
         ItemStack weapon = player.getHeldItemMainhand();
-        
+
         if (weapon.isEmpty() || !(weapon.getItem() instanceof ItemSawBladeSword)) return;
-        
+
         EntityLivingBase killed = event.getEntityLiving();
-        
+
+        // ★ 防止重复处理同一实体的死亡事件
+        UUID killedId = killed.getUniqueID();
+        if (processedDeaths.contains(killedId)) {
+            return;
+        }
+        processedDeaths.add(killedId);
+
+        // ★ 清理实体数据
+        cleanupEntityData(killed);
+
         // 判断击杀类型
         boolean isBoss = SawBladeStats.isBoss(killed);
         boolean isBleed = killed.getEntityData().getFloat(KEY_BLEED) > 50.0f;
         boolean isBackstab = SawBladeStats.isBackstab(player, killed);
-        
+
         // 添加击杀统计
         SawBladeNBT.addKill(weapon, isBoss, isBleed, isBackstab);
-        
+
         // 升级提示
         int oldLevel = SawBladeNBT.getLevel(weapon);
         boolean leveledUp = SawBladeNBT.addExp(weapon, 10, isBoss, isBleed, isBackstab);
-        
+
         if (leveledUp) {
             int newLevel = SawBladeNBT.getLevel(weapon);
             player.sendMessage(new TextComponentString(
-                TextFormatting.GOLD + "【锯刃剑】" +
-                TextFormatting.WHITE + " 升级至 Lv." + newLevel + "！"
+                    TextFormatting.GOLD + "【锯刃剑】" +
+                            TextFormatting.WHITE + " 升级至 Lv." + newLevel + "！"
             ));
-            
+
             // 升级音效
             player.world.playSound(null, player.posX, player.posY, player.posZ,
-                SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.PLAYERS, 0.5f, 1.5f);
+                    SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.PLAYERS, 0.5f, 1.5f);
         }
+
+        // ★ 延迟清理 processedDeaths（防止内存泄漏）
+        // 使用调度器在2秒后移除
+        final UUID finalKilledId = killedId;
+        new Thread(() -> {
+            try {
+                Thread.sleep(2000);
+                processedDeaths.remove(finalKilledId);
+            } catch (InterruptedException ignored) {}
+        }).start();
     }
     
     // ==================== 辅助方法 ====================

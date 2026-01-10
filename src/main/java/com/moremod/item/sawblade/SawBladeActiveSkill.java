@@ -140,13 +140,14 @@ public class SawBladeActiveSkill {
      */
     private static boolean canExecute(EntityLivingBase entity, EntityPlayer player, float threshold) {
         if (entity == null || entity == player) return false;
-        if (entity.isDead || entity.getHealth() <= 0) return false;
+        // ★ 增强死亡检测：isDead、HP<=0、deathTime>0
+        if (entity.isDead || entity.getHealth() <= 0 || entity.deathTime > 0) return false;
         if (!(entity instanceof IMob)) return false;
-        
+
         // 条件1：低血量
         float hpRatio = entity.getHealth() / entity.getMaxHealth();
         if (hpRatio <= threshold) return true;
-        
+
         // 条件2：高出血值（>70）
         float bleed = entity.getEntityData().getFloat("moremod_bleed_buildup");
         return bleed > 70.0f;
@@ -156,19 +157,25 @@ public class SawBladeActiveSkill {
      * 执行单体处决
      */
     private static boolean executeTarget(World world, EntityPlayer player,
-                                        EntityLivingBase target, ItemStack stack) {
+                                         EntityLivingBase target, ItemStack stack) {
+        // ★ 再次检查目标状态
+        if (target == null || target.isDead || target.getHealth() <= 0 || target.deathTime > 0) {
+            return false;
+        }
+
         // 使用包装的死亡链处决
         TrueDamageHelper.triggerVanillaDeathChain(target);
 
-        if (target.isDead) {
+        // ★ 检查是否成功击杀（isDead 或 deathTime > 0）
+        if (target.isDead || target.deathTime > 0 || target.getHealth() <= 0) {
             // 特效
             if (world instanceof WorldServer) {
                 WorldServer ws = (WorldServer) world;
                 for (int i = 0; i < 5; i++) {
                     ws.spawnParticle(
-                        EnumParticleTypes.SWEEP_ATTACK,
-                        target.posX, target.posY + target.height * 0.5, target.posZ,
-                        3, 0.3, 0.3, 0.3, 0.0
+                            EnumParticleTypes.SWEEP_ATTACK,
+                            target.posX, target.posY + target.height * 0.5, target.posZ,
+                            3, 0.3, 0.3, 0.3, 0.0
                     );
                 }
             }
