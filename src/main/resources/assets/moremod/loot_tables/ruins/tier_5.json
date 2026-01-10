@@ -1,0 +1,494 @@
+{
+  "pools": [
+    {
+      "name": "materials_basic",
+      "rolls": {
+        "min": 7,
+        "max": 10
+      },
+      "entries": [
+        {
+          "type": "item",
+          "name": "minecraft:iron_ingot",
+          "weight": 20,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": { "min": 5, "max": 10 }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "minecraft:gold_ingot",
+          "weight": 22,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": { "min": 4, "max": 8 }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "minecraft:diamond",
+          "weight": 25,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": { "min": 2, "max": 4 }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "minecraft:emerald",
+          "weight": 22,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": { "min": 3, "max": 6 }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "minecraft:ender_pearl",
+          "weight": 18,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": { "min": 3, "max": 5 }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "minecraft:blaze_powder",
+          "weight": 15,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": { "min": 4, "max": 8 }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "minecraft:nether_star",
+          "weight": 3,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "mod_materials",
+      "rolls": {
+        "min": 4,
+        "max": 6
+      },
+      "entries": [
+        {
+          "type": "item",
+          "name": "moremod:antikythera_gear",
+          "weight": 22,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": { "min": 4, "max": 6 }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "moremod:ancient_component",
+          "weight": 25,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": { "min": 2, "max": 4 }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "moremod:mysterious_dust",
+          "weight": 22,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": { "min": 5, "max": 8 }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "moremod:rare_crystal",
+          "weight": 25,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": { "min": 2, "max": 4 }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "special_items",
+      "rolls": {
+        "min": 2,
+        "max": 3
+      },
+      "entries": [
+        {
+          "type": "item",
+          "name": "moremod:ancient_core_fragment",
+          "weight": 30,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": { "min": 2, "max": 4 }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "moremod:rift_crystal",
+          "weight": 28,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": { "min": 1, "max": 3 }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "moremod:void_ichor",
+          "weight": 25,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": { "min": 1, "max": 2 }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "moremod:spacetime_fabric",
+          "weight": 22,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": { "min": 1, "max": 3 }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "moremod:dimensional_weaver_core",
+          "weight": 10,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": 1
+            },
+            {
+              "function": "set_nbt",
+              "tag": "{display:{Name:\"§6§l维度编织者核心\",Lore:[\"§7从时间实验室深处发现\",\"§7蘊含着无尽的可能\",\"§e§o稀有度: 传说\"]}}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "faulty_gear_guaranteed",
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "item",
+          "name": "minecraft:diamond_helmet",
+          "weight": 12,
+          "functions": [
+            {
+              "function": "set_damage",
+              "damage": { "min": 0.5, "max": 0.9 }
+            },
+            {
+              "function": "enchant_with_levels",
+              "levels": { "min": 30, "max": 40 },
+              "treasure": true
+            },
+            {
+              "function": "set_nbt",
+              "tag": "{display:{Name:\"§5超频的钻石头盔\",Lore:[\"§7来自远古科技废墟的遗物\",\"§7状态: §5超频运转\",\"§e等级: 5\"]}}"
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "minecraft:diamond_chestplate",
+          "weight": 12,
+          "functions": [
+            {
+              "function": "set_damage",
+              "damage": { "min": 0.5, "max": 0.9 }
+            },
+            {
+              "function": "enchant_with_levels",
+              "levels": { "min": 30, "max": 40 },
+              "treasure": true
+            },
+            {
+              "function": "set_nbt",
+              "tag": "{display:{Name:\"§5超频的钻石胸甲\",Lore:[\"§7来自远古科技废墟的遗物\",\"§7状态: §5超频运转\",\"§e等级: 5\"]}}"
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "minecraft:diamond_leggings",
+          "weight": 12,
+          "functions": [
+            {
+              "function": "set_damage",
+              "damage": { "min": 0.5, "max": 0.9 }
+            },
+            {
+              "function": "enchant_with_levels",
+              "levels": { "min": 30, "max": 40 },
+              "treasure": true
+            },
+            {
+              "function": "set_nbt",
+              "tag": "{display:{Name:\"§5超频的钻石护腿\",Lore:[\"§7来自远古科技废墟的遗物\",\"§7状态: §5超频运转\",\"§e等级: 5\"]}}"
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "minecraft:diamond_boots",
+          "weight": 12,
+          "functions": [
+            {
+              "function": "set_damage",
+              "damage": { "min": 0.5, "max": 0.9 }
+            },
+            {
+              "function": "enchant_with_levels",
+              "levels": { "min": 30, "max": 40 },
+              "treasure": true
+            },
+            {
+              "function": "set_nbt",
+              "tag": "{display:{Name:\"§5超频的钻石靴子\",Lore:[\"§7来自远古科技废墟的遗物\",\"§7状态: §5超频运转\",\"§e等级: 5\"]}}"
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "minecraft:diamond_sword",
+          "weight": 15,
+          "functions": [
+            {
+              "function": "set_damage",
+              "damage": { "min": 0.5, "max": 0.9 }
+            },
+            {
+              "function": "enchant_with_levels",
+              "levels": { "min": 35, "max": 45 },
+              "treasure": true
+            },
+            {
+              "function": "set_nbt",
+              "tag": "{display:{Name:\"§5超频的钻石剑\",Lore:[\"§7来自远古科技废墟的遗物\",\"§7状态: §5超频运转\",\"§e等级: 5\"]}}"
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "minecraft:diamond_pickaxe",
+          "weight": 12,
+          "functions": [
+            {
+              "function": "set_damage",
+              "damage": { "min": 0.5, "max": 0.9 }
+            },
+            {
+              "function": "enchant_with_levels",
+              "levels": { "min": 30, "max": 40 },
+              "treasure": true
+            },
+            {
+              "function": "set_nbt",
+              "tag": "{display:{Name:\"§5超频的钻石镐\",Lore:[\"§7来自远古科技废墟的遗物\",\"§7状态: §5超频运转\",\"§e等级: 5\"]}}"
+            }
+          ]
+        },
+        {
+          "type": "empty",
+          "weight": 40
+        }
+      ]
+    },
+    {
+      "name": "print_template",
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "item",
+          "name": "moremod:print_template",
+          "weight": 1,
+          "functions": [
+            {
+              "function": "set_nbt",
+              "tag": "{display:{Name:\"§6§l稀有打印模版\",Lore:[\"§7从时间裂隙中获取的蓝图\",\"§e稀有度: 史诗\"]}}"
+            }
+          ]
+        }
+      ],
+      "conditions": [
+        {
+          "condition": "random_chance",
+          "chance": 0.5
+        }
+      ]
+    },
+    {
+      "name": "glitch_armor",
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "item",
+          "name": "moremod:glitch_helmet",
+          "weight": 25,
+          "functions": [
+            {
+              "function": "set_nbt",
+              "tag": "{display:{Lore:[\"§7来自远古科技废墟的遗物\",\"§d§o数据异常...\",\"§5§o时空扭曲\"]}}"
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "moremod:glitch_chestplate",
+          "weight": 25,
+          "functions": [
+            {
+              "function": "set_nbt",
+              "tag": "{display:{Lore:[\"§7来自远古科技废墟的遗物\",\"§d§o数据异常...\",\"§5§o时空扭曲\"]}}"
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "moremod:glitch_leggings",
+          "weight": 25,
+          "functions": [
+            {
+              "function": "set_nbt",
+              "tag": "{display:{Lore:[\"§7来自远古科技废墟的遗物\",\"§d§o数据异常...\",\"§5§o时空扭曲\"]}}"
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "moremod:glitch_boots",
+          "weight": 25,
+          "functions": [
+            {
+              "function": "set_nbt",
+              "tag": "{display:{Lore:[\"§7来自远古科技废墟的遗物\",\"§d§o数据异常...\",\"§5§o时空扭曲\"]}}"
+            }
+          ]
+        }
+      ],
+      "conditions": [
+        {
+          "condition": "random_chance",
+          "chance": 0.08
+        }
+      ]
+    },
+    {
+      "name": "sacred_relics",
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "item",
+          "name": "moremod:sacred_heart",
+          "weight": 14
+        },
+        {
+          "type": "item",
+          "name": "moremod:peace_emblem",
+          "weight": 14
+        },
+        {
+          "type": "item",
+          "name": "moremod:guardian_scale",
+          "weight": 14
+        },
+        {
+          "type": "item",
+          "name": "moremod:courage_blade",
+          "weight": 14
+        },
+        {
+          "type": "item",
+          "name": "moremod:frost_dew",
+          "weight": 14
+        },
+        {
+          "type": "item",
+          "name": "moremod:soul_anchor",
+          "weight": 14
+        },
+        {
+          "type": "item",
+          "name": "moremod:slumber_sachet",
+          "weight": 14
+        }
+      ],
+      "conditions": [
+        {
+          "condition": "random_chance",
+          "chance": 0.02
+        }
+      ]
+    },
+    {
+      "name": "rare_baubles",
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "item",
+          "name": "moremod:battery_bauble",
+          "weight": 33
+        },
+        {
+          "type": "item",
+          "name": "moremod:temporal_heart",
+          "weight": 33
+        },
+        {
+          "type": "item",
+          "name": "moremod:bloody_thirst_mask",
+          "weight": 33
+        }
+      ],
+      "conditions": [
+        {
+          "condition": "random_chance",
+          "chance": 0.005
+        }
+      ]
+    }
+  ]
+}

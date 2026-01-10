@@ -1,0 +1,138 @@
+{
+  "pools": [
+    {
+      "name": "materials_basic",
+      "rolls": {
+        "min": 3,
+        "max": 5
+      },
+      "entries": [
+        {
+          "type": "item",
+          "name": "minecraft:iron_ingot",
+          "weight": 40,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": { "min": 1, "max": 3 }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "minecraft:gold_ingot",
+          "weight": 20,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": { "min": 1, "max": 2 }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "minecraft:redstone",
+          "weight": 30,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": { "min": 2, "max": 4 }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "minecraft:coal",
+          "weight": 35,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": { "min": 3, "max": 6 }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "minecraft:quartz",
+          "weight": 25,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": { "min": 2, "max": 4 }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "mod_materials",
+      "rolls": {
+        "min": 1,
+        "max": 2
+      },
+      "entries": [
+        {
+          "type": "item",
+          "name": "moremod:antikythera_gear",
+          "weight": 30,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": { "min": 1, "max": 2 }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "moremod:ancient_component",
+          "weight": 20,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "moremod:mysterious_dust",
+          "weight": 40,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": { "min": 2, "max": 3 }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "moremod:rare_crystal",
+          "weight": 15,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "rare_chance",
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "item",
+          "name": "minecraft:diamond",
+          "weight": 1
+        }
+      ],
+      "conditions": [
+        {
+          "condition": "random_chance",
+          "chance": 0.15
+        }
+      ]
+    }
+  ]
+}

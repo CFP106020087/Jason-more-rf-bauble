@@ -1,0 +1,266 @@
+{
+  "pools": [
+    {
+      "name": "materials_basic",
+      "rolls": {
+        "min": 5,
+        "max": 7
+      },
+      "entries": [
+        {
+          "type": "item",
+          "name": "minecraft:iron_ingot",
+          "weight": 30,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": { "min": 3, "max": 6 }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "minecraft:gold_ingot",
+          "weight": 25,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": { "min": 2, "max": 4 }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "minecraft:diamond",
+          "weight": 15,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": { "min": 1, "max": 2 }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "minecraft:emerald",
+          "weight": 20,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": { "min": 1, "max": 3 }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "minecraft:ender_pearl",
+          "weight": 20,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": { "min": 2, "max": 3 }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "minecraft:blaze_powder",
+          "weight": 15,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": { "min": 2, "max": 4 }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "mod_materials",
+      "rolls": {
+        "min": 2,
+        "max": 4
+      },
+      "entries": [
+        {
+          "type": "item",
+          "name": "moremod:antikythera_gear",
+          "weight": 25,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": { "min": 2, "max": 4 }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "moremod:ancient_component",
+          "weight": 25,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": { "min": 1, "max": 2 }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "moremod:mysterious_dust",
+          "weight": 30,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": { "min": 3, "max": 5 }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "moremod:rare_crystal",
+          "weight": 20,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": { "min": 1, "max": 2 }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "special_items",
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "item",
+          "name": "moremod:ancient_core_fragment",
+          "weight": 40,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": { "min": 1, "max": 2 }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "moremod:rift_crystal",
+          "weight": 35,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "moremod:void_ichor",
+          "weight": 15,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "type": "empty",
+          "weight": 60
+        }
+      ]
+    },
+    {
+      "name": "faulty_gear",
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "item",
+          "name": "minecraft:diamond_helmet",
+          "weight": 10,
+          "functions": [
+            {
+              "function": "set_damage",
+              "damage": { "min": 0.3, "max": 0.7 }
+            },
+            {
+              "function": "enchant_randomly",
+              "enchantments": ["minecraft:protection", "minecraft:unbreaking"]
+            },
+            {
+              "function": "set_nbt",
+              "tag": "{display:{Name:\"§c故障的钻石头盔\",Lore:[\"§7来自远古科技废墟的遗物\",\"§7状态: §c不稳定\",\"§e等级: 3\"]}}"
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "minecraft:diamond_chestplate",
+          "weight": 10,
+          "functions": [
+            {
+              "function": "set_damage",
+              "damage": { "min": 0.3, "max": 0.7 }
+            },
+            {
+              "function": "enchant_randomly",
+              "enchantments": ["minecraft:protection", "minecraft:unbreaking"]
+            },
+            {
+              "function": "set_nbt",
+              "tag": "{display:{Name:\"§c故障的钻石胸甲\",Lore:[\"§7来自远古科技废墟的遗物\",\"§7状态: §c不稳定\",\"§e等级: 3\"]}}"
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "minecraft:diamond_sword",
+          "weight": 12,
+          "functions": [
+            {
+              "function": "set_damage",
+              "damage": { "min": 0.3, "max": 0.7 }
+            },
+            {
+              "function": "enchant_with_levels",
+              "levels": { "min": 15, "max": 25 },
+              "treasure": true
+            },
+            {
+              "function": "set_nbt",
+              "tag": "{display:{Name:\"§c不稳定的钻石剑\",Lore:[\"§7来自远古科技废墟的遗物\",\"§7状态: §c不稳定\",\"§e等级: 3\"]}}"
+            }
+          ]
+        },
+        {
+          "type": "empty",
+          "weight": 120
+        }
+      ]
+    },
+    {
+      "name": "print_template",
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "item",
+          "name": "moremod:print_template",
+          "weight": 1,
+          "functions": [
+            {
+              "function": "set_nbt",
+              "tag": "{display:{Name:\"§6打印模版\",Lore:[\"§7从废墟中发现的蓝图\"]}}"
+            }
+          ]
+        }
+      ],
+      "conditions": [
+        {
+          "condition": "random_chance",
+          "chance": 0.25
+        }
+      ]
+    }
+  ]
+}

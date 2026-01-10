@@ -1,24 +1,13 @@
 package com.moremod.world;
 
 import com.moremod.init.ModBlocks;
-import com.moremod.init.ModItems;
-import com.moremod.item.RegisterItem;
 import com.moremod.moremod;
-import com.moremod.printer.ItemPrintTemplate;
-import com.moremod.printer.PrinterRecipe;
-import com.moremod.printer.PrinterRecipeRegistry;
 import com.moremod.quarry.QuarryRegistry;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
-import net.minecraft.init.Items;
-import net.minecraft.init.Enchantments;
-import net.minecraft.enchantment.EnchantmentHelper;
-import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.nbt.NBTTagList;
 import net.minecraft.tileentity.TileEntity;
-import net.minecraft.tileentity.TileEntityChest;
 import net.minecraft.tileentity.TileEntityMobSpawner;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
@@ -1291,16 +1280,13 @@ public class RuinsWorldGenerator implements IWorldGenerator {
         // 根据等级计算建筑内部半径 (确保在结构内)
         int innerRadius = Math.max(2, lootTier);  // 等级越高，结构越大
 
-        // ★ 放置奖励箱 (固定2个) ★
+        // ★ 放置奖励箱 (固定2个) - 使用JSON战利品表 ★
         int chestCount = 2;
         for (int i = 0; i < chestCount; i++) {
             BlockPos chestPos = findValidInteriorPos(world, center, innerRadius, random);
             if (chestPos != null) {
-                setBlockSafe(world, chestPos, Blocks.CHEST.getDefaultState());
-                TileEntity te = world.getTileEntity(chestPos);
-                if (te instanceof TileEntityChest) {
-                    fillChestWithLoot((TileEntityChest) te, random, lootTier);
-                }
+                // 使用RuinsLootManager填充箱子（立即生成模式）
+                RuinsLootManager.getInstance().createAndFillChest(world, chestPos, lootTier, true);
             }
         }
 
@@ -1385,213 +1371,8 @@ public class RuinsWorldGenerator implements IWorldGenerator {
             System.out.println("[Ruins] 放置哭泣天使刷怪笼 @ " + spawnerPos);
         }
     }
-
-    private void fillChestWithLoot(TileEntityChest chest, Random random, int tier) {
-        // ★ 增加材料数量 (补偿稀有生成率) ★
-        int materialCount = 4 + random.nextInt(4) + tier;
-        for (int i = 0; i < materialCount; i++) {
-            int slot = random.nextInt(27);
-            ItemStack material = getRandomMaterial(random, tier);
-            chest.setInventorySlotContents(slot, material);
-        }
-
-        // ★ 打印模版概率提高 ★
-        if (random.nextFloat() < 0.25f * tier) {
-            int slot = random.nextInt(27);
-            ItemStack template = createRandomTemplate(random);
-            chest.setInventorySlotContents(slot, template);
-        }
-
-        // ★ Glitch Armor (提高概率) ★
-        if (random.nextFloat() < GLITCH_ARMOR_CHANCE) {
-            int slot = random.nextInt(27);
-            ItemStack glitchGear = createGlitchArmorPiece(random);
-            if (!glitchGear.isEmpty()) {
-                chest.setInventorySlotContents(slot, glitchGear);
-            }
-        }
-
-        // ★ 故障装备 (额外奖励) ★
-        if (random.nextFloat() < 0.3f * tier) {
-            int slot = random.nextInt(27);
-            ItemStack faultyGear = createFaultyGear(random, tier);
-            chest.setInventorySlotContents(slot, faultyGear);
-        }
-
-        // ★ 模组特殊物品 ★
-        if (random.nextFloat() < 0.2f * tier) {
-            try {
-                int slot = random.nextInt(27);
-                int modItemType = random.nextInt(5);
-                switch (modItemType) {
-                    case 0:
-                        if (ModItems.ANCIENT_CORE_FRAGMENT != null) {
-                            chest.setInventorySlotContents(slot, new ItemStack(ModItems.ANCIENT_CORE_FRAGMENT, 1 + random.nextInt(3)));
-                        }
-                        break;
-                    case 1:
-                        if (ModItems.RIFT_CRYSTAL != null) {
-                            chest.setInventorySlotContents(slot, new ItemStack(ModItems.RIFT_CRYSTAL, 1 + random.nextInt(2)));
-                        }
-                        break;
-                    case 2:
-                        if (ModItems.VOID_ICHOR != null) {
-                            chest.setInventorySlotContents(slot, new ItemStack(ModItems.VOID_ICHOR, 1));
-                        }
-                        break;
-                    case 3:
-                        if (ModItems.DIMENSIONAL_WEAVER_CORE != null) {
-                            chest.setInventorySlotContents(slot, new ItemStack(ModItems.DIMENSIONAL_WEAVER_CORE, 1));
-                        }
-                        break;
-                    default:
-                        if (ModItems.SPACETIME_FABRIC != null) {
-                            chest.setInventorySlotContents(slot, new ItemStack(ModItems.SPACETIME_FABRIC, 1 + random.nextInt(2)));
-                        }
-                }
-            } catch (Exception ignored) {}
-        }
-
-        // ★ 七圣遗物 (1% 概率，仅用于仪式) ★
-        // 注：不再掉落七咒联动饰品
-        if (random.nextFloat() < 0.01f) {
-            try {
-                int slot = random.nextInt(27);
-                ItemStack sacredRelic = getRandomSacredRelic(random);
-                if (sacredRelic != null && !sacredRelic.isEmpty()) {
-                    chest.setInventorySlotContents(slot, sacredRelic);
-                }
-            } catch (Exception ignored) {}
-        }
-    }
-
-    // ★★★ 获取随机七圣遗物（仪式用） ★★★
-    // 注：移除了七咒联动饰品，仅保留七圣遗物
-    private ItemStack getRandomSacredRelic(Random random) {
-        // 7个七圣遗物
-        int type = random.nextInt(7);
-        try {
-            switch (type) {
-                case 0: return ModItems.SACRED_HEART != null ? new ItemStack(ModItems.SACRED_HEART) : ItemStack.EMPTY;
-                case 1: return ModItems.PEACE_EMBLEM != null ? new ItemStack(ModItems.PEACE_EMBLEM) : ItemStack.EMPTY;
-                case 2: return ModItems.GUARDIAN_SCALE != null ? new ItemStack(ModItems.GUARDIAN_SCALE) : ItemStack.EMPTY;
-                case 3: return ModItems.COURAGE_BLADE != null ? new ItemStack(ModItems.COURAGE_BLADE) : ItemStack.EMPTY;
-                case 4: return ModItems.FROST_DEW != null ? new ItemStack(ModItems.FROST_DEW) : ItemStack.EMPTY;
-                case 5: return ModItems.SOUL_ANCHOR != null ? new ItemStack(ModItems.SOUL_ANCHOR) : ItemStack.EMPTY;
-                case 6: return ModItems.SLUMBER_SACHET != null ? new ItemStack(ModItems.SLUMBER_SACHET) : ItemStack.EMPTY;
-                default: return ItemStack.EMPTY;
-            }
-        } catch (Exception e) {
-            return ItemStack.EMPTY;
-        }
-    }
-
-    // ★★★ 创建故障装备 ★★★
-    private ItemStack createFaultyGear(Random random, int tier) {
-        ItemStack gear;
-        int type = random.nextInt(8);
-
-        switch (type) {
-            case 0: gear = new ItemStack(Items.DIAMOND_HELMET); break;
-            case 1: gear = new ItemStack(Items.DIAMOND_CHESTPLATE); break;
-            case 2: gear = new ItemStack(Items.DIAMOND_LEGGINGS); break;
-            case 3: gear = new ItemStack(Items.DIAMOND_BOOTS); break;
-            case 4: gear = new ItemStack(Items.DIAMOND_SWORD); break;
-            case 5: gear = new ItemStack(Items.DIAMOND_PICKAXE); break;
-            case 6: gear = new ItemStack(Items.DIAMOND_AXE); break;
-            default: gear = new ItemStack(Items.DIAMOND_SHOVEL); break;
-        }
-
-        // 添加故障属性
-        NBTTagCompound nbt = gear.getTagCompound();
-        if (nbt == null) nbt = new NBTTagCompound();
-
-        // 显示名称和 Lore
-        NBTTagCompound display = new NBTTagCompound();
-        String[] prefixes = {"故障的", "损坏的", "不稳定的", "异常的", "超频的"};
-        display.setString("Name", "§c" + prefixes[random.nextInt(prefixes.length)] + gear.getDisplayName());
-
-        NBTTagList lore = new NBTTagList();
-        lore.appendTag(new net.minecraft.nbt.NBTTagString("§7来自远古科技废墟的遗物"));
-        lore.appendTag(new net.minecraft.nbt.NBTTagString("§7状态: §c不稳定"));
-        lore.appendTag(new net.minecraft.nbt.NBTTagString("§e等级: " + tier));
-        display.setTag("Lore", lore);
-        nbt.setTag("display", display);
-
-        // 随机附魔
-        gear.setTagCompound(nbt);
-        int enchantCount = 1 + random.nextInt(tier);
-        for (int i = 0; i < enchantCount; i++) {
-            try {
-                switch (random.nextInt(8)) {
-                    case 0: gear.addEnchantment(Enchantments.PROTECTION, 2 + random.nextInt(3)); break;
-                    case 1: gear.addEnchantment(Enchantments.SHARPNESS, 3 + random.nextInt(3)); break;
-                    case 2: gear.addEnchantment(Enchantments.EFFICIENCY, 3 + random.nextInt(3)); break;
-                    case 3: gear.addEnchantment(Enchantments.UNBREAKING, 2 + random.nextInt(2)); break;
-                    case 4: gear.addEnchantment(Enchantments.FIRE_ASPECT, 1 + random.nextInt(2)); break;
-                    case 5: gear.addEnchantment(Enchantments.LOOTING, 2 + random.nextInt(2)); break;
-                    case 6: gear.addEnchantment(Enchantments.FORTUNE, 2 + random.nextInt(2)); break;
-                    case 7: gear.addEnchantment(Enchantments.MENDING, 1); break;
-                }
-            } catch (Exception ignored) {}
-        }
-
-        // 设置耐久度损耗
-        int maxDamage = gear.getMaxDamage();
-        gear.setItemDamage(random.nextInt(maxDamage / 2));
-
-        return gear;
-    }
-
-    // ★★★ 创建Glitch Armor ★★★
-    private ItemStack createGlitchArmorPiece(Random random) {
-        try {
-            int type = random.nextInt(4);
-            ItemStack armor;
-
-            switch (type) {
-                case 0:
-                    if (RegisterItem.GLITCH_HELMET != null) {
-                        armor = new ItemStack(RegisterItem.GLITCH_HELMET);
-                    } else return ItemStack.EMPTY;
-                    break;
-                case 1:
-                    if (RegisterItem.GLITCH_CHESTPLATE != null) {
-                        armor = new ItemStack(RegisterItem.GLITCH_CHESTPLATE);
-                    } else return ItemStack.EMPTY;
-                    break;
-                case 2:
-                    if (RegisterItem.GLITCH_LEGGINGS != null) {
-                        armor = new ItemStack(RegisterItem.GLITCH_LEGGINGS);
-                    } else return ItemStack.EMPTY;
-                    break;
-                case 3:
-                    if (RegisterItem.GLITCH_BOOTS != null) {
-                        armor = new ItemStack(RegisterItem.GLITCH_BOOTS);
-                    } else return ItemStack.EMPTY;
-                    break;
-                default:
-                    return ItemStack.EMPTY;
-            }
-
-            // 添加Lore说明来源
-            NBTTagCompound nbt = armor.getTagCompound();
-            if (nbt == null) nbt = new NBTTagCompound();
-
-            NBTTagCompound display = nbt.getCompoundTag("display");
-            NBTTagList lore = new NBTTagList();
-            lore.appendTag(new net.minecraft.nbt.NBTTagString("§7來自遠古科技廢墟的遺物"));
-            lore.appendTag(new net.minecraft.nbt.NBTTagString("§d§o數據異常..."));
-            display.setTag("Lore", lore);
-            nbt.setTag("display", display);
-            armor.setTagCompound(nbt);
-
-            System.out.println("[Ruins] 生成了稀有的 Glitch Armor: " + armor.getDisplayName());
-            return armor;
-        } catch (Exception e) {
-            return ItemStack.EMPTY;
-        }
-    }
+    // ★★★ 已移除硬编码的战利品生成方法，改用JSON战利品表 ★★★
+    // 战利品表位于: assets/moremod/loot_tables/ruins/tier_1.json ~ tier_5.json
 
     private void placeSpecialBlock(World world, BlockPos pos, Random random) {
         Block specialBlock = null;
@@ -1699,62 +1480,6 @@ public class RuinsWorldGenerator implements IWorldGenerator {
             case 4: return Blocks.REDSTONE_BLOCK.getDefaultState();
             default: return Blocks.COAL_BLOCK.getDefaultState();
         }
-    }
-
-    private ItemStack getRandomMaterial(Random random, int tier) {
-        // 减少奖励数量 (原: 2 + tier*3, 现: 1 + tier)
-        int type = random.nextInt(15 + tier);
-        int count = 1 + random.nextInt(Math.max(1, tier));
-
-        switch (type) {
-            case 0:
-            case 1:
-            case 2:
-            case 3:
-                return new ItemStack(Items.IRON_INGOT, count);
-            case 4:
-            case 5:
-                return new ItemStack(Items.GOLD_INGOT, Math.max(1, count - 1));
-            case 6:
-            case 7:
-                return new ItemStack(Items.REDSTONE, count + 1);
-            case 8:
-            case 9:
-                return new ItemStack(Items.COAL, count + 2);
-            case 10:
-                // 钻石更稀有
-                return new ItemStack(Items.DIAMOND, 1);
-            case 11:
-                return new ItemStack(Items.EMERALD, 1);
-            case 12:
-                return new ItemStack(Items.ENDER_PEARL, 1 + random.nextInt(2));
-            case 13:
-                return new ItemStack(Items.BLAZE_POWDER, 1 + random.nextInt(2));
-            default:
-                try {
-                    if (ModItems.ANCIENT_CORE_FRAGMENT != null && random.nextFloat() < 0.3f) {
-                        return new ItemStack(ModItems.ANCIENT_CORE_FRAGMENT, 1);
-                    }
-                    if (ModItems.RIFT_CRYSTAL != null && random.nextFloat() < 0.3f) {
-                        return new ItemStack(ModItems.RIFT_CRYSTAL, 1);
-                    }
-                } catch (Exception ignored) {}
-                return new ItemStack(Items.QUARTZ, count);
-        }
-    }
-
-    private ItemStack createRandomTemplate(Random random) {
-        try {
-            if (ModItems.PRINT_TEMPLATE != null) {
-                java.util.Collection<PrinterRecipe> recipes = PrinterRecipeRegistry.getAllRecipes();
-                if (!recipes.isEmpty()) {
-                    PrinterRecipe[] recipeArray = recipes.toArray(new PrinterRecipe[0]);
-                    PrinterRecipe selectedRecipe = recipeArray[random.nextInt(recipeArray.length)];
-                    return ItemPrintTemplate.createTemplate(ModItems.PRINT_TEMPLATE, selectedRecipe.getTemplateId());
-                }
-            }
-        } catch (Exception ignored) {}
-        return new ItemStack(Items.PAPER, 1);
     }
 
     private void setBlockSafe(World world, BlockPos pos, IBlockState state) {
