@@ -111,14 +111,9 @@ public class EntityStoneSentinel extends EntityMob implements IAnimatable {
     private static final int SUMMON_TRY_SPAWN  = 2;     // 每次最多召 2 个
     private static final double SUMMON_RADIUS  = 6.0;   // 召唤半径
 
-    private final BossInfoServer bossBar = new BossInfoServer(
-            new net.minecraft.util.text.TextComponentString("Stone Sentinel"),
-            BossInfo.Color.PURPLE, BossInfo.Overlay.PROGRESS
-    );
-    @Override
-    protected ResourceLocation getLootTable() {
-        return new ResourceLocation(MODID, "entities/stone_sentinel");
-    }
+    // 移除字段初始化器
+    private BossInfoServer bossBar;  // 不要在这里初始化
+
     public EntityStoneSentinel(World worldIn) {
         super(worldIn);
         this.setSize(4.0F, 6.0F);
@@ -128,9 +123,16 @@ public class EntityStoneSentinel extends EntityMob implements IAnimatable {
         this.setCustomNameTag("§5Stone Sentinel");
         this.setAlwaysRenderNameTag(false);
 
-        this.bossBar.setDarkenSky(true);
-        this.bossBar.setPlayEndBossMusic(false);
-        this.bossBar.setCreateFog(true);
+        // 仅服务端创建 BossBar
+        if (!worldIn.isRemote) {
+            this.bossBar = new BossInfoServer(
+                    new net.minecraft.util.text.TextComponentString("Stone Sentinel"),
+                    BossInfo.Color.PURPLE, BossInfo.Overlay.PROGRESS
+            );
+            this.bossBar.setDarkenSky(true);
+            this.bossBar.setPlayEndBossMusic(false);
+            this.bossBar.setCreateFog(true);
+        }
     }
 
     @Override
@@ -181,6 +183,7 @@ public class EntityStoneSentinel extends EntityMob implements IAnimatable {
             for (Potion p : toRemove) {
                 this.removePotionEffect(p);
             }
+
         }
 
         // 朝向最近玩家
@@ -197,11 +200,13 @@ public class EntityStoneSentinel extends EntityMob implements IAnimatable {
             this.prevRotationYaw = this.prevRotationYawHead = this.prevRenderYawOffset = currentYaw;
         }
 
-        // Boss 血条
-        this.bossBar.setPercent(this.getHealth() / this.getMaxHealth());
-        if (getIsAngry()) this.bossBar.setColor(BossInfo.Color.RED);
-        else if (getEyeState() == EYE_CLOSED) this.bossBar.setColor(BossInfo.Color.YELLOW);
-        else this.bossBar.setColor(BossInfo.Color.PURPLE);
+        // Boss 血条 - 仅服务端
+        if (!world.isRemote && bossBar != null) {
+            bossBar.setPercent(this.getHealth() / this.getMaxHealth());
+            if (getIsAngry()) bossBar.setColor(BossInfo.Color.RED);
+            else if (getEyeState() == EYE_CLOSED) bossBar.setColor(BossInfo.Color.YELLOW);
+            else bossBar.setColor(BossInfo.Color.PURPLE);
+        }
 
         // 死亡动画
         if (getIsDying()) { handleDeathAnimation(); return; }
@@ -263,19 +268,20 @@ public class EntityStoneSentinel extends EntityMob implements IAnimatable {
     @Override
     public void addTrackingPlayer(EntityPlayerMP player) {
         super.addTrackingPlayer(player);
-        this.bossBar.addPlayer(player);
+        if (bossBar != null) bossBar.addPlayer(player);
     }
+
     @Override
     public void removeTrackingPlayer(EntityPlayerMP player) {
         super.removeTrackingPlayer(player);
-        this.bossBar.removePlayer(player);
+        if (bossBar != null) bossBar.removePlayer(player);
     }
+
     @Override
     public void setCustomNameTag(String name) {
         super.setCustomNameTag(name);
-        this.bossBar.setName(this.getDisplayName());
+        if (bossBar != null) bossBar.setName(this.getDisplayName());
     }
-
     private void updateEyeState() {
         EntityPlayer nearestPlayer = world.getClosestPlayerToEntity(this, 32.0D);
 
