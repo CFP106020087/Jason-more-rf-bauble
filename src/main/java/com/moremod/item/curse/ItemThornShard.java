@@ -35,10 +35,15 @@ import java.util.concurrent.ConcurrentHashMap;
  * 核心机制：
  * 1. 荆棘自噬：攻击时自伤（优先扣四肢）
  * 2. 王座之血：5秒内受伤总量转化为攻击加成，与诅咒数联动
- * 3. 荆棘再生：血量越低回血越快
+ * 3. 荆棘再生（改）：只有王座之血激活时才回血，累积越多回血越快
  *
  * 代价：
  * - 累积伤害超过最大血量5倍时立即死亡并清空物品（无任何提示）
+ *
+ * 平衡要点：
+ * - 不攻击 = 没有自伤 = 没有累积 = 没有回血（无法白嫖）
+ * - 攻击 = 自伤 = 累积 = 有回血，但也接近死亡阈值
+ * - 这是一场与死亡的赌博
  */
 @Mod.EventBusSubscriber(modid = "moremod")
 public class ItemThornShard extends Item implements IBauble {
@@ -54,9 +59,10 @@ public class ItemThornShard extends Item implements IBauble {
     private static final float CURSE_BONUS_PER_CURSE = 0.1f;    // 每个诅咒+10%
     private static final float DEATH_THRESHOLD_MULTIPLIER = 5.0f; // 累积超过5倍最大血量=死
 
-    // 荆棘再生
-    private static final float BASE_REGEN_PER_SECOND = 0.5f;    // 基础0.5/秒
-    private static final float REGEN_LOW_HP_BONUS = 1.0f;       // 低血量最多+1倍
+    // 荆棘再生（改）：与王座之血绑定
+    private static final float REGEN_BASE_PER_SECOND = 0.3f;        // 基础回血
+    private static final float REGEN_PER_BLOOD_POINT = 0.02f;       // 每点累积伤害增加的回血
+    private static final float REGEN_MAX_PER_SECOND = 3.0f;         // 每秒最大回血
 
     // 四肢保护阈值
     private static final float LIMB_MIN_THRESHOLD = 1.0f;
@@ -134,9 +140,28 @@ public class ItemThornShard extends Item implements IBauble {
         }
     }
 
-    // ========== 荆棘再生 ==========
+    // ========== 荆棘再生（改）==========
 
+    /**
+     * 荆棘再生：只有在王座之血激活时才回血
+     * 回血速度与累积伤害挂钩 - 累积越多，回血越快，但也越接近死亡
+     *
+     * 公式：regenAmount = 基础 + 累积伤害 × 系数
+     *
+     * 设计理念：
+     * - 不攻击 = 没有自伤 = 没有累积 = 没有回血
+     * - 累积多 = 回血快，但接近死亡阈值
+     * - 这是一场与死亡的赌博
+     */
     private void handleThornRegeneration(EntityPlayer player, UUID uuid) {
+        // 检查王座之血是否激活
+        BloodData data = BLOOD_DATA.get(uuid);
+        if (data == null || !data.isActive()) {
+            // 未激活 = 没有回血
+            return;
+        }
+
+        // 每秒执行一次
         long now = System.currentTimeMillis();
         Long lastTime = LAST_REGEN_TIME.get(uuid);
         if (lastTime != null && now - lastTime < 1000) return;
@@ -146,9 +171,10 @@ public class ItemThornShard extends Item implements IBauble {
         float maxHealth = player.getMaxHealth();
         if (currentHealth >= maxHealth) return;
 
-        // 回血公式：基础 × (2 - 当前血量比例)
-        float healthRatio = currentHealth / maxHealth;
-        float regenAmount = BASE_REGEN_PER_SECOND * (1 + REGEN_LOW_HP_BONUS * (1 - healthRatio));
+        // 回血公式：基础 + 累积伤害 × 系数
+        float bloodAmount = data.getCurrentBlood();
+        float regenAmount = REGEN_BASE_PER_SECOND + bloodAmount * REGEN_PER_BLOOD_POINT;
+        regenAmount = Math.min(regenAmount, REGEN_MAX_PER_SECOND);
 
         // 普通治疗（FirstAid会自动处理部位分配）
         player.heal(regenAmount);
@@ -494,10 +520,11 @@ public class ItemThornShard extends Item implements IBauble {
                  String.format("×%.1f", multiplier));
         list.add("");
 
-        // 荆棘再生
+        // 荆棘再生（改）
         list.add(TextFormatting.DARK_GREEN + "  ◈ 荆棘再生");
-        list.add(TextFormatting.GRAY + "    濒死之际，荆棘反哺其主");
-        list.add(TextFormatting.DARK_GRAY + "    （血量越低，回复越快）");
+        list.add(TextFormatting.GRAY + "    唯有流血者，方得荆棘之眷顾");
+        list.add(TextFormatting.DARK_GRAY + "    （只有王座之血激活时才回血）");
+        list.add(TextFormatting.DARK_GRAY + "    （累积越多，回血越快，但越接近死亡）");
         list.add("");
 
         list.add(TextFormatting.DARK_GRAY + "────────────────────────────────────");
@@ -518,6 +545,10 @@ public class ItemThornShard extends Item implements IBauble {
             float threshold = player.getMaxHealth() * DEATH_THRESHOLD_MULTIPLIER;
 
             if (blood > 0) {
+                // 计算当前回血速度
+                float regenRate = Math.min(REGEN_MAX_PER_SECOND,
+                        REGEN_BASE_PER_SECOND + blood * REGEN_PER_BLOOD_POINT);
+
                 list.add(TextFormatting.DARK_GRAY + "────────────────────────────────────");
                 list.add("");
                 list.add(TextFormatting.GRAY + "  王座之血: " + TextFormatting.DARK_RED +
@@ -527,6 +558,12 @@ public class ItemThornShard extends Item implements IBauble {
                     list.add(TextFormatting.GRAY + "  力量增幅: " + TextFormatting.RED + "+" +
                              String.format("%.0f%%", bonus * 100));
                 }
+                list.add(TextFormatting.GRAY + "  荆棘眷顾: " + TextFormatting.GREEN + "+" +
+                         String.format("%.1f", regenRate) + TextFormatting.DARK_GRAY + "/秒");
+            } else {
+                list.add(TextFormatting.DARK_GRAY + "────────────────────────────────────");
+                list.add("");
+                list.add(TextFormatting.DARK_GRAY + "  王座之血未激活，无回血");
             }
         }
 
