@@ -53,7 +53,7 @@ public class ItemThornShard extends Item implements IBauble {
     // 王座之血
     private static final long BLOOD_WINDOW_MS = 5000;           // 5秒窗口
     private static final float BLOOD_BASE_MULTIPLIER = 0.03f;   // 基础3%每点伤害
-    private static final float CURSE_BONUS_PER_CURSE = 0.5f;    // 每个诅咒+50%
+    private static final float CURSE_BONUS_PER_CURSE = 0.1f;    // 每个诅咒+10%
     private static final float DEATH_THRESHOLD_MULTIPLIER = 5.0f; // 累积超过5倍最大血量=死
 
     // 荆棘再生
@@ -580,6 +580,7 @@ public class ItemThornShard extends Item implements IBauble {
 
         list.add(TextFormatting.DARK_PURPLE + "  ◈ 诅咒烙印");
         list.add(TextFormatting.LIGHT_PURPLE + "    身负的诅咒越深，王冠便越锋利");
+        list.add(TextFormatting.DARK_GRAY + "    （每个诅咒附魔 +10% 倍率）");
         list.add(TextFormatting.DARK_GRAY + "    当前烙印: " + TextFormatting.DARK_PURPLE + curses +
                  TextFormatting.DARK_GRAY + " → 伤害倍率 " + TextFormatting.RED +
                  String.format("×%.1f", multiplier));
