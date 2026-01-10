@@ -3,6 +3,7 @@ package com.moremod.item.curse;
 import baubles.api.BaubleType;
 import baubles.api.BaublesApi;
 import baubles.api.IBauble;
+import baubles.api.cap.IBaublesItemHandler;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.enchantment.Enchantment;
@@ -21,9 +22,6 @@ import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
-import ichttt.mods.firstaid.api.damagesystem.AbstractDamageablePart;
-import ichttt.mods.firstaid.api.damagesystem.AbstractPlayerDamageModel;
-import ichttt.mods.firstaid.api.event.FirstAidLivingDamageEvent;
 
 import javax.annotation.Nullable;
 import java.util.*;
@@ -40,7 +38,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * 3. 荆棘再生：血量越低回血越快
  *
  * 代价：
- * - 累积伤害超过最大血量10倍时立即死亡（无任何提示）
+ * - 累积伤害超过最大血量5倍时立即死亡并清空物品（无任何提示）
  */
 @Mod.EventBusSubscriber(modid = "moremod")
 public class ItemThornShard extends Item implements IBauble {
@@ -59,6 +57,9 @@ public class ItemThornShard extends Item implements IBauble {
     // 荆棘再生
     private static final float BASE_REGEN_PER_SECOND = 0.5f;    // 基础0.5/秒
     private static final float REGEN_LOW_HP_BONUS = 1.0f;       // 低血量最多+1倍
+
+    // 四肢保护阈值
+    private static final float LIMB_MIN_THRESHOLD = 1.0f;
 
     // ========== 数据存储 ==========
 
@@ -149,58 +150,8 @@ public class ItemThornShard extends Item implements IBauble {
         float healthRatio = currentHealth / maxHealth;
         float regenAmount = BASE_REGEN_PER_SECOND * (1 + REGEN_LOW_HP_BONUS * (1 - healthRatio));
 
-        // 执行回血 - FirstAid兼容
-        healPlayerFirstAidCompat(player, regenAmount);
-    }
-
-    /**
-     * FirstAid兼容的治疗 - 优先治疗四肢
-     */
-    private void healPlayerFirstAidCompat(EntityPlayer player, float amount) {
-        if (tryFirstAidHeal(player, amount)) {
-            return;
-        }
-        player.heal(amount);
-    }
-
-    @Optional.Method(modid = "firstaid")
-    private boolean tryFirstAidHeal(EntityPlayer player, float amount) {
-        try {
-            ichttt.mods.firstaid.api.damagesystem.AbstractPlayerDamageModel damageModel =
-                ichttt.mods.firstaid.api.CapabilityExtendedHealthSystem.getExtendedHealthSystem(player);
-
-            if (damageModel == null) return false;
-
-            ichttt.mods.firstaid.api.damagesystem.AbstractDamageablePart[] limbs = {
-                damageModel.LEFT_ARM, damageModel.RIGHT_ARM,
-                damageModel.LEFT_LEG, damageModel.RIGHT_LEG
-            };
-
-            float remaining = amount;
-            for (ichttt.mods.firstaid.api.damagesystem.AbstractDamageablePart limb : limbs) {
-                if (remaining <= 0) break;
-                float canHeal = limb.getMaxHealth() - limb.currentHealth;
-                if (canHeal > 0) {
-                    float healed = Math.min(canHeal, remaining);
-                    limb.currentHealth += healed;
-                    remaining -= healed;
-                }
-            }
-
-            if (remaining > 0) {
-                float headHeal = Math.min(damageModel.HEAD.getMaxHealth() - damageModel.HEAD.currentHealth, remaining / 2);
-                damageModel.HEAD.currentHealth += headHeal;
-                remaining -= headHeal;
-            }
-            if (remaining > 0) {
-                float bodyHeal = Math.min(damageModel.BODY.getMaxHealth() - damageModel.BODY.currentHealth, remaining);
-                damageModel.BODY.currentHealth += bodyHeal;
-            }
-
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
+        // 普通治疗（FirstAid会自动处理部位分配）
+        player.heal(regenAmount);
     }
 
     // ========== 死亡检查 ==========
@@ -243,15 +194,16 @@ public class ItemThornShard extends Item implements IBauble {
         }
 
         // 清空饰品栏（保留七咒之戒）
-        for (int i = 0; i < BaublesApi.getBaublesHandler(player).getSlots(); i++) {
-            ItemStack bauble = BaublesApi.getBaubles(player).getStackInSlot(i);
+        IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(player);
+        for (int i = 0; i < baubles.getSlots(); i++) {
+            ItemStack bauble = baubles.getStackInSlot(i);
             if (!bauble.isEmpty()) {
                 // 只保留七咒之戒
                 if (bauble.getItem().getRegistryName() != null &&
                     "cursed_ring".equals(bauble.getItem().getRegistryName().getPath())) {
                     continue;
                 }
-                BaublesApi.getBaubles(player).setStackInSlot(i, ItemStack.EMPTY);
+                baubles.setStackInSlot(i, ItemStack.EMPTY);
             }
         }
     }
@@ -261,7 +213,7 @@ public class ItemThornShard extends Item implements IBauble {
     /**
      * 玩家受伤时累积
      */
-    @SubscribeEvent(priority = EventPriority.MONITOR)
+    @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onPlayerHurt(LivingHurtEvent event) {
         if (event.isCanceled()) return;
         if (!(event.getEntityLiving() instanceof EntityPlayer)) return;
@@ -277,18 +229,19 @@ public class ItemThornShard extends Item implements IBauble {
 
     /**
      * FirstAid兼容 - 所有伤害优先转移到四肢
+     * 参考 IntegratedShieldSystem.prioritizeLimbDamage
      */
     @Optional.Method(modid = "firstaid")
     @SubscribeEvent(priority = EventPriority.HIGH)
-    public static void onFirstAidDamage(FirstAidLivingDamageEvent event) {
+    public static void onFirstAidDamage(ichttt.mods.firstaid.api.event.FirstAidLivingDamageEvent event) {
         if (!(event.getEntityLiving() instanceof EntityPlayer)) return;
         if (event.getEntityLiving().world.isRemote) return;
 
         EntityPlayer player = (EntityPlayer) event.getEntityLiving();
         if (!hasThornShard(player)) return;
 
-        AbstractPlayerDamageModel before = event.getBeforeDamage();
-        AbstractPlayerDamageModel after = event.getAfterDamage();
+        ichttt.mods.firstaid.api.damagesystem.AbstractPlayerDamageModel before = event.getBeforeDamage();
+        ichttt.mods.firstaid.api.damagesystem.AbstractPlayerDamageModel after = event.getAfterDamage();
 
         // 计算要害受到的伤害
         float headDamage = Math.max(0, before.HEAD.currentHealth - after.HEAD.currentHealth);
@@ -298,14 +251,14 @@ public class ItemThornShard extends Item implements IBauble {
         if (vitalDamage <= 0) return;
 
         // 计算四肢可承受的伤害
-        AbstractDamageablePart[] limbs = {
+        ichttt.mods.firstaid.api.damagesystem.AbstractDamageablePart[] limbs = {
             after.LEFT_ARM, after.RIGHT_ARM,
             after.LEFT_LEG, after.RIGHT_LEG
         };
 
         float limbCapacity = 0;
-        for (AbstractDamageablePart limb : limbs) {
-            float canTake = limb.currentHealth - 1.0f; // 保留1血
+        for (ichttt.mods.firstaid.api.damagesystem.AbstractDamageablePart limb : limbs) {
+            float canTake = limb.currentHealth - LIMB_MIN_THRESHOLD;
             if (canTake > 0) limbCapacity += canTake;
         }
 
@@ -330,9 +283,9 @@ public class ItemThornShard extends Item implements IBauble {
 
         // 将伤害分配到四肢
         float remaining = shift;
-        for (AbstractDamageablePart limb : limbs) {
+        for (ichttt.mods.firstaid.api.damagesystem.AbstractDamageablePart limb : limbs) {
             if (remaining <= 0) break;
-            float canTake = limb.currentHealth - 1.0f;
+            float canTake = limb.currentHealth - LIMB_MIN_THRESHOLD;
             if (canTake <= 0) continue;
 
             float taken = Math.min(canTake, remaining);
@@ -355,9 +308,13 @@ public class ItemThornShard extends Item implements IBauble {
 
         UUID uuid = player.getUniqueID();
 
-        // 执行自伤
+        // 执行自伤（延迟执行避免事件冲突）
+        // 使用普通伤害，FirstAid会自动处理，然后被我们的onFirstAidDamage拦截优先扣四肢
         player.world.getMinecraftServer().addScheduledTask(() -> {
-            applySelfDamage(player);
+            player.attackEntityFrom(
+                new DamageSource("thornSelf").setDamageBypassesArmor(),
+                SELF_DAMAGE_AMOUNT
+            );
         });
 
         // 应用伤害加成
@@ -368,58 +325,6 @@ public class ItemThornShard extends Item implements IBauble {
                 float newDamage = event.getAmount() * (1 + bonus);
                 event.setAmount(newDamage);
             }
-        }
-    }
-
-    /**
-     * 执行自伤 - FirstAid兼容
-     */
-    private static void applySelfDamage(EntityPlayer player) {
-        if (tryFirstAidSelfDamage(player, SELF_DAMAGE_AMOUNT)) {
-            UUID uuid = player.getUniqueID();
-            BloodData data = BLOOD_DATA.computeIfAbsent(uuid, k -> new BloodData());
-            data.addDamage(SELF_DAMAGE_AMOUNT);
-            return;
-        }
-
-        player.attackEntityFrom(
-            new DamageSource("thornSelf").setDamageBypassesArmor(),
-            SELF_DAMAGE_AMOUNT
-        );
-    }
-
-    @Optional.Method(modid = "firstaid")
-    private static boolean tryFirstAidSelfDamage(EntityPlayer player, float damage) {
-        try {
-            ichttt.mods.firstaid.api.damagesystem.AbstractPlayerDamageModel damageModel =
-                ichttt.mods.firstaid.api.CapabilityExtendedHealthSystem.getExtendedHealthSystem(player);
-
-            if (damageModel == null) return false;
-
-            ichttt.mods.firstaid.api.damagesystem.AbstractDamageablePart[] limbs = {
-                damageModel.LEFT_ARM, damageModel.RIGHT_ARM,
-                damageModel.LEFT_LEG, damageModel.RIGHT_LEG
-            };
-
-            float remaining = damage;
-            for (ichttt.mods.firstaid.api.damagesystem.AbstractDamageablePart limb : limbs) {
-                if (remaining <= 0) break;
-                float canTake = limb.currentHealth - 1.0f;
-                if (canTake > 0) {
-                    float taken = Math.min(canTake, remaining);
-                    limb.currentHealth -= taken;
-                    remaining -= taken;
-                }
-            }
-
-            if (remaining > 0 && damageModel.BODY.currentHealth > 2.0f) {
-                float bodyTake = Math.min(damageModel.BODY.currentHealth - 2.0f, remaining);
-                damageModel.BODY.currentHealth -= bodyTake;
-            }
-
-            return true;
-        } catch (Exception e) {
-            return false;
         }
     }
 
@@ -491,8 +396,9 @@ public class ItemThornShard extends Item implements IBauble {
         equipmentStacks.add(player.getHeldItemOffhand());
         equipmentStacks.addAll(player.inventory.armorInventory);
 
-        for (int i = 0; i < BaublesApi.getBaublesHandler(player).getSlots(); i++) {
-            equipmentStacks.add(BaublesApi.getBaubles(player).getStackInSlot(i));
+        IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(player);
+        for (int i = 0; i < baubles.getSlots(); i++) {
+            equipmentStacks.add(baubles.getStackInSlot(i));
         }
 
         return equipmentStacks;
@@ -501,8 +407,9 @@ public class ItemThornShard extends Item implements IBauble {
     // ========== 辅助方法 ==========
 
     public static boolean hasThornShard(EntityPlayer player) {
-        for (int i = 0; i < BaublesApi.getBaublesHandler(player).getSlots(); i++) {
-            ItemStack bauble = BaublesApi.getBaubles(player).getStackInSlot(i);
+        IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(player);
+        for (int i = 0; i < baubles.getSlots(); i++) {
+            ItemStack bauble = baubles.getStackInSlot(i);
             if (!bauble.isEmpty() && bauble.getItem() instanceof ItemThornShard) {
                 return true;
             }
@@ -511,8 +418,9 @@ public class ItemThornShard extends Item implements IBauble {
     }
 
     private static boolean hasCursedRing(EntityPlayer player) {
-        for (int i = 0; i < BaublesApi.getBaublesHandler(player).getSlots(); i++) {
-            ItemStack bauble = BaublesApi.getBaubles(player).getStackInSlot(i);
+        IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(player);
+        for (int i = 0; i < baubles.getSlots(); i++) {
+            ItemStack bauble = baubles.getStackInSlot(i);
             if (!bauble.isEmpty() &&
                     bauble.getItem().getRegistryName() != null &&
                     "cursed_ring".equals(bauble.getItem().getRegistryName().getPath())) {
