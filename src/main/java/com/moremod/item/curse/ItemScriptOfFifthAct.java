@@ -531,26 +531,12 @@ public class ItemScriptOfFifthAct extends Item implements IBauble {
     }
 
     /**
-     * 应用结算伤害（分多次，兼容 First Aid）
+     * 应用结算伤害（使用 SCRIPT_SETTLE 标记，绕过剧本缓存）
      */
     private void applySettlementDamage(EntityPlayer player, float totalDamage) {
-        // 分5次造成伤害，每次间隔2tick
-        int ticks = 5;
-        float damagePerTick = totalDamage / ticks;
-
-        for (int i = 0; i < ticks; i++) {
-            final float damage = damagePerTick;
-            // 使用调度延迟伤害（简化实现，直接造成）
-            if (i == 0) {
-                TrueDamageHelper.applyWrappedTrueDamage(player, null, damage,
-                        TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE);
-            }
-            // 注：完整实现需要使用服务端调度器分多tick造成
-        }
-
-        // 简化：直接造成全部伤害（TODO: 实现分段伤害）
+        // 使用 SCRIPT_SETTLE 标记，确保结算伤害不会被再次缓存
         TrueDamageHelper.applyWrappedTrueDamage(player, null, totalDamage,
-                TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE);
+                TrueDamageHelper.TrueDamageFlag.SCRIPT_SETTLE);
     }
 
     /**

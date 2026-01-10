@@ -7,6 +7,8 @@ key.moremod.vein_mining=Vein Mining Trigger
 
 # Death Messages
 death.attack.dissolution=%s died from completely detaching from the laws of existence
+death.attack.moremod.true_damage=%s was killed by true damage
+death.attack.moremod.true_damage.player=%s was killed by %s with true damage
 
 # Synergy System
 tile.synergy_station.name=Synergy Linking Station

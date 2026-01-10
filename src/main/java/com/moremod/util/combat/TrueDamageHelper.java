@@ -1,6 +1,7 @@
 package com.moremod.util.combat;
 
 import com.moremod.item.ItemMechanicalCore;
+import com.moremod.item.curse.ItemScriptOfFifthAct;
 import com.moremod.util.BaublesCompatibility;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
@@ -96,7 +97,7 @@ public class TrueDamageHelper {
     public static boolean applyWrappedTrueDamage(EntityLivingBase target,
                                                  @Nullable Entity source,
                                                  float trueDamage,
-                                                 @SuppressWarnings("unused") TrueDamageFlag flag) {
+                                                 TrueDamageFlag flag) {
         if (target == null || target.world.isRemote) return false;
         if (trueDamage <= 0) return false;
         if (target.isDead) return false;
@@ -107,6 +108,16 @@ public class TrueDamageHelper {
             if (hasMechanicalCoreEquipped(player)) {
                 // 机械核心免疫真实伤害，不消耗能量，完全免疫
                 return false;
+            }
+        }
+
+        // ★ 第五幕剧本：真伤缓存到剧本 ★
+        // 注意：SCRIPT_SETTLE 和 PHANTOM_STRIKE 是剧本自己的结算伤害，不应被缓存
+        if (target instanceof EntityPlayer && flag != TrueDamageFlag.SCRIPT_SETTLE && flag != TrueDamageFlag.PHANTOM_STRIKE) {
+            EntityPlayer player = (EntityPlayer) target;
+            if (tryBufferToScript(player, trueDamage)) {
+                // 伤害已被剧本缓存，不实际造成
+                return true;
             }
         }
 
@@ -123,6 +134,39 @@ public class TrueDamageHelper {
         } finally {
             processingEntities.remove(targetId);
             IN_TRUE_DAMAGE.set(false);
+        }
+    }
+
+    /**
+     * 尝试将伤害缓存到第五幕剧本
+     * @return true 如果伤害被缓存，false 如果玩家没有剧本或不应缓存
+     */
+    private static boolean tryBufferToScript(EntityPlayer player, float damage) {
+        try {
+            // 检查是否佩戴剧本
+            if (!ItemScriptOfFifthAct.hasScript(player)) {
+                return false;
+            }
+
+            // 检查是否在落幕状态（落幕状态不缓存，直接受伤）
+            if (ItemScriptOfFifthAct.isInCurtainFall(player)) {
+                return false;
+            }
+
+            // 获取剧本数据
+            ItemScriptOfFifthAct.ScriptData data = ItemScriptOfFifthAct.getScriptData(player);
+            if (data == null || data.isSettling) {
+                return false;
+            }
+
+            // 缓存伤害
+            data.addDamage(damage);
+            data.recordCombat(player.world.getTotalWorldTime());
+
+            return true;
+        } catch (Exception e) {
+            // 如果出现任何错误，回退到正常伤害处理
+            return false;
         }
     }
 

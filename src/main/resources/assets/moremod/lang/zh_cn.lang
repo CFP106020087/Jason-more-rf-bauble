@@ -133,6 +133,8 @@ item.mechanical_heart.name=机械之心
 item.temporal_heart.name=归一心元石
 death.attack.malfunction=死于故障
 death.attack.dissolution=%s 因彻底脱离常理的存在而死
+death.attack.moremod.true_damage=%s 被真实伤害杀死
+death.attack.moremod.true_damage.player=%s 被 %s 以真实伤害杀死
 effect.moremod.malfunction=故障
 # 喷气背包系列
 item.jetpack_t1.name=喷气背包
