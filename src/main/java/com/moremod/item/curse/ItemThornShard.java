@@ -59,10 +59,11 @@ public class ItemThornShard extends Item implements IBauble {
     private static final float CURSE_BONUS_PER_CURSE = 0.1f;    // 每个诅咒+10%
     private static final float DEATH_THRESHOLD_MULTIPLIER = 5.0f; // 累积超过5倍最大血量=死
 
-    // 荆棘再生（改）：与王座之血绑定
-    private static final float REGEN_BASE_PER_SECOND = 0.3f;        // 基础回血
-    private static final float REGEN_PER_BLOOD_POINT = 0.02f;       // 每点累积伤害增加的回血
-    private static final float REGEN_MAX_PER_SECOND = 3.0f;         // 每秒最大回血
+    // 荆棘再生（改）：与王座之血绑定，参照香巴拉回血速度
+    private static final float REGEN_BASE_PER_SECOND = 0.5f;        // 基础回血（与香巴拉相同）
+    private static final float REGEN_MAX_PER_SECOND = 6.0f;         // 最大回血（比香巴拉略高，因为有死亡风险）
+    // 回血公式：基础 + (最大-基础) × (累积/阈值)
+    // 累积越接近死亡阈值，回血越快（赌博机制）
 
     // 四肢保护阈值
     private static final float LIMB_MIN_THRESHOLD = 1.0f;
@@ -144,13 +145,16 @@ public class ItemThornShard extends Item implements IBauble {
 
     /**
      * 荆棘再生：只有在王座之血激活时才回血
-     * 回血速度与累积伤害挂钩 - 累积越多，回血越快，但也越接近死亡
+     * 回血速度与累积伤害挂钩 - 累积越接近死亡阈值，回血越快
      *
-     * 公式：regenAmount = 基础 + 累积伤害 × 系数
+     * 公式：regenAmount = 基础 + (最大-基础) × (累积/阈值)
+     *
+     * 参照香巴拉：0.5-5.0/秒
+     * 荆棘王冠：0.5-6.0/秒（因为有死亡风险，所以上限更高）
      *
      * 设计理念：
-     * - 不攻击 = 没有自伤 = 没有累积 = 没有回血
-     * - 累积多 = 回血快，但接近死亡阈值
+     * - 不攻击 = 没有累积 = 没有回血（无法白嫖）
+     * - 累积接近阈值 = 回血极快，但可能随时死亡
      * - 这是一场与死亡的赌博
      */
     private void handleThornRegeneration(EntityPlayer player, UUID uuid) {
@@ -171,10 +175,14 @@ public class ItemThornShard extends Item implements IBauble {
         float maxHealth = player.getMaxHealth();
         if (currentHealth >= maxHealth) return;
 
-        // 回血公式：基础 + 累积伤害 × 系数
+        // 回血公式：基础 + (最大-基础) × (累积/阈值)
+        // 累积越接近死亡阈值，回血越快
         float bloodAmount = data.getCurrentBlood();
-        float regenAmount = REGEN_BASE_PER_SECOND + bloodAmount * REGEN_PER_BLOOD_POINT;
-        regenAmount = Math.min(regenAmount, REGEN_MAX_PER_SECOND);
+        float threshold = maxHealth * DEATH_THRESHOLD_MULTIPLIER;
+        float bloodRatio = Math.min(1.0f, bloodAmount / threshold); // 0-1
+
+        float regenAmount = REGEN_BASE_PER_SECOND +
+                (REGEN_MAX_PER_SECOND - REGEN_BASE_PER_SECOND) * bloodRatio;
 
         // 普通治疗（FirstAid会自动处理部位分配）
         player.heal(regenAmount);
@@ -524,7 +532,11 @@ public class ItemThornShard extends Item implements IBauble {
         list.add(TextFormatting.DARK_GREEN + "  ◈ 荆棘再生");
         list.add(TextFormatting.GRAY + "    唯有流血者，方得荆棘之眷顾");
         list.add(TextFormatting.DARK_GRAY + "    （只有王座之血激活时才回血）");
-        list.add(TextFormatting.DARK_GRAY + "    （累积越多，回血越快，但越接近死亡）");
+        list.add(TextFormatting.DARK_GRAY + "    回血: " + TextFormatting.GREEN +
+                 String.format("%.1f", REGEN_BASE_PER_SECOND) + TextFormatting.DARK_GRAY +
+                 " → " + TextFormatting.GREEN + String.format("%.1f", REGEN_MAX_PER_SECOND) +
+                 TextFormatting.DARK_GRAY + "/秒");
+        list.add(TextFormatting.DARK_GRAY + "    （累积越接近阈值，回血越快）");
         list.add("");
 
         list.add(TextFormatting.DARK_GRAY + "────────────────────────────────────");
@@ -545,9 +557,10 @@ public class ItemThornShard extends Item implements IBauble {
             float threshold = player.getMaxHealth() * DEATH_THRESHOLD_MULTIPLIER;
 
             if (blood > 0) {
-                // 计算当前回血速度
-                float regenRate = Math.min(REGEN_MAX_PER_SECOND,
-                        REGEN_BASE_PER_SECOND + blood * REGEN_PER_BLOOD_POINT);
+                // 计算当前回血速度（使用新公式：基础 + (最大-基础) × (累积/阈值)）
+                float bloodRatio = Math.min(1.0f, blood / threshold);
+                float regenRate = REGEN_BASE_PER_SECOND +
+                        (REGEN_MAX_PER_SECOND - REGEN_BASE_PER_SECOND) * bloodRatio;
 
                 list.add(TextFormatting.DARK_GRAY + "────────────────────────────────────");
                 list.add("");
