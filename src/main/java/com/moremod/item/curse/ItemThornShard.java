@@ -54,7 +54,7 @@ public class ItemThornShard extends Item implements IBauble {
     private static final long BLOOD_WINDOW_MS = 5000;           // 5秒窗口
     private static final float BLOOD_BASE_MULTIPLIER = 0.03f;   // 基础3%每点伤害
     private static final float CURSE_BONUS_PER_CURSE = 0.5f;    // 每个诅咒+50%
-    private static final float DEATH_THRESHOLD_MULTIPLIER = 10.0f; // 累积超过10倍最大血量=死
+    private static final float DEATH_THRESHOLD_MULTIPLIER = 5.0f; // 累积超过5倍最大血量=死
 
     // 荆棘再生
     private static final float BASE_REGEN_PER_SECOND = 0.5f;    // 基础0.5/秒
