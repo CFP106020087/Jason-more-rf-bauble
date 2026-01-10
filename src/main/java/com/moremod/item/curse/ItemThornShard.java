@@ -48,7 +48,7 @@ public class ItemThornShard extends Item implements IBauble {
     // ========== 常量配置 ==========
 
     // 自伤
-    private static final float SELF_DAMAGE_AMOUNT = 1.5f;
+    private static final float SELF_DAMAGE_AMOUNT = 5.0f;
 
     // 王座之血
     private static final long BLOOD_WINDOW_MS = 5000;           // 5秒窗口
@@ -211,12 +211,48 @@ public class ItemThornShard extends Item implements IBauble {
 
         float threshold = player.getMaxHealth() * DEATH_THRESHOLD_MULTIPLIER;
         if (data.totalDamage >= threshold) {
+            // 篡位者的末路：清空所有物品（除了七咒之戒）
+            clearAllItemsExceptCursedRing(player);
+
             // 使用高额普通伤害
             player.attackEntityFrom(
                 new DamageSource("thornOverload").setDamageBypassesArmor(),
                 Float.MAX_VALUE / 2
             );
             BLOOD_DATA.remove(uuid);
+        }
+    }
+
+    /**
+     * 清空玩家所有物品，只保留七咒之戒
+     */
+    private void clearAllItemsExceptCursedRing(EntityPlayer player) {
+        // 清空背包
+        for (int i = 0; i < player.inventory.mainInventory.size(); i++) {
+            player.inventory.mainInventory.set(i, ItemStack.EMPTY);
+        }
+
+        // 清空盔甲栏
+        for (int i = 0; i < player.inventory.armorInventory.size(); i++) {
+            player.inventory.armorInventory.set(i, ItemStack.EMPTY);
+        }
+
+        // 清空副手
+        for (int i = 0; i < player.inventory.offHandInventory.size(); i++) {
+            player.inventory.offHandInventory.set(i, ItemStack.EMPTY);
+        }
+
+        // 清空饰品栏（保留七咒之戒）
+        for (int i = 0; i < BaublesApi.getBaublesHandler(player).getSlots(); i++) {
+            ItemStack bauble = BaublesApi.getBaubles(player).getStackInSlot(i);
+            if (!bauble.isEmpty()) {
+                // 只保留七咒之戒
+                if (bauble.getItem().getRegistryName() != null &&
+                    "cursed_ring".equals(bauble.getItem().getRegistryName().getPath())) {
+                    continue;
+                }
+                BaublesApi.getBaubles(player).setStackInSlot(i, ItemStack.EMPTY);
+            }
         }
     }
 
@@ -527,8 +563,8 @@ public class ItemThornShard extends Item implements IBauble {
 
         // 荆棘自噬
         list.add(TextFormatting.DARK_RED + "  ◈ 荆棘自噬");
-        list.add(TextFormatting.GRAY + "    每一次挥击，荆棘都会刺入持有者的血肉");
-        list.add(TextFormatting.DARK_GRAY + "    （造成 " + TextFormatting.RED + "1.5" +
+        list.add(TextFormatting.GRAY + "    每一次挥击，荆棘都会深深刺入血肉");
+        list.add(TextFormatting.DARK_GRAY + "    （造成 " + TextFormatting.RED + "5" +
                  TextFormatting.DARK_GRAY + " 点自伤，优先侵蚀四肢）");
         list.add("");
 
@@ -561,7 +597,8 @@ public class ItemThornShard extends Item implements IBauble {
         // 代价
         list.add(TextFormatting.BLACK + "" + TextFormatting.BOLD + "  ✦ 篡位者的末路");
         list.add(TextFormatting.DARK_RED + "    当承受的苦难超越肉体所能承载...");
-        list.add(TextFormatting.DARK_RED + "    王冠便会收回它的馈赠。");
+        list.add(TextFormatting.DARK_RED + "    你将失去一切，");
+        list.add(TextFormatting.DARK_RED + "    唯余那枚诅咒的指环。");
         list.add("");
 
         // 当前状态
