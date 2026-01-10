@@ -26,6 +26,7 @@ public class moremodTransformer implements IClassTransformer {
     private static final boolean ENABLE_SHAMBHALA_DEATH     = true;
     private static final boolean ENABLE_TEMPORAL_DEATH      = true;  // 时序织印死亡回溯
     private static final boolean ENABLE_CURSE_DEATH         = true;  // 七咒之戒-虚无之眸死亡保护
+    private static final boolean ENABLE_SCRIPT_DEATH        = true;  // 第五幕剧本死亡拦截（落幕状态）
     private static final boolean ENABLE_GLITCH_ARMOR_DEATH  = true;  // 故障盔甲NULL异常
     private static final boolean ENABLE_SETDEAD_HOOK        = true;  // setDead() 终极防护（防止 /kill、虚空等）
     // 诛仙剑ASM开关 - 从配置动态读取
@@ -1373,6 +1374,25 @@ public class moremodTransformer implements IClassTransformer {
                     System.out.println("[moremodTransformer]     + Injected Curse (Void Gaze) death prevention at damageEntity HEAD");
                 }
 
+                // 第五幕剧本死亡拦截（落幕状态）
+                if (ENABLE_SCRIPT_DEATH) {
+                    LabelNode scriptContinue = new LabelNode();
+                    inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                    inject.add(new VarInsnNode(Opcodes.ALOAD, 1));
+                    inject.add(new VarInsnNode(Opcodes.FLOAD, 2));
+                    inject.add(new MethodInsnNode(
+                            Opcodes.INVOKESTATIC,
+                            "com/moremod/core/ScriptDeathHook",
+                            "checkAndPreventFatalDamage",
+                            "(Lnet/minecraft/entity/EntityLivingBase;Lnet/minecraft/util/DamageSource;F)Z",
+                            false
+                    ));
+                    inject.add(new JumpInsnNode(Opcodes.IFEQ, scriptContinue));
+                    inject.add(new InsnNode(Opcodes.RETURN));
+                    inject.add(scriptContinue);
+                    System.out.println("[moremodTransformer]     + Injected Script death prevention (Curtain Fall) at damageEntity HEAD");
+                }
+
                 // 故障盔甲NULL异常死亡保护
                 if (ENABLE_GLITCH_ARMOR_DEATH) {
                     LabelNode glitchContinue = new LabelNode();
@@ -1509,6 +1529,24 @@ public class moremodTransformer implements IClassTransformer {
                     inject.add(new InsnNode(Opcodes.RETURN));
                     inject.add(curseContinue);
                     System.out.println("[moremodTransformer]     + Injected Curse (Void Gaze) death prevention at onDeath HEAD");
+                }
+
+                // 第五幕剧本死亡拦截（最终防线）
+                if (ENABLE_SCRIPT_DEATH) {
+                    LabelNode scriptContinue = new LabelNode();
+                    inject.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                    inject.add(new VarInsnNode(Opcodes.ALOAD, 1));
+                    inject.add(new MethodInsnNode(
+                            Opcodes.INVOKESTATIC,
+                            "com/moremod/core/ScriptDeathHook",
+                            "shouldPreventDeath",
+                            "(Lnet/minecraft/entity/EntityLivingBase;Lnet/minecraft/util/DamageSource;)Z",
+                            false
+                    ));
+                    inject.add(new JumpInsnNode(Opcodes.IFEQ, scriptContinue));
+                    inject.add(new InsnNode(Opcodes.RETURN));
+                    inject.add(scriptContinue);
+                    System.out.println("[moremodTransformer]     + Injected Script death prevention (Curtain Fall) at onDeath HEAD");
                 }
 
                 // 故障盔甲NULL异常（最终防线）

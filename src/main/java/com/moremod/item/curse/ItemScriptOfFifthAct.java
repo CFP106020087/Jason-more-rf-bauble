@@ -3,15 +3,19 @@ package com.moremod.item.curse;
 import baubles.api.BaubleType;
 import baubles.api.BaublesApi;
 import baubles.api.IBauble;
+import com.moremod.core.CurseDeathHook;
 import com.moremod.util.combat.TrueDamageHelper;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.monster.EntityMob;
+import net.minecraft.entity.monster.IMob;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.init.MobEffects;
 import net.minecraft.init.SoundEvents;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.potion.PotionEffect;
+import net.minecraft.util.DamageSource;
 import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.SoundCategory;
 import net.minecraft.util.math.AxisAlignedBB;
@@ -20,6 +24,8 @@ import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.event.entity.living.LivingHealEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
@@ -35,54 +41,92 @@ import java.util.concurrent.ConcurrentHashMap;
  * 第五幕剧本 (Script of the Fifth Act)
  * "结局早已写好，哪怕演员对此一无所知。"
  *
- * 饰品类型：杂项 (Charm)
+ * ═══════════════════════════════════════════════════════════════
+ * 核心契约：戴上即与命运绑定，脱下即死
+ * ═══════════════════════════════════════════════════════════════
  *
- * 基础效果【宿命论】：
- * - 伤害延迟：受到的所有伤害不会立即扣除，而是被"记录"在剧本上
- * - 记录的是原始伤害（不含倍率）
- * - 谢幕条件：
- *   1. 记录伤害 ≥ 当前血量时立即结算
- *   2. 周围没有敌人时，伤害清零（杀光敌人则不结算）
+ * 【伤害缓存】受到的伤害不扣血，记录在剧本上
+ * 【戏剧张力】缓存越高，伤害加成越高（指数型：ratio² × 100%）
+ * 【击杀净化】每次击杀清除25%缓存
+ * 【输出抵消】对敌人造成的伤害，10%抵消缓存
+ * 【脱战结算】5秒无战斗 → 结算40%缓存伤害
+ * 【超载结算】缓存 > 150%最大血量 → 强制结算
+ * 【改写结局】结算时血量<30% → 0%自伤 + 200%反弹
  *
- * 结算规则：
- * - 正常结算：承受 50% 的记录伤害
- * - 改写结局（血量 < 30%）：300% 反弹，自己不受伤害
+ * 【契约代价】脱下饰品 → 立即死亡
+ * 【死亡底线】本该死亡 → ASM拦截，留1血，进入「落幕」
+ * 【落幕惩罚】30秒：受伤×2，禁止治疗，可能真死
  */
 @Mod.EventBusSubscriber(modid = "moremod")
 public class ItemScriptOfFifthAct extends Item implements IBauble {
+
+    // ═══════════════════════════════════════════════════════════════
+    // 常量配置
+    // ═══════════════════════════════════════════════════════════════
 
     // 检查敌人的范围
     private static final double ENEMY_CHECK_RANGE = 16.0;
     // 改写结局的血量阈值
     private static final float REWRITE_HEALTH_THRESHOLD = 0.3f;
     // 改写结局的伤害反弹倍率
-    private static final float REWRITE_REFLECT_MULTIPLIER = 3.0f;
+    private static final float REWRITE_REFLECT_MULTIPLIER = 2.0f;
     // 改写结局的反弹范围
     private static final double REWRITE_RANGE = 8.0;
-    // 正常结算的伤害比例（50%）
-    private static final float SETTLEMENT_DAMAGE_RATIO = 0.5f;
+    // 正常结算的伤害比例（40%）
+    private static final float SETTLEMENT_DAMAGE_RATIO = 0.4f;
+    // 超载阈值（150%最大血量）
+    private static final float OVERLOAD_THRESHOLD = 1.5f;
+    // 脱战时间（tick）- 5秒
+    private static final int OUT_OF_COMBAT_TICKS = 100;
+    // 击杀净化比例（25%）
+    private static final float KILL_PURGE_RATIO = 0.25f;
+    // 输出抵消比例（10%）
+    private static final float DAMAGE_OFFSET_RATIO = 0.10f;
 
-    // 玩家伤害缓存数据
+    // 落幕状态持续时间（毫秒）- 30秒
+    public static final long CURTAIN_FALL_DURATION_MS = 30000;
+    // 落幕状态受伤倍率
+    public static final float CURTAIN_FALL_DAMAGE_MULTIPLIER = 2.0f;
+
+    // ═══════════════════════════════════════════════════════════════
+    // 玩家数据
+    // ═══════════════════════════════════════════════════════════════
+
+    // 剧本数据
     private static final Map<UUID, ScriptData> SCRIPT_DATA = new ConcurrentHashMap<>();
+    // 落幕状态（死亡拦截后的惩罚期）
+    private static final Map<UUID, Long> CURTAIN_FALL_END_TIME = new ConcurrentHashMap<>();
+    // 正在结算中（防止递归）
+    private static final Set<UUID> SETTLING_PLAYERS = ConcurrentHashMap.newKeySet();
 
-    private static class ScriptData {
-        float bufferedDamage = 0;
-        long lastCombatTime = 0;
-        boolean isSettling = false; // 防止递归
+    /**
+     * 剧本数据类
+     */
+    public static class ScriptData {
+        public float bufferedDamage = 0;      // 缓存的伤害
+        public long lastCombatTime = 0;       // 最后战斗时间（tick）
+        public boolean isSettling = false;    // 是否正在结算
 
-        void addDamage(float damage) {
+        public void addDamage(float damage) {
             this.bufferedDamage += damage;
-            this.lastCombatTime = System.currentTimeMillis();
         }
 
-        void recordAttack() {
-            this.lastCombatTime = System.currentTimeMillis();
+        public void reduceDamage(float amount) {
+            this.bufferedDamage = Math.max(0, this.bufferedDamage - amount);
         }
 
-        void clearDamage() {
+        public void clearDamage() {
             this.bufferedDamage = 0;
         }
+
+        public void recordCombat(long worldTime) {
+            this.lastCombatTime = worldTime;
+        }
     }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 构造函数
+    // ═══════════════════════════════════════════════════════════════
 
     public ItemScriptOfFifthAct() {
         this.setMaxStackSize(1);
@@ -98,15 +142,69 @@ public class ItemScriptOfFifthAct extends Item implements IBauble {
     @Override
     public boolean canEquip(ItemStack itemstack, EntityLivingBase player) {
         if (!(player instanceof EntityPlayer)) return false;
-        return hasCursedRing((EntityPlayer) player);
+        return CurseDeathHook.hasCursedRing((EntityPlayer) player);
     }
 
     @Override
     public void onEquipped(ItemStack itemstack, EntityLivingBase player) {
-        if (player instanceof EntityPlayer) {
-            SCRIPT_DATA.put(player.getUniqueID(), new ScriptData());
+        if (player.world.isRemote) return;
+        if (!(player instanceof EntityPlayer)) return;
+
+        EntityPlayer p = (EntityPlayer) player;
+        UUID uuid = p.getUniqueID();
+
+        // 初始化数据
+        SCRIPT_DATA.put(uuid, new ScriptData());
+
+        // 契约提示
+        p.sendMessage(new TextComponentString(
+                TextFormatting.DARK_PURPLE + "══════════════════════════════════"
+        ));
+        p.sendMessage(new TextComponentString(
+                TextFormatting.LIGHT_PURPLE + "  「第五幕剧本」" + TextFormatting.GRAY + " 与你签订契约"
+        ));
+        p.sendMessage(new TextComponentString(
+                TextFormatting.DARK_RED + "  ⚠ 脱下此饰品将导致立即死亡"
+        ));
+        p.sendMessage(new TextComponentString(
+                TextFormatting.DARK_PURPLE + "══════════════════════════════════"
+        ));
+    }
+
+    @Override
+    public void onUnequipped(ItemStack itemstack, EntityLivingBase player) {
+        if (player.world.isRemote) return;
+        if (!(player instanceof EntityPlayer)) return;
+
+        EntityPlayer p = (EntityPlayer) player;
+        UUID uuid = p.getUniqueID();
+
+        // 清理数据
+        SCRIPT_DATA.remove(uuid);
+
+        // 契约代价：立即死亡（无视任何保护）
+        if (!p.isDead && p.getHealth() > 0) {
+            p.sendMessage(new TextComponentString(
+                    TextFormatting.DARK_RED + "「剧本被撕毁...你的故事到此结束」"
+            ));
+
+            // 粒子效果
+            if (p.world instanceof WorldServer) {
+                WorldServer ws = (WorldServer) p.world;
+                ws.spawnParticle(EnumParticleTypes.SMOKE_LARGE,
+                        p.posX, p.posY + 1, p.posZ,
+                        50, 0.5, 1.0, 0.5, 0.1);
+            }
+
+            // 直接设置死亡（绕过所有保护）
+            p.setHealth(0);
+            p.onDeath(DamageSource.OUT_OF_WORLD);
         }
     }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 每 Tick 更新
+    // ═══════════════════════════════════════════════════════════════
 
     @Override
     public void onWornTick(ItemStack stack, EntityLivingBase entity) {
@@ -116,79 +214,144 @@ public class ItemScriptOfFifthAct extends Item implements IBauble {
         UUID uuid = player.getUniqueID();
         ScriptData data = SCRIPT_DATA.get(uuid);
 
-        if (data == null || data.isSettling) return;
-
-        // 检查是否需要结算
-        boolean shouldSettle = false;
-        String settleReason = "";
-
-        // 条件1: 缓存伤害超过当前血量 -> 立即结算
-        if (data.bufferedDamage >= player.getHealth()) {
-            shouldSettle = true;
-            settleReason = "剧终：命定之死";
+        if (data == null) {
+            data = new ScriptData();
+            SCRIPT_DATA.put(uuid, data);
         }
 
-        // 条件2: 周围没有敌人 -> 杀光敌人，伤害清零
-        if (data.bufferedDamage > 0 && !shouldSettle) {
-            if (!hasNearbyEnemies(player)) {
-                // 杀光敌人，不结算，直接清零
-                data.clearDamage();
-                player.sendMessage(new TextComponentString(
-                        TextFormatting.GREEN + "✓ 剧本改写成功！" +
-                        TextFormatting.GRAY + " 所有敌人已被消灭，伤害记录清零"
-                ));
+        if (data.isSettling) return;
 
-                // 胜利粒子效果
-                if (player.world instanceof WorldServer) {
-                    WorldServer ws = (WorldServer) player.world;
-                    ws.spawnParticle(EnumParticleTypes.VILLAGER_HAPPY,
-                            player.posX, player.posY + 1, player.posZ,
-                            30, 0.5, 0.5, 0.5, 0.1);
-                    ws.playSound(null, player.getPosition(),
-                            SoundEvents.ENTITY_PLAYER_LEVELUP,
-                            SoundCategory.PLAYERS, 0.5F, 1.5F);
+        long currentTime = player.world.getTotalWorldTime();
+
+        // ═══════ 检查结算条件 ═══════
+
+        // 条件1: 超载（缓存 > 150% 最大血量）
+        float maxHP = player.getMaxHealth();
+        float overloadLimit = maxHP * OVERLOAD_THRESHOLD;
+
+        if (data.bufferedDamage > overloadLimit) {
+            settleDamage(player, data, "超载：剧本无法承受更多");
+            return;
+        }
+
+        // 条件2: 脱战（5秒无战斗且有缓存）
+        if (data.bufferedDamage > 0 && data.lastCombatTime > 0) {
+            long ticksSinceCombat = currentTime - data.lastCombatTime;
+            if (ticksSinceCombat >= OUT_OF_COMBAT_TICKS) {
+                // 检查周围是否还有敌人
+                if (!hasNearbyEnemies(player)) {
+                    // 杀光敌人，伤害清零！
+                    float cleared = data.bufferedDamage;
+                    data.clearDamage();
+                    player.sendMessage(new TextComponentString(
+                            TextFormatting.GREEN + "✓ 敌人已清除！" +
+                                    TextFormatting.GRAY + " 缓存伤害 " +
+                                    TextFormatting.YELLOW + String.format("%.0f", cleared) +
+                                    TextFormatting.GRAY + " 点已消散"
+                    ));
+                    spawnSuccessEffect(player);
+                } else {
+                    // 还有敌人但脱战了，结算
+                    settleDamage(player, data, "脱战：表演中断");
                 }
+                return;
             }
         }
 
-        if (shouldSettle) {
-            settleDamage(player, data, settleReason);
+        // ═══════ 状态显示 ═══════
+
+        // 每秒更新一次状态栏
+        if (currentTime % 20 == 0) {
+            displayStatus(player, data);
         }
 
-        // 显示当前状态（每秒更新一次）
-        if (entity.world.getTotalWorldTime() % 20 == 0 && data.bufferedDamage > 0) {
-            float healthRatio = player.getHealth() / player.getMaxHealth();
-            String healthStatus = healthRatio <= REWRITE_HEALTH_THRESHOLD ?
-                    TextFormatting.GREEN + "改写就绪" :
-                    TextFormatting.GRAY + "HP>" + (int)(REWRITE_HEALTH_THRESHOLD * 100) + "%";
-
+        // 落幕状态警告（每2秒提醒）
+        if (isInCurtainFall(player) && currentTime % 40 == 0) {
+            int remaining = getCurtainFallRemaining(player);
             player.sendStatusMessage(new TextComponentString(
-                    TextFormatting.DARK_PURPLE + "📜 剧本记录: " +
-                    TextFormatting.RED + String.format("%.1f", data.bufferedDamage) +
-                    TextFormatting.GRAY + " 伤害 | " + healthStatus
+                    TextFormatting.DARK_RED + "⚠ 【落幕】" +
+                            TextFormatting.RED + " 受伤×2 | 禁止治疗 | " +
+                            TextFormatting.YELLOW + remaining + "秒"
             ), true);
         }
     }
 
-    @Override
-    public void onUnequipped(ItemStack itemstack, EntityLivingBase player) {
-        if (player instanceof EntityPlayer) {
-            UUID uuid = player.getUniqueID();
-            ScriptData data = SCRIPT_DATA.get(uuid);
+    /**
+     * 显示状态栏信息
+     */
+    private void displayStatus(EntityPlayer player, ScriptData data) {
+        if (data.bufferedDamage <= 0) return;
 
-            // 卸下时立即结算所有伤害（无法触发改写结局）
-            if (data != null && data.bufferedDamage > 0) {
-                forceSettleDamage((EntityPlayer) player, data);
-            }
+        float maxHP = player.getMaxHealth();
+        float bufferRatio = data.bufferedDamage / maxHP;
+        float damageBonus = getDamageBonus(bufferRatio);
+        float healthRatio = player.getHealth() / maxHP;
 
-            SCRIPT_DATA.remove(uuid);
+        // 状态颜色
+        TextFormatting bufferColor;
+        String warningText = "";
+
+        if (bufferRatio >= 1.4f) {
+            bufferColor = TextFormatting.DARK_RED;
+            warningText = " ⚠超载临界！";
+        } else if (bufferRatio >= 1.0f) {
+            bufferColor = TextFormatting.RED;
+            warningText = " !危险";
+        } else if (bufferRatio >= 0.5f) {
+            bufferColor = TextFormatting.YELLOW;
+        } else {
+            bufferColor = TextFormatting.GREEN;
         }
+
+        // 改写结局就绪提示
+        String rewriteStatus = healthRatio <= REWRITE_HEALTH_THRESHOLD ?
+                TextFormatting.LIGHT_PURPLE + " [改写就绪]" : "";
+
+        player.sendStatusMessage(new TextComponentString(
+                TextFormatting.DARK_PURPLE + "📜 " +
+                        bufferColor + String.format("%.0f", data.bufferedDamage) +
+                        TextFormatting.GRAY + "/" +
+                        TextFormatting.WHITE + String.format("%.0f", maxHP * OVERLOAD_THRESHOLD) +
+                        TextFormatting.GRAY + " | 张力: " +
+                        TextFormatting.GOLD + "+" + String.format("%.0f%%", damageBonus * 100) +
+                        warningText + rewriteStatus
+        ), true);
     }
 
-    // ========== 事件处理 ==========
+    // ═══════════════════════════════════════════════════════════════
+    // 戏剧张力：伤害加成计算（指数型）
+    // ═══════════════════════════════════════════════════════════════
 
     /**
-     * 拦截伤害，记录到剧本（记录原始伤害，不含倍率）
+     * 计算戏剧张力伤害加成
+     * 公式：(缓存/最大血量)² × 100%
+     *
+     * @param bufferRatio 缓存比例（缓存伤害 / 最大血量）
+     * @return 伤害加成倍率（如 1.0 = +100%）
+     */
+    public static float getDamageBonus(float bufferRatio) {
+        return bufferRatio * bufferRatio; // ratio² × 100% = ratio²
+    }
+
+    /**
+     * 获取玩家当前的戏剧张力加成
+     */
+    public static float getPlayerDamageBonus(EntityPlayer player) {
+        if (!hasScript(player)) return 0;
+
+        ScriptData data = SCRIPT_DATA.get(player.getUniqueID());
+        if (data == null) return 0;
+
+        float bufferRatio = data.bufferedDamage / player.getMaxHealth();
+        return getDamageBonus(bufferRatio);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 事件处理：伤害缓存
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * 拦截玩家受到的伤害，记录到剧本
      */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onPlayerHurt(LivingHurtEvent event) {
@@ -197,37 +360,31 @@ public class ItemScriptOfFifthAct extends Item implements IBauble {
 
         EntityPlayer player = (EntityPlayer) event.getEntityLiving();
 
-        // 检查是否佩戴剧本
         if (!hasScript(player)) return;
+        if (!CurseDeathHook.hasCursedRing(player)) return;
 
-        // 检查是否有七咒联动
-        if (!hasCursedRing(player)) return;
+        // 检查是否在结算中（结算伤害不应被缓存）
+        if (SETTLING_PLAYERS.contains(player.getUniqueID())) return;
 
         ScriptData data = SCRIPT_DATA.get(player.getUniqueID());
         if (data == null || data.isSettling) return;
 
-        // 获取原始伤害（在任何倍率应用之前）
-        // 注意：由于我们使用 HIGHEST 优先级，这应该是最早的伤害值
         float damage = event.getAmount();
 
-        // 检查是否是七咒翻倍后的伤害，如果是则还原
-        // 七咒之戒会将伤害翻倍，我们需要记录原始值
-        // 这里假设七咒翻倍在我们之后处理，所以 damage 应该是原始值
+        // 落幕状态：伤害翻倍且不缓存
+        if (isInCurtainFall(player)) {
+            event.setAmount(damage * CURTAIN_FALL_DAMAGE_MULTIPLIER);
+            return; // 不缓存，直接受伤
+        }
 
+        // 缓存伤害
         data.addDamage(damage);
+        data.recordCombat(player.world.getTotalWorldTime());
 
         // 取消实际伤害
         event.setCanceled(true);
 
-        // 显示记录
-        player.sendStatusMessage(new TextComponentString(
-                TextFormatting.DARK_PURPLE + "📜 记录伤害: " +
-                TextFormatting.RED + String.format("%.1f", damage) +
-                TextFormatting.GRAY + " (总计: " +
-                TextFormatting.GOLD + String.format("%.1f", data.bufferedDamage) + ")"
-        ), true);
-
-        // 血迹粒子效果（视觉假象）
+        // 视觉效果
         if (player.world instanceof WorldServer) {
             WorldServer ws = (WorldServer) player.world;
             ws.spawnParticle(EnumParticleTypes.REDSTONE,
@@ -237,185 +394,173 @@ public class ItemScriptOfFifthAct extends Item implements IBauble {
     }
 
     /**
-     * 记录玩家攻击（用于战斗状态判定）
+     * 玩家攻击：应用戏剧张力加成 + 输出抵消
      */
-    @SubscribeEvent
-    public static void onPlayerAttack(LivingAttackEvent event) {
+    @SubscribeEvent(priority = EventPriority.LOW)
+    public static void onPlayerAttack(LivingHurtEvent event) {
         if (!(event.getSource().getTrueSource() instanceof EntityPlayer)) return;
 
         EntityPlayer player = (EntityPlayer) event.getSource().getTrueSource();
+        if (player.world.isRemote) return;
+
+        if (!hasScript(player)) return;
+        if (!CurseDeathHook.hasCursedRing(player)) return;
+
+        ScriptData data = SCRIPT_DATA.get(player.getUniqueID());
+        if (data == null) return;
+
+        // 记录战斗时间
+        data.recordCombat(player.world.getTotalWorldTime());
+
+        float originalDamage = event.getAmount();
+
+        // 应用戏剧张力加成
+        float bufferRatio = data.bufferedDamage / player.getMaxHealth();
+        float damageBonus = getDamageBonus(bufferRatio);
+        float boostedDamage = originalDamage * (1.0f + damageBonus);
+        event.setAmount(boostedDamage);
+
+        // 输出抵消：造成伤害的10%抵消缓存
+        float offset = boostedDamage * DAMAGE_OFFSET_RATIO;
+        if (offset > 0 && data.bufferedDamage > 0) {
+            data.reduceDamage(offset);
+        }
+    }
+
+    /**
+     * 玩家击杀：净化缓存
+     */
+    @SubscribeEvent
+    public static void onEntityKilled(LivingDeathEvent event) {
+        DamageSource source = event.getSource();
+        if (!(source.getTrueSource() instanceof EntityPlayer)) return;
+
+        EntityPlayer player = (EntityPlayer) source.getTrueSource();
+        if (player.world.isRemote) return;
 
         if (!hasScript(player)) return;
 
         ScriptData data = SCRIPT_DATA.get(player.getUniqueID());
-        if (data != null) {
-            data.recordAttack();
+        if (data == null || data.bufferedDamage <= 0) return;
+
+        // 击杀净化：清除25%缓存
+        float purgeAmount = data.bufferedDamage * KILL_PURGE_RATIO;
+        data.reduceDamage(purgeAmount);
+
+        // 记录战斗时间
+        data.recordCombat(player.world.getTotalWorldTime());
+    }
+
+    /**
+     * 落幕状态：禁止治疗
+     */
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onPlayerHeal(LivingHealEvent event) {
+        if (!(event.getEntityLiving() instanceof EntityPlayer)) return;
+
+        EntityPlayer player = (EntityPlayer) event.getEntityLiving();
+
+        if (isInCurtainFall(player)) {
+            event.setCanceled(true);
         }
     }
 
-    // ========== 核心逻辑 ==========
+    // ═══════════════════════════════════════════════════════════════
+    // 结算逻辑
+    // ═══════════════════════════════════════════════════════════════
 
     /**
-     * 检查周围是否有敌人
+     * 结算缓存伤害
      */
-    private static boolean hasNearbyEnemies(EntityPlayer player) {
-        AxisAlignedBB aabb = player.getEntityBoundingBox().grow(ENEMY_CHECK_RANGE);
-        List<EntityLivingBase> entities = player.world.getEntitiesWithinAABB(
-                EntityLivingBase.class, aabb,
-                e -> e != player && e.isEntityAlive() && isHostile(e, player)
-        );
-        return !entities.isEmpty();
-    }
-
-    /**
-     * 判断实体是否对玩家敌对
-     */
-    private static boolean isHostile(EntityLivingBase entity, EntityPlayer player) {
-        if (entity instanceof EntityMob) return true;
-        if (!entity.isOnSameTeam(player)) {
-            if (entity instanceof EntityPlayer) return false;
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * 结算所有缓存伤害
-     */
-    private static void settleDamage(EntityPlayer player, ScriptData data, String reason) {
+    private void settleDamage(EntityPlayer player, ScriptData data, String reason) {
         if (data.bufferedDamage <= 0) return;
 
+        UUID uuid = player.getUniqueID();
         data.isSettling = true;
-        float totalDamage = data.bufferedDamage;
-        float currentHealth = player.getHealth();
-        float healthRatio = currentHealth / player.getMaxHealth();
+        SETTLING_PLAYERS.add(uuid);
 
-        // 检查是否触发【改写结局】
-        boolean rewriteTriggered = healthRatio <= REWRITE_HEALTH_THRESHOLD;
+        try {
+            float totalDamage = data.bufferedDamage;
+            float healthRatio = player.getHealth() / player.getMaxHealth();
 
-        if (rewriteTriggered) {
-            // 改写结局：300% 反弹，自己也承受 50% 伤害
-            float reflectDamage = totalDamage * REWRITE_REFLECT_MULTIPLIER;
-            float settleDamage = totalDamage * SETTLEMENT_DAMAGE_RATIO;
+            // 检查是否触发【改写结局】
+            boolean rewriteTriggered = healthRatio <= REWRITE_HEALTH_THRESHOLD;
 
-            // 反弹给周围敌人
-            int enemiesHit = reflectDamageToNearby(player, reflectDamage);
+            if (rewriteTriggered) {
+                // ═══ 改写结局：0%自伤 + 200%反弹 ═══
+                float reflectDamage = totalDamage * REWRITE_REFLECT_MULTIPLIER;
+                int enemiesHit = reflectDamageToNearby(player, reflectDamage);
 
-            // 自己也承受 50% 伤害
-            applySettledDamage(player, settleDamage);
+                player.sendMessage(new TextComponentString(
+                        TextFormatting.LIGHT_PURPLE + "✨ 【改写结局】" +
+                                TextFormatting.GRAY + " 反弹 " +
+                                TextFormatting.RED + String.format("%.0f", reflectDamage) +
+                                TextFormatting.GRAY + " 伤害给 " +
+                                TextFormatting.GOLD + enemiesHit +
+                                TextFormatting.GRAY + " 个敌人！" +
+                                TextFormatting.GREEN + " (自身无伤)"
+                ));
 
-            // 效果提示
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.LIGHT_PURPLE + "✨ 改写结局！" +
-                    TextFormatting.GRAY + " 反弹 " +
-                    TextFormatting.RED + String.format("%.0f", reflectDamage) +
-                    TextFormatting.GRAY + " 伤害给 " +
-                    TextFormatting.GOLD + enemiesHit +
-                    TextFormatting.GRAY + " 个敌人！"
-            ));
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.YELLOW + "承受 " +
-                    TextFormatting.RED + String.format("%.1f", settleDamage) +
-                    TextFormatting.YELLOW + " 伤害 (50%)"
-            ));
+                spawnRewriteEffect(player);
 
-            // 粒子效果
-            if (player.world instanceof WorldServer) {
-                WorldServer ws = (WorldServer) player.world;
-                ws.spawnParticle(EnumParticleTypes.FLAME,
-                        player.posX, player.posY + 1, player.posZ,
-                        50, 0.5, 1.0, 0.5, 0.1);
-                ws.spawnParticle(EnumParticleTypes.SPELL_WITCH,
-                        player.posX, player.posY + 1, player.posZ,
-                        40, 0.5, 0.8, 0.5, 0.0);
-                ws.spawnParticle(EnumParticleTypes.ENCHANTMENT_TABLE,
-                        player.posX, player.posY + 1.5, player.posZ,
-                        30, 0.3, 0.5, 0.3, 0.5);
-                ws.playSound(null, player.getPosition(),
-                        SoundEvents.ITEM_FIRECHARGE_USE,
-                        SoundCategory.PLAYERS, 1.0F, 0.8F);
-                ws.playSound(null, player.getPosition(),
-                        SoundEvents.ENTITY_PLAYER_LEVELUP,
-                        SoundCategory.PLAYERS, 1.0F, 0.5F);
+            } else {
+                // ═══ 正常结算：承受40%伤害 ═══
+                float settleDamage = totalDamage * SETTLEMENT_DAMAGE_RATIO;
+
+                player.sendMessage(new TextComponentString(
+                        TextFormatting.DARK_RED + "📜 " + reason +
+                                TextFormatting.GRAY + " | 结算 " +
+                                TextFormatting.RED + String.format("%.0f", settleDamage) +
+                                TextFormatting.GRAY + " 伤害 (40%)"
+                ));
+
+                // 应用伤害
+                applySettlementDamage(player, settleDamage);
+
+                spawnSettleEffect(player);
             }
-        } else {
-            // 正常结算：承受 50% 伤害
-            float settleDamage = totalDamage * SETTLEMENT_DAMAGE_RATIO;
-            applySettledDamage(player, settleDamage);
 
-            // 效果提示
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.DARK_RED + "📜 " + reason +
-                    TextFormatting.GRAY + " 结算 " +
-                    TextFormatting.RED + String.format("%.1f", settleDamage) +
-                    TextFormatting.GRAY + " 伤害 (50%)"
-            ));
+            // 清空缓存
+            data.clearDamage();
+            data.lastCombatTime = 0;
 
-            // 提示改写结局条件
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.GRAY + "(血量低于 " +
-                    TextFormatting.GOLD + "30%" +
-                    TextFormatting.GRAY + " 时可触发改写结局)"
-            ));
+        } finally {
+            data.isSettling = false;
+            SETTLING_PLAYERS.remove(uuid);
+        }
+    }
 
-            // 结算粒子效果
-            if (player.world instanceof WorldServer) {
-                WorldServer ws = (WorldServer) player.world;
-                ws.spawnParticle(EnumParticleTypes.DAMAGE_INDICATOR,
-                        player.posX, player.posY + 1, player.posZ,
-                        20, 0.3, 0.5, 0.3, 0.1);
-                ws.playSound(null, player.getPosition(),
-                        SoundEvents.ENTITY_PLAYER_HURT,
-                        SoundCategory.PLAYERS, 1.0F, 0.5F);
+    /**
+     * 应用结算伤害（分多次，兼容 First Aid）
+     */
+    private void applySettlementDamage(EntityPlayer player, float totalDamage) {
+        // 分5次造成伤害，每次间隔2tick
+        int ticks = 5;
+        float damagePerTick = totalDamage / ticks;
+
+        for (int i = 0; i < ticks; i++) {
+            final float damage = damagePerTick;
+            // 使用调度延迟伤害（简化实现，直接造成）
+            if (i == 0) {
+                TrueDamageHelper.applyWrappedTrueDamage(player, null, damage,
+                        TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE);
             }
+            // 注：完整实现需要使用服务端调度器分多tick造成
         }
 
-        // 清空缓存
-        data.bufferedDamage = 0;
-        data.isSettling = false;
-    }
-
-    /**
-     * 强制结算伤害（卸下饰品时，无法触发改写结局，但仍然只承受50%）
-     */
-    private static void forceSettleDamage(EntityPlayer player, ScriptData data) {
-        if (data.bufferedDamage <= 0) return;
-
-        data.isSettling = true;
-        float totalDamage = data.bufferedDamage;
-        float settleDamage = totalDamage * SETTLEMENT_DAMAGE_RATIO;
-
-        // 直接承受 50% 伤害
-        applySettledDamage(player, settleDamage);
-
-        player.sendMessage(new TextComponentString(
-                TextFormatting.DARK_RED + "📜 剧本被撕毁！" +
-                TextFormatting.GRAY + " 强制结算 " +
-                TextFormatting.RED + String.format("%.1f", settleDamage) +
-                TextFormatting.GRAY + " 伤害 (50%)"
-        ));
-
-        data.bufferedDamage = 0;
-        data.isSettling = false;
-    }
-
-    /**
-     * 应用结算伤害（使用真伤）
-     */
-    private static void applySettledDamage(EntityPlayer player, float damage) {
-        TrueDamageHelper.applyWrappedTrueDamage(player, null, damage,
-                TrueDamageHelper.TrueDamageFlag.EXECUTE);
+        // 简化：直接造成全部伤害（TODO: 实现分段伤害）
+        TrueDamageHelper.applyWrappedTrueDamage(player, null, totalDamage,
+                TrueDamageHelper.TrueDamageFlag.PHANTOM_STRIKE);
     }
 
     /**
      * 反弹伤害给周围敌人
-     * @return 命中的敌人数量
      */
     private static int reflectDamageToNearby(EntityPlayer player, float totalDamage) {
         AxisAlignedBB aabb = player.getEntityBoundingBox().grow(REWRITE_RANGE);
         List<EntityLivingBase> entities = player.world.getEntitiesWithinAABB(
                 EntityLivingBase.class, aabb,
-                e -> e != player && e.isEntityAlive() && isHostile(e, player)
+                e -> e != player && e.isEntityAlive() && isHostile(e)
         );
 
         if (entities.isEmpty()) {
@@ -425,7 +570,7 @@ public class ItemScriptOfFifthAct extends Item implements IBauble {
             return 0;
         }
 
-        // 平分伤害给所有敌人
+        // 平分伤害
         float damagePerEntity = totalDamage / entities.size();
 
         for (EntityLivingBase target : entities) {
@@ -435,72 +580,180 @@ public class ItemScriptOfFifthAct extends Item implements IBauble {
             // 粒子效果
             if (player.world instanceof WorldServer) {
                 WorldServer ws = (WorldServer) player.world;
-
-                // 从玩家到目标的连线
-                double dx = target.posX - player.posX;
-                double dy = (target.posY + target.height / 2) - (player.posY + 1);
-                double dz = target.posZ - player.posZ;
-
-                for (int i = 0; i < 15; i++) {
-                    double t = i / 15.0;
-                    ws.spawnParticle(EnumParticleTypes.SPELL_WITCH,
-                            player.posX + dx * t,
-                            player.posY + 1 + dy * t,
-                            player.posZ + dz * t,
-                            1, 0, 0, 0.0, 0);
-                }
-
-                // 目标位置爆炸效果
                 ws.spawnParticle(EnumParticleTypes.DAMAGE_INDICATOR,
                         target.posX, target.posY + target.height / 2, target.posZ,
-                        15, 0.3, 0.3, 0.3, 0.1);
-                ws.spawnParticle(EnumParticleTypes.CRIT_MAGIC,
-                        target.posX, target.posY + target.height / 2, target.posZ,
-                        10, 0.2, 0.2, 0.2, 0.1);
+                        10, 0.3, 0.3, 0.3, 0.1);
             }
         }
 
         return entities.size();
     }
 
-    // ========== 辅助方法 ==========
+    // ═══════════════════════════════════════════════════════════════
+    // 落幕状态管理（供 ASM Hook 调用）
+    // ═══════════════════════════════════════════════════════════════
 
     /**
-     * 检查玩家是否佩戴第五幕剧本
+     * 进入落幕状态
+     */
+    public static void enterCurtainFall(EntityPlayer player) {
+        CURTAIN_FALL_END_TIME.put(player.getUniqueID(),
+                System.currentTimeMillis() + CURTAIN_FALL_DURATION_MS);
+
+        player.sendMessage(new TextComponentString(
+                TextFormatting.DARK_RED + "═══════════════════════════════════"
+        ));
+        player.sendMessage(new TextComponentString(
+                TextFormatting.RED + "  ☠ 【落幕】" + TextFormatting.GRAY + " 死亡已被拦截"
+        ));
+        player.sendMessage(new TextComponentString(
+                TextFormatting.DARK_RED + "  ⚠ 接下来 30 秒："
+        ));
+        player.sendMessage(new TextComponentString(
+                TextFormatting.RED + "    • 受到伤害 ×2"
+        ));
+        player.sendMessage(new TextComponentString(
+                TextFormatting.RED + "    • 禁止一切治疗"
+        ));
+        player.sendMessage(new TextComponentString(
+                TextFormatting.DARK_RED + "    • 再次死亡将无法阻止"
+        ));
+        player.sendMessage(new TextComponentString(
+                TextFormatting.DARK_RED + "═══════════════════════════════════"
+        ));
+
+        // 音效
+        player.world.playSound(null, player.posX, player.posY, player.posZ,
+                SoundEvents.ENTITY_WITHER_SPAWN, SoundCategory.PLAYERS, 0.5f, 0.5f);
+    }
+
+    /**
+     * 检查是否在落幕状态
+     */
+    public static boolean isInCurtainFall(EntityPlayer player) {
+        Long endTime = CURTAIN_FALL_END_TIME.get(player.getUniqueID());
+        if (endTime == null) return false;
+        if (System.currentTimeMillis() >= endTime) {
+            CURTAIN_FALL_END_TIME.remove(player.getUniqueID());
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * 获取落幕剩余时间（秒）
+     */
+    public static int getCurtainFallRemaining(EntityPlayer player) {
+        Long endTime = CURTAIN_FALL_END_TIME.get(player.getUniqueID());
+        if (endTime == null) return 0;
+        long remaining = endTime - System.currentTimeMillis();
+        return remaining > 0 ? (int) Math.ceil(remaining / 1000.0) : 0;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 辅助方法
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * 检查玩家是否佩戴剧本
      */
     public static boolean hasScript(EntityPlayer player) {
-        for (int i = 0; i < BaublesApi.getBaublesHandler(player).getSlots(); i++) {
-            ItemStack bauble = BaublesApi.getBaubles(player).getStackInSlot(i);
-            if (!bauble.isEmpty() && bauble.getItem() instanceof ItemScriptOfFifthAct) {
-                return true;
+        try {
+            for (int i = 0; i < BaublesApi.getBaublesHandler(player).getSlots(); i++) {
+                ItemStack bauble = BaublesApi.getBaubles(player).getStackInSlot(i);
+                if (!bauble.isEmpty() && bauble.getItem() instanceof ItemScriptOfFifthAct) {
+                    return true;
+                }
             }
-        }
+        } catch (Exception ignored) {}
         return false;
     }
 
     /**
-     * 检查玩家是否佩戴七咒之戒
+     * 获取玩家的剧本数据
      */
-    private static boolean hasCursedRing(EntityPlayer player) {
-        for (int i = 0; i < BaublesApi.getBaublesHandler(player).getSlots(); i++) {
-            ItemStack bauble = BaublesApi.getBaubles(player).getStackInSlot(i);
-            if (!bauble.isEmpty() &&
-                    bauble.getItem().getRegistryName() != null &&
-                    "cursed_ring".equals(bauble.getItem().getRegistryName().getPath())) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * 获取玩家的剧本数据（用于 tooltip）
-     */
-    private static ScriptData getScriptData(EntityPlayer player) {
+    public static ScriptData getScriptData(EntityPlayer player) {
         return SCRIPT_DATA.get(player.getUniqueID());
     }
 
-    // ========== 物品信息 ==========
+    /**
+     * 检查周围是否有敌人
+     */
+    private static boolean hasNearbyEnemies(EntityPlayer player) {
+        AxisAlignedBB aabb = player.getEntityBoundingBox().grow(ENEMY_CHECK_RANGE);
+        List<EntityLivingBase> entities = player.world.getEntitiesWithinAABB(
+                EntityLivingBase.class, aabb,
+                e -> e != player && e.isEntityAlive() && isHostile(e)
+        );
+        return !entities.isEmpty();
+    }
+
+    /**
+     * 判断实体是否敌对
+     */
+    private static boolean isHostile(EntityLivingBase entity) {
+        return entity instanceof IMob;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 粒子效果
+    // ═══════════════════════════════════════════════════════════════
+
+    private void spawnSuccessEffect(EntityPlayer player) {
+        if (!(player.world instanceof WorldServer)) return;
+        WorldServer ws = (WorldServer) player.world;
+        ws.spawnParticle(EnumParticleTypes.VILLAGER_HAPPY,
+                player.posX, player.posY + 1, player.posZ,
+                30, 0.5, 0.5, 0.5, 0.1);
+        ws.playSound(null, player.getPosition(),
+                SoundEvents.ENTITY_PLAYER_LEVELUP,
+                SoundCategory.PLAYERS, 0.5F, 1.5F);
+    }
+
+    private void spawnSettleEffect(EntityPlayer player) {
+        if (!(player.world instanceof WorldServer)) return;
+        WorldServer ws = (WorldServer) player.world;
+        ws.spawnParticle(EnumParticleTypes.DAMAGE_INDICATOR,
+                player.posX, player.posY + 1, player.posZ,
+                20, 0.3, 0.5, 0.3, 0.1);
+        ws.playSound(null, player.getPosition(),
+                SoundEvents.ENTITY_PLAYER_HURT,
+                SoundCategory.PLAYERS, 1.0F, 0.5F);
+    }
+
+    private static void spawnRewriteEffect(EntityPlayer player) {
+        if (!(player.world instanceof WorldServer)) return;
+        WorldServer ws = (WorldServer) player.world;
+        ws.spawnParticle(EnumParticleTypes.SPELL_WITCH,
+                player.posX, player.posY + 1, player.posZ,
+                50, 0.5, 1.0, 0.5, 0.1);
+        ws.spawnParticle(EnumParticleTypes.ENCHANTMENT_TABLE,
+                player.posX, player.posY + 1.5, player.posZ,
+                30, 0.3, 0.5, 0.3, 0.5);
+        ws.playSound(null, player.getPosition(),
+                SoundEvents.ENTITY_PLAYER_LEVELUP,
+                SoundCategory.PLAYERS, 1.0F, 0.5F);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 清理方法
+    // ═══════════════════════════════════════════════════════════════
+
+    public static void cleanupPlayer(UUID playerId) {
+        SCRIPT_DATA.remove(playerId);
+        CURTAIN_FALL_END_TIME.remove(playerId);
+        SETTLING_PLAYERS.remove(playerId);
+    }
+
+    public static void clearAllState() {
+        SCRIPT_DATA.clear();
+        CURTAIN_FALL_END_TIME.clear();
+        SETTLING_PLAYERS.clear();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // Tooltip
+    // ═══════════════════════════════════════════════════════════════
 
     @Override
     @SideOnly(Side.CLIENT)
@@ -511,68 +764,82 @@ public class ItemScriptOfFifthAct extends Item implements IBauble {
         list.add(TextFormatting.DARK_GRAY + "\"结局早已写好，");
         list.add(TextFormatting.DARK_GRAY + "  哪怕演员对此一无所知。\"");
 
-        if (player == null || !hasCursedRing(player)) {
+        // 装备限制
+        if (player == null || !CurseDeathHook.hasCursedRing(player)) {
             list.add("");
             list.add(TextFormatting.DARK_RED + "⚠ 需要佩戴七咒之戒才能装备");
         }
 
         list.add("");
-        list.add(TextFormatting.GOLD + "◆ 宿命论");
-        list.add(TextFormatting.GRAY + "  所有伤害被" + TextFormatting.LIGHT_PURPLE + "记录" +
-                TextFormatting.GRAY + "而非立即扣血");
-        list.add(TextFormatting.GRAY + "  " + TextFormatting.YELLOW + "谢幕条件：");
-        list.add(TextFormatting.GRAY + "  · 记录伤害 ≥ 当前血量时" + TextFormatting.RED + "立即结算");
-        list.add(TextFormatting.GRAY + "  · " + TextFormatting.GREEN + "杀光敌人" +
-                TextFormatting.GRAY + " → 伤害清零，不结算");
-
+        list.add(TextFormatting.DARK_RED + "══════ 契约警告 ══════");
+        list.add(TextFormatting.RED + "⚠ 脱下此饰品将导致" + TextFormatting.DARK_RED + "立即死亡");
         list.add("");
-        list.add(TextFormatting.AQUA + "◆ 结算规则");
-        list.add(TextFormatting.GRAY + "  正常结算：承受 " + TextFormatting.YELLOW + "50%" +
-                TextFormatting.GRAY + " 记录伤害");
 
+        // 核心机制
+        list.add(TextFormatting.GOLD + "◆ 伤害缓存");
+        list.add(TextFormatting.GRAY + "  受到的伤害不扣血，记录在剧本上");
         list.add("");
-        list.add(TextFormatting.LIGHT_PURPLE + "◆ 改写结局 " + TextFormatting.GRAY + "(被动)");
-        list.add(TextFormatting.GRAY + "  结算时若血量 < " + TextFormatting.RED + "30%" +
-                TextFormatting.GRAY + ":");
-        list.add(TextFormatting.GRAY + "  · " + TextFormatting.GOLD + "300%" +
-                TextFormatting.GRAY + " 伤害反弹给周围 " + TextFormatting.AQUA + "8" +
-                TextFormatting.GRAY + " 格内敌人");
-        list.add(TextFormatting.YELLOW + "  · 自己仍承受 50% 伤害");
-        list.add(TextFormatting.DARK_GRAY + "  无冷却");
 
+        list.add(TextFormatting.RED + "◆ 戏剧张力 " + TextFormatting.GRAY + "(被动)");
+        list.add(TextFormatting.GRAY + "  缓存越高，伤害加成越高");
+        list.add(TextFormatting.DARK_GRAY + "  公式: (缓存/血量)² × 100%");
+        list.add(TextFormatting.GRAY + "  50%缓存=" + TextFormatting.YELLOW + "+25%" +
+                TextFormatting.GRAY + " | 100%=" + TextFormatting.GOLD + "+100%" +
+                TextFormatting.GRAY + " | 150%=" + TextFormatting.RED + "+225%");
         list.add("");
-        list.add(TextFormatting.DARK_RED + "◆ 代价");
-        list.add(TextFormatting.RED + "  卸下饰品时" + TextFormatting.DARK_RED + "强制结算" +
-                TextFormatting.RED + " (仍为50%)");
 
-        // 当前状态
+        list.add(TextFormatting.GREEN + "◆ 缓存管理");
+        list.add(TextFormatting.GRAY + "  击杀敌人: 清除 " + TextFormatting.GREEN + "25%" + TextFormatting.GRAY + " 缓存");
+        list.add(TextFormatting.GRAY + "  造成伤害: " + TextFormatting.GREEN + "10%" + TextFormatting.GRAY + " 抵消缓存");
+        list.add(TextFormatting.GRAY + "  消灭所有敌人: 缓存" + TextFormatting.GREEN + "清零");
+        list.add("");
+
+        list.add(TextFormatting.YELLOW + "◆ 结算条件");
+        list.add(TextFormatting.GRAY + "  • 脱战 5 秒（周围仍有敌人）");
+        list.add(TextFormatting.GRAY + "  • 缓存超过 " + TextFormatting.RED + "150%" + TextFormatting.GRAY + " 最大血量");
+        list.add(TextFormatting.GRAY + "  结算时承受 " + TextFormatting.YELLOW + "40%" + TextFormatting.GRAY + " 缓存伤害");
+        list.add("");
+
+        list.add(TextFormatting.LIGHT_PURPLE + "◆ 改写结局");
+        list.add(TextFormatting.GRAY + "  结算时若血量 < " + TextFormatting.RED + "30%");
+        list.add(TextFormatting.GRAY + "  → " + TextFormatting.GREEN + "0% 自伤" +
+                TextFormatting.GRAY + " + " + TextFormatting.GOLD + "200% 反弹");
+
+        if (GuiScreen.isShiftKeyDown()) {
+            list.add("");
+            list.add(TextFormatting.DARK_RED + "══════ 落幕状态 ══════");
+            list.add(TextFormatting.GRAY + "本该死亡时，剧本会拦截死亡");
+            list.add(TextFormatting.GRAY + "留下 " + TextFormatting.RED + "1 血" +
+                    TextFormatting.GRAY + "，进入" + TextFormatting.DARK_RED + "「落幕」");
+            list.add(TextFormatting.RED + "• 持续 30 秒");
+            list.add(TextFormatting.RED + "• 受到伤害 ×2");
+            list.add(TextFormatting.RED + "• 禁止一切治疗");
+            list.add(TextFormatting.DARK_RED + "• 再次死亡无法阻止");
+        } else {
+            list.add("");
+            list.add(TextFormatting.DARK_GRAY + "按住 Shift 查看【落幕状态】");
+        }
+
+        // 当前状态（佩戴时显示）
         if (player != null && hasScript(player)) {
             ScriptData data = getScriptData(player);
             if (data != null) {
                 list.add("");
-                list.add(TextFormatting.GOLD + "当前状态:");
-                list.add(TextFormatting.GRAY + "  记录伤害: " + TextFormatting.RED + String.format("%.1f", data.bufferedDamage));
-                list.add(TextFormatting.GRAY + "  结算伤害: " + TextFormatting.YELLOW + String.format("%.1f", data.bufferedDamage * SETTLEMENT_DAMAGE_RATIO) + " (50%)");
-                float healthRatio = player.getHealth() / player.getMaxHealth();
-                if (healthRatio <= REWRITE_HEALTH_THRESHOLD) {
-                    list.add(TextFormatting.GREEN + "  ✓ 改写结局就绪");
-                } else {
-                    list.add(TextFormatting.GRAY + "  HP: " + TextFormatting.YELLOW + String.format("%.0f%%", healthRatio * 100) +
-                            TextFormatting.GRAY + " (需<30%)");
+                list.add(TextFormatting.AQUA + "══════ 当前状态 ══════");
+                float bufferRatio = data.bufferedDamage / player.getMaxHealth();
+                float bonus = getDamageBonus(bufferRatio);
+                list.add(TextFormatting.GRAY + "缓存: " +
+                        TextFormatting.RED + String.format("%.0f", data.bufferedDamage) +
+                        TextFormatting.GRAY + " / " +
+                        TextFormatting.WHITE + String.format("%.0f", player.getMaxHealth() * OVERLOAD_THRESHOLD));
+                list.add(TextFormatting.GRAY + "张力加成: " +
+                        TextFormatting.GOLD + "+" + String.format("%.0f%%", bonus * 100));
+
+                if (isInCurtainFall(player)) {
+                    list.add(TextFormatting.DARK_RED + "⚠ 落幕中: " +
+                            TextFormatting.RED + getCurtainFallRemaining(player) + " 秒");
                 }
             }
-        }
-
-        if (GuiScreen.isShiftKeyDown()) {
-            list.add("");
-            list.add(TextFormatting.DARK_GRAY + "━━━━━━━━━━━━━━━━━━");
-            list.add(TextFormatting.GRAY + "战斗中不会掉血");
-            list.add(TextFormatting.GRAY + "杀光敌人 = 伤害清零");
-            list.add(TextFormatting.GRAY + "低血量触发改写 = 反杀翻盘");
-            list.add(TextFormatting.GRAY + "正常结算只承受 50% 伤害");
-        } else {
-            list.add("");
-            list.add(TextFormatting.DARK_GRAY + "按住 Shift 查看更多");
         }
     }
 }
