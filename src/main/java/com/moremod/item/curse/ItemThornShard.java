@@ -62,8 +62,8 @@ public class ItemThornShard extends Item implements IBauble {
     // 荆棘再生（改）：与王座之血绑定，参照香巴拉回血速度
     private static final float REGEN_BASE_PER_SECOND = 0.5f;        // 基础回血（与香巴拉相同）
     private static final float REGEN_MAX_PER_SECOND = 6.0f;         // 最大回血（比香巴拉略高，因为有死亡风险）
-    // 回血公式：基础 + (最大-基础) × (累积/阈值)
-    // 累积越接近死亡阈值，回血越快（赌博机制）
+    // 回血公式：基础 + (最大-基础) × (1 - 当前血量/最大血量)
+    // 血量越低，回血越快（救命机制）
 
     // 四肢保护阈值
     private static final float LIMB_MIN_THRESHOLD = 1.0f;
@@ -145,17 +145,17 @@ public class ItemThornShard extends Item implements IBauble {
 
     /**
      * 荆棘再生：只有在王座之血激活时才回血
-     * 回血速度与累积伤害挂钩 - 累积越接近死亡阈值，回血越快
+     * 回血速度与当前血量挂钩 - 血量越低，回血越快
      *
-     * 公式：regenAmount = 基础 + (最大-基础) × (累积/阈值)
+     * 公式：regenAmount = 基础 + (最大-基础) × (1 - 当前血量/最大血量)
      *
      * 参照香巴拉：0.5-5.0/秒
      * 荆棘王冠：0.5-6.0/秒（因为有死亡风险，所以上限更高）
      *
      * 设计理念：
-     * - 不攻击 = 没有累积 = 没有回血（无法白嫖）
-     * - 累积接近阈值 = 回血极快，但可能随时死亡
-     * - 这是一场与死亡的赌博
+     * - 不攻击 = 没有累积 = 王座之血未激活 = 没有回血（无法白嫖）
+     * - 血量低 = 回血快（救命机制，避免自己砍死自己）
+     * - 血量高 = 回血慢（平衡）
      */
     private void handleThornRegeneration(EntityPlayer player, UUID uuid) {
         // 检查王座之血是否激活
@@ -175,14 +175,13 @@ public class ItemThornShard extends Item implements IBauble {
         float maxHealth = player.getMaxHealth();
         if (currentHealth >= maxHealth) return;
 
-        // 回血公式：基础 + (最大-基础) × (累积/阈值)
-        // 累积越接近死亡阈值，回血越快
-        float bloodAmount = data.getCurrentBlood();
-        float threshold = maxHealth * DEATH_THRESHOLD_MULTIPLIER;
-        float bloodRatio = Math.min(1.0f, bloodAmount / threshold); // 0-1
+        // 回血公式：基础 + (最大-基础) × (1 - 当前血量/最大血量)
+        // 血量越低，回血越快
+        float hpRatio = currentHealth / maxHealth; // 0-1
+        float missingHpRatio = 1.0f - hpRatio;     // 缺失血量比例
 
         float regenAmount = REGEN_BASE_PER_SECOND +
-                (REGEN_MAX_PER_SECOND - REGEN_BASE_PER_SECOND) * bloodRatio;
+                (REGEN_MAX_PER_SECOND - REGEN_BASE_PER_SECOND) * missingHpRatio;
 
         // 普通治疗（FirstAid会自动处理部位分配）
         player.heal(regenAmount);
@@ -536,7 +535,7 @@ public class ItemThornShard extends Item implements IBauble {
                  String.format("%.1f", REGEN_BASE_PER_SECOND) + TextFormatting.DARK_GRAY +
                  " → " + TextFormatting.GREEN + String.format("%.1f", REGEN_MAX_PER_SECOND) +
                  TextFormatting.DARK_GRAY + "/秒");
-        list.add(TextFormatting.DARK_GRAY + "    （累积越接近阈值，回血越快）");
+        list.add(TextFormatting.DARK_GRAY + "    （血量越低，回血越快）");
         list.add("");
 
         list.add(TextFormatting.DARK_GRAY + "────────────────────────────────────");
@@ -557,10 +556,11 @@ public class ItemThornShard extends Item implements IBauble {
             float threshold = player.getMaxHealth() * DEATH_THRESHOLD_MULTIPLIER;
 
             if (blood > 0) {
-                // 计算当前回血速度（使用新公式：基础 + (最大-基础) × (累积/阈值)）
-                float bloodRatio = Math.min(1.0f, blood / threshold);
+                // 计算当前回血速度（使用新公式：基础 + (最大-基础) × (1 - 当前血量/最大血量)）
+                float hpRatio = player.getHealth() / player.getMaxHealth();
+                float missingHpRatio = 1.0f - hpRatio;
                 float regenRate = REGEN_BASE_PER_SECOND +
-                        (REGEN_MAX_PER_SECOND - REGEN_BASE_PER_SECOND) * bloodRatio;
+                        (REGEN_MAX_PER_SECOND - REGEN_BASE_PER_SECOND) * missingHpRatio;
 
                 list.add(TextFormatting.DARK_GRAY + "────────────────────────────────────");
                 list.add("");
@@ -572,7 +572,8 @@ public class ItemThornShard extends Item implements IBauble {
                              String.format("%.0f%%", bonus * 100));
                 }
                 list.add(TextFormatting.GRAY + "  荆棘眷顾: " + TextFormatting.GREEN + "+" +
-                         String.format("%.1f", regenRate) + TextFormatting.DARK_GRAY + "/秒");
+                         String.format("%.1f", regenRate) + TextFormatting.DARK_GRAY + "/秒" +
+                         TextFormatting.DARK_GRAY + " (血量" + String.format("%.0f%%", hpRatio * 100) + ")");
             } else {
                 list.add(TextFormatting.DARK_GRAY + "────────────────────────────────────");
                 list.add("");
