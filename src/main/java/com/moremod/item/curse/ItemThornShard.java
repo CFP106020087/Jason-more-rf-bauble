@@ -59,11 +59,12 @@ public class ItemThornShard extends Item implements IBauble {
     private static final float CURSE_BONUS_PER_CURSE = 0.1f;    // 每个诅咒+10%
     private static final float DEATH_THRESHOLD_MULTIPLIER = 5.0f; // 累积超过5倍最大血量=死
 
-    // 荆棘再生（改）：与王座之血绑定，参照香巴拉回血速度
-    private static final float REGEN_BASE_PER_SECOND = 0.5f;        // 基础回血（与香巴拉相同）
-    private static final float REGEN_MAX_PER_SECOND = 6.0f;         // 最大回血（比香巴拉略高，因为有死亡风险）
+    // 荆棘再生（改）：与王座之血绑定，需要能跟上5点/次的自伤
+    private static final float REGEN_BASE_PER_SECOND = 2.0f;        // 基础回血（满血时）
+    private static final float REGEN_MAX_PER_SECOND = 10.0f;        // 最大回血（濒死时）
     // 回血公式：基础 + (最大-基础) × (1 - 当前血量/最大血量)
-    // 血量越低，回血越快（救命机制）
+    // 血量越低，回血越快
+    // 满血: 2.0/秒 | 半血: 6.0/秒 | 濒死: 10.0/秒
 
     // 四肢保护阈值
     private static final float LIMB_MIN_THRESHOLD = 1.0f;
@@ -149,13 +150,15 @@ public class ItemThornShard extends Item implements IBauble {
      *
      * 公式：regenAmount = 基础 + (最大-基础) × (1 - 当前血量/最大血量)
      *
-     * 参照香巴拉：0.5-5.0/秒
-     * 荆棘王冠：0.5-6.0/秒（因为有死亡风险，所以上限更高）
+     * 回血速度：2.0-10.0/秒（需要能跟上5点/次的自伤）
+     * - 满血: 2.0/秒（攻击1次/秒会缓慢掉血）
+     * - 半血: 6.0/秒（攻击1次/秒能勉强平衡）
+     * - 濒死: 10.0/秒（快速恢复，但接近死亡阈值）
      *
      * 设计理念：
      * - 不攻击 = 没有累积 = 王座之血未激活 = 没有回血（无法白嫖）
      * - 血量低 = 回血快（救命机制，避免自己砍死自己）
-     * - 血量高 = 回血慢（平衡）
+     * - 血量高 = 回血慢（鼓励维持低血量高风险战斗）
      */
     private void handleThornRegeneration(EntityPlayer player, UUID uuid) {
         // 检查王座之血是否激活
