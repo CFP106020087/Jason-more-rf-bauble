@@ -60,12 +60,13 @@ public class ItemThornShard extends Item implements IBauble {
     private static final float DEATH_THRESHOLD_MULTIPLIER = 5.0f; // 累积超过5倍最大血量=死
 
     // 荆棘再生（改）：与王座之血绑定，每0.5秒回血一次（与无敌帧同步）
-    private static final float REGEN_BASE_PER_TICK = 2.0f;          // 基础回血（满血时，每0.5秒）
-    private static final float REGEN_MAX_PER_TICK = 7.5f;           // 最大回血（濒死时，每0.5秒）
+    private static final float REGEN_BASE_PER_TICK = 5.0f;          // 基础回血（满血时，每0.5秒）
+    private static final float REGEN_MAX_PER_TICK = 15.0f;          // 最大回血（濒死时，每0.5秒）
     private static final long REGEN_INTERVAL_MS = 500;              // 回血间隔（与无敌帧同步）
     // 回血公式：基础 + (最大-基础) × (1 - 当前血量/最大血量)
     // 血量越低，回血越快
-    // 换算成每秒：满血 4.0/秒 | 半血 9.5/秒 | 濒死 15.0/秒
+    // 换算成每秒：满血 10/秒 | 半血 20/秒 | 濒死 30/秒
+    // 假设4次攻击/秒，自伤20点/秒，半血时平衡
 
     // 四肢保护阈值
     private static final float LIMB_MIN_THRESHOLD = 1.0f;
@@ -151,15 +152,17 @@ public class ItemThornShard extends Item implements IBauble {
      *
      * 公式：regenAmount = 基础 + (最大-基础) × (1 - 当前血量/最大血量)
      *
-     * 每 0.5秒 回血一次（与无敌帧/自伤冷却同步）
-     * - 满血: 2.0/0.5秒 = 4.0/秒（净损6点/秒，血量会下降）
-     * - 半血: 4.75/0.5秒 = 9.5/秒（勉强平衡）
-     * - 濒死: 7.5/0.5秒 = 15.0/秒（净赚5点/秒，快速恢复）
+     * 每 0.5秒 回血一次（与无敌帧同步）
+     * - 满血: 5.0/0.5秒 = 10/秒（净损10点/秒，血量下降）
+     * - 半血: 10/0.5秒 = 20/秒（平衡，维持半血）
+     * - 濒死: 15/0.5秒 = 30/秒（净赚10点/秒，快速恢复）
+     *
+     * 假设：4次攻击/秒 × 5点自伤 = 20点/秒自伤
      *
      * 设计理念：
      * - 不攻击 = 没有累积 = 王座之血未激活 = 没有回血（无法白嫖）
-     * - 血量低 = 回血快（救命机制，避免自己砍死自己）
-     * - 血量高 = 回血慢（鼓励维持低血量高风险战斗）
+     * - 半血是平衡点，鼓励维持半血状态战斗
+     * - 血量过低时快速恢复，血量高时持续下降
      */
     private void handleThornRegeneration(EntityPlayer player, UUID uuid) {
         // 检查王座之血是否激活
