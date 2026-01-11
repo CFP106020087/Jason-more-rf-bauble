@@ -75,6 +75,10 @@ public class ItemThornShard extends Item implements IBauble {
     private static final Map<UUID, BloodData> BLOOD_DATA = new ConcurrentHashMap<>();
     // 上次再生tick时间
     private static final Map<UUID, Long> LAST_REGEN_TIME = new ConcurrentHashMap<>();
+    // 上次自伤时间（毫秒）- 用于自伤冷却
+    private static final Map<UUID, Long> LAST_SELF_DAMAGE_TIME = new ConcurrentHashMap<>();
+    // 自伤冷却时间（毫秒）- 与无敌帧同步，10 tick = 500ms
+    private static final long SELF_DAMAGE_COOLDOWN_MS = 500;
 
     private static class BloodData {
         float totalDamage = 0;
@@ -139,6 +143,7 @@ public class ItemThornShard extends Item implements IBauble {
             UUID uuid = player.getUniqueID();
             BLOOD_DATA.remove(uuid);
             LAST_REGEN_TIME.remove(uuid);
+            LAST_SELF_DAMAGE_TIME.remove(uuid);
         }
     }
 
@@ -332,6 +337,7 @@ public class ItemThornShard extends Item implements IBauble {
 
     /**
      * 玩家攻击时：自伤 + 应用伤害加成
+     * 自伤有 500ms 冷却（与无敌帧同步），防止高攻速把自己秒了
      */
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onPlayerAttack(LivingHurtEvent event) {
@@ -344,16 +350,26 @@ public class ItemThornShard extends Item implements IBauble {
 
         UUID uuid = player.getUniqueID();
 
-        // 执行自伤（延迟执行避免事件冲突）
-        // 使用普通伤害，FirstAid会自动处理，然后被我们的onFirstAidDamage拦截优先扣四肢
-        player.world.getMinecraftServer().addScheduledTask(() -> {
-            player.attackEntityFrom(
-                new DamageSource("thornSelf").setDamageBypassesArmor(),
-                SELF_DAMAGE_AMOUNT
-            );
-        });
+        // 检查自伤冷却（与无敌帧同步，500ms）
+        long now = System.currentTimeMillis();
+        Long lastSelfDamage = LAST_SELF_DAMAGE_TIME.get(uuid);
+        boolean canSelfDamage = (lastSelfDamage == null || now - lastSelfDamage >= SELF_DAMAGE_COOLDOWN_MS);
 
-        // 应用伤害加成
+        if (canSelfDamage) {
+            // 记录自伤时间
+            LAST_SELF_DAMAGE_TIME.put(uuid, now);
+
+            // 执行自伤（延迟执行避免事件冲突）
+            // 使用普通伤害，FirstAid会自动处理，然后被我们的onFirstAidDamage拦截优先扣四肢
+            player.world.getMinecraftServer().addScheduledTask(() -> {
+                player.attackEntityFrom(
+                    new DamageSource("thornSelf").setDamageBypassesArmor(),
+                    SELF_DAMAGE_AMOUNT
+                );
+            });
+        }
+
+        // 应用伤害加成（不受冷却影响）
         BloodData data = BLOOD_DATA.get(uuid);
         if (data != null && data.isActive()) {
             float bonus = calculateDamageBonus(player, data.getCurrentBlood());
