@@ -59,12 +59,13 @@ public class ItemThornShard extends Item implements IBauble {
     private static final float CURSE_BONUS_PER_CURSE = 0.1f;    // 每个诅咒+10%
     private static final float DEATH_THRESHOLD_MULTIPLIER = 5.0f; // 累积超过5倍最大血量=死
 
-    // 荆棘再生（改）：与王座之血绑定，需要能跟上10点/秒的自伤（2次攻击/秒）
-    private static final float REGEN_BASE_PER_SECOND = 4.0f;        // 基础回血（满血时）
-    private static final float REGEN_MAX_PER_SECOND = 15.0f;        // 最大回血（濒死时）
+    // 荆棘再生（改）：与王座之血绑定，每0.5秒回血一次（与无敌帧同步）
+    private static final float REGEN_BASE_PER_TICK = 2.0f;          // 基础回血（满血时，每0.5秒）
+    private static final float REGEN_MAX_PER_TICK = 7.5f;           // 最大回血（濒死时，每0.5秒）
+    private static final long REGEN_INTERVAL_MS = 500;              // 回血间隔（与无敌帧同步）
     // 回血公式：基础 + (最大-基础) × (1 - 当前血量/最大血量)
     // 血量越低，回血越快
-    // 满血: 4.0/秒 | 半血: 9.5/秒 | 濒死: 15.0/秒
+    // 换算成每秒：满血 4.0/秒 | 半血 9.5/秒 | 濒死 15.0/秒
 
     // 四肢保护阈值
     private static final float LIMB_MIN_THRESHOLD = 1.0f;
@@ -75,10 +76,6 @@ public class ItemThornShard extends Item implements IBauble {
     private static final Map<UUID, BloodData> BLOOD_DATA = new ConcurrentHashMap<>();
     // 上次再生tick时间
     private static final Map<UUID, Long> LAST_REGEN_TIME = new ConcurrentHashMap<>();
-    // 上次自伤时间（毫秒）- 用于自伤冷却
-    private static final Map<UUID, Long> LAST_SELF_DAMAGE_TIME = new ConcurrentHashMap<>();
-    // 自伤冷却时间（毫秒）- 与无敌帧同步，10 tick = 500ms
-    private static final long SELF_DAMAGE_COOLDOWN_MS = 500;
 
     private static class BloodData {
         float totalDamage = 0;
@@ -143,7 +140,6 @@ public class ItemThornShard extends Item implements IBauble {
             UUID uuid = player.getUniqueID();
             BLOOD_DATA.remove(uuid);
             LAST_REGEN_TIME.remove(uuid);
-            LAST_SELF_DAMAGE_TIME.remove(uuid);
         }
     }
 
@@ -155,10 +151,10 @@ public class ItemThornShard extends Item implements IBauble {
      *
      * 公式：regenAmount = 基础 + (最大-基础) × (1 - 当前血量/最大血量)
      *
-     * 回血速度：4.0-15.0/秒（需要能跟上10点/秒的自伤，即2次攻击/秒）
-     * - 满血: 4.0/秒（净损6点/秒，血量会下降）
-     * - 半血: 9.5/秒（勉强平衡）
-     * - 濒死: 15.0/秒（净赚5点/秒，快速恢复）
+     * 每 0.5秒 回血一次（与无敌帧/自伤冷却同步）
+     * - 满血: 2.0/0.5秒 = 4.0/秒（净损6点/秒，血量会下降）
+     * - 半血: 4.75/0.5秒 = 9.5/秒（勉强平衡）
+     * - 濒死: 7.5/0.5秒 = 15.0/秒（净赚5点/秒，快速恢复）
      *
      * 设计理念：
      * - 不攻击 = 没有累积 = 王座之血未激活 = 没有回血（无法白嫖）
@@ -173,10 +169,10 @@ public class ItemThornShard extends Item implements IBauble {
             return;
         }
 
-        // 每秒执行一次
+        // 每 0.5秒 执行一次（与无敌帧同步）
         long now = System.currentTimeMillis();
         Long lastTime = LAST_REGEN_TIME.get(uuid);
-        if (lastTime != null && now - lastTime < 1000) return;
+        if (lastTime != null && now - lastTime < REGEN_INTERVAL_MS) return;
         LAST_REGEN_TIME.put(uuid, now);
 
         float currentHealth = player.getHealth();
@@ -188,8 +184,8 @@ public class ItemThornShard extends Item implements IBauble {
         float hpRatio = currentHealth / maxHealth; // 0-1
         float missingHpRatio = 1.0f - hpRatio;     // 缺失血量比例
 
-        float regenAmount = REGEN_BASE_PER_SECOND +
-                (REGEN_MAX_PER_SECOND - REGEN_BASE_PER_SECOND) * missingHpRatio;
+        float regenAmount = REGEN_BASE_PER_TICK +
+                (REGEN_MAX_PER_TICK - REGEN_BASE_PER_TICK) * missingHpRatio;
 
         // 普通治疗（FirstAid会自动处理部位分配）
         player.heal(regenAmount);
@@ -337,7 +333,7 @@ public class ItemThornShard extends Item implements IBauble {
 
     /**
      * 玩家攻击时：自伤 + 应用伤害加成
-     * 自伤有 500ms 冷却（与无敌帧同步），防止高攻速把自己秒了
+     * 每次攻击都会自伤（无冷却）
      */
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onPlayerAttack(LivingHurtEvent event) {
@@ -350,26 +346,16 @@ public class ItemThornShard extends Item implements IBauble {
 
         UUID uuid = player.getUniqueID();
 
-        // 检查自伤冷却（与无敌帧同步，500ms）
-        long now = System.currentTimeMillis();
-        Long lastSelfDamage = LAST_SELF_DAMAGE_TIME.get(uuid);
-        boolean canSelfDamage = (lastSelfDamage == null || now - lastSelfDamage >= SELF_DAMAGE_COOLDOWN_MS);
+        // 执行自伤（延迟执行避免事件冲突）
+        // 使用普通伤害，FirstAid会自动处理，然后被我们的onFirstAidDamage拦截优先扣四肢
+        player.world.getMinecraftServer().addScheduledTask(() -> {
+            player.attackEntityFrom(
+                new DamageSource("thornSelf").setDamageBypassesArmor(),
+                SELF_DAMAGE_AMOUNT
+            );
+        });
 
-        if (canSelfDamage) {
-            // 记录自伤时间
-            LAST_SELF_DAMAGE_TIME.put(uuid, now);
-
-            // 执行自伤（延迟执行避免事件冲突）
-            // 使用普通伤害，FirstAid会自动处理，然后被我们的onFirstAidDamage拦截优先扣四肢
-            player.world.getMinecraftServer().addScheduledTask(() -> {
-                player.attackEntityFrom(
-                    new DamageSource("thornSelf").setDamageBypassesArmor(),
-                    SELF_DAMAGE_AMOUNT
-                );
-            });
-        }
-
-        // 应用伤害加成（不受冷却影响）
+        // 应用伤害加成
         BloodData data = BLOOD_DATA.get(uuid);
         if (data != null && data.isActive()) {
             float bonus = calculateDamageBonus(player, data.getCurrentBlood());
@@ -551,8 +537,8 @@ public class ItemThornShard extends Item implements IBauble {
         list.add(TextFormatting.GRAY + "    唯有流血者，方得荆棘之眷顾");
         list.add(TextFormatting.DARK_GRAY + "    （只有王座之血激活时才回血）");
         list.add(TextFormatting.DARK_GRAY + "    回血: " + TextFormatting.GREEN +
-                 String.format("%.1f", REGEN_BASE_PER_SECOND) + TextFormatting.DARK_GRAY +
-                 " → " + TextFormatting.GREEN + String.format("%.1f", REGEN_MAX_PER_SECOND) +
+                 String.format("%.1f", REGEN_BASE_PER_TICK * 2) + TextFormatting.DARK_GRAY +
+                 " → " + TextFormatting.GREEN + String.format("%.1f", REGEN_MAX_PER_TICK * 2) +
                  TextFormatting.DARK_GRAY + "/秒");
         list.add(TextFormatting.DARK_GRAY + "    （血量越低，回血越快）");
         list.add("");
@@ -576,10 +562,12 @@ public class ItemThornShard extends Item implements IBauble {
 
             if (blood > 0) {
                 // 计算当前回血速度（使用新公式：基础 + (最大-基础) × (1 - 当前血量/最大血量)）
+                // 每0.5秒一次的回血量 × 2 = 每秒回血量
                 float hpRatio = player.getHealth() / player.getMaxHealth();
                 float missingHpRatio = 1.0f - hpRatio;
-                float regenRate = REGEN_BASE_PER_SECOND +
-                        (REGEN_MAX_PER_SECOND - REGEN_BASE_PER_SECOND) * missingHpRatio;
+                float regenPerTick = REGEN_BASE_PER_TICK +
+                        (REGEN_MAX_PER_TICK - REGEN_BASE_PER_TICK) * missingHpRatio;
+                float regenRate = regenPerTick * 2;  // 换算成每秒
 
                 list.add(TextFormatting.DARK_GRAY + "────────────────────────────────────");
                 list.add("");
