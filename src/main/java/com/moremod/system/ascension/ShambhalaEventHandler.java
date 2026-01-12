@@ -387,15 +387,28 @@ public class ShambhalaEventHandler {
         }
     }
 
-    // ========== 世界卸载（防止跨存档数据污染） ==========
+    // ========== 世界加载/卸载（防止跨存档数据污染） ==========
 
     @SubscribeEvent
-    public static void onWorldUnload(net.minecraftforge.event.world.WorldEvent.Unload event) {
+    public static void onWorldLoad(net.minecraftforge.event.world.WorldEvent.Load event) {
+        // 在服务端主世界加载时清空静态状态（确保新存档不会被旧数据污染）
         if (!event.getWorld().isRemote && event.getWorld().provider.getDimension() == 0) {
             ShambhalaHandler.clearAllState();
             ShambhalaDeathHook.clearAllState();
             ItemShambhalaVeil.clearAllState();
-            LOGGER.info("[Shambhala] Cleared all static state on world unload");
+            LOGGER.info("[Shambhala] Cleared all static state on world load (cross-save protection)");
+        }
+    }
+
+    @SubscribeEvent
+    public static void onWorldUnload(net.minecraftforge.event.world.WorldEvent.Unload event) {
+        // 在任意维度的服务端世界卸载时都清空
+        if (!event.getWorld().isRemote) {
+            ShambhalaHandler.clearAllState();
+            ShambhalaDeathHook.clearAllState();
+            ItemShambhalaVeil.clearAllState();
+            LOGGER.info("[Shambhala] Cleared all static state on world unload (dim={})",
+                    event.getWorld().provider.getDimension());
         }
     }
 

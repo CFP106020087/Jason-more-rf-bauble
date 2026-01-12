@@ -374,16 +374,29 @@ public class BrokenGodEventHandler {
         BrokenGodHandler.cleanupPlayer(event.player.getUniqueID());
     }
 
-    // ========== 世界卸载（防止跨存档数据污染） ==========
+    // ========== 世界加载/卸载（防止跨存档数据污染） ==========
 
     @SubscribeEvent
-    public static void onWorldUnload(net.minecraftforge.event.world.WorldEvent.Unload event) {
-        // 只在服务端主世界卸载时清空（避免维度切换时误清）
+    public static void onWorldLoad(net.minecraftforge.event.world.WorldEvent.Load event) {
+        // 在服务端主世界加载时清空静态状态（确保新存档不会被旧数据污染）
+        // 这比 Unload 更可靠，因为 Unload 可能因维度问题或事件顺序问题未被调用
         if (!event.getWorld().isRemote && event.getWorld().provider.getDimension() == 0) {
             BrokenGodHandler.clearAllState();
             ItemBrokenShackles.clearAllState();
             ItemBrokenArm.clearAllState();
-            LOGGER.info("[BrokenGod] Cleared all static state on world unload");
+            LOGGER.info("[BrokenGod] Cleared all static state on world load (cross-save protection)");
+        }
+    }
+
+    @SubscribeEvent
+    public static void onWorldUnload(net.minecraftforge.event.world.WorldEvent.Unload event) {
+        // 在任意维度的服务端世界卸载时都清空（修复：原来只检查 dimension == 0）
+        if (!event.getWorld().isRemote) {
+            BrokenGodHandler.clearAllState();
+            ItemBrokenShackles.clearAllState();
+            ItemBrokenArm.clearAllState();
+            LOGGER.info("[BrokenGod] Cleared all static state on world unload (dim={})",
+                    event.getWorld().provider.getDimension());
         }
     }
 
