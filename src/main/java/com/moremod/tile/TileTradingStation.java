@@ -70,6 +70,7 @@ public class TileTradingStation extends TileEntity implements ITickable {
 
             // 當村民膠囊槽變化時,嘗試加載村民數據
             if (slot == 0) {
+                System.out.println("[TileTradingStation] 槽位0變化,嘗試加載商人數據...");
                 loadVillagerFromCapsule();
             }
         }
@@ -81,14 +82,18 @@ public class TileTradingStation extends TileEntity implements ITickable {
                 return stack;
             }
 
-            // 村民槽(0)只允許放入包含村民的膠囊
+            // 村民槽(0)只允許放入包含商人的膠囊
             if (slot == 0 && !stack.isEmpty()) {
                 if (!(stack.getItem() instanceof ItemVillagerCapsule)) {
+                    System.out.println("[TileTradingStation] ❌ 拒絕: 不是村民膠囊");
                     return stack; // 不是村民膠囊,拒絕
                 }
-                if (!ItemVillagerCapsule.hasVillager(stack)) {
+                // ✅ 使用 hasMerchant 檢查 (兼容新舊格式)
+                if (!ItemVillagerCapsule.hasMerchant(stack) && !ItemVillagerCapsule.hasVillager(stack)) {
+                    System.out.println("[TileTradingStation] ❌ 拒絕: 空膠囊 (無MerchantData或VillagerData)");
                     return stack; // 空膠囊,拒絕
                 }
+                System.out.println("[TileTradingStation] ✅ 接受膠囊插入");
             }
 
             return super.insertItem(slot, stack, simulate);

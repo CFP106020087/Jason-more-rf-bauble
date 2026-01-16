@@ -13,7 +13,7 @@ import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.resources.I18n;
-import net.minecraft.entity.passive.EntityVillager;
+import net.minecraft.entity.IMerchant;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.village.MerchantRecipe;
 import net.minecraft.village.MerchantRecipeList;
@@ -153,8 +153,8 @@ public class GuiTradingStation extends GuiContainer {
         // 背包標題
         this.fontRenderer.drawString(I18n.format("container.inventory"), 8, 113, GuiRenderUtils.COLOR_TEXT);
 
-        // 村民狀態指示
-        if (tile.hasVillager()) {
+        // 商人狀態指示 (✅ 支持村民和流浪商人)
+        if (tile.hasMerchant()) {
             this.fontRenderer.drawString("✓", 30, 57, GuiRenderUtils.COLOR_GREEN);
         } else {
             this.fontRenderer.drawString("✗", 30, 57, GuiRenderUtils.COLOR_RED);
@@ -186,15 +186,17 @@ public class GuiTradingStation extends GuiContainer {
 
     /**
      * ✅ 修复: 繪製交易預覽 - 支持显示两个输入物品
+     * ✅ 支持流浪商人等所有 IMerchant 實體
      */
     private void drawTradePreview() {
-        EntityVillager villager = tile.createVillagerFromNBT();
-        if (villager == null) {
-            this.fontRenderer.drawString("無村民", 85, 50, GuiRenderUtils.COLOR_RED);
+        // ✅ 使用 createMerchantFromNBT 而非 createVillagerFromNBT
+        IMerchant merchant = tile.createMerchantFromNBT();
+        if (merchant == null) {
+            this.fontRenderer.drawString("無商人", 85, 50, GuiRenderUtils.COLOR_RED);
             return;
         }
 
-        MerchantRecipeList recipes = villager.getRecipes(null);
+        MerchantRecipeList recipes = merchant.getRecipes(null);
         if (recipes == null || recipes.isEmpty()) {
             this.fontRenderer.drawString("無交易", 95, 50, GuiRenderUtils.COLOR_RED);
             return;
@@ -253,14 +255,16 @@ public class GuiTradingStation extends GuiContainer {
 
     /**
      * ✅ 修复: 渲染交易物品的 Tooltip - 支持两个输入物品
+     * ✅ 支持流浪商人等所有 IMerchant 實體
      */
     private void renderTradeItemTooltips(int mouseX, int mouseY) {
-        if (!tile.hasVillager()) return;
+        if (!tile.hasMerchant()) return;
 
-        EntityVillager villager = tile.createVillagerFromNBT();
-        if (villager == null) return;
+        // ✅ 使用 createMerchantFromNBT 而非 createVillagerFromNBT
+        IMerchant merchant = tile.createMerchantFromNBT();
+        if (merchant == null) return;
 
-        MerchantRecipeList recipes = villager.getRecipes(null);
+        MerchantRecipeList recipes = merchant.getRecipes(null);
         if (recipes == null || recipes.isEmpty()) return;
 
         int index = tile.getCurrentTradeIndex();
