@@ -113,18 +113,42 @@ public abstract class MixinPullAndWhirlpool {
         connection.sendPacket(packet);
     }
 
-    // === 精简的维度锚检测（只查 Baubles 槽）===
+    // === 位移免疫检测（维度锚定器 或 灵魂锚点）===
     @Unique
     private static boolean moremod$hasDimensionalAnchor(EntityPlayer player) {
         IBaublesItemHandler baubles = BaublesApi.getBaublesHandler(player);
-        if (baubles == null) return false;
 
-        for (int i = 0; i < baubles.getSlots(); i++) {
-            ItemStack stack = baubles.getStackInSlot(i);
-            if (!stack.isEmpty()
-                    && "ItemDimensionalAnchor".equals(stack.getItem().getClass().getSimpleName())) {
-                return true;
+        // 检查维度锚定器（饰品栏）
+        if (baubles != null) {
+            for (int i = 0; i < baubles.getSlots(); i++) {
+                ItemStack stack = baubles.getStackInSlot(i);
+                if (!stack.isEmpty()
+                        && "ItemDimensionalAnchor".equals(stack.getItem().getClass().getSimpleName())) {
+                    return true;
+                }
             }
+        }
+
+        // 检查灵魂锚点（背包和饰品栏）
+        for (int i = 0; i < player.inventory.getSizeInventory(); i++) {
+            ItemStack stack = player.inventory.getStackInSlot(i);
+            if (!stack.isEmpty() && moremod$isSoulAnchor(stack)) return true;
+        }
+        if (baubles != null) {
+            for (int i = 0; i < baubles.getSlots(); i++) {
+                ItemStack stack = baubles.getStackInSlot(i);
+                if (!stack.isEmpty() && moremod$isSoulAnchor(stack)) return true;
+            }
+        }
+
+        return false;
+    }
+
+    @Unique
+    private static boolean moremod$isSoulAnchor(ItemStack stack) {
+        if (stack.isEmpty()) return false;
+        if (stack.getItem().getRegistryName() != null) {
+            return stack.getItem().getRegistryName().toString().equals("moremod:soul_anchor");
         }
         return false;
     }
