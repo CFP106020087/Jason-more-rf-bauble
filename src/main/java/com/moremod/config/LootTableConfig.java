@@ -19,6 +19,9 @@ public class LootTableConfig {
     @Config.Comment("Item settings")
     public static ItemSettings items = new ItemSettings();
 
+    @Config.Comment("Rare loot settings (special items with low chance)")
+    public static RareLootSettings rareLoot = new RareLootSettings();
+
     @Config.Comment("Vanilla chest settings")
     public static VanillaChests vanilla = new VanillaChests();
 
@@ -64,6 +67,81 @@ public class LootTableConfig {
             this.enabled = enabled;
             this.weightMultiplier = multiplier;
         }
+    }
+
+    /**
+     * 稀有战利品设置（七圣物、稀有饰品等）
+     */
+    public static class RareLootSettings {
+        @Config.Comment("Enable sacred relics (七咒圣物) in loot tables")
+        public boolean sacredRelicsEnabled = true;
+
+        @Config.Comment("Sacred relics spawn chance (0.01 = 1%, 0.001 = 0.1%)")
+        @Config.RangeDouble(min = 0.0, max = 1.0)
+        public double sacredRelicsChance = 0.01;  // 1%
+
+        @Config.Comment("Enable rare baubles (稀有饰品: 电池饰品, 归一心原石, 嗜血面具) in loot tables")
+        public boolean rareBaublesEnabled = true;
+
+        @Config.Comment("Rare baubles spawn chance (0.01 = 1%, 0.001 = 0.1%)")
+        @Config.RangeDouble(min = 0.0, max = 1.0)
+        public double rareBaublesChance = 0.001;  // 0.1%
+
+        @Config.Comment("Individual sacred relic weights (relative to each other)")
+        public SacredRelicWeights sacredRelicWeights = new SacredRelicWeights();
+
+        @Config.Comment("Individual rare bauble weights (relative to each other)")
+        public RareBaubleWeights rareBaubleWeights = new RareBaubleWeights();
+    }
+
+    /**
+     * 七圣物各自的权重
+     */
+    public static class SacredRelicWeights {
+        @Config.Comment("Sacred Heart (圣心) weight")
+        @Config.RangeInt(min = 0, max = 100)
+        public int sacredHeart = 1;
+
+        @Config.Comment("Peace Emblem (和平徽章) weight")
+        @Config.RangeInt(min = 0, max = 100)
+        public int peaceEmblem = 1;
+
+        @Config.Comment("Guardian Scale (守护鳞片) weight")
+        @Config.RangeInt(min = 0, max = 100)
+        public int guardianScale = 1;
+
+        @Config.Comment("Courage Blade (勇气之刃) weight")
+        @Config.RangeInt(min = 0, max = 100)
+        public int courageBlade = 1;
+
+        @Config.Comment("Frost Dew (霜露) weight")
+        @Config.RangeInt(min = 0, max = 100)
+        public int frostDew = 1;
+
+        @Config.Comment("Soul Anchor (魂锚) weight")
+        @Config.RangeInt(min = 0, max = 100)
+        public int soulAnchor = 1;
+
+        @Config.Comment("Slumber Sachet (安眠香囊) weight")
+        @Config.RangeInt(min = 0, max = 100)
+        public int slumberSachet = 1;
+    }
+
+    /**
+     * 稀有饰品各自的权重
+     */
+    public static class RareBaubleWeights {
+        @Config.Comment("Battery Bauble (电池饰品) weight")
+        @Config.RangeInt(min = 0, max = 100)
+        public int batteryBauble = 1;
+
+        @Config.Comment("Temporal Heart (归一心原石) weight")
+        @Config.RangeInt(min = 0, max = 100)
+        public int temporalHeart = 1;
+
+        @Config.Comment("Bloody Thirst Mask (嗜血面具) weight")
+        @Config.RangeInt(min = 0, max = 100)
+        public int bloodyThirstMask = 1;
     }
 
     /**

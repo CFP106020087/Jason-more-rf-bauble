@@ -44,8 +44,13 @@ public class LootTableHandler {
         if (name.contains("chest") &&
                 !name.contains("player") &&
                 !name.contains("entities/")) {
-            injectRareBaubles(event, 0.001f);        // 0.1% 概率的稀有饰品（含归一心原石）
-            injectSacredRelics(event, 0.01f);        // 1% 概率的七咒圣物（仪式用）
+            // 使用配置的概率值
+            if (LootTableConfig.rareLoot.rareBaublesEnabled && LootTableConfig.rareLoot.rareBaublesChance > 0) {
+                injectRareBaubles(event, (float) LootTableConfig.rareLoot.rareBaublesChance);
+            }
+            if (LootTableConfig.rareLoot.sacredRelicsEnabled && LootTableConfig.rareLoot.sacredRelicsChance > 0) {
+                injectSacredRelics(event, (float) LootTableConfig.rareLoot.sacredRelicsChance);
+            }
         }
 
         // === 原版战利品表 ===
@@ -223,7 +228,7 @@ public class LootTableHandler {
     }
 
     /**
-     * 在任意箱子战利品表注入1%概率的稀有饰品
+     * 在任意箱子战利品表注入稀有饰品
      */
     private static void injectRareBaubles(LootTableLoadEvent event, float chance) {
         String poolName = "moremod_rare_baubles";
@@ -231,7 +236,7 @@ public class LootTableHandler {
         // 避免重复添加
         if (event.getTable().getPool(poolName) != null) return;
 
-        // 1%概率条件
+        // 概率条件
         LootCondition[] conditions = new LootCondition[]{ new RandomChance(chance) };
 
         // 创建新池
@@ -243,11 +248,14 @@ public class LootTableHandler {
                 poolName
         );
 
-        // 添加三个饰品，等权重
-        if (BATTERY_BAUBLE != null) {
+        // 使用配置的权重
+        LootTableConfig.RareBaubleWeights weights = LootTableConfig.rareLoot.rareBaubleWeights;
+
+        // 添加三个饰品
+        if (BATTERY_BAUBLE != null && weights.batteryBauble > 0) {
             pool.addEntry(new LootEntryItem(
                     BATTERY_BAUBLE,
-                    1, // 权重
+                    weights.batteryBauble, // 配置的权重
                     1, // quality (不受幸运影响)
                     new LootFunction[0],
                     new LootCondition[0],
@@ -256,10 +264,10 @@ public class LootTableHandler {
         }
 
         // 归一心原石
-        if (TEMPORAL_HEART != null) {
+        if (TEMPORAL_HEART != null && weights.temporalHeart > 0) {
             pool.addEntry(new LootEntryItem(
                     TEMPORAL_HEART,
-                    1,
+                    weights.temporalHeart,
                     1,
                     new LootFunction[0],
                     new LootCondition[0],
@@ -267,10 +275,10 @@ public class LootTableHandler {
             ));
         }
 
-        if (BLOODY_THIRST_MASK != null) {
+        if (BLOODY_THIRST_MASK != null && weights.bloodyThirstMask > 0) {
             pool.addEntry(new LootEntryItem(
                     BLOODY_THIRST_MASK,
-                    1,
+                    weights.bloodyThirstMask,
                     1,
                     new LootFunction[0],
                     new LootCondition[0],
@@ -281,7 +289,7 @@ public class LootTableHandler {
         event.getTable().addPool(pool);
 
         if (LootTableConfig.debugMode) {
-            System.out.println("[moremod] Injected rare baubles (0.1%) into: " + event.getName());
+            System.out.println("[moremod] Injected rare baubles (" + (chance * 100) + "%) into: " + event.getName());
         }
     }
 
@@ -306,19 +314,22 @@ public class LootTableHandler {
                 poolName
         );
 
-        // 七件仪式圣物（等权重）
-        addRelicEntry(pool, SACRED_HEART, 1, "sacred_heart");
-        addRelicEntry(pool, PEACE_EMBLEM, 1, "peace_emblem");
-        addRelicEntry(pool, GUARDIAN_SCALE, 1, "guardian_scale");
-        addRelicEntry(pool, COURAGE_BLADE, 1, "courage_blade");
-        addRelicEntry(pool, FROST_DEW, 1, "frost_dew");
-        addRelicEntry(pool, SOUL_ANCHOR, 1, "soul_anchor");
-        addRelicEntry(pool, SLUMBER_SACHET, 1, "slumber_sachet");
+        // 使用配置的权重
+        LootTableConfig.SacredRelicWeights weights = LootTableConfig.rareLoot.sacredRelicWeights;
+
+        // 七件仪式圣物（使用配置的权重）
+        addRelicEntry(pool, SACRED_HEART, weights.sacredHeart, "sacred_heart");
+        addRelicEntry(pool, PEACE_EMBLEM, weights.peaceEmblem, "peace_emblem");
+        addRelicEntry(pool, GUARDIAN_SCALE, weights.guardianScale, "guardian_scale");
+        addRelicEntry(pool, COURAGE_BLADE, weights.courageBlade, "courage_blade");
+        addRelicEntry(pool, FROST_DEW, weights.frostDew, "frost_dew");
+        addRelicEntry(pool, SOUL_ANCHOR, weights.soulAnchor, "soul_anchor");
+        addRelicEntry(pool, SLUMBER_SACHET, weights.slumberSachet, "slumber_sachet");
 
         event.getTable().addPool(pool);
 
         if (LootTableConfig.debugMode) {
-            System.out.println("[moremod] Injected sacred relics (1%) into: " + event.getName());
+            System.out.println("[moremod] Injected sacred relics (" + (chance * 100) + "%) into: " + event.getName());
         }
     }
 
@@ -326,7 +337,7 @@ public class LootTableHandler {
      * 添加圣物条目到池
      */
     private static void addRelicEntry(LootPool pool, Item item, int weight, String name) {
-        if (item == null) return;
+        if (item == null || weight <= 0) return;
 
         pool.addEntry(new LootEntryItem(
                 item,
