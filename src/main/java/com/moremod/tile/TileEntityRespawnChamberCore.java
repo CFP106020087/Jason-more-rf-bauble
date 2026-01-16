@@ -3,21 +3,30 @@ package com.moremod.tile;
 import com.moremod.multiblock.MultiblockRespawnChamber;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.init.MobEffects;
 import net.minecraft.init.SoundEvents;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.network.NetworkManager;
 import net.minecraft.network.play.server.SPacketUpdateTileEntity;
+import net.minecraft.potion.PotionEffect;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.ITickable;
+import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
+import net.minecraftforge.common.capabilities.Capability;
+import net.minecraftforge.energy.CapabilityEnergy;
+import net.minecraftforge.energy.EnergyStorage;
+import net.minecraftforge.energy.IEnergyStorage;
 
 import javax.annotation.Nullable;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -29,8 +38,31 @@ import java.util.UUID;
  * - 檢測多方塊結構
  * - 提供傳送目標位置
  * - 在破碎之神停機重啟後將玩家傳送至此
+ * - 能量存儲（死亡拦截需要70%以上電量）
+ * - 站在重生仓内给予回血效果
  */
 public class TileEntityRespawnChamberCore extends TileEntity implements ITickable {
+
+    // ========== 能量配置 ==========
+    private static final int ENERGY_CAPACITY = 1_000_000;  // 1M RF
+    private static final int MAX_RECEIVE = 10_000;          // 10K RF/t 輸入
+    private static final int DEATH_INTERCEPT_THRESHOLD = 70; // 死亡拦截需要70%電量
+    private static final int HEAL_INTERVAL = 40;            // 每2秒回血一次 (40 ticks)
+    private static final int HEAL_AMPLIFIER = 1;            // 回血等級 (II級)
+    private static final int HEAL_DURATION = 60;            // 回血持續時間 (3秒)
+    private static final int ENERGY_PER_HEAL = 100;         // 每次回血消耗 100 RF
+
+    // 能量存儲
+    private final EnergyStorage energy = new EnergyStorage(ENERGY_CAPACITY, MAX_RECEIVE, 0) {
+        @Override
+        public int receiveEnergy(int maxReceive, boolean simulate) {
+            int received = super.receiveEnergy(maxReceive, simulate);
+            if (received > 0 && !simulate) {
+                markDirty();
+            }
+            return received;
+        }
+    };
 
     // 全局追踪：玩家UUID -> 重生倉位置（支持跨維度）
     private static final Map<UUID, RespawnChamberLocation> BOUND_CHAMBERS = new HashMap<>();
@@ -55,9 +87,94 @@ public class TileEntityRespawnChamberCore extends TileEntity implements ITickabl
             updateStructureStatus();
         }
 
-        // 粒子效果（結構完整且有綁定時）
-        if (structureValid && boundPlayerUUID != null && tickCounter % 40 == 0) {
-            spawnAmbientParticles();
+        // 結構完整時的功能
+        if (structureValid) {
+            // 主動從周圍方塊抽取能量
+            if (energy.getEnergyStored() < energy.getMaxEnergyStored()) {
+                pullEnergyFromNeighbors();
+            }
+
+            // 每 HEAL_INTERVAL ticks 給站在重生仓内的玩家回血
+            if (tickCounter % HEAL_INTERVAL == 0 && energy.getEnergyStored() >= ENERGY_PER_HEAL) {
+                healPlayersInChamber();
+            }
+
+            // 粒子效果（結構完整且有綁定時）
+            if (boundPlayerUUID != null && tickCounter % 40 == 0) {
+                spawnAmbientParticles();
+            }
+        }
+    }
+
+    /**
+     * 主動從周圍方塊抽取能量
+     */
+    private void pullEnergyFromNeighbors() {
+        int spaceAvailable = energy.getMaxEnergyStored() - energy.getEnergyStored();
+        if (spaceAvailable <= 0) return;
+
+        int toPull = Math.min(MAX_RECEIVE, spaceAvailable);
+
+        for (EnumFacing facing : EnumFacing.values()) {
+            if (toPull <= 0) break;
+
+            TileEntity neighbor = world.getTileEntity(pos.offset(facing));
+            if (neighbor != null && neighbor.hasCapability(CapabilityEnergy.ENERGY, facing.getOpposite())) {
+                IEnergyStorage neighborEnergy = neighbor.getCapability(CapabilityEnergy.ENERGY, facing.getOpposite());
+                if (neighborEnergy != null && neighborEnergy.canExtract()) {
+                    int extracted = neighborEnergy.extractEnergy(toPull, false);
+                    if (extracted > 0) {
+                        energy.receiveEnergy(extracted, false);
+                        toPull -= extracted;
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * 給站在重生仓内的玩家回血
+     */
+    private void healPlayersInChamber() {
+        // 玩家空間位於核心上方 (y+1)，檢測 3x2x3 區域
+        BlockPos chamberCenter = pos.up();
+        AxisAlignedBB area = new AxisAlignedBB(
+                chamberCenter.getX() - 1, chamberCenter.getY(), chamberCenter.getZ() - 1,
+                chamberCenter.getX() + 2, chamberCenter.getY() + 2, chamberCenter.getZ() + 2
+        );
+
+        List<EntityPlayer> players = world.getEntitiesWithinAABB(EntityPlayer.class, area);
+        for (EntityPlayer player : players) {
+            // 給予再生效果
+            player.addPotionEffect(new PotionEffect(MobEffects.REGENERATION, HEAL_DURATION, HEAL_AMPLIFIER, false, true));
+            extractEnergyInternal(ENERGY_PER_HEAL);
+
+            // 回血粒子效果
+            if (world instanceof WorldServer) {
+                WorldServer ws = (WorldServer) world;
+                ws.spawnParticle(EnumParticleTypes.HEART,
+                        player.posX, player.posY + 1.5, player.posZ,
+                        3, 0.3, 0.3, 0.3, 0.0);
+            }
+
+            // 能量不足時停止
+            if (energy.getEnergyStored() < ENERGY_PER_HEAL) break;
+        }
+    }
+
+    /**
+     * 內部提取能量
+     */
+    private void extractEnergyInternal(int amount) {
+        int stored = energy.getEnergyStored();
+        int toExtract = Math.min(amount, stored);
+        if (toExtract > 0) {
+            try {
+                java.lang.reflect.Field field = EnergyStorage.class.getDeclaredField("energy");
+                field.setAccessible(true);
+                field.setInt(energy, stored - toExtract);
+            } catch (Exception ignored) {}
+            markDirty();
         }
     }
 
@@ -379,11 +496,70 @@ public class TileEntityRespawnChamberCore extends TileEntity implements ITickabl
         return boundPlayerUUID != null;
     }
 
+    // ========== 能量相關 ==========
+
+    public int getEnergyStored() {
+        return energy.getEnergyStored();
+    }
+
+    public int getMaxEnergyStored() {
+        return energy.getMaxEnergyStored();
+    }
+
+    public int getEnergyPercent() {
+        return (int) ((energy.getEnergyStored() * 100L) / energy.getMaxEnergyStored());
+    }
+
+    /**
+     * 檢查是否可以拦截死亡
+     * @return 是否可以拦截（結構完整 + 電量>=70%）
+     */
+    public boolean canInterceptDeath() {
+        return structureValid && getEnergyPercent() >= DEATH_INTERCEPT_THRESHOLD;
+    }
+
+    /**
+     * 消耗全部能量（用於死亡拦截）
+     */
+    public void consumeAllEnergy() {
+        extractEnergyInternal(energy.getEnergyStored());
+    }
+
+    /**
+     * 設置能量值（用於客戶端同步）
+     */
+    public void setClientEnergy(int value) {
+        try {
+            java.lang.reflect.Field field = EnergyStorage.class.getDeclaredField("energy");
+            field.setAccessible(true);
+            field.setInt(energy, Math.min(value, ENERGY_CAPACITY));
+        } catch (Exception ignored) {}
+    }
+
+    // ========== Capability 支持 ==========
+
+    @Override
+    public boolean hasCapability(Capability<?> capability, @Nullable EnumFacing facing) {
+        return capability == CapabilityEnergy.ENERGY || super.hasCapability(capability, facing);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Nullable
+    @Override
+    public <T> T getCapability(Capability<T> capability, @Nullable EnumFacing facing) {
+        if (capability == CapabilityEnergy.ENERGY) {
+            return (T) energy;
+        }
+        return super.getCapability(capability, facing);
+    }
+
     // ========== NBT 序列化 ==========
 
     @Override
     public NBTTagCompound writeToNBT(NBTTagCompound compound) {
         super.writeToNBT(compound);
+
+        compound.setInteger("Energy", energy.getEnergyStored());
 
         if (boundPlayerUUID != null) {
             compound.setString("BoundPlayerUUID", boundPlayerUUID.toString());
@@ -396,6 +572,10 @@ public class TileEntityRespawnChamberCore extends TileEntity implements ITickabl
     @Override
     public void readFromNBT(NBTTagCompound compound) {
         super.readFromNBT(compound);
+
+        if (compound.hasKey("Energy")) {
+            setClientEnergy(compound.getInteger("Energy"));
+        }
 
         if (compound.hasKey("BoundPlayerUUID")) {
             try {
@@ -442,6 +622,7 @@ public class TileEntityRespawnChamberCore extends TileEntity implements ITickabl
         NBTTagCompound tag = super.getUpdateTag();
         tag.setBoolean("StructureValid", structureValid);
         tag.setInteger("StructureTier", structureTier);
+        tag.setInteger("Energy", energy.getEnergyStored());
         if (boundPlayerUUID != null) {
             tag.setString("BoundPlayerName", boundPlayerName);
         }
@@ -453,6 +634,9 @@ public class TileEntityRespawnChamberCore extends TileEntity implements ITickabl
         NBTTagCompound tag = pkt.getNbtCompound();
         structureValid = tag.getBoolean("StructureValid");
         structureTier = tag.getInteger("StructureTier");
+        if (tag.hasKey("Energy")) {
+            setClientEnergy(tag.getInteger("Energy"));
+        }
         if (tag.hasKey("BoundPlayerName")) {
             boundPlayerName = tag.getString("BoundPlayerName");
         } else {

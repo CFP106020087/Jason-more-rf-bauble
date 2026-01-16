@@ -97,6 +97,28 @@ public class BlockRespawnChamberCore extends BlockContainer {
             ));
         }
 
+        // 能量狀態
+        int energyStored = core.getEnergyStored();
+        int energyMax = core.getMaxEnergyStored();
+        int energyPercent = core.getEnergyPercent();
+        TextFormatting energyColor = energyPercent >= 70 ? TextFormatting.GREEN :
+                (energyPercent >= 30 ? TextFormatting.YELLOW : TextFormatting.RED);
+        player.sendMessage(new TextComponentString(
+                TextFormatting.GOLD + "能量: " + energyColor +
+                        String.format("%d/%d RF (%d%%)", energyStored, energyMax, energyPercent)
+        ));
+
+        // 死亡拦截狀態
+        if (core.canInterceptDeath()) {
+            player.sendMessage(new TextComponentString(
+                    TextFormatting.GREEN + "✓ 死亡拦截: " + TextFormatting.WHITE + "已啟用"
+            ));
+        } else {
+            player.sendMessage(new TextComponentString(
+                    TextFormatting.RED + "✗ 死亡拦截: " + TextFormatting.GRAY + "需要70%以上電量"
+            ));
+        }
+
         // 綁定狀態
         if (core.hasBoundPlayer()) {
             player.sendMessage(new TextComponentString(
@@ -116,7 +138,16 @@ public class BlockRespawnChamberCore extends BlockContainer {
                                 world.provider.getDimension())
         ));
 
-        // 使用提示
+        // 功能說明
+        player.sendMessage(new TextComponentString(
+                TextFormatting.DARK_GRAY + "─────────────────────────"
+        ));
+        player.sendMessage(new TextComponentString(
+                TextFormatting.YELLOW + "功能: " + TextFormatting.WHITE + "站在重生倉內可回血"
+        ));
+        player.sendMessage(new TextComponentString(
+                TextFormatting.YELLOW + "      " + TextFormatting.WHITE + "電量≥70%時可拦截死亡"
+        ));
         player.sendMessage(new TextComponentString(
                 TextFormatting.DARK_GRAY + "右鍵核心綁定重生點"
         ));
