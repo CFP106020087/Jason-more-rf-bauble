@@ -37,6 +37,8 @@ public class ItemBatteryQuantum extends ItemBatteryBase {
     private static final int TICKI = 10;           // 每10t执行
     private static final float EFF = 0.90f;        // 跨维效率
 
+    private static final int SELF_CHARGE_RATE = 2000; // 自充电 2000 RF/t
+
     private static final boolean DEBUG = false;
 
     public ItemBatteryQuantum() {
@@ -128,9 +130,16 @@ public class ItemBatteryQuantum extends ItemBatteryBase {
         if (stack.hasTagCompound()) stack.getTagCompound().removeTag("Quantum");
     }
 
-    // ========== 被动逻辑：量子取电/回充 ==========
+    // ========== 被动逻辑：自充电 + 量子取电/回充 ==========
     @Override
     protected void handleBatteryLogic(ItemStack stack, EntityPlayer player) {
+        // 自充电：每 tick 产生 2000 RF
+        IEnergyStorage selfBat = getEnergy(stack);
+        if (selfBat != null && selfBat.canReceive()) {
+            selfBat.receiveEnergy(SELF_CHARGE_RATE, false);
+        }
+
+        // 量子取电逻辑
         if (!hasLink(stack)) return;
         if (player.world.getTotalWorldTime() % TICKI != 0) return;
 
@@ -162,6 +171,11 @@ public class ItemBatteryQuantum extends ItemBatteryBase {
     @SideOnly(Side.CLIENT)
     public void addInformation(ItemStack stack, @Nullable World world, List<String> tip, ITooltipFlag flag) {
         super.addInformation(stack, world, tip, flag);
+
+        // 自充电提示
+        tip.add("");
+        tip.add(TextFormatting.LIGHT_PURPLE + "⚡ 被动自充电: " + TextFormatting.WHITE + SELF_CHARGE_RATE + " RF/t");
+
         if (!hasLink(stack)) {
             tip.add("");
             tip.add(TextFormatting.YELLOW + "Shift + 右键任意 FE 方块以建立量子链接");
