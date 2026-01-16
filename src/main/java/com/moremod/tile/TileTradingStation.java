@@ -8,6 +8,9 @@ package com.moremod.tile;
 
 import com.moremod.item.ItemVillagerCapsule;
 import net.minecraft.block.state.IBlockState;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityList;
+import net.minecraft.entity.IMerchant;
 import net.minecraft.entity.passive.EntityVillager;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -16,6 +19,7 @@ import net.minecraft.network.play.server.SPacketUpdateTileEntity;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.ITickable;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.village.MerchantRecipe;
 import net.minecraft.village.MerchantRecipeList;
 import net.minecraftforge.common.capabilities.Capability;
@@ -30,14 +34,20 @@ import javax.annotation.Nullable;
  * 🏪 村民交易機 TileEntity
  *
  * 功能：
- * - 存儲村民數據和交易列表
+ * - 存儲村民/商人數據和交易列表
  * - 自動化執行交易
  * - 管理能量消耗
  * - 提供物品和能量接口
- * 
+ *
+ * ✅ 支持的商人類型:
+ * - EntityVillager (原版村民)
+ * - EntityWanderingTrader (流浪商人 - Traders mod)
+ * - 任何實現 IMerchant 接口的實體
+ *
  * ✅ 修复内容:
  * - 增加第二个输入槽位,支持双物品交易
  * - 修正交易逻辑,正确处理两个不同的输入物品
+ * - 支持多种商人类型 (不仅仅是村民)
  */
 public class TileTradingStation extends TileEntity implements ITickable {
 
@@ -92,8 +102,9 @@ public class TileTradingStation extends TileEntity implements ITickable {
             0                     // 最大輸出速率(不輸出)
     );
 
-    // ========== 村民數據 ==========
-    private NBTTagCompound villagerData = null;  // 村民完整NBT數據
+    // ========== 商人數據 ==========
+    private NBTTagCompound merchantData = null;  // 商人完整NBT數據
+    private String merchantEntityId = null;      // 商人實體類型ID (用於正確創建實體)
     private int currentTradeIndex = 0;           // 當前選中的交易索引
     private int workTimer = 0;                   // 自動交易計時器
 
@@ -108,7 +119,11 @@ public class TileTradingStation extends TileEntity implements ITickable {
     }
 
     public boolean hasVillager() {
-        return villagerData != null;
+        return merchantData != null;
+    }
+
+    public boolean hasMerchant() {
+        return merchantData != null;
     }
 
     public int getCurrentTradeIndex() {
@@ -152,19 +167,20 @@ public class TileTradingStation extends TileEntity implements ITickable {
     // ========== 村民管理方法 ==========
 
     /**
-     * 從村民膠囊加載村民數據
+     * 從村民膠囊加載商人數據
      * 當槽位0的物品變化時自動調用
      */
     private void loadVillagerFromCapsule() {
         ItemStack capsule = itemHandler.getStackInSlot(0);
 
         if (capsule.isEmpty()) {
-            // 膠囊被移除,清空村民數據
-            if (villagerData != null) {
-                villagerData = null;
+            // 膠囊被移除,清空商人數據
+            if (merchantData != null) {
+                merchantData = null;
+                merchantEntityId = null;
                 currentTradeIndex = 0;
                 syncToClient(); // 同步到客戶端
-                System.out.println("[TileTradingStation] 村民膠囊已移除,數據已清空");
+                System.out.println("[TileTradingStation] 商人膠囊已移除,數據已清空");
             }
             return;
         }
@@ -174,14 +190,17 @@ public class TileTradingStation extends TileEntity implements ITickable {
             return;
         }
 
-        // 讀取村民數據
-        NBTTagCompound newData = ItemVillagerCapsule.getVillagerData(capsule);
+        // 讀取商人數據
+        NBTTagCompound newData = ItemVillagerCapsule.getMerchantData(capsule);
 
         if (newData != null) {
-            villagerData = newData;
+            merchantData = newData;
+            // 讀取實體類型ID
+            merchantEntityId = ItemVillagerCapsule.getStoredEntityId(capsule);
             currentTradeIndex = 0;
             syncToClient(); // 同步到客戶端
-            System.out.println("[TileTradingStation] ✅ 村民數據已加載");
+            System.out.println("[TileTradingStation] ✅ 商人數據已加載");
+            System.out.println("  - 實體類型: " + (merchantEntityId != null ? merchantEntityId : "minecraft:villager"));
         }
     }
 
@@ -191,36 +210,88 @@ public class TileTradingStation extends TileEntity implements ITickable {
      */
     public void setVillager(EntityVillager villager) {
         if (villager != null) {
-            this.villagerData = new NBTTagCompound();
-            villager.writeToNBT(villagerData);
-            this.currentTradeIndex = 0;
-            markDirty();
-            syncToClient();
-            System.out.println("[TileTradingStation] 村民已直接設置");
+            setMerchant(villager);
         }
     }
 
     /**
-     * 從NBT創建臨時村民實體
+     * 設置商人(用於程序直接設置,而非通過膠囊)
+     * @param merchant 商人實體 (必須同時是Entity和IMerchant)
+     */
+    public void setMerchant(Entity merchant) {
+        if (merchant != null && merchant instanceof IMerchant) {
+            this.merchantData = new NBTTagCompound();
+            merchant.writeToNBT(merchantData);
+
+            // 保存實體類型ID
+            ResourceLocation entityId = EntityList.getKey(merchant);
+            this.merchantEntityId = entityId != null ? entityId.toString() : null;
+
+            this.currentTradeIndex = 0;
+            markDirty();
+            syncToClient();
+            System.out.println("[TileTradingStation] 商人已直接設置");
+            System.out.println("  - 實體類型: " + (merchantEntityId != null ? merchantEntityId : "unknown"));
+        }
+    }
+
+    /**
+     * 從NBT創建臨時商人實體
      * 用於讀取交易列表和執行交易驗證
+     * 支持 EntityVillager 和 EntityWanderingTrader 等所有 IMerchant 實現
      *
-     * @return 村民實體,失敗返回null
+     * @return IMerchant實體,失敗返回null
      */
     @Nullable
-    public EntityVillager createVillagerFromNBT() {
-        if (villagerData == null || world == null) {
+    public IMerchant createMerchantFromNBT() {
+        if (merchantData == null || world == null) {
             return null;
         }
 
         try {
-            EntityVillager villager = new EntityVillager(world);
-            villager.readFromNBT(villagerData);
-            return villager;
+            Entity entity = null;
+
+            // 嘗試通過EntityId創建正確類型的實體
+            if (merchantEntityId != null) {
+                ResourceLocation entityId = new ResourceLocation(merchantEntityId);
+                entity = EntityList.createEntityByIDFromName(entityId, world);
+            }
+
+            // 備用：默認創建村民
+            if (entity == null) {
+                entity = new EntityVillager(world);
+            }
+
+            // 從NBT恢復數據
+            entity.readFromNBT(merchantData);
+
+            // 驗證是否實現了IMerchant
+            if (entity instanceof IMerchant) {
+                return (IMerchant) entity;
+            } else {
+                System.err.println("[TileTradingStation] ❌ 實體不是商人: " + entity.getClass().getName());
+                return null;
+            }
+
         } catch (Exception e) {
-            System.err.println("[TileTradingStation] ❌ 創建村民失敗: " + e.getMessage());
+            System.err.println("[TileTradingStation] ❌ 創建商人失敗: " + e.getMessage());
             e.printStackTrace();
             return null;
         }
+    }
+
+    /**
+     * 從NBT創建臨時村民實體 (兼容舊代碼)
+     * @return 村民實體,失敗返回null
+     */
+    @Nullable
+    public EntityVillager createVillagerFromNBT() {
+        IMerchant merchant = createMerchantFromNBT();
+        if (merchant instanceof EntityVillager) {
+            return (EntityVillager) merchant;
+        }
+        // 如果不是村民但是有效商人，仍然可以工作
+        return null;
     }
 
     // ========== 交易管理方法 ==========
@@ -230,18 +301,18 @@ public class TileTradingStation extends TileEntity implements ITickable {
      * 由GUI按鈕觸發
      */
     public void nextTrade() {
-        if (villagerData == null) {
-            System.out.println("[TileTradingStation] ⚠️ 沒有村民數據");
+        if (merchantData == null) {
+            System.out.println("[TileTradingStation] ⚠️ 沒有商人數據");
             return;
         }
 
-        EntityVillager tempVillager = createVillagerFromNBT();
-        if (tempVillager == null) {
-            System.out.println("[TileTradingStation] ⚠️ 無法創建村民實例");
+        IMerchant tempMerchant = createMerchantFromNBT();
+        if (tempMerchant == null) {
+            System.out.println("[TileTradingStation] ⚠️ 無法創建商人實例");
             return;
         }
 
-        MerchantRecipeList recipes = tempVillager.getRecipes(null);
+        MerchantRecipeList recipes = tempMerchant.getRecipes(null);
         if (recipes != null && !recipes.isEmpty()) {
             currentTradeIndex = (currentTradeIndex + 1) % recipes.size();
             markDirty();
@@ -249,7 +320,7 @@ public class TileTradingStation extends TileEntity implements ITickable {
             System.out.println("[TileTradingStation] ➡️ 切換到交易 " +
                     (currentTradeIndex + 1) + "/" + recipes.size());
         } else {
-            System.out.println("[TileTradingStation] ⚠️ 村民沒有交易");
+            System.out.println("[TileTradingStation] ⚠️ 商人沒有交易");
         }
     }
 
@@ -258,18 +329,18 @@ public class TileTradingStation extends TileEntity implements ITickable {
      * 由GUI按鈕觸發
      */
     public void previousTrade() {
-        if (villagerData == null) {
-            System.out.println("[TileTradingStation] ⚠️ 沒有村民數據");
+        if (merchantData == null) {
+            System.out.println("[TileTradingStation] ⚠️ 沒有商人數據");
             return;
         }
 
-        EntityVillager tempVillager = createVillagerFromNBT();
-        if (tempVillager == null) {
-            System.out.println("[TileTradingStation] ⚠️ 無法創建村民實例");
+        IMerchant tempMerchant = createMerchantFromNBT();
+        if (tempMerchant == null) {
+            System.out.println("[TileTradingStation] ⚠️ 無法創建商人實例");
             return;
         }
 
-        MerchantRecipeList recipes = tempVillager.getRecipes(null);
+        MerchantRecipeList recipes = tempMerchant.getRecipes(null);
         if (recipes != null && !recipes.isEmpty()) {
             currentTradeIndex = (currentTradeIndex - 1 + recipes.size()) % recipes.size();
             markDirty();
@@ -277,7 +348,7 @@ public class TileTradingStation extends TileEntity implements ITickable {
             System.out.println("[TileTradingStation] ⬅️ 切換到交易 " +
                     (currentTradeIndex + 1) + "/" + recipes.size());
         } else {
-            System.out.println("[TileTradingStation] ⚠️ 村民沒有交易");
+            System.out.println("[TileTradingStation] ⚠️ 商人沒有交易");
         }
     }
 
@@ -290,10 +361,10 @@ public class TileTradingStation extends TileEntity implements ITickable {
             return;
         }
 
-        EntityVillager tempVillager = createVillagerFromNBT();
-        if (tempVillager == null) return;
+        IMerchant tempMerchant = createMerchantFromNBT();
+        if (tempMerchant == null) return;
 
-        MerchantRecipeList recipes = tempVillager.getRecipes(null);
+        MerchantRecipeList recipes = tempMerchant.getRecipes(null);
         MerchantRecipe recipe = recipes.get(currentTradeIndex);
 
         // ✅ 扣除第一个输入物品 (槽位1)
@@ -332,13 +403,13 @@ public class TileTradingStation extends TileEntity implements ITickable {
      */
     private boolean canTrade() {
         // 基础检查
-        if (villagerData == null) return false;
+        if (merchantData == null) return false;
         if (energyStorage.getEnergyStored() < ENERGY_PER_TRADE) return false;
 
-        EntityVillager tempVillager = createVillagerFromNBT();
-        if (tempVillager == null) return false;
+        IMerchant tempMerchant = createMerchantFromNBT();
+        if (tempMerchant == null) return false;
 
-        MerchantRecipeList recipes = tempVillager.getRecipes(null);
+        MerchantRecipeList recipes = tempMerchant.getRecipes(null);
         if (recipes == null || recipes.isEmpty() || currentTradeIndex >= recipes.size()) {
             return false;
         }
@@ -407,8 +478,11 @@ public class TileTradingStation extends TileEntity implements ITickable {
         nbt.setInteger("TradeIndex", currentTradeIndex);
         nbt.setInteger("Energy", energyStorage.getEnergyStored());
 
-        if (villagerData != null) {
-            nbt.setTag("Villager", villagerData);
+        if (merchantData != null) {
+            nbt.setTag("Merchant", merchantData);
+        }
+        if (merchantEntityId != null) {
+            nbt.setString("MerchantEntityId", merchantEntityId);
         }
 
         return nbt;
@@ -426,10 +500,19 @@ public class TileTradingStation extends TileEntity implements ITickable {
         int energy = nbt.getInteger("Energy");
         energyStorage.receiveEnergy(energy - energyStorage.getEnergyStored(), false);
 
-        if (nbt.hasKey("Villager")) {
-            villagerData = nbt.getCompoundTag("Villager");
+        if (nbt.hasKey("Merchant")) {
+            merchantData = nbt.getCompoundTag("Merchant");
+        } else if (nbt.hasKey("Villager")) {
+            // 兼容舊版
+            merchantData = nbt.getCompoundTag("Villager");
         } else {
-            villagerData = null;
+            merchantData = null;
+        }
+
+        if (nbt.hasKey("MerchantEntityId")) {
+            merchantEntityId = nbt.getString("MerchantEntityId");
+        } else {
+            merchantEntityId = null;
         }
 
         System.out.println("[TileTradingStation CLIENT] 收到同步數據,交易索引: " + currentTradeIndex);
@@ -446,8 +529,11 @@ public class TileTradingStation extends TileEntity implements ITickable {
         compound.setInteger("TradeIndex", currentTradeIndex);
         compound.setInteger("WorkTimer", workTimer);
 
-        if (villagerData != null) {
-            compound.setTag("Villager", villagerData);
+        if (merchantData != null) {
+            compound.setTag("Merchant", merchantData);
+        }
+        if (merchantEntityId != null) {
+            compound.setString("MerchantEntityId", merchantEntityId);
         }
 
         return compound;
@@ -465,8 +551,16 @@ public class TileTradingStation extends TileEntity implements ITickable {
         currentTradeIndex = compound.getInteger("TradeIndex");
         workTimer = compound.getInteger("WorkTimer");
 
-        if (compound.hasKey("Villager")) {
-            villagerData = compound.getCompoundTag("Villager");
+        // 讀取商人數據 (兼容舊版)
+        if (compound.hasKey("Merchant")) {
+            merchantData = compound.getCompoundTag("Merchant");
+        } else if (compound.hasKey("Villager")) {
+            // 兼容舊版
+            merchantData = compound.getCompoundTag("Villager");
+        }
+
+        if (compound.hasKey("MerchantEntityId")) {
+            merchantEntityId = compound.getString("MerchantEntityId");
         }
     }
 
