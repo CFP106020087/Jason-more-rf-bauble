@@ -24,7 +24,7 @@ public class MixinAffixVortex {
             method = "onUpdate",
             at = @At(
                     value = "INVOKE",
-                    target = "Lc4/champions/common.affix/affix/AffixVortex;isValidAffixTarget(Lnet/minecraft/entity/EntityLiving;Lnet/minecraft/entity/EntityLivingBase;Z)Z"
+                    target = "Lc4/champions/common/affix/affix/AffixVortex;isValidAffixTarget(Lnet/minecraft/entity/EntityLiving;Lnet/minecraft/entity/EntityLivingBase;Z)Z"
             ),
             index = 1
     )
