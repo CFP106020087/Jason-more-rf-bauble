@@ -5,6 +5,7 @@
   "refmap": "mixins.moremod.refmap.json",
   "compatibilityLevel": "JAVA_8",
   "mixins": [
+    "MixinEntityPlayer"
   ],
   "client": [
   ],
