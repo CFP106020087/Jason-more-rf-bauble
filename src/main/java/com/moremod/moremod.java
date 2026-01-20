@@ -7,6 +7,7 @@ import com.moremod.capabilities.autoattack.AutoAttackCapabilityHandler;
 import com.moremod.commands.CommandLootDebug;
 import com.moremod.commands.CommandResetEquipTime;
 import com.moremod.commands.CommandHumanity;
+import com.moremod.accessorybox.unlock.commands.UnlockSlotCommand;
 import com.moremod.compat.PotionCoreCompatEnhanced;
 import com.moremod.config.*;
 import com.moremod.dimension.PersonalDimensionManager;
@@ -811,6 +812,7 @@ public class moremod {
         event.registerServerCommand(new CommandLootDebug());
         event.registerServerCommand(new CommandResetEquipTime());
         event.registerServerCommand(new CommandHumanity());
+        event.registerServerCommand(new UnlockSlotCommand());
 
         ModConfig.updateEnergyBalanceConfig();
         System.out.println("[moremod] ✅ 服务器配置已加载");
